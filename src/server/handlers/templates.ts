@@ -1,8 +1,8 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { BodyFile, IndexDoc, Item } from "../../shared/model/data";
-import { bodySize, tagList, templateTitle } from "../../shared/model/validate";
+import { tagList, templateTitle } from "../../shared/model/validate";
 import { atLeast, type AccessLevel } from "../../shared/permissions/levels";
-import { plainTextOf, snippetOf, utf8Length } from "../../shared/text";
+import type { PreparedBody } from "../../shared/body/prepare";
 import { auditEvent, type EventSource } from "../audit/events";
 import {
   optBool,
@@ -13,6 +13,7 @@ import {
 } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
+import { prepareFor, readableBody } from "./body";
 import { commit } from "./commit";
 import {
   findItem,
@@ -28,13 +29,13 @@ export interface ItemView extends Item {
 }
 
 /** Body reference stored in audit events in place of the HTML (ADR-0003 Part D). */
-interface BodyRef {
+export interface BodyRef {
   readonly version: number;
   readonly fileId: string;
   readonly sha256: string;
 }
 
-function templateEvent(
+export function templateEvent(
   source: EventSource,
   index: IndexDoc,
   action: string,
@@ -82,53 +83,76 @@ export function templateGet(context: HandlerContext): {
   return { item, html: body.html };
 }
 
+/**
+ * Current body for apply and preview (level use): sanitized HTML, placeholder names and prompt labels. The stored
+ * body is already sanitized; sanitizing again on read costs one parse and covers bodies stored before slice 3.
+ */
+export function templateGetBody(context: HandlerContext): {
+  id: string;
+  version: number;
+  html: string;
+  placeholders: string[];
+  prompts: string[];
+} {
+  const item = liveItem(context.access().index, reqString(context.args, "id"));
+  const stored = context.services.store().readBody(item.bodyFileId);
+  return {
+    id: item.id,
+    version: item.currentVersion,
+    ...readableBody(context.services.props, stored.html),
+  };
+}
+
 interface Draft {
   readonly title: string;
   readonly tags: string[];
-  readonly html: string;
-  readonly plainText: string;
+  readonly body: PreparedBody;
 }
 
-/** Save step 1: validate and sanitize. The sanitize port is the identity until slice 3. */
+/** Save step 1 (ADR-0004): title and tags, then sanitize and placeholder validation, all before the lock. */
 function readDraft(context: HandlerContext): Draft {
   const title = templateTitle(reqString(context.args, "title"));
   const tags = tagList(optStringArray(context.args, "tags"));
-  const html = context.services.sanitize(optString(context.args, "html"));
-  bodySize(utf8Length(html));
-  return { title, tags, html, plainText: plainTextOf(html) };
+  const body = prepareFor(
+    context.services.props,
+    optString(context.args, "html"),
+  );
+  return { title, tags, body };
 }
 
-/** Save step 2: the immutable version file, written outside the lock. */
-function writeBody(
+/** Save step 2: the immutable version file, written outside the lock. `restoredFrom` is 0 for a plain save. */
+export function writeBody(
   context: HandlerContext,
   itemId: string,
   version: number,
-  draft: Draft,
+  prepared: PreparedBody,
+  restoredFrom = 0,
 ): BodyRef {
-  const sha256 = context.services.sha256(draft.html);
+  const sha256 = context.services.sha256(prepared.html);
   const body: BodyFile = {
     itemId,
     version,
-    html: draft.html,
-    plainText: draft.plainText,
+    html: prepared.html,
+    plainText: prepared.plainText,
     savedAt: nowIso(context.services),
     savedBy: context.caller.email,
     note: "",
-    restoredFrom: 0,
+    restoredFrom,
     sha256,
   };
   return { version, fileId: context.services.store().createBody(body), sha256 };
 }
 
-function bodyFields(draft: Draft, body: BodyRef) {
+/** Item fields that follow the body version (spec 5.3). */
+export function bodyFields(prepared: PreparedBody, body: BodyRef) {
   return {
-    title: draft.title,
-    tags: draft.tags,
     currentVersion: body.version,
     version: body.version,
     bodyFileId: body.fileId,
-    snippet: snippetOf(draft.plainText),
-    sizeBytes: utf8Length(draft.html),
+    snippet: prepared.snippet,
+    placeholders: prepared.placeholders,
+    prompts: prepared.prompts,
+    sizeBytes: prepared.sizeBytes,
   };
 }
 
@@ -137,7 +161,7 @@ export function templateCreate(context: HandlerContext): Item {
   const draft = readDraft(context);
   liveFolder(context.access().index, folderId);
   const id = context.services.newId();
-  const body = writeBody(context, id, 1, draft);
+  const body = writeBody(context, id, 1, draft.body);
   const source = eventSource(context, folderId);
   const now = nowIso(context.services);
   const email = context.caller.email;
@@ -149,15 +173,15 @@ export function templateCreate(context: HandlerContext): Item {
       folderId,
       subject: "",
       status: "published",
-      placeholders: [],
-      prompts: [],
+      title: draft.title,
+      tags: draft.tags,
       createdAt: now,
       createdBy: email,
       updatedAt: now,
       updatedBy: email,
       deletedAt: "",
       deletedBy: "",
-      ...bodyFields(draft, body),
+      ...bodyFields(draft.body, body),
     };
     const doc = { ...current, items: [...current.items, item] };
     return {
@@ -176,7 +200,7 @@ export function templateUpdate(context: HandlerContext): Item {
   const known = liveItem(context.access().index, id);
   checkBaseVersion(known, baseVersion);
   const moveTo = optString(context.args, "folderId");
-  const body = writeBody(context, id, baseVersion + 1, draft);
+  const body = writeBody(context, id, baseVersion + 1, draft.body);
   const source = eventSource(context, moveTo || known.folderId);
   return commit(context, (current) => {
     const before = liveItem(current, id);
@@ -185,7 +209,9 @@ export function templateUpdate(context: HandlerContext): Item {
     liveFolder(current, folderId);
     const after: Item = {
       ...before,
-      ...bodyFields(draft, body),
+      ...bodyFields(draft.body, body),
+      title: draft.title,
+      tags: draft.tags,
       folderId,
       updatedAt: nowIso(context.services),
       updatedBy: context.caller.email,

@@ -76,8 +76,6 @@ export interface Services {
   readonly nowMs: () => number;
   readonly newId: () => string;
   readonly sha256: (text: string) => string;
-  /** Slice 3 replaces the identity default with the htmlparser2 allowlist (ADR-0004). */
-  readonly sanitize: (html: string) => string;
   readonly drive: () => DriveClient;
   readonly store: () => StorePort;
   readonly groups: () => GroupsLookup;

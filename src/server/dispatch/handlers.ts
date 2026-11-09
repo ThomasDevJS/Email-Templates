@@ -8,12 +8,14 @@ import {
   folderRename,
 } from "../handlers/folders";
 import { grantAdd, grantList, grantRemove } from "../handlers/grants";
+import { versionGet, versionList, versionRestore } from "../handlers/history";
 import { me, ping, profileMe } from "../handlers/identity";
 import { spikeS2, spikeS2b } from "../handlers/spikes";
 import {
   templateCreate,
   templateDelete,
   templateGet,
+  templateGetBody,
   templateList,
   templateMove,
   templateRestoreFromTrash,
@@ -31,9 +33,6 @@ export const LATER_SLICE_OPS = [
   "favorite.set",
   "favorite.unset",
   "template.duplicate",
-  "version.list",
-  "version.get",
-  "version.restore",
   "trash.purge",
   "export.folder",
   "export.library",
@@ -80,11 +79,15 @@ export const HANDLERS: HandlerTable = {
   "folder.delete": folderDelete,
   "template.list": templateList,
   "template.get": templateGet,
+  "template.getBody": templateGetBody,
   "template.create": templateCreate,
   "template.update": templateUpdate,
   "template.move": templateMove,
   "template.delete": templateDelete,
   "template.restoreFromTrash": templateRestoreFromTrash,
+  "version.list": versionList,
+  "version.get": versionGet,
+  "version.restore": versionRestore,
   "grant.list": grantList,
   "grant.add": grantAdd,
   "grant.remove": grantRemove,

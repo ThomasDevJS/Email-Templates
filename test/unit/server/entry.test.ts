@@ -284,6 +284,15 @@ describe("web app and add-on entry points", () => {
     });
   });
 
+  it("rpc logs the web app's request ID when it is well formed", () => {
+    rpc("ping", {}, "MW9UU758-QWCE26");
+    expect(lastLog()).toMatchObject({ requestId: "MW9UU758-QWCE26" });
+    rpc("ping", {}, "bad id <x>");
+    expect(lastLog()["requestId"]).not.toBe("bad id <x>");
+    rpc("ping", {}, 7);
+    expect(lastLog()["requestId"]).toMatch(/^uuid-/);
+  });
+
   it("rpc runs a full create through the real runtime services", () => {
     asCaller(OWNER);
     const folder = rpc("folder.create", { name: "Sales" });

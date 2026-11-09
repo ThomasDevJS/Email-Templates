@@ -24,3 +24,18 @@ Needs: the dev deployment after `npm run deploy -- dev`, and a second Migway acc
 9. Second account, same web app, same helper: `call("template.list", {})` returns 0 items; `call("folder.create", { name: "X" })` returns `DENIED`. After 5 min (next `tick`), `index.json` `pendingAudit` holds a `"result":"denied"` event with that account as `actor`.
 10. Editor, Executions: each call above wrote one JSON line with `cache` (`hit`, `miss` or `rebuild`) and no `Hello` text.
 11. Editor, Script Properties: `job:tick:lastOk` is under 10 min old.
+
+## Slice 3
+
+Needs: the dev deployment after `npm run deploy -- dev`, and the second Migway account from slice 2 (not in `ADMIN_EMAILS`, no grant).
+
+1. Open the dev web app URL. The library shows skeleton rows, then the folder tree and "Signed in as <your email>". Press `/`: the search box takes focus.
+2. Create a folder "Smoke 3" with the slice 2 console helper (`call("folder.create", { name: "Smoke 3" })`; folder admin arrives in slice 6). Reload: "Smoke 3" is in the tree. Select it with the arrow keys and Enter: "No templates in Smoke 3." and "+ New template".
+3. "+ New template". Title "Smoke 3 quote", tag "smoke". In the body type "Hi " then `{{`: the placeholder menu opens; pick "Recipient first name". Type ", your price for " then use the toolbar "{{ Placeholder" button, "Ask the user...", label "Product". End with a new line and pick "Sender name" from the menu. "Preview as me" shows your Directory name and "[Product]".
+4. Press Ctrl+S. The button reads "Saving..." and is disabled, then the status reads "Saved as version 1, HH:MM". The problems list shows "Warning: recipient.first_name has no fallback". Select the "Recipient first name" chip, open "{{ Placeholder", "Add fallback...", enter "there", save: "Saved as version 2", no warning.
+5. Bold the "Sender name" chip with Ctrl+B and save (version 3). Drive, `bodies/<id>.v3.json`: `html` holds `<strong>{{sender.name}}</strong>`, `{{recipient.first_name|there}}` and `{{ask:Product}}`; `index.json` item has `placeholders` `["recipient.first_name","sender.name"]`, `prompts` `["Product"]`, a `snippet` and `sizeBytes`.
+6. Conflict: open the same template in a second tab, change a word, save (version 4). In the first tab change a word and save: the dialog "This template changed" names you and version 4, with "Open their version", "Copy my text" and "Cancel". Esc closes it and focus returns to Save. Save again, pick "Open their version": the body shows the second tab's text, "Version 4".
+7. History: "History" lists versions 4 to 1, newest first. Arrow down to version 1, Enter: the preview shows chips. Press R, confirm "Create version 5 from version 1?": status "Restored as version 5."; the list shows "Version 5 ... restored from 1".
+8. Paste into the body a link `javascript:alert(1)` copied from a web page and save: the link mark is gone. Drive body file: no `javascript:`.
+9. Second account, same URL: the library shows no "Smoke 3" folder. Open `<url>#/edit/<template id>`: banner "You don't have access to this template. Ask a folder manager." with "Back to the library".
+10. Editor, Executions: one JSON line per call, `requestId` equals the ID a toast would show (format `XXXXXXXX-XXXXXX`), and no body text, prompt value or token in the log.

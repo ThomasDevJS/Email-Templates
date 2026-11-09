@@ -122,6 +122,16 @@ export default defineConfig(
     },
   },
   {
+    // The browser reaches the server only through google.script.run.rpc (ADR-0003 Part A).
+    files: ["src/web/**/*.ts"],
+    rules: {
+      "no-restricted-imports": restrictedSegments(
+        ["server", "addon"],
+        "Web code calls the server through rpc only.",
+      ),
+    },
+  },
+  {
     files: ["src/server/**/*.ts"],
     rules: {
       "no-restricted-properties": [

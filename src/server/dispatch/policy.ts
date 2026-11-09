@@ -52,6 +52,7 @@ export const POLICY: PolicyTable = {
   search: both("template.read"),
   "search.body": both("template.read"),
   "template.get": both("template.read", itemFolder),
+  "template.getBody": both("template.read", itemFolder),
   "template.apply": both("template.apply", itemFolder),
   "favorite.set": both("favorite", itemFolder),
   "favorite.unset": both("favorite", itemFolder),

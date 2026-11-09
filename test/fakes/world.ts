@@ -42,7 +42,6 @@ export interface World {
   readonly directory: FakeDirectory;
   readonly session: { active: string; effective: string };
   readonly lines: string[];
-  readonly sanitized: string[];
   /** Fresh request stats, as runtime.ts creates per request. */
   as(surface: Surface): Services;
   call(
@@ -73,7 +72,6 @@ export function createWorld(): World {
   const directory = createDirectory();
   const session = { active: OWNER, effective: OWNER };
   const lines: string[] = [];
-  const sanitized: string[] = [];
   let seq = 42;
   const logger = createLogger({
     sink: (line) => lines.push(line),
@@ -100,10 +98,6 @@ export function createWorld(): World {
         return Math.floor(seq / 65536) % n;
       }),
     sha256: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
-    sanitize: (html) => {
-      sanitized.push(html);
-      return html;
-    },
     drive: driveClient,
     store: () => driveStore(driveClient(), requireStoreIds(props)),
     groups: () => groups,
@@ -124,7 +118,6 @@ export function createWorld(): World {
     directory,
     session,
     lines,
-    sanitized,
     as: build,
     call: (caller, op, args = {}, surface = "webapp") =>
       handleRpc(

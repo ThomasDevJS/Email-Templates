@@ -3,22 +3,27 @@
   <head>
     <base target="_top" />
     <meta charset="utf-8" />
+    <title>Migway Templates</title>
     <style>
       /* INLINE:styles */
     </style>
   </head>
   <body>
+    <a class="skip" id="skip" href="#main">Skip to content</a>
     <header class="app-header">
-      <h1>Migway Templates</h1>
-      <p class="signed-in">
+      <span class="brand">Migway Templates</span>
+      <nav class="rail" aria-label="Main">
+        <button type="button" class="nav-link" data-nav="library">
+          Library
+        </button>
+      </nav>
+      <p class="signed-in" id="signed-in">
         Signed in as
         <?= email ?>
       </p>
     </header>
-    <main>
-      <button type="button" id="ping">Ping server</button>
-      <p id="ping-result" role="status" aria-live="polite"></p>
-    </main>
+    <main id="main" tabindex="-1"></main>
+    <div class="toasts" id="toasts"></div>
     <footer class="app-footer">
       Version
       <?= appVersion ?>
