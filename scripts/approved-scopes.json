@@ -1,0 +1,20 @@
+{
+  "source": "docs/spec.md section 9. Change only together with the spec.",
+  "default": [
+    "https://www.googleapis.com/auth/gmail.addons.current.action.compose",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.metadata",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/groups",
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/script.scriptapp"
+  ],
+  "conditional": [
+    "openid",
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/admin.directory.group.member.readonly",
+    "https://www.googleapis.com/auth/directory.readonly"
+  ],
+  "forbidden": ["https://mail.google.com/"]
+}

@@ -1,0 +1,52 @@
+{
+  "timeZone": "America/New_York",
+  "runtimeVersion": "V8",
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.current.action.compose",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.metadata",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/groups",
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/script.scriptapp"
+  ],
+  "urlFetchWhitelist": [
+    "https://script.google.com/macros/s/",
+    "https://script.googleusercontent.com/"
+  ],
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "DOMAIN"
+  },
+  "dependencies": {
+    "enabledAdvancedServices": [
+      { "userSymbol": "Drive", "serviceId": "drive", "version": "v3" },
+      {
+        "userSymbol": "AdminDirectory",
+        "serviceId": "admin",
+        "version": "directory_v1"
+      }
+    ]
+  },
+  "addOns": {
+    "common": {
+      "name": "Migway Templates",
+      "logoUrl": "https://www.gstatic.com/images/icons/material/system/1x/description_black_48dp.png",
+      "homepageTrigger": { "runFunction": "onHomepage", "enabled": true },
+      "universalActions": [
+        { "label": "Open library", "runFunction": "onOpenLibrary" }
+      ],
+      "openLinkUrlPrefixes": ["https://script.google.com/macros/s/"]
+    },
+    "gmail": {
+      "composeTrigger": {
+        "selectActions": [
+          { "text": "Migway Templates", "runFunction": "onComposeOpen" }
+        ],
+        "draftAccess": "METADATA"
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["google-apps-script"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src", "test", "scripts/lib", "vitest.config.ts"]
+}
