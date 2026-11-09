@@ -177,8 +177,8 @@ Web app list and search: one call loads the caller's filtered index (under 1.5 s
 
 - Q14. Apply and denied events may lose up to 5 min on cache eviction (console logs keep them). Recommendation: accept.
 - Q15. Keep all versions in v1. Recommendation: accept, revisit at 50,000 files.
-- Q16. Does the Advanced Drive service accept a `drive.file`-only token for create, update, get media and `appProperties` list? Recommendation: spike S2 tests it; fallback Drive REST through UrlFetch with the same scope.
-- Q17. Spike S2b thresholds: Drive read of 0.85 MB under 2 s and write under 2 s keep option 2. Recommendation: accept these thresholds now, so a failed spike reopens this ADR with numbers.
+- Q16. Resolved 2026-11-09: the Advanced Drive service works on `drive.file` alone (create, update, get media, trash). `alt: media` returns parsed JSON with reordered keys; the adapter re-serializes (docs/spikes/slice-02-s2b.md). `appProperties` list is confirmed at the first version-history use in slice 3.
+- Q17. Resolved 2026-11-09: read 549 to 809 ms, write about 1,130 ms for 821 KB. Option 2 stands.
 - Q18. Prod data in the prod owner's My Drive or in a shared drive? A shared-drive folder created by hand is not visible to `drive.file`. Recommendation: the prod owner's My Drive (dedicated account, Q3); shared drive only if the 2.5b dry run shows the setup function can create its own folder there.
 - Do `google.script.run` payloads above 1 MB fail? Undocumented [R4 S49]. Recommendation: page index responses at 500 items; slice 3 measures.
 

@@ -35,3 +35,19 @@ Date:              Tester:
 p95 of the 5 `1x` runs = the highest value. Keep Drive-only storage if the highest `readMs` and the highest `writeMs` are both under 2,000. Otherwise ADR-0002 reopens with option 1 (Sheets) and its consent cost.
 
 `profile.me` fields filled: name ( ) title ( ) department ( ) phone ( ). A missing title or phone triggers Q9 (`searchDirectoryPeople`).
+
+## Results 2026-11-09 (owner, dev deployment, Advanced Drive service, `drive.file` scope)
+
+| Measure | Run 1 | Run 2 | Threshold |
+|---|---|---|---|
+| Size written | 821,410 bytes (1x) | 821,410 bytes | |
+| create | 1,221 ms | 1,130 ms | |
+| read (`alt: media`) | 549 ms | 809 ms | 2,000 ms, pass |
+| update (whole file) | 1,148 ms | 1,132 ms | 2,000 ms, pass |
+| Read length | | 821,410 | equals written |
+
+Findings:
+- Q16: the Advanced Drive service works on `drive.file` alone for create, update, get media and trash.
+- Q17: thresholds met with margin. Drive-only storage (ADR-0002 option 2) stands.
+- `alt: 'media'` on a JSON file returns the content parsed into an object with keys reordered (`items` first). `mediaToText` re-serializes it. Byte-exact round trips are impossible through this path; JSON-equal round trips are what the store needs. The REST client (`DRIVE_CLIENT=rest`) returns exact text if ever required.
+- Save budget estimate in ADR-0002 (index write about 1 s) matches the measured 1.1 s.

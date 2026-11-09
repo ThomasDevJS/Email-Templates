@@ -56,10 +56,21 @@ export function syntheticIndex(bytes: number): string {
 /** True when both texts parse to equal JSON (key order and whitespace may differ after a Drive read). */
 function sameJson(a: string, b: string): boolean {
   try {
-    return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b));
+    return canonical(JSON.parse(a)) === canonical(JSON.parse(b));
   } catch {
     return false;
   }
+}
+
+/** JSON text with object keys sorted at every level, so key order never matters. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonical(record[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function timed<T>(nowMs: () => number, run: () => T): { value: T; ms: number } {
