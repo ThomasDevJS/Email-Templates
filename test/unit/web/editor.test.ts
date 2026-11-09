@@ -29,7 +29,11 @@ import {
   schema,
   styleProperty,
 } from "../../../src/web/editor/schema";
-import { escapeBraces, serializeDoc } from "../../../src/web/editor/serialize";
+import {
+  backslashProblems,
+  escapeBraces,
+  serializeDoc,
+} from "../../../src/web/editor/serialize";
 import { createEditor, type Editor } from "../../../src/web/editor/setup";
 import { createToolbar } from "../../../src/web/editor/toolbar";
 import { stubLayout } from "./domStubs";
@@ -162,6 +166,32 @@ describe("placeholder atom in the editor", () => {
     });
     expect(ed.html()).toBe("<p>\\{{a}} x</p>");
     expect(escapeBraces("{{{")).toBe("\\{{{");
+  });
+});
+
+describe("PH_BACKSLASH (backslash before a chip)", () => {
+  it("reports the backslash with its body-text position", () => {
+    const ed = open("<p>ab</p><p>x\\</p>");
+    expect(backslashProblems(ed.view.state.doc)).toEqual([]);
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(TextSelection.create(ed.view.state.doc, 7)),
+    );
+    ed.run(
+      insertPlaceholder({ name: "sender.name", label: "", fallback: null }),
+    );
+    expect(ed.html()).toBe("<p>ab</p><p>x\\{{sender.name}}</p>");
+    expect(backslashProblems(ed.view.state.doc)).toEqual([
+      {
+        code: "PH_BACKSLASH",
+        message: "Remove the backslash before the placeholder at character 4",
+        offset: 3,
+      },
+    ]);
+  });
+
+  it("passes backslashes elsewhere", () => {
+    const ed = open("<p>a\\ {{sender.name}} \\{{ {{ask:X}}</p>");
+    expect(backslashProblems(ed.view.state.doc)).toEqual([]);
   });
 });
 

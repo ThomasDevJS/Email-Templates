@@ -1,5 +1,6 @@
 import type { Mark, Node as PMNode } from "prosemirror-model";
 import { escapeAttr, escapeText } from "../../shared/html/escape";
+import type { Problem } from "../../shared/placeholders/validate";
 import {
   TABLE_ATTRS,
   imageAttrs,
@@ -150,4 +151,30 @@ function block(node: PMNode): string {
 
 export function serializeDoc(doc: PMNode): string {
   return blocks(doc);
+}
+
+/**
+ * PH_BACKSLASH: a text node ending in `\` directly before a placeholder would serialize as `\{{...}}`, which reads
+ * back as an escape, not a token. The editor refuses to save that state. Offsets count the body text the way
+ * `scanBody` does (decoded text nodes joined, tokens as written).
+ */
+export function backslashProblems(doc: PMNode): Problem[] {
+  const problems: Problem[] = [];
+  let offset = 0;
+  doc.descendants((node, _pos, parent, index) => {
+    if (node.type.name === "text") {
+      offset += escapeBraces(node.text ?? "").length;
+    } else if (node.type.name === "placeholder") {
+      const before = index > 0 ? parent?.child(index - 1) : undefined;
+      if (before?.isText === true && (before.text ?? "").endsWith("\\"))
+        problems.push({
+          code: "PH_BACKSLASH",
+          message: `Remove the backslash before the placeholder at character ${String(offset)}`,
+          offset: offset - 1,
+        });
+      offset += tokenOf(node.attrs as PlaceholderAttrs).length;
+    }
+    return true;
+  });
+  return problems;
 }

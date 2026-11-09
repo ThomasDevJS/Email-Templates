@@ -34,7 +34,7 @@ Token atomicity in the editor:
 
 ### Grammar
 
-Tokens are recognized only inside one HTML text node, after the sanitizer has decoded entities. A token split across elements (`{{<b>sender</b>.name}}`) is a save error.
+Tokens are recognized only inside one HTML text node, after the sanitizer has decoded entities. A token split across elements (`{{<b>sender</b>.name}}`) is a save error. A `\` typed directly before a placeholder chip would serialize as the escape `\{{`, so the editor refuses to save it with `PH_BACKSLASH` ("Remove the backslash before the placeholder at character N", revision 2026-11-09, slice 3).
 
 EBNF:
 

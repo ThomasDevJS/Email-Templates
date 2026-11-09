@@ -2,6 +2,10 @@
 
 Branch `slice/03-editor`, based on 66c44c2 (orchestrator branch head). 4 commits plus this handoff: b216e75 (shared parser, validator, renderer, sanitizer), 52a733c (server write path and ops), 121470c (web app, editor, harness), f02efe2 (boundary rule, docs). Not merged.
 
+Rebase: rebased onto origin/claude/gracious-franklin-3n8zbq (10 scopes, `mediaToText`, `sameJson`, spike records). No conflicts; base versions kept. After rebase and the PH_BACKSLASH fix, from a clean `npm ci` (559 packages): lint 0, format clean, typecheck 0, 32 test files, 745 tests passed, lines 94.61% (2830/2991), Code.js 226.0 KB, index.html 271.0 KB, scopes:check 10 approved, Lighthouse 100, 100, 100.
+
+PH_BACKSLASH (coordinator request): a `\` directly before a chip no longer saves. `backslashProblems` in src/web/editor/serialize.ts finds it; the editor lists "Error: Remove the backslash before the placeholder at character N" and sends nothing. Code added to `ProblemCode`; one line in ADR-0004 Grammar; 2 tests in test/unit/web/editor.test.ts. The server cannot see this state (stored `\{{` is a valid escape), so the check is editor-side.
+
 ## Done, per acceptance criterion
 
 1. `src/shared/placeholders/`: `grammar.ts` (ADR regex character for character, a test compares `TOKEN_PATTERN.source`), `validate.ts` (all 7 codes plus `PH_NO_FALLBACK` warning, did-you-mean at distance 2 in `distance.ts`), `render.ts` (escaping, newline to `<br>`, prompts filled once by identity, `\{{`, implicit prompts), `registry.ts` (5 names). Tests: 49 grammar cases (6 ADR samples plus 43), every code, escaping, and a property test over 300 seeded random bodies: `renderBody(sanitize(x))` equals `sanitize(x)` when it holds no `{{` (>250 checked).
@@ -51,7 +55,6 @@ Branch `slice/03-editor`, based on 66c44c2 (orchestrator branch head). 4 commits
 
 ## Risks
 
-- A literal backslash typed right before a chip serializes as `\{{...}}`, which reads back as an escape, not a token. Rare; no fix in v1.
 - Sanitizer output is the ADR allowlist; the slice 4 insert spike may trim it. The editor schema is a subset, so trimming the sanitizer can only drop editor features.
 - `Code.js` doubled to 225 KB; parse cost per cold execution is unmeasured.
 - Lighthouse runs on the dev harness page, not the HtmlService page Google serves (Google adds its own wrapper).

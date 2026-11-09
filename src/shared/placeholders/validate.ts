@@ -21,7 +21,9 @@ export type ProblemCode =
   | "PH_LABEL"
   | "PH_FALLBACK_ASK"
   | "PH_ATTR"
-  | "PH_TOO_MANY";
+  | "PH_TOO_MANY"
+  /** Editor only: a `\` typed right before a chip would turn the token into the `\{{` escape. */
+  | "PH_BACKSLASH";
 
 export interface Problem {
   readonly code: ProblemCode;

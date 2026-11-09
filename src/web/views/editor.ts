@@ -5,6 +5,7 @@ import { scanBody } from "../../shared/placeholders/validate";
 import { insertNode, newTable, setLink } from "../editor/commands";
 import { pickerItems } from "../editor/picker";
 import { safeHref, schema } from "../editor/schema";
+import { backslashProblems } from "../editor/serialize";
 import { createEditor, type Editor } from "../editor/setup";
 import { createToolbar } from "../editor/toolbar";
 import { editableFolders } from "../library/model";
@@ -341,6 +342,14 @@ export function editorView(
 
   const save = async () => {
     if (saving || editor === null) return;
+    const blocked = backslashProblems(editor.view.state.doc);
+    if (blocked.length > 0) {
+      showProblems(
+        blocked.map((problem) => ({ kind: "error", message: problem.message })),
+      );
+      status.textContent = "Not saved. Fix the problems listed above.";
+      return;
+    }
     saving = true;
     saveButton.disabled = true;
     saveButton.textContent = "Saving...";

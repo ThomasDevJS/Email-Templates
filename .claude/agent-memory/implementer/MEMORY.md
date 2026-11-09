@@ -60,7 +60,7 @@
 - Server code never nests the script lock; tests assert `lock.nestedAcquisitions === 0`.
 
 ## Open items handed forward
-- Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; backslash before a chip serializes as an escape; google.script.url/history and clipboard unverified in the real iframe.
+- Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; backslash before a chip is refused in the editor (PH_BACKSLASH, editor-side only); google.script.url/history and clipboard unverified in the real iframe.
 - Not verified against Google: Advanced Drive on drive.file, `alt: 'media'` return type, `getActiveUser` in triggers, triggerUid values, 5 MB multipart limit.
 - `membership.refresh` should clear `prof:*` (slice 6). Audit reader dedupe (slice 6). Caches `body`, `fav`, `use`, `ft` (slices 4, 5).
 - Drift check behaviour against real Apps Script reformatting: unverified.
