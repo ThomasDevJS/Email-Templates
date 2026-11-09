@@ -16,7 +16,9 @@
   ],
   "urlFetchWhitelist": [
     "https://script.google.com/macros/s/",
-    "https://script.googleusercontent.com/"
+    "https://script.googleusercontent.com/",
+    "https://www.googleapis.com/drive/v3/",
+    "https://www.googleapis.com/upload/drive/v3/"
   ],
   "webapp": {
     "executeAs": "USER_DEPLOYING",

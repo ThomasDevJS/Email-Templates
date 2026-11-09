@@ -1,32 +1,80 @@
 /**
- * Web app and trigger entry points. They run as the owner (`executeAs: USER_DEPLOYING`).
- * Every op goes through `handleRpc`, which identifies the caller and checks policy before any handler runs.
+ * Web app and trigger entry points. They run as the owner (`executeAs: USER_DEPLOYING`). Every export is in the
+ * ENTRY_POINTS allowlist (src/shared/entryPoints.ts) with its surface and guard:
+ * `doGet` and `rpc` (webapp_rpc) and `doPost` go through `dispatch`; `setup`, `tick`, `refreshMembers` and `daily`
+ * (trigger) refuse to run for anyone but the owner or their own project trigger.
  */
 import { APP_VERSION } from "../shared/buildInfo";
-import { ErrorCode } from "../shared/errors/codes";
+import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { RpcResponse } from "../shared/model/protocol";
+import { loadIndex } from "./cache/indexCache";
 import { handleRpc } from "./dispatch/handle";
+import {
+  OWNER_EMAIL_KEY,
+  refuse,
+  requireDomain,
+  setupAllowed,
+  triggerAllowed,
+  type TriggerEvent,
+} from "./guards";
+import { runDaily } from "./jobs/daily";
+import { runJob } from "./jobs/health";
+import { runSetup, type SetupResult } from "./jobs/setup";
+import { runTick, type TickResult } from "./jobs/tick";
+import { ensureTriggers } from "./jobs/triggers";
+import { refreshSnapshot } from "./membership/snapshot";
 import { CANNOT_IDENTIFY_TITLE, cannotIdentifyPageHtml } from "./pages";
-import { currentCaller, handleDeps, serverLogger } from "./runtime";
+import { createServices, currentCaller } from "./runtime";
+import type { Services } from "./services";
 
 const APP_TITLE = "Migway Templates";
 
-/** Serves the app shell, or the "Cannot identify your account" page when the caller email is blank (ADR-0001). */
+/** First web app request after a deploy reinstalls triggers when `TRIGGERS_VERSION` changed (spec section 16). */
+function maintain(services: Services): void {
+  if ((services.props.getProperty(OWNER_EMAIL_KEY) ?? "") === "") return;
+  try {
+    ensureTriggers(services);
+  } catch (error: unknown) {
+    services.logger.error({
+      surface: services.stats.surface,
+      action: "triggers.ensure",
+      result: "error",
+      error,
+    });
+  }
+}
+
+function identified(email: string, services: Services): boolean {
+  if (email.trim() === "") return false;
+  try {
+    requireDomain(email, services.props);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Serves the app shell, or the "Cannot identify your account" page for a blank or non-domain caller (ADR-0001). */
 export function doGet(): GoogleAppsScript.HTML.HtmlOutput {
+  const services = createServices("webapp");
   const caller = currentCaller();
-  const logger = serverLogger();
-  if (caller.email.trim() === "") {
-    logger.warn({
+  if (!identified(caller.email, services)) {
+    services.logger.warn({
       surface: "webapp",
       action: "web.open",
       result: "denied",
-      errorCode: ErrorCode.AUTH_NO_USER,
+      actor: caller.email,
+      errorCode:
+        caller.email.trim() === ""
+          ? ErrorCode.AUTH_NO_USER
+          : ErrorCode.AUTH_DOMAIN,
     });
     return HtmlService.createHtmlOutput(cannotIdentifyPageHtml()).setTitle(
       CANNOT_IDENTIFY_TITLE,
     );
   }
-  logger.info({
+  maintain(services);
+  services.logger.info({
     surface: "webapp",
     action: "web.open",
     result: "ok",
@@ -55,12 +103,11 @@ function parseJsonBody(
 export function doPost(
   event: GoogleAppsScript.Events.DoPost,
 ): GoogleAppsScript.Content.TextOutput {
-  const response = handleRpc(
-    currentCaller(),
-    parseJsonBody(event),
-    "addon",
-    handleDeps(),
-  );
+  const services = createServices("addon");
+  maintain(services);
+  const response = handleRpc(currentCaller(), parseJsonBody(event), "addon", {
+    services,
+  });
   return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(
     ContentService.MimeType.JSON,
   );
@@ -68,40 +115,70 @@ export function doPost(
 
 /** Web app `google.script.run.rpc(op, args)`. The server assigns the request ID. */
 export function rpc(op: unknown, args: unknown): RpcResponse {
+  const services = createServices("webapp");
+  maintain(services);
   const request = {
     op,
     args,
     requestId: Utilities.getUuid(),
     clientVersion: APP_VERSION,
   };
-  return handleRpc(currentCaller(), request, "webapp", handleDeps());
+  return handleRpc(currentCaller(), request, "webapp", { services });
 }
 
-function logTriggerRun(action: string): void {
-  serverLogger().info({
+function logRefused(services: Services, name: string): never {
+  const error: AppError = refuse(name);
+  services.logger.warn({
     surface: "trigger",
-    action,
-    result: "ok",
-    durationMs: 0,
+    action: name,
+    result: "denied",
+    actor: services.session.activeEmail(),
+    errorCode: toErrorBody(error).code,
   });
+  throw error;
 }
 
-/** Run once per environment from the editor. Slice 2 installs the 3 time-driven triggers here. */
-export function setup(): void {
-  logTriggerRun("setup");
+function guardedJob<T>(
+  name: string,
+  event: TriggerEvent | undefined,
+  work: (services: Services) => T,
+): T {
+  const services = createServices("trigger");
+  if (
+    !triggerAllowed(
+      name,
+      event,
+      services.session,
+      services.props,
+      services.triggers,
+    )
+  )
+    logRefused(services, name);
+  return runJob(services, name, () => work(services));
 }
 
-/** Every 5 min from slice 2: flush apply events, re-put cache chunks. */
-export function tick(): void {
-  logTriggerRun("tick");
+/** Run once per environment from the editor by the owner: data folder, Script Properties, 3 triggers. */
+export function setup(): SetupResult {
+  const services = createServices("trigger");
+  if (!setupAllowed(services.session, services.props))
+    logRefused(services, "setup");
+  return runJob(services, "setup", () => runSetup(services));
 }
 
-/** Every 15 min from slice 2: membership snapshot. */
-export function refreshMembers(): void {
-  logTriggerRun("refreshMembers");
+/** Every 5 min: flush buffered events, early audit roll, cache upkeep. */
+export function tick(event?: TriggerEvent): TickResult {
+  return guardedJob("tick", event, runTick);
 }
 
-/** Daily from slice 2: audit roll, purge, backup, job health. */
-export function daily(): void {
-  logTriggerRun("daily");
+/** Every 15 min: membership snapshot. */
+export function refreshMembers(event?: TriggerEvent): { groups: number } {
+  return guardedJob("refreshMembers", event, (services) => ({
+    groups: Object.keys(refreshSnapshot(services, loadIndex(services)).groups)
+      .length,
+  }));
+}
+
+/** Daily: audit roll, purge, orphans, backup, audit retention. */
+export function daily(event?: TriggerEvent): ReturnType<typeof runDaily> {
+  return guardedJob("daily", event, runDaily);
 }

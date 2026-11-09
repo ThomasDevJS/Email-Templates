@@ -16,6 +16,7 @@ import {
   type RecordedCall,
 } from "../../fakes/output";
 import { FAKE_OAUTH_TOKEN, createScriptApp } from "../../fakes/scriptApp";
+import { createSession, type FakeSession } from "../../fakes/session";
 import { createUrlFetchApp, type FakeUrlFetchApp } from "../../fakes/urlFetch";
 
 const EXEC_URL = "https://script.google.com/macros/s/TEST_DEPLOYMENT/exec";
@@ -28,6 +29,7 @@ const OK_BODY = JSON.stringify({
 
 let fetchApp: FakeUrlFetchApp;
 let calls: RecordedCall[];
+let session: FakeSession;
 
 beforeEach(() => {
   fetchApp = createUrlFetchApp();
@@ -37,6 +39,8 @@ beforeEach(() => {
   vi.stubGlobal("ScriptApp", createScriptApp());
   vi.stubGlobal("Utilities", createUtilities());
   vi.stubGlobal("CardService", cards.service);
+  session = createSession("user@example.com", "user@example.com");
+  vi.stubGlobal("Session", session);
 });
 
 afterEach(() => {
@@ -181,5 +185,27 @@ describe("add-on entry points", () => {
     expect(argsOf("setUrl")).toEqual([EXEC_URL]);
     expect(argsOf("setOpenAs")).toEqual(["OVERLAY"]);
     expect(argsOf("setOnClose")).toEqual(["RELOAD_ADD_ON"]);
+  });
+});
+
+describe("add-on guard (ENTRY_POINTS surface addon)", () => {
+  it.each([
+    ["onComposeOpen", onComposeOpen],
+    ["onHomepage", onHomepage],
+    ["onOpenLibrary", onOpenLibrary],
+    ["onPing", onPing],
+  ] as const)(
+    "%s refuses when it runs as the owner for another caller (google.script.run)",
+    (name, run) => {
+      session.effectiveEmail = "owner@example.com";
+      expect(() => run()).toThrow(`${name} runs only inside the Gmail add-on`);
+      expect(fetchApp.requests).toHaveLength(0);
+    },
+  );
+
+  it("refuses a blank active user", () => {
+    session.activeEmail = "";
+    session.effectiveEmail = "";
+    expect(() => onPing()).toThrow("runs only inside the Gmail add-on");
   });
 });

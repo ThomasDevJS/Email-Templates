@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 /** Minimal HtmlService, ContentService, Utilities and a recording CardService for entry point tests. */
 
 export interface FakeHtmlOutput {
@@ -79,9 +81,36 @@ export function createContentService(): {
   };
 }
 
-export function createUtilities(): { getUuid(): string } {
+export interface FakeBlob {
+  getDataAsString(): string;
+  getBytes(): number[];
+  getContentType(): string;
+  getName(): string;
+}
+
+export function fakeBlob(data: string, contentType = "", name = ""): FakeBlob {
+  return {
+    getDataAsString: () => data,
+    getBytes: () =>
+      [...Buffer.from(data, "utf8")].map((b) => (b > 127 ? b - 256 : b)),
+    getContentType: () => contentType,
+    getName: () => name,
+  };
+}
+
+/** Utilities: UUIDs, blobs and SHA-256 digests as signed bytes, like Apps Script. */
+export function createUtilities() {
   let next = 1;
-  return { getUuid: () => `uuid-${String(next++)}` };
+  return {
+    getUuid: () => `uuid-${String(next++)}`,
+    newBlob: fakeBlob,
+    DigestAlgorithm: { SHA_256: "SHA_256" },
+    Charset: { UTF_8: "UTF_8" },
+    computeDigest: (_algorithm: string, value: string): number[] =>
+      [...createHash("sha256").update(value, "utf8").digest()].map((b) =>
+        b > 127 ? b - 256 : b,
+      ),
+  };
 }
 
 export interface RecordedCall {

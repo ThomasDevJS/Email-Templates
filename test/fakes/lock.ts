@@ -5,6 +5,8 @@
 export class FakeLock {
   private heldHere = false;
   private heldElsewhere = false;
+  /** Times `tryLock` was called while this execution already held the lock. Server code never nests. */
+  nestedAcquisitions = 0;
 
   holdElsewhere(held = true): void {
     this.heldElsewhere = held;
@@ -13,6 +15,7 @@ export class FakeLock {
   tryLock(timeoutMs: number): boolean {
     if (timeoutMs < 0) throw new Error("Invalid timeout");
     if (this.heldElsewhere) return false;
+    if (this.heldHere) this.nestedAcquisitions++;
     this.heldHere = true;
     return true;
   }
