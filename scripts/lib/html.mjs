@@ -35,3 +35,27 @@ export function inlineHtml(template, parts) {
     .replace(SCRIPT_MARKER, () => parts.script)
     .replace(STYLES_MARKER, () => parts.styles);
 }
+
+const SCRIPTLET = /<\?=\s*(\w+)\s*\?>/g;
+/** @type {Readonly<Record<string, string>>} */
+const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
+
+/**
+ * Local preview only (dev harness, Lighthouse): fills `<?= name ?>` scriptlets the way HtmlService would,
+ * escaped, and adds the viewport tag that `doGet` sets with `addMetaTag`.
+ * @param {string} html built index.html
+ * @param {Record<string, string>} values scriptlet values
+ * @returns {string} a page a plain HTTP server can serve
+ */
+export function localPage(html, values) {
+  const filled = html.replace(SCRIPTLET, (_match, name) =>
+    String(values[name] ?? "").replace(
+      /[&<>"]/g,
+      (char) => ESCAPES[char] ?? char,
+    ),
+  );
+  return filled.replace(
+    '<meta charset="utf-8" />',
+    '<meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />',
+  );
+}

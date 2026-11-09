@@ -1,11 +1,10 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Item } from "../../shared/model/data";
-import { scanBody } from "../../shared/placeholders/validate";
 import { reqInt, reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
 import type { BodyRef as StoredBody } from "../storage/port";
-import { prepareFor } from "./body";
+import { prepareFor, readableBody } from "./body";
 import { commit } from "./commit";
 import { liveItem, replaceById } from "./indexOps";
 import { bodyFields, templateEvent, writeBody } from "./templates";
@@ -89,13 +88,14 @@ export function versionGet(context: HandlerContext): {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   const ref = findVersion(context, item, reqInt(context.args, "version"));
   const body = context.services.store().readBody(ref.fileId);
+  const readable = readableBody(context.services.props, body.html);
   return {
     version: body.version,
-    html: body.html,
+    html: readable.html,
     savedAt: body.savedAt,
     savedBy: body.savedBy,
     restoredFrom: body.restoredFrom,
-    prompts: scanBody(body.html).prompts,
+    prompts: readable.prompts,
   };
 }
 

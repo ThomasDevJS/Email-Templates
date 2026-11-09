@@ -3,8 +3,6 @@ import type { BodyFile, IndexDoc, Item } from "../../shared/model/data";
 import { tagList, templateTitle } from "../../shared/model/validate";
 import { atLeast, type AccessLevel } from "../../shared/permissions/levels";
 import type { PreparedBody } from "../../shared/body/prepare";
-import { scanBody } from "../../shared/placeholders/validate";
-import { sanitize } from "../../shared/sanitize/sanitize";
 import { auditEvent, type EventSource } from "../audit/events";
 import {
   optBool,
@@ -15,7 +13,7 @@ import {
 } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
-import { imgHosts, prepareFor } from "./body";
+import { prepareFor, readableBody } from "./body";
 import { commit } from "./commit";
 import {
   findItem,
@@ -98,16 +96,10 @@ export function templateGetBody(context: HandlerContext): {
 } {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   const stored = context.services.store().readBody(item.bodyFileId);
-  const html = sanitize(stored.html, {
-    imgHosts: imgHosts(context.services.props),
-  });
-  const scan = scanBody(html);
   return {
     id: item.id,
     version: item.currentVersion,
-    html,
-    placeholders: scan.placeholders,
-    prompts: scan.prompts,
+    ...readableBody(context.services.props, stored.html),
   };
 }
 

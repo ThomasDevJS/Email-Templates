@@ -113,14 +113,27 @@ export function doPost(
   );
 }
 
-/** Web app `google.script.run.rpc(op, args)`. The server assigns the request ID. */
-export function rpc(op: unknown, args: unknown): RpcResponse {
+/** Client request IDs the server accepts for its log line; anything else gets a server UUID. */
+const CLIENT_REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
+
+/**
+ * Web app `google.script.run.rpc(op, args, requestId)`. The web app sends its own request ID so the error toast
+ * and the server log line show the same value; a missing or malformed ID is replaced by a UUID.
+ */
+export function rpc(
+  op: unknown,
+  args: unknown,
+  requestId?: unknown,
+): RpcResponse {
   const services = createServices("webapp");
   maintain(services);
   const request = {
     op,
     args,
-    requestId: Utilities.getUuid(),
+    requestId:
+      typeof requestId === "string" && CLIENT_REQUEST_ID.test(requestId)
+        ? requestId
+        : Utilities.getUuid(),
     clientVersion: APP_VERSION,
   };
   return handleRpc(currentCaller(), request, "webapp", { services });

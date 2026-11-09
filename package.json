@@ -18,7 +18,9 @@
     "scopes:check": "node scripts/check-scopes.mjs",
     "deploy": "node scripts/deploy.mjs",
     "rollback": "node scripts/rollback.mjs",
-    "setup:check": "node scripts/setup-check.mjs"
+    "setup:check": "node scripts/setup-check.mjs",
+    "dev:web": "node scripts/dev-web.mjs",
+    "lighthouse": "node scripts/lighthouse.mjs"
   },
   "devDependencies": {
     "@google/clasp": "3.4.1",

@@ -16,8 +16,10 @@ export default defineConfig({
         "src/shared/**/*.ts",
         "src/server/**/*.ts",
         "src/addon/**/*.ts",
+        "src/web/**/*.ts",
       ],
       reporter: ["text-summary", "text"],
+      // src/web is reported, not gated, in slice 3.
       thresholds: {
         "src/shared/**": { lines: 90 },
         "src/server/**": { lines: 75 },
