@@ -116,7 +116,7 @@ Official Salesforce Help and developer docs returned HTTP 403 or empty JavaScrip
 | Placeholders | Lightning: Handlebars Merge Language, triple braces, `{{{Recipient.FirstName}}}`, `{{{Sender.Title}}}`. Classic: `{!Contact.FirstName}`. Not interchangeable. Recipient prefix without a matching record throws an error (third-party and community, unverified) | [S42][S43] |
 | Prompted fields | None documented (unverified) | n/a |
 | Visibility filter | "Related Entity Type" limits a template to records of one object | [S44] |
-| Versioning | None found | [S45] |
+| Versioning | None found in 2 searches on 2026-11-09 (unverified) | n/a |
 | Insertion | "Insert, create, or update template" button in the record email composer | [S44] |
 | Attachments | Supported. Files links convert to content asset links on save | [S44] |
 | Pricing (per user per month, annual) | Starter Suite $25, Pro Suite $100, Sales Cloud Core $195, Advanced $395, Max $550. Template availability per edition not shown | [S46] |
@@ -136,7 +136,7 @@ Official Salesforce Help and developer docs returned HTTP 403 or empty JavaScrip
 
 | Tool | Variable form | Prompted field | Fallback | Missing value | Escape |
 |---|---|---|---|---|---|
-| TextExpander | Macros, e.g. `%clipboard` (not read this run) | `%filltext:name=x:default=y%`, `%fillarea%`, `%fillpopup:name=x:a:default=b%`, `%fillpart:name=x:default=no%...%fillpartend%` | `default=` attribute | Field shows default | `%` and `:` banned in names only in script snippets |
+| TextExpander | Macros such as `%clipboard` (unverified, page not read) | `%filltext:name=x:default=y%`, `%fillarea%`, `%fillpopup:name=x:a:default=b%`, `%fillpart:name=x:default=no%...%fillpartend%` | `default=` attribute | Field shows default | `%` and `:` banned in names only in script snippets |
 | Briskine | `{{to.first_name}}`, `{{from.name}}`, `{{account.email}}`, `{{subject}}` | None documented | `{{or}}` helper | Empty string | `\{{` |
 | Gmelius | `{{your.variable}}`, about 12 presets | Custom `{{company.name}}` opens a modal | None documented | Modal asks sender | Not documented |
 | HubSpot | Chip from Personalize menu, syntax hidden | Placeholder token | Per-token default (since 2025-10, unverified) | Blank, or placeholder text sent | Curly brackets break rendering |
@@ -237,7 +237,7 @@ Salesforce (Trailblazer community)
 - [S42] UNH IT KB, Salesforce user record merge fields (third-party, search-result excerpt). https://td.usnh.edu/TDClient/60/Portal/KB/ArticleDet?ID=4284
 - [S43] MassMailer, Salesforce email merge fields guide (vendor, search-result excerpt). https://massmailer.io/glossary/salesforce-email-merge-fields
 - [S44] Practifi help, Creating and using email templates (third-party, search-result excerpt). https://practifisuccess.zendesk.com/hc/en-us/articles/13251383956495-Creating-and-Using-Email-Templates
-- [S45] Salesforce Ben, Complete guide to Lightning email templates (403, not read). https://www.salesforceben.com/your-complete-guide-to-salesforce-lightning-email-templates/
+- [S45] Salesforce Ben, Complete guide to Lightning email templates (HTTP 403, not read, listed for follow-up). https://www.salesforceben.com/your-complete-guide-to-salesforce-lightning-email-templates/
 - [S46] Salesforce Sales Cloud pricing. https://www.salesforce.com/sales/pricing/
 - [S47] G2, TextExpander reviews (403, search-result excerpt). https://www.g2.com/products/textexpander/reviews
 - [S48] Capterra, TextExpander reviews (search-result excerpt). https://www.capterra.com/p/180916/TextExpander/reviews/?page=2

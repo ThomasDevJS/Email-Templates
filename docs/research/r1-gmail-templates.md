@@ -41,7 +41,7 @@ Researcher run R1, Phase 1. All sources read 2026-11-09 unless marked. Public pa
 | Import and export | Comparison page ticks export, import, backup for Gmail. Export format .xml (re-importable) or HTML .zip (view only). Export is whole team or whole "My templates" only. One older note says this "is not supported" in Gmail. Status for Gmail: conflicting, unverified | S19, S25, S20 |
 | Storage | "Encrypted cloud-based database hosted by Amazon Web Services". Local cache stored unencrypted | S9 |
 | Signatures | Personal, team and company-wide signatures in the library. One older page lists Signatures as missing from Gmail. Current product page and store listing include them | S1, S2, S4, S20 |
-| Limits | Items (folders plus templates) per user: Trial 2,500, Business 1,500, Enterprise 7,000. Items per team: 512, Enterprise 1,024. Teams per user: Trial 4, Business 3, Enterprise 6. Team size unlimited. Stated reason: Chrome performance. Max template size not published | S1 |
+| Limits | Items (folders plus templates) per user: Trial 2,500, Business 1,500, Enterprise 7,000. Items per team: 512, Enterprise 1,024. Teams per user: Trial 4, Business 3, Enterprise 6. Team size unlimited. Stated reason: Chrome performance. Plan-to-column mapping read from a flattened table, likely correct. Max template size not published | S1 |
 | Pricing | Free Trial $0 for 60 days, no card. Business $3.00 per user per month billed annually. Enterprise $4.00 per user per month billed annually. Monthly-billing price not shown on page. GetApp lists "from $6 per user per month" (unverified) | S1, S20 |
 | Store stats | Version 1.1.18, updated 2026-09-24, 1,000 users, 4.8 stars from 4 ratings | S4 |
 
@@ -163,5 +163,5 @@ Gmail Layouts complaints:
 - S28 ChainMail blog (2026-04-04): https://chainmail-website.pages.dev/blog/gmail-email-templates-guide.html
 - S29 Google Chrome Enterprise, auto-install apps and extensions: https://support.google.com/chrome/a/answer/6306504?hl=en
 - S30 Chrome Web Store reviews: https://chromewebstore.google.com/detail/shared-email-templates-fo/kkajpjibkjkiminiilbodneoamodbhin/reviews
-- S31 Drag blog, Gmail templates guide (2026): https://www.dragapp.com/blog/email-templates-gmail/
+- S31 Drag blog, Gmail templates guide (2026, search snippet only): https://www.dragapp.com/blog/email-templates-gmail/
 - S32 Google Cloud Community, Gmail Layouts not loading (search snippet only): https://www.googlecloudcommunity.com/gc/Workspace-Q-A/Gmail-Layouts-not-loading-for-users/m-p/738520

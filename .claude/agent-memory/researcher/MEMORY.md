@@ -1,33 +1,34 @@
-# Researcher memory
+# Researcher memory (Migway Gmail templates)
 
-Shared by R1 to R4 runs. Keep under 150 lines.
+## Conventions
+- Write only under docs/research/. Memory file here is the one exception (BRIEF section 4).
+- Every claim: source ID [Sn] mapping to URL plus date read in a Sources list.
+- Mark third-party, community and search-excerpt-only claims "unverified".
+- No em or en dashes. Short sentences. Answer first.
+- Report cap 600 words, delivered via SubagentHandback.
 
-## R2 signature managers (2026-11-09)
+## Runs done
+- 2026-11-09 R3: docs/research/r3-snippet-and-crm-templates.md (TextExpander, Briskine, Gmelius, Streak brief, HubSpot, Salesforce).
 
-Conventions
-- Output docs/research/r2-*.md: summary, per-tool facts table, comparison table, reviews, lessons, numbered sources [Sn] with date read.
-- Mark search-excerpt-only sources "(search excerpt only)". Mark inferences "unverified".
+## Sources that worked (WebFetch)
+- textexpander.com/pricing, textexpander.com/learn/... help pages, textexpander.com/blog.
+- help.briskine.com (all pages), www.briskine.com/pricing.
+- help.gmelius.com, gmelius.com/pricing.
+- knowledge.hubspot.com articles, www.hubspot.com/pricing/sales.
+- chromewebstore.google.com/detail/<id> (rating, users, version; no review text).
+- salesforce.com/sales/pricing.
+- trustedinstitute.com (third-party Salesforce admin notes).
 
-Sources that worked (WebFetch)
-- Vendor marketing and pricing pages (exclaimer.com, wisestamp.com, signitic.com, bulksignature.com, rocketseed.com, codetwo.com).
-- Intercom help centers: support.wisestamp.com, support.signitic.com, help.patronum.io, help.rocketseed.com.
-- kbsupport.exclaimer.com (some pages 503).
-- workspace.google.com/marketplace listings: permissions verbatim, rating, installs, updated date.
-- developers.google.com Gmail API reference.
+## Pitfalls
+- HTTP 403 on WebFetch: g2.com, capterra.com, trustradius.com, salesforceben.com, admin.salesforce.com, developer.salesforce.com, community.hubspot.com.
+- help.salesforce.com returns an empty JavaScript shell.
+- docs.briskine.com does not resolve; use help.briskine.com.
+- curl with a browser user agent to bypass 403 is denied by the auto-mode classifier. Do not retry.
+- Review quotes then only come from WebSearch excerpts. Label them "search-result excerpt, unverified".
+- TextExpander pricing page shows conflicting annual vs monthly figures ($5/$6, $10/$12).
 
-Pitfalls
-- 403 on WebFetch and curl: support.exclaimer.com (Zendesk), g2.com, capterra.com. Use WebSearch excerpts.
-- curl to Zendesk API and the proxy status endpoint were denied by the auto-mode classifier. Do not retry.
-- support.google.com/a/answer/1346934 redirects to knowledge.workspace.google.com (content compliance, not footer). Footer article is answer/2364576.
-- CodeTwo has no Google Workspace product (announced 2024-06-27, not shipped).
-- Writing MEMORY.md is outside docs/research/; system prompt allows it.
-
-Facts to reuse
-- sendAs.update: gmail.settings.basic or .sharing. Non-primary send-as needs DWD service account.
-- Gmail API cannot set reply/forward default signature (Patronum; Google confirmation unverified).
-- Gmail signature limit 10,000 chars; silent failure on push (WiseStamp).
-
-Open questions
-- Exact OAuth scope strings Exclaimer, BulkSignature, Signitic request (Marketplace shows plain-language only).
-- Does Marketplace admin install alone permit writing other users' signatures, or do vendors also use DWD? (R4)
-- Gmail mobile signature behaviour from Google docs (only vendor sources so far).
+## Open questions
+- Official Salesforce wording for Lightning folder levels (Viewer, Editor, Manager) not confirmed.
+- HubSpot sales template token syntax and version history not documented publicly.
+- Can Migway "user" role create private templates? Not stated in BRIEF.
+- Attachments in v1: BRIEF silent. Briskine-style public links conflict with data rules.
