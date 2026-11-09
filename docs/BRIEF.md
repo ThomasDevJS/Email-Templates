@@ -109,7 +109,7 @@ Exit criteria G2: spec and five ADRs present, each open question has a recommend
 - Apps Script project (dev) in the owner's Drive, created with clasp. The default Apps Script-managed GCP project is enough for test deployments.
 - clasp installed and logged in on the owner's machine. `.clasprc.json` never enters the repository.
 - Test deployment of the add-on installed on the owner's account (Apps Script editor, Deploy, Test deployments, Install).
-- Web app deployed as "execute as user accessing", access "anyone in Migway".
+- Web app (server project) deployed as "execute as me", access "anyone in Migway" (follows D8, ADR-0003; changed 2026-11-09). Add-on project test deployment installed separately (ADR-0001 topology 1b, pending Q2).
 - Storage folder in Drive (owner's Drive for dev).
 - A deploy checklist in docs/ops/deploy.md, written by the implementer in the skeleton slice.
 
