@@ -7,3 +7,4 @@ docs/*
 !docs/ops/
 .claude/
 PLAN.md
+test/fixtures/sanitizer/
