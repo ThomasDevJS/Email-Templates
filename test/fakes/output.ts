@@ -120,7 +120,7 @@ export interface RecordedCall {
 
 /**
  * CardService stand-in. Every method call is recorded as `{ method, args }` and returns the same chain,
- * so builder code runs unchanged. `OpenAs` and `OnClose` enum values are their names.
+ * so builder code runs unchanged. Enum values are their names.
  */
 export function createRecordingCardService(): {
   service: object;
@@ -142,6 +142,12 @@ export function createRecordingCardService(): {
   const enums = {
     OpenAs: { OVERLAY: "OVERLAY", FULL_SIZE: "FULL_SIZE" },
     OnClose: { RELOAD_ADD_ON: "RELOAD_ADD_ON", NOTHING: "NOTHING" },
+    ContentType: { MUTABLE_HTML: "MUTABLE_HTML", TEXT: "TEXT" },
+    UpdateDraftBodyType: {
+      IN_PLACE_INSERT: "IN_PLACE_INSERT",
+      INSERT_AT_END: "INSERT_AT_END",
+    },
+    TextButtonStyle: { FILLED: "FILLED", TEXT: "TEXT" },
   };
   return {
     service: Object.assign(Object.create(chain) as object, enums),

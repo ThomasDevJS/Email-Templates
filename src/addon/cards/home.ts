@@ -1,50 +1,66 @@
-import type { RpcResponse } from "../../shared/model/protocol";
+import type { SidebarFolder, SidebarHome } from "../../shared/model/sidebar";
+import { action, type CardSpec, type SectionSpec, type Widget } from "./spec";
 
+/**
+ * Home card (wireframe 01). Slice 5 adds Search, Favorites and Recent sections above Folders; `homeSections`
+ * keeps the order in one list for that.
+ */
 export const HOME_TITLE = "Migway Templates";
-export const SLICE_TEXT = "Migway Templates, slice 1";
-export const PING_FUNCTION = "onPing";
+export const HOME_CARD = "home";
 
-/** Slice 1 card: one line of text and a Ping button that calls the server through the add-on client. */
-export function buildHomeCard(): GoogleAppsScript.Card_Service.Card {
-  const ping = CardService.newTextButton()
-    .setText("Ping")
-    .setOnClickAction(CardService.newAction().setFunctionName(PING_FUNCTION));
-  const diag = CardService.newTextButton()
-    .setText("Diag")
-    .setOnClickAction(CardService.newAction().setFunctionName("onDiag"));
-  const section = CardService.newCardSection()
-    .addWidget(CardService.newTextParagraph().setText(SLICE_TEXT))
-    .addWidget(ping)
-    .addWidget(diag);
-  return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle(HOME_TITLE))
-    .addSection(section)
-    .build();
+export function folderItem(folder: SidebarFolder): Widget {
+  return {
+    kind: "item",
+    text: `${folder.name} (${String(folder.count)})`,
+    onClick: action("onOpenFolder", { folderId: folder.id, page: "1" }),
+  };
 }
 
-function callerOf(data: unknown): string {
-  if (typeof data !== "object" || data === null) return "unknown";
-  const caller = (data as Record<string, unknown>)["caller"];
-  return typeof caller === "string" && caller !== "" ? caller : "unknown";
+export const openLibraryButton = {
+  kind: "buttons",
+  buttons: [{ text: "Open library", action: action("onOpenLink") }],
+} as const satisfies Widget;
+
+/** Wireframe 07 A. */
+function emptySection(): SectionSpec {
+  return {
+    widgets: [
+      { kind: "text", text: "No templates shared with you yet." },
+      {
+        kind: "text",
+        text: "Your private folder is ready: open the library to create one.",
+      },
+      openLibraryButton,
+    ],
+  };
 }
 
-/** Notification text for a ping result. Shows the caller the server identified (spike S2 evidence). */
-export function pingMessage(response: RpcResponse): string {
-  if (!response.ok)
-    return `Ping failed: ${response.error.code}. ${response.error.message}`;
-  const ms = String(response.durationMs);
-  return `Ping ok: server ${response.serverVersion} sees ${callerOf(response.data)} (${ms} ms)`;
+/** TEMPORARY (spike S4): admin-only entry to the insert fixtures. */
+function spikeSection(): SectionSpec {
+  return {
+    header: "Spike S4 (temporary, admins)",
+    widgets: [
+      {
+        kind: "buttons",
+        buttons: [
+          { text: "Insert test fixtures", action: action("onSpikeCard") },
+        ],
+      },
+    ],
+  };
 }
 
-/** Diagnostic card: one paragraph per probe line. */
-export function buildDiagCard(
-  lines: readonly string[],
-): GoogleAppsScript.Card_Service.Card {
-  const section = CardService.newCardSection();
-  for (const line of lines)
-    section.addWidget(CardService.newTextParagraph().setText(line));
-  return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle("Diag"))
-    .addSection(section)
-    .build();
+function homeSections(view: SidebarHome): SectionSpec[] {
+  const empty = view.folders.length === 0 && view.templates.length === 0;
+  const sections: SectionSpec[] = empty
+    ? [emptySection()]
+    : [
+        { header: "Folders", widgets: view.folders.map(folderItem) },
+        { widgets: [openLibraryButton] },
+      ];
+  return view.isAdmin ? [...sections, spikeSection()] : sections;
+}
+
+export function homeCard(view: SidebarHome): CardSpec {
+  return { name: HOME_CARD, title: HOME_TITLE, sections: homeSections(view) };
 }
