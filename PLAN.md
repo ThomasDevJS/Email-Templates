@@ -15,7 +15,7 @@ Owner: thomas@migway.com. Orchestrator keeps this file current. Brief: docs/BRIE
 
 ## Next action
 
-Owner reads docs/spec.md and docs/adr/0001 to 0005, approves or edits, and answers D15 to D20 (spec.md section 15 has the same list as Q1 to Q15 with a recommendation each). D7 facts still wanted. On approval: ADR status to Accepted, Phase 2.5a checklist to the owner, slice 1 (skeleton) launched.
+Owner delegated G2 approval (2026-11-09): orchestrator self-audits the revised spec and ADRs against docs/BRIEF.md, sets ADR status Accepted, launches slice 1. Owner is contacted next when something is ready to test (2.5a checklist after slice 1 PASS). D7 facts still wanted.
 
 ## Open decisions
 
@@ -36,11 +36,11 @@ Owner reads docs/spec.md and docs/adr/0001 to 0005, approves or edits, and answe
 | D13 | Pilot path before admin install | 2 to 3 colleagues as script editors on the test deployment | owner 2026-11-09: accepted |
 | D14 | Storage backend choice | Architect in ADR-0002, Cache in front | owner 2026-11-09: accepted |
 | D15 | Two Apps Script projects (addon, server) instead of one (BRIEF A2), spec Q2 | One project (BRIEF A2 stands). Two identities inside it: add-on as user, web app deployment as owner. Consent list minimized, Drive-only storage preferred | owner 2026-11-09: one project |
-| D16 | Prod server owner identity, spec Q3 | Existing licensed shared mailbox if one exists, else owner account plus handover runbook | open, owner input required |
-| D17 | OU grants stored but inactive in v1, spec Q4 | Accept. Mirror OUs as groups where needed until the Directory resolver is active | open, recommended accept |
-| D18 | Admins can see private folders, spec Q5 | Yes, disclosed in the quick start | open, recommended accept |
-| D19 | Spike S2 fallbacks, spec Q6 to Q8 | Pre-approve Q7 (id_token switch) and Q8 (share server project as Viewer). Q6 (drive.readonly versus third project) only if the spike fails, owner decides then | open, recommended |
-| D20 | Operational defaults, spec Q9 to Q15 | Accept all: searchDirectoryPeople fallback, 24-month audit, no external first names, any https image host, apply events may lose 5 min, keep all versions | open, recommended accept |
+| D16 | Prod server owner identity, spec Q3 | Owner account plus handover runbook. Switch to a shared mailbox if one exists before 2.5b | owner 2026-11-09: delegated default |
+| D17 | OU grants stored but inactive in v1, spec Q4 | Accept. Mirror OUs as groups where needed until the Directory resolver is active | owner 2026-11-09: delegated, accepted |
+| D18 | Admins can see private folders, spec Q5 | Yes, disclosed in the quick start | owner 2026-11-09: delegated, accepted |
+| D19 | Spike S2 fallbacks, spec Q6 to Q8 | Q7 and Q8 pre-approved. Q6 only if the spike fails, owner decides then | owner 2026-11-09: delegated, accepted |
+| D20 | Operational defaults, spec Q9 to Q15 | Accept all: searchDirectoryPeople fallback, 24-month audit, no external first names, any https image host, apply events may lose 5 min, keep all versions | owner 2026-11-09: delegated, accepted |
 
 ## Slices (Phase 3)
 
@@ -61,3 +61,4 @@ Owner reads docs/spec.md and docs/adr/0001 to 0005, approves or edits, and answe
 - 2026-11-09 G1: owner approved v1 feature set (summary.md section 2) and recommendations D4, D8 to D14. D7 facts pending. Phase 2 launched.
 - 2026-11-09 Phase 2: architect wrote spec, 5 ADRs, 7 wireframes (about 16 min). Orchestrator review passed. BRIEF 2.5a corrected to execute as me. G2 awaits owner.
 - 2026-11-09 Owner: one Apps Script project (D15), near-zero maintenance as a design goal. Architect revision launched.
+- 2026-11-09 Owner delegated G2 approval to the orchestrator after a self-audit, and asked to be told when testing is possible. D16 to D20 take the recommended values.
