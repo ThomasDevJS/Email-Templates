@@ -13,7 +13,7 @@ All commands run on the owner's machine from the repository root. The cloud sess
 5. Commit `deploy/dev.json`, then `npm run deploy -- dev`. Mode `head` builds, runs the drift check and pushes. No version is created.
 6. Create the web app deployment in the editor (`npx clasp open-script`): Deploy, New deployment, type Web app, Execute as: Me, Who has access: Anyone within Migway. Copy into `deploy/dev.json`:
    - `deploymentId`: the deployment ID shown after Deploy.
-   - `execUrl`: in mode `head`, the `/dev` URL from Deploy, Test deployments, Web app. In mode `version`, the `/exec` URL of the new deployment.
+   - `execUrl`: in mode `head`, the `/dev` URL from Deploy, Test deployments, Web app. In mode `version`, the `/exec` URL of the new deployment. Use the Workspace form `https://script.google.com/a/macros/migway.com/s/<deploymentId>/dev` (or `/exec`). A POST with a Workspace token to the plain `/macros/s/` form returns HTTP 404 (observed 2026-11-09).
 7. Commit `deploy/dev.json`, then `npm run deploy -- dev` again, so the add-on bundle carries `execUrl`.
 8. In the editor, select function `setup` and click Run once. Accept the consent screen (10 scopes, spec section 9). The execution log shows one JSON line with `"action":"setup"`.
 9. Install the add-on test deployment: Deploy, Test deployments, Application: Google Workspace Add-on, Install.

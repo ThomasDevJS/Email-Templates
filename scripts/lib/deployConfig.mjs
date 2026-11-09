@@ -2,7 +2,12 @@
 
 export const ENVIRONMENTS = Object.freeze(["dev", "prod"]);
 export const MODES = Object.freeze(["head", "version"]);
-const EXEC_URL_PREFIX = "https://script.google.com/macros/s/";
+// Plain form, and the Workspace form Google redirects domain accounts to. A POST with a Workspace
+// token to the plain form returns 404 (observed 2026-11-09), so deploy configs use the /a/macros form.
+const EXEC_URL_PREFIXES = Object.freeze([
+  "https://script.google.com/macros/s/",
+  "https://script.google.com/a/macros/",
+]);
 
 /**
  * @typedef {{ scriptId: string, deploymentId: string, execUrl: string, mode: "head" | "version" }} DeployConfig
@@ -44,9 +49,9 @@ export function parseDeployConfig(raw) {
   if (mode !== "head" && mode !== "version")
     throw new Error(`deploy config "mode" must be one of ${MODES.join(", ")}.`);
   const execUrl = stringField(record, "execUrl");
-  if (execUrl !== "" && !execUrl.startsWith(EXEC_URL_PREFIX)) {
+  if (execUrl !== "" && !EXEC_URL_PREFIXES.some((p) => execUrl.startsWith(p))) {
     throw new Error(
-      `deploy config "execUrl" must start with ${EXEC_URL_PREFIX}.`,
+      `deploy config "execUrl" must start with ${EXEC_URL_PREFIXES.join(" or ")}.`,
     );
   }
   return {

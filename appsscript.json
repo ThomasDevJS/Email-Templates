@@ -16,6 +16,7 @@
   ],
   "urlFetchWhitelist": [
     "https://script.google.com/macros/s/",
+    "https://script.google.com/a/macros/",
     "https://script.googleusercontent.com/",
     "https://oauth2.googleapis.com/"
   ],
@@ -51,7 +52,10 @@
           "runFunction": "onOpenLibrary"
         }
       ],
-      "openLinkUrlPrefixes": ["https://script.google.com/macros/s/"]
+      "openLinkUrlPrefixes": [
+        "https://script.google.com/macros/s/",
+        "https://script.google.com/a/macros/"
+      ]
     },
     "gmail": {
       "composeTrigger": {
