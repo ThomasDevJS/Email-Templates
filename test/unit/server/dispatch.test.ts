@@ -282,3 +282,73 @@ describe("policy table completeness (ADR-0003 Part C)", () => {
     },
   );
 });
+
+/** Required level per op, copied from spec section 6 (`none` = any identified caller). */
+const SPEC_LEVELS: Readonly<Record<string, string>> = {
+  "sidebar.home": "use",
+  "folder.list": "use",
+  "template.list": "use",
+  search: "use",
+  "search.body": "use",
+  "template.get": "use",
+  "template.apply": "use",
+  "favorite.set": "use",
+  "favorite.unset": "use",
+  "template.create": "edit",
+  "template.update": "edit",
+  "template.duplicate": "edit",
+  "template.delete": "edit",
+  "template.restoreFromTrash": "edit",
+  "template.move": "edit",
+  "version.list": "edit",
+  "version.get": "edit",
+  "version.restore": "edit",
+  "folder.rename": "manage",
+  "folder.move": "manage",
+  "folder.delete": "manage",
+  "trash.purge": "admin",
+  "grant.list": "manage",
+  "grant.add": "manage",
+  "grant.remove": "manage",
+  "export.folder": "manage",
+  "export.library": "admin",
+  import: "admin",
+  "audit.query": "admin",
+  "usage.report": "admin",
+  "membership.refresh": "admin",
+  "config.get": "admin",
+  "backup.list": "admin",
+  "backup.restore": "admin",
+  me: "none",
+  ping: "none",
+  "profile.me": "none",
+  "spike.s2": "admin",
+  "spike.s2b": "admin",
+};
+
+function levelOfRow(op: string, args: unknown): string {
+  const row = POLICY[op];
+  if (row === undefined) return "missing";
+  const action =
+    typeof row.action === "function" ? row.action(args) : row.action;
+  if (action === ANY_CALLER) return "none";
+  const need = ROLE_MATRIX[action];
+  return need.kind === "level" ? need.level : need.kind;
+}
+
+describe("policy levels match spec section 6", () => {
+  it.each(Object.entries(SPEC_LEVELS))("%s needs %s", (op, level) => {
+    expect(levelOfRow(op, {})).toBe(level);
+  });
+
+  it("folder.create needs manage on the parent for a sub-folder and admin at the top level", () => {
+    expect(levelOfRow("folder.create", { parentId: "P" })).toBe("manage");
+    expect(levelOfRow("folder.create", {})).toBe("admin");
+  });
+
+  it("covers every policy row", () => {
+    expect([...Object.keys(SPEC_LEVELS), "folder.create"].sort()).toEqual(
+      Object.keys(POLICY).sort(),
+    );
+  });
+});

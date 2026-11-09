@@ -164,6 +164,47 @@ describe("refresh job and admin determination", () => {
     expect(readSnapshot(world.services)).toEqual(snapshot);
   });
 
+  it("keeps a group granted while a refresh run was reading GroupsApp", () => {
+    const stale = loadIndex(world.services);
+    const folder = world.ok<{ id: string }>(OWNER, "folder.create", {
+      name: "Sales",
+    });
+    world.ok(OWNER, "grant.add", {
+      folderId: folder.id,
+      principalType: "group",
+      principalKey: "sales@example.com",
+      level: "use",
+    });
+    expect(
+      readSnapshot(world.services).groups["sales@example.com"]?.members,
+    ).toEqual([ANA]);
+    const snapshot = refreshSnapshot(world.services, stale);
+    expect(Object.keys(snapshot.groups).sort()).toEqual([
+      "admins@example.com",
+      "sales@example.com",
+    ]);
+    expect(
+      world.services.store().readSide("members").groups["sales@example.com"]
+        ?.members,
+    ).toEqual([ANA]);
+  });
+
+  it("merges a new grant group into the latest members.json, not an older copy", () => {
+    refreshSnapshot(world.services, loadIndex(world.services));
+    const folder = world.ok<{ id: string }>(OWNER, "folder.create", {
+      name: "Sales",
+    });
+    world.ok(OWNER, "grant.add", {
+      folderId: folder.id,
+      principalType: "group",
+      principalKey: "sales@example.com",
+      level: "use",
+    });
+    expect(
+      Object.keys(world.services.store().readSide("members").groups).sort(),
+    ).toEqual(["admins@example.com", "sales@example.com"]);
+  });
+
   it("reads the snapshot from members.json when the gm cache is gone, without GroupsApp", () => {
     refreshSnapshot(world.services, loadIndex(world.services));
     world.cache.removeAll(["gm:meta"]);

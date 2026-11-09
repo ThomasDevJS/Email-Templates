@@ -133,6 +133,15 @@ describe("spike ops (admin only)", () => {
     });
   });
 
+  it("spike.s2b trashes its temp file when the rewrite fails", () => {
+    world.drive.failNext("update", new Error("write refused"));
+    expect(world.call(OWNER, "spike.s2b")).toMatchObject({
+      ok: false,
+      error: { code: "INTERNAL" },
+    });
+    expect(world.drive.byName("spike-s2b.json")[0]?.trashed).toBe(true);
+  });
+
   it("builds synthetic indexes near the ADR-0002 sizes", () => {
     const small = Buffer.byteLength(syntheticIndex(S2B_SIZES["1x"]));
     expect(small).toBeGreaterThan(0.8e6);

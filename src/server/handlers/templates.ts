@@ -13,7 +13,7 @@ import {
 } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
-import { mutateIndex } from "../storage/writer";
+import { commit } from "./commit";
 import {
   findItem,
   folderPath,
@@ -141,7 +141,7 @@ export function templateCreate(context: HandlerContext): Item {
   const source = eventSource(context, folderId);
   const now = nowIso(context.services);
   const email = context.caller.email;
-  return mutateIndex(context.services, (current) => {
+  return commit(context, (current) => {
     liveFolder(current, folderId);
     const item: Item = {
       id,
@@ -175,12 +175,13 @@ export function templateUpdate(context: HandlerContext): Item {
   const draft = readDraft(context);
   const known = liveItem(context.access().index, id);
   checkBaseVersion(known, baseVersion);
-  const folderId = optString(context.args, "folderId") || known.folderId;
+  const moveTo = optString(context.args, "folderId");
   const body = writeBody(context, id, baseVersion + 1, draft);
-  const source = eventSource(context, folderId);
-  return mutateIndex(context.services, (current) => {
+  const source = eventSource(context, moveTo || known.folderId);
+  return commit(context, (current) => {
     const before = liveItem(current, id);
     checkBaseVersion(before, baseVersion);
+    const folderId = moveTo || before.folderId;
     liveFolder(current, folderId);
     const after: Item = {
       ...before,
@@ -212,7 +213,7 @@ function changeItem(
     context,
     findItem(context.access().index, id).folderId,
   );
-  return mutateIndex(context.services, (current) => {
+  return commit(context, (current) => {
     const before = findItem(current, id);
     checkBaseVersion(before, baseVersion);
     const after: Item = {

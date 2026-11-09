@@ -2,6 +2,7 @@ import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type {
   Grant,
   IndexDoc,
+  MembersDoc,
   Level,
   PrincipalType,
 } from "../../shared/model/data";
@@ -10,9 +11,9 @@ import { isLevel } from "../../shared/permissions/levels";
 import { auditEvent, type EventSource } from "../audit/events";
 import { reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
-import { refreshGroup } from "../membership/snapshot";
+import { mergeGroup, readGroupNow } from "../membership/snapshot";
 import { nowIso } from "../services";
-import { mutateIndex } from "../storage/writer";
+import { commit } from "./commit";
 import {
   chainOf,
   findGrant,
@@ -103,18 +104,22 @@ function checkShareable(index: IndexDoc, folderId: string): void {
     throw validation("Private folders cannot be shared");
 }
 
-/** Group principals are checked through the resolver and added to the snapshot before the grant commits. */
-function checkGroup(
+/**
+ * Group principals are read through the resolver before the grant commits (unknown group: VALIDATION). After the
+ * commit the read is merged into the snapshot, so the next request sees the members without waiting for the trigger.
+ */
+function readGroup(
   context: HandlerContext,
   type: PrincipalType,
   key: string,
-): void {
-  if (type !== "group") return;
-  const snapshot = refreshGroup(context.services, key);
-  if (snapshot.groups[key]?.status !== "ok")
+): MembersDoc | null {
+  if (type !== "group") return null;
+  const fresh = readGroupNow(context.services, key);
+  if (fresh.groups[key]?.status !== "ok")
     throw validation(
       `Group ${key} was not found or its members are not visible`,
     );
+  return fresh;
 }
 
 /** Adds a grant, or changes the level of the existing grant for the same principal on the folder. */
@@ -124,9 +129,9 @@ export function grantAdd(context: HandlerContext): Grant {
   const key = principalKeyFor(type, reqString(context.args, "principalKey"));
   const level = grantLevel(reqString(context.args, "level"));
   checkShareable(context.access().index, folderId);
-  checkGroup(context, type, key);
+  const fresh = readGroup(context, type, key);
   const source = eventSource(context, folderId);
-  return mutateIndex(context.services, (current) => {
+  const added = commit(context, (current) => {
     checkShareable(current, folderId);
     const existing = current.grants.find(
       (grant) =>
@@ -158,6 +163,8 @@ export function grantAdd(context: HandlerContext): Grant {
       result: after,
     };
   });
+  if (fresh !== null) mergeGroup(context.services, fresh);
+  return added;
 }
 
 export function grantRemove(context: HandlerContext): { removed: string } {
@@ -166,7 +173,7 @@ export function grantRemove(context: HandlerContext): { removed: string } {
     context,
     findGrant(context.access().index, grantId).folderId,
   );
-  return mutateIndex(context.services, (current) => {
+  return commit(context, (current) => {
     const before = findGrant(current, grantId);
     const doc = {
       ...current,

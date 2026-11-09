@@ -71,20 +71,23 @@ export function spikeS2b(
   const created = timed(now, () =>
     drive.createFile({ name: "spike-s2b.json", parentId, text }),
   );
-  const read = timed(now, () => drive.readText(created.value));
-  const written = timed(now, () => {
-    drive.updateFile(created.value, text);
-  });
-  drive.trash(created.value);
-  return {
-    size,
-    bytes: utf8Length(text),
-    roundTripOk: read.value === text,
-    createMs: created.ms,
-    readMs: read.ms,
-    writeMs: written.ms,
-    thresholdMs: S2B_THRESHOLD_MS,
-    readPass: read.ms < S2B_THRESHOLD_MS,
-    writePass: written.ms < S2B_THRESHOLD_MS,
-  };
+  try {
+    const read = timed(now, () => drive.readText(created.value));
+    const written = timed(now, () => {
+      drive.updateFile(created.value, text);
+    });
+    return {
+      size,
+      bytes: utf8Length(text),
+      roundTripOk: read.value === text,
+      createMs: created.ms,
+      readMs: read.ms,
+      writeMs: written.ms,
+      thresholdMs: S2B_THRESHOLD_MS,
+      readPass: read.ms < S2B_THRESHOLD_MS,
+      writePass: written.ms < S2B_THRESHOLD_MS,
+    };
+  } finally {
+    drive.trash(created.value);
+  }
 }

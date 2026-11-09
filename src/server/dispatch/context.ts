@@ -27,31 +27,40 @@ export interface HandlerContext {
   readonly surface: Surface;
   readonly requestId: string;
   readonly services: Services;
-  /** Loaded on first use and memoized; ops open to any caller never pay for it. */
+  /** Principals and admin flag from the membership snapshot; loaded on first use, memoized. */
+  readonly subject: () => Subject;
+  /** Subject plus the loaded index; loaded on first use and memoized. Ops open to any caller never pay for it. */
   readonly access: () => Access;
+  /**
+   * Re-runs this op's authorization on the index read inside the script lock. Throws CONFLICT when a target
+   * folder changed since the pre-lock check (concurrent move) and DENIED when the caller lost the level.
+   */
+  readonly recheck: (index: IndexDoc) => void;
 }
 
 export type Handler = (context: HandlerContext) => unknown;
 export type HandlerTable = Readonly<Record<string, Handler>>;
 
-export function accessFor(services: Services, caller: Caller): Access {
-  const index = loadIndex(services);
-  const subject = subjectFor(
-    caller.email,
-    readSnapshot(services),
-    services.props,
-  );
-  return { subject, index, levelOf: levelResolver(subject, index) };
-}
-
 export function createContext(
-  request: Omit<HandlerContext, "access">,
+  request: Omit<HandlerContext, "access" | "subject">,
 ): HandlerContext {
+  const { services, caller } = request;
+  let subject: Subject | undefined;
   let access: Access | undefined;
-  return {
-    ...request,
-    access: () => (access ??= accessFor(request.services, request.caller)),
+  const subjectOf = (): Subject =>
+    (subject ??= subjectFor(
+      caller.email,
+      readSnapshot(services),
+      services.props,
+    ));
+  const accessOf = (): Access => {
+    if (access !== undefined) return access;
+    const index = loadIndex(services);
+    const who = subjectOf();
+    access = { subject: who, index, levelOf: levelResolver(who, index) };
+    return access;
   };
+  return { ...request, subject: subjectOf, access: accessOf };
 }
 
 /** Audit source of this request. `actorRoles` is `admin` or the caller's level on `folderId`. */

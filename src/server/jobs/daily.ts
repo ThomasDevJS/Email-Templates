@@ -59,22 +59,28 @@ function purgeEvents(
   ];
 }
 
-/** Items and folders soft-deleted over 30 days ago leave the index; their body files go to the Drive trash first. */
+/**
+ * Items and folders soft-deleted over 30 days ago leave the index in one committed write; only then do their body
+ * files go to the Drive trash. An item restored before the commit keeps its files; files left by a crash after the
+ * commit belong to no item and the orphan cleanup trashes them.
+ */
 export function purgeTrash(services: Services): number {
   const cutoff = services.nowMs() - TRASH_DAYS * DAY_MS;
-  const store = services.store();
-  const index = loadIndex(services);
-  const doomed = index.items.filter((item) => expired(item.deletedAt, cutoff));
-  for (const item of doomed)
-    for (const body of store.listBodies(item.id)) store.trash(body.fileId);
-  if (purgeEvents(systemSource(services), index, cutoff).length === 0) return 0;
-  return mutateIndex(services, (current) => {
+  if (
+    purgeEvents(systemSource(services), loadIndex(services), cutoff).length ===
+    0
+  )
+    return 0;
+  const purged = mutateIndex(services, (current) => {
     const events = purgeEvents(systemSource(services), current, cutoff);
     const goneFolders = new Set(
       current.folders
         .filter((f) => expired(f.deletedAt, cutoff))
         .map((f) => f.id),
     );
+    const goneItems = current.items
+      .filter((item) => expired(item.deletedAt, cutoff))
+      .map((item) => item.id);
     const doc = {
       ...current,
       items: current.items.filter((item) => !expired(item.deletedAt, cutoff)),
@@ -83,8 +89,12 @@ export function purgeTrash(services: Services): number {
         (grant) => !goneFolders.has(grant.folderId),
       ),
     };
-    return { doc, events, result: events.length };
+    return { doc, events, result: { count: events.length, goneItems } };
   });
+  const store = services.store();
+  for (const itemId of purged.goneItems)
+    for (const body of store.listBodies(itemId)) store.trash(body.fileId);
+  return purged.count;
 }
 
 /** Body files older than 1 h whose item is unknown or whose version is above the item's current version. */

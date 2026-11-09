@@ -10,7 +10,7 @@ import { auditEvent, type EventSource } from "../audit/events";
 import { optString, reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
-import { mutateIndex } from "../storage/writer";
+import { commit } from "./commit";
 import { checkBaseVersion, optBaseVersion } from "./versions";
 import { chainOf, folderPath, liveFolder, replaceById } from "./indexOps";
 
@@ -75,7 +75,7 @@ function ensurePrivateFolder(context: HandlerContext): IndexDoc {
   const email = context.caller.email;
   if (hasPrivateFolder(index, email)) return index;
   const source = eventSource(context);
-  return mutateIndex(context.services, (current) => {
+  return commit(context, (current) => {
     if (hasPrivateFolder(current, email))
       return { doc: current, events: [], result: current };
     const folder = newFolder(context, {
@@ -123,7 +123,7 @@ export function folderCreate(context: HandlerContext): Folder {
   const name = folderName(reqString(context.args, "name"));
   const parentId = optString(context.args, "parentId");
   const source = eventSource(context, parentId);
-  return mutateIndex(context.services, (current) => {
+  return commit(context, (current) => {
     if (parentId !== "") liveFolder(current, parentId);
     const folder = newFolder(context, {
       parentId,
@@ -150,7 +150,7 @@ function changeFolder(
   const folderId = reqString(context.args, "folderId");
   const baseVersion = optBaseVersion(context.args);
   const source = eventSource(context, folderId);
-  return mutateIndex(context.services, (current) => {
+  return commit(context, (current) => {
     const before = liveFolder(current, folderId);
     checkBaseVersion(before, baseVersion);
     const changed = change(before, current);

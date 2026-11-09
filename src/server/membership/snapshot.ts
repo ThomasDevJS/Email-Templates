@@ -10,6 +10,7 @@ import {
 } from "../../shared/permissions/principals";
 import type { Subject } from "../../shared/permissions/effective";
 import { getChunked, putChunked } from "../cache/chunked";
+import { loadIndexForWrite } from "../cache/indexCache";
 import { WRITE_LOCK_MS, withLock } from "../lock";
 import { nowIso, type Services } from "../services";
 import {
@@ -29,7 +30,7 @@ export const RESOLVER_KEY = "MEMBERSHIP_RESOLVER";
 
 type SnapshotServices = Pick<
   Services,
-  "props" | "cache" | "lock" | "store" | "nowMs" | "groups"
+  "props" | "cache" | "lock" | "store" | "nowMs" | "groups" | "stats" | "logger"
 >;
 
 function cacheRev(doc: MembersDoc): string {
@@ -129,50 +130,97 @@ function currentResolver(services: SnapshotServices): MembershipResolver {
   );
 }
 
-/** Refreshes every referenced group, writes `members.json` under the lock, then the `gm:*` cache. */
+/** Re-reads `members.json` under the lock, merges, writes, then puts the `gm:*` cache. */
+function writeMerged(
+  services: SnapshotServices,
+  resolver: string,
+  merge: (latest: MembersDoc) => MembersDoc,
+): MembersDoc {
+  const doc = withLock(services.lock, WRITE_LOCK_MS, () => {
+    const next = merge(readPreviousSnapshot(services, resolver));
+    services.store().writeSide("members", next);
+    return next;
+  });
+  putMembersCache(services, doc);
+  return doc;
+}
+
+function pick(
+  groups: MembersDoc["groups"],
+  keys: readonly string[],
+): Record<string, GroupSnapshot> {
+  const picked: Record<string, GroupSnapshot> = {};
+  for (const key of keys) {
+    const group = groups[key];
+    if (group !== undefined) picked[key] = group;
+  }
+  return picked;
+}
+
+/**
+ * Refreshes every referenced group outside the lock (GroupsApp reads take seconds), then writes under the lock.
+ * Groups referenced by the index at write time but missing from this run (a grant added meanwhile) keep the
+ * entry another request wrote, so no group drops out of the snapshot.
+ */
 export function refreshSnapshot(
   services: SnapshotServices,
   index: IndexDoc,
 ): MembersDoc {
   const adminGroup = services.props.getProperty(ADMIN_GROUP_KEY) ?? "";
   const resolver = currentResolver(services);
-  const previous = readPreviousSnapshot(services, resolver.id);
-  const doc = buildSnapshot(
+  const built = buildSnapshot(
     resolver,
     referencedGroups(index, adminGroup),
-    previous,
+    readPreviousSnapshot(services, resolver.id),
     nowIso(services),
   );
-  withLock(services.lock, WRITE_LOCK_MS, () => {
-    services.store().writeSide("members", doc);
+  return writeMerged(services, resolver.id, (latest) => {
+    const referenced = referencedGroups(
+      loadIndexForWrite(services),
+      adminGroup,
+    );
+    const missing = referenced.filter(
+      (group) => built.groups[group] === undefined,
+    );
+    return {
+      ...built,
+      groups: { ...pick(latest.groups, missing), ...built.groups },
+    };
   });
-  putMembersCache(services, doc);
-  return doc;
 }
 
-/** Adds or refreshes one group in the snapshot, for a grant to a group the snapshot lacks (ADR-0003 Part B). */
-export function refreshGroup(
+/** One group read through the resolver, not written. Status `error` when it does not exist or is not visible. */
+export function readGroupNow(
   services: SnapshotServices,
   group: string,
 ): MembersDoc {
   const resolver = currentResolver(services);
-  const previous = readPreviousSnapshot(services, resolver.id);
-  const key = group.trim().toLowerCase();
-  const fresh = buildSnapshot(resolver, [key], previous, nowIso(services));
-  const doc: MembersDoc = {
-    refreshedAt: fresh.refreshedAt,
-    resolver: resolver.id,
-    groups: { ...previous.groups, ...fresh.groups },
+  return buildSnapshot(
+    resolver,
+    [group.trim().toLowerCase()],
+    emptyMembers(resolver.id),
+    nowIso(services),
+  );
+}
+
+/** Merges a one-group read into the latest snapshot under the lock (new grant group, ADR-0003 Part B). */
+export function mergeGroup(
+  services: SnapshotServices,
+  fresh: MembersDoc,
+): MembersDoc {
+  const keys = Object.keys(fresh.groups);
+  return writeMerged(services, fresh.resolver, (latest) => ({
+    refreshedAt:
+      latest.refreshedAt === "" ? fresh.refreshedAt : latest.refreshedAt,
+    resolver: fresh.resolver,
+    groups: { ...latest.groups, ...fresh.groups },
     warnings: [
-      ...previous.warnings.filter((w) => !w.startsWith(`Group ${key} `)),
+      ...latest.warnings.filter(
+        (w) => !keys.some((key) => w.startsWith(`Group ${key} `)),
+      ),
       ...fresh.warnings,
     ],
-  };
-  withLock(services.lock, WRITE_LOCK_MS, () => {
-    services.store().writeSide("members", doc);
-  });
-  putMembersCache(services, doc);
-  return doc;
+  }));
 }
 
 function readPreviousSnapshot(

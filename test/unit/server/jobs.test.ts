@@ -311,6 +311,26 @@ describe("daily", () => {
     ]);
   });
 
+  it("leaves body files alone when the purge commit fails, and a restored item keeps them", () => {
+    const folder = world.ok<{ id: string }>(OWNER, "folder.create", {
+      name: "Old",
+    });
+    const item = world.ok<{ id: string; bodyFileId: string }>(
+      OWNER,
+      "template.create",
+      { folderId: folder.id, title: "T", html: "" },
+    );
+    world.ok(OWNER, "template.delete", { id: item.id });
+    world.clock.now += 31 * DAY;
+    world.lock.holdElsewhere();
+    expect(() => runDaily(world.services)).toThrow("purged (Busy");
+    world.lock.holdElsewhere(false);
+    expect(world.drive.files.get(item.bodyFileId)?.trashed).toBe(false);
+    world.ok(OWNER, "template.restoreFromTrash", { id: item.id });
+    expect(runDaily(world.services).purged).toBe(0);
+    expect(world.drive.files.get(item.bodyFileId)?.trashed).toBe(false);
+  });
+
   it("keeps 14 dated backups of index, favorites and usage", () => {
     for (let day = 0; day < 16; day++) {
       runDaily(world.services);

@@ -75,3 +75,23 @@ npm run lint && npm run format:check && npm run typecheck
 npm run test:coverage
 npm run build -- --env dev && npm run build -- --env prod && npm run scopes:check
 ```
+
+## Retry 1 (review FAIL, docs/reviews/slice-02.md)
+
+- Blocker fixed (stale authorization). `dispatch` now keeps the placement of the authorized targets (each target with its ancestor chain) and gives the handler `context.recheck(index)`. Every write handler commits through `handlers/commit.ts`, which calls `recheck` on the index read inside the lock: changed placement (a target or an ancestor moved) answers `CONFLICT` with `details.reason = "moved"`; same placement with a lower level (grant removed) answers `DENIED`. Covers `template.create/update/move/delete/restoreFromTrash`, `folder.create/rename/move/delete`, `grant.add/remove`. `templateUpdate` takes `before.folderId` inside the lock when `args.folderId` is empty.
+- New test file test/unit/server/races.test.ts, 9 tests: the owner moves X from A to B right before ana's write lock; ana (edit on A only) gets CONFLICT on update, move, delete and restore, and X stays in B. Folder move, rename and delete with a concurrent parent move: CONFLICT. Grant removed before the commit: DENIED.
+- `purgeTrash` commits the index first, then trashes body files of the purged items; files left by a crash go to the orphan cleanup. Test: a failed purge commit leaves body files, and an item restored afterwards keeps them.
+- `spike.s2b` trashes its temp file in `finally`. Test: rewrite failure still trashes it.
+- Membership: `grant.add` reads the group through the resolver before the commit (`readGroupNow`, unknown group: VALIDATION) and merges it after the commit (`mergeGroup`). `refreshSnapshot` and `mergeGroup` re-read `members.json` under the lock before writing; `refreshSnapshot` keeps any group the index references at write time that its own run did not read. 2 tests.
+- Rev mismatch: the writer keeps adopting the file. ADR-0002 Concurrency has a one-line revision note: a crash between steps 6 and 7 leaves `INDEX_REV` behind by design, and aborting would block every write until a rebuild; item versions and the in-lock recheck catch lost updates.
+- Admin-only rows check the snapshot only, before any index read (review gap 3).
+- New test: each policy row's level against a table copied from spec section 6 (40 rows plus the 2 `folder.create` cases).
+- docs/spikes/slice-02-s2.md: Known outcomes for 2026-11-09 (a) and (b), the open 404 at the add-on's first hop, 404 listed as a refusal in step 1. The owner's address is written as "the owner account", not the email.
+
+Results after `rm -rf node_modules dist coverage && npm ci` ("added 427 packages, and audited 428 packages in 7s"):
+
+- `npm run lint`: exit 0. `npm run format:check`: "All matched files use Prettier code style!" `npm run typecheck`: exit 0.
+- `npm run test:coverage`: "Test Files 22 passed (22)", "Tests 439 passed (439)". Statements 98.97% (1445/1460), Branches 94.06% (666/708), Functions 99.59% (491/493), Lines 99.39% (1318/1326).
+- `npm run build -- --env dev`: "Code.js: 103.4 KB of 800 KB", "index.html: 1.5 KB of 400 KB".
+- `npm run scopes:check`: "Scope check passed: 10 scopes, all approved."
+

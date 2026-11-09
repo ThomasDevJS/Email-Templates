@@ -1,12 +1,25 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Surface } from "../../shared/log/logger";
-import { checkNeed, needOf, ROOT } from "../../shared/permissions/matrix";
+import type { IndexDoc } from "../../shared/model/data";
+import {
+  ancestry,
+  folderMap,
+  levelResolver,
+  type Subject,
+} from "../../shared/permissions/effective";
+import {
+  checkNeed,
+  needOf,
+  ROOT,
+  type PolicyAction,
+} from "../../shared/permissions/matrix";
 import { auditEvent, type EventSource } from "../audit/events";
 import { bufferEvent } from "../audit/buffer";
 import { requireDomain } from "../guards";
 import { nowIso, type Services } from "../services";
 import {
   createContext,
+  type Access,
   type Caller,
   type HandlerContext,
   type HandlerTable,
@@ -95,29 +108,83 @@ function deny(
   );
 }
 
-/** Resolves targets, computes levels and denies before the handler runs (ADR-0003 Part C). */
+function actionOf(row: PolicyRow, args: unknown): PolicyAction {
+  return typeof row.action === "function" ? row.action(args) : row.action;
+}
+
+function rolesOf(access: Access, targets: readonly string[]): string {
+  if (access.subject.isAdmin) return "admin";
+  return targets
+    .filter((t) => t !== ROOT)
+    .map(access.levelOf)
+    .join(",");
+}
+
+/**
+ * Resolves targets, computes levels and denies before the handler runs (ADR-0003 Part C). Admin rows read only
+ * the membership snapshot. Returns the placement of the authorized targets for the in-lock recheck.
+ */
 function authorize(
   row: PolicyRow,
   context: HandlerContext,
   request: DispatchRequest,
-): void {
+): string {
   if (row.surface === "web" && request.surface === "addon")
     deny(request, context.services, [], "");
-  const action =
-    typeof row.action === "function" ? row.action(request.args) : row.action;
-  const need = needOf(action);
-  if (need.kind === "any") return;
+  const need = needOf(actionOf(row, request.args));
+  if (need.kind === "any") return "";
+  if (need.kind === "admin") {
+    if (!context.subject().isAdmin) deny(request, context.services, [], "");
+    return "";
+  }
   const access = context.access();
   const targets = row.targets?.(request.args, access.index) ?? [];
-  if (!checkNeed(need, access.subject.isAdmin, access.levelOf, targets)) {
-    const roles = access.subject.isAdmin
-      ? "admin"
-      : targets
-          .filter((t) => t !== ROOT)
-          .map(access.levelOf)
-          .join(",");
-    deny(request, context.services, targets, roles);
+  if (!checkNeed(need, access.subject.isAdmin, access.levelOf, targets))
+    deny(request, context.services, targets, rolesOf(access, targets));
+  return placement(access.index, targets);
+}
+
+/** Target folders with their ancestor chains: any move of a target or of one of its ancestors changes it. */
+function placement(index: IndexDoc, targets: readonly string[]): string {
+  const byId = folderMap(index.folders);
+  return targets
+    .map(
+      (target) =>
+        ancestry(target, byId)
+          .map((folder) => folder.id)
+          .join(">") || target,
+    )
+    .join(",");
+}
+
+/**
+ * Same check on the index read inside the lock (save step 4). A concurrent move changes the resolved targets:
+ * CONFLICT, so the caller reloads. Unchanged targets with a lower level (grant removed): DENIED.
+ */
+function recheck(
+  row: PolicyRow,
+  request: DispatchRequest,
+  subject: Subject,
+  authorized: string,
+  index: IndexDoc,
+): void {
+  const need = needOf(actionOf(row, request.args));
+  if (need.kind !== "level") return;
+  const fresh = row.targets?.(request.args, index) ?? [];
+  if (placement(index, fresh) !== authorized) {
+    throw new AppError(
+      ErrorCode.CONFLICT,
+      "This was moved by someone else while you worked. Reload and try again.",
+      {
+        reason: "moved",
+      },
+    );
   }
+  if (!checkNeed(need, subject.isAdmin, levelResolver(subject, index), fresh))
+    throw new AppError(
+      ErrorCode.DENIED,
+      "You don't have access to this. Ask a folder manager.",
+    );
 }
 
 function checkDomain(request: DispatchRequest, services: Services): void {
@@ -143,7 +210,14 @@ export function dispatch(
   const handler = ownEntry(tables.handlers, request.op);
   if (handler === undefined)
     throw new AppError(ErrorCode.INTERNAL, `No handler for op: ${request.op}`);
-  const context = createContext({ ...request, services });
-  authorize(row, context, request);
+  let authorized = "";
+  const context = createContext({
+    ...request,
+    services,
+    recheck: (index) => {
+      recheck(row, request, context.subject(), authorized, index);
+    },
+  });
+  authorized = authorize(row, context, request);
   return handler(context);
 }
