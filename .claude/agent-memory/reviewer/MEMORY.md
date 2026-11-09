@@ -2,7 +2,7 @@
 
 ## Project facts
 - Owner email is in docs/BRIEF.md and ADR-0002/0003/0005 only. Do not copy it into reviews.
-- Spec section 9: 10 default scopes (drive.metadata.readonly added after S2 404), conditional list, `https://mail.google.com/` forbidden. Mirror in scripts/approved-scopes.json.
+- Spec section 9: 10 default scopes (script.projects.readonly after spike S2 (a); drive.metadata.readonly not in list), conditional list, `https://mail.google.com/` forbidden. Mirror in scripts/approved-scopes.json.
 - urlFetchWhitelist (slice 2): script.google.com/macros/s/, script.googleusercontent.com/, googleapis.com/drive/v3/, googleapis.com/upload/drive/v3/.
 - One Apps Script project per env; webapp USER_DEPLOYING + DOMAIN; add-on calls own /exec via UrlFetch.
 - Build: esbuild IIFE `App` + top-level stubs per export of src/entry.ts. Every export is callable via google.script.run. Allowlist src/shared/entryPoints.ts (11 exports, surfaces webapp_rpc, doPost, trigger, addon).
@@ -25,13 +25,21 @@
   - Fix: dispatch returns target placement; handlers/commit.ts rechecks inside the lock (CONFLICT reason moved, DENIED on lost level). races.test.ts 9 tests.
   - Open minor: readPreviousSnapshot swallows Drive errors, mergeGroup can then write members.json with one group. Add-on 404 at first hop (deploy issue, s2.md).
 
-## Check in slice 3
-- New write handlers must commit via handlers/commit.ts (recheck), not mutateIndex directly.
-- readPreviousSnapshot error handling.
-- Sanitizer replaces identity port; 30+ fixtures (BRIEF 9).
+- Slice 3 (2026-11-09): PASS (review 8ba6797 on 41575e3). 32 files, 745 tests, lines 94.61% (shared 100, server 99.06, web reported only). Code.js 226.0 KB, index.html 271.0 KB, Lighthouse 100/100/100, 10 scopes.
+  - Sanitizer src/shared/sanitize (htmlparser2 12.0.0), placeholders src/shared/placeholders, write path src/shared/body/prepare.ts + server/handlers/body.ts. Web app src/web (ProseMirror, no framework), dev harness scripts/dev-web.mjs.
+  - Open minors: template.get not re-sanitized (editor loads through it); QUOTA retry not delayed 60 s; PH_BACKSLASH false positive across mark runs; bodySize dead in src; chrome-launcher undeclared; spec 6 lacks template.getBody; ADR paste-preview sanitize not done.
+
+## Check in slice 4
+- Add-on apply path must use template.getBody / readableBody, never raw stored html.
+- Import (slice 6) must call prepareBody.
+- Gap list of slice 3 above; readPreviousSnapshot error handling (slice 2) still open.
+- Code.js parse cost after htmlparser2 (226 KB) unmeasured.
 
 ## Recurring lessons
 - ESLint probes without editing src/: pipe code to `npx eslint --stdin --stdin-filename <existing src file>` (new paths hit the projectService parse error).
 - Coverage text reporter hides 100% files; read the summary lines.
 - Read handlers for TOCTOU: authorization data vs data inside the lock. Tests by implementers cover the sequence, not concurrent changes of the target.
-- npm audit count from npm ci (16) differs from advisory count in handoffs (3); compare like with like.
+- npm audit count from npm ci (16) differs from advisory count in handoffs (3); compare like with like. Runtime: `npm audit --omit=dev` (0 in slice 3).
+- Handoff "Verified" sections go stale after late commits; rerun everything, trust own numbers.
+- Sanitizer probes: use a scratch copy and `sanitizeHtml`; web probes need `// @vitest-environment jsdom` and `--silent=false` to see console output.
+- Lighthouse: `npm run lighthouse` uses /opt/pw-browsers/chromium, about 1 min.
