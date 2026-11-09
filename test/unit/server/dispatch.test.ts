@@ -94,7 +94,8 @@ describe("dispatch: identity and domain", () => {
 
   it("denies everyone while DOMAIN is unset (setup not run)", () => {
     world.props.deleteProperty(DOMAIN_KEY);
-    expect(codeOf(() => run(USER, "ping"))).toBe(ErrorCode.AUTH_DOMAIN);
+    expect(codeOf(() => run(USER, "ping"))).toBe(ErrorCode.NOT_CONFIGURED);
+    expect(deniedEvents().at(-1)).toMatchObject({ errorCode: "AUTH_DOMAIN" });
   });
 
   it("accepts the domain case-insensitively", () => {
