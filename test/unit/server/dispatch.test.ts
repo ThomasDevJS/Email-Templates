@@ -149,11 +149,13 @@ describe("dispatch: authorization before the handler", () => {
   });
 
   it("denies admin ops to non-admins and allows them to ADMIN_EMAILS", () => {
-    expect(codeOf(() => run(USER, "spike.s2"))).toBe(ErrorCode.DENIED);
-    expect(run(OWNER, "spike.s2")).toMatchObject({ activeUser: OWNER });
+    expect(codeOf(() => run(USER, "membership.refresh"))).toBe(
+      ErrorCode.DENIED,
+    );
+    expect(run(OWNER, "membership.refresh")).toMatchObject({ groups: 0 });
     expect(deniedEvents().at(-1)).toMatchObject({
       targetType: "library",
-      action: "spike.s2",
+      action: "membership.refresh",
     });
   });
 
@@ -178,7 +180,7 @@ describe("dispatch: authorization before the handler", () => {
   });
 });
 
-/** Spec section 6 op list, plus `ping` (slice 1), `profile.me` (ADR-0004), the two spike ops and `template.getBody` (slice 3). */
+/** Spec section 6 op list, plus `ping` (slice 1), `profile.me` (ADR-0004), the temporary `spike.s4` (slice 4) and `template.getBody` (slice 3). */
 const SPEC_OPS = [
   "sidebar.home",
   "folder.list",
@@ -217,13 +219,7 @@ const SPEC_OPS = [
   "backup.restore",
   "me",
 ];
-const EXTRA_OPS = [
-  "ping",
-  "profile.me",
-  "spike.s2",
-  "spike.s2b",
-  "template.getBody",
-];
+const EXTRA_OPS = ["ping", "profile.me", "spike.s4", "template.getBody"];
 const LIST_OPS = [
   "sidebar.home",
   "folder.list",
@@ -237,7 +233,7 @@ describe("policy table completeness (ADR-0003 Part C)", () => {
     expect(Object.keys(HANDLERS).sort()).toEqual(Object.keys(POLICY).sort());
   });
 
-  it("covers every op of spec section 6 and nothing else beyond the 5 extras", () => {
+  it("covers every op of spec section 6 and nothing else beyond the 4 extras", () => {
     expect(Object.keys(POLICY).sort()).toEqual(
       [...SPEC_OPS, ...EXTRA_OPS].sort(),
     );
@@ -329,8 +325,7 @@ const SPEC_LEVELS: Readonly<Record<string, string>> = {
   me: "none",
   ping: "none",
   "profile.me": "none",
-  "spike.s2": "admin",
-  "spike.s2b": "admin",
+  "spike.s4": "admin",
 };
 
 function levelOfRow(op: string, args: unknown): string {

@@ -13,7 +13,7 @@ import {
 } from "../../../src/server/audit/lines";
 import { rollAudit } from "../../../src/server/audit/roll";
 import { applyUsage, RECENT_MAX } from "../../../src/server/audit/usage";
-import { readMeta } from "../../../src/server/cache/chunked";
+import { readMeta } from "../../../src/shared/cache/chunked";
 import { INDEX_PREFIX, loadIndex } from "../../../src/server/cache/indexCache";
 import {
   BACKUPS_KEPT,
@@ -194,11 +194,11 @@ describe("evt buffer and tick flush", () => {
   });
 
   it("records denied requests from dispatch through the buffer into pendingAudit", () => {
-    world.call("intruder@example.com", "spike.s2");
+    world.call("intruder@example.com", "membership.refresh");
     runTick(world.services);
     expect(fileIndex().pendingAudit.at(-1)).toMatchObject({
       actor: "intruder@example.com",
-      action: "spike.s2",
+      action: "membership.refresh",
       result: "denied",
     });
   });

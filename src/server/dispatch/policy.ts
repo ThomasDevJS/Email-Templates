@@ -90,6 +90,6 @@ export const POLICY: PolicyTable = {
   "config.get": web("admin.ops"),
   "backup.list": web("admin.ops"),
   "backup.restore": web("admin.ops"),
-  "spike.s2": both("admin.ops"),
-  "spike.s2b": web("admin.ops"),
+  /** TEMPORARY: spike S4 insert fixtures (ADR-0004). Remove after the owner's runs. */
+  "spike.s4": both("admin.ops"),
 };

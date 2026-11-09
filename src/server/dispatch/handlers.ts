@@ -10,7 +10,8 @@ import {
 import { grantAdd, grantList, grantRemove } from "../handlers/grants";
 import { versionGet, versionList, versionRestore } from "../handlers/history";
 import { me, ping, profileMe } from "../handlers/identity";
-import { spikeS2, spikeS2b } from "../handlers/spikes";
+import { sidebarHome, templateApply } from "../handlers/sidebar";
+import { spikeS4 } from "../handlers/spikeS4";
 import {
   templateCreate,
   templateDelete,
@@ -26,10 +27,8 @@ import type { Handler, HandlerContext, HandlerTable } from "./context";
 
 /** Ops whose handlers arrive in slices 3 to 6. They keep a policy row, so dispatch still denies before this runs. */
 export const LATER_SLICE_OPS = [
-  "sidebar.home",
   "search",
   "search.body",
-  "template.apply",
   "favorite.set",
   "favorite.unset",
   "template.duplicate",
@@ -92,7 +91,8 @@ export const HANDLERS: HandlerTable = {
   "grant.add": grantAdd,
   "grant.remove": grantRemove,
   "membership.refresh": membershipRefresh,
-  "spike.s2": spikeS2,
-  "spike.s2b": spikeS2b,
+  "sidebar.home": sidebarHome,
+  "template.apply": templateApply,
+  "spike.s4": spikeS4,
   ...Object.fromEntries(LATER_SLICE_OPS.map((op) => [op, notImplemented(op)])),
 };

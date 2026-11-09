@@ -4,7 +4,6 @@ import {
   PROFILE_TTL_S,
   toProfile,
 } from "../../../src/server/directory/profile";
-import { S2B_SIZES, syntheticIndex } from "../../../src/server/handlers/spikes";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
@@ -84,69 +83,6 @@ describe("Directory profile (ADR-0004 Sender values)", () => {
       email: ANA,
       title: "Sales Lead",
     });
-  });
-});
-
-describe("spike ops (admin only)", () => {
-  it("spike.s2 reports identities, surface and Drive reachability", () => {
-    world.session.active = OWNER;
-    expect(world.ok(OWNER, "spike.s2", {}, "addon")).toEqual({
-      surface: "addon",
-      tokenCall: true,
-      activeUser: OWNER,
-      effectiveUser: OWNER,
-      callerIdentified: true,
-      driveReachable: true,
-    });
-    world.drive.failNext("get");
-    expect(
-      world.ok<{ driveReachable: boolean; tokenCall: boolean }>(
-        OWNER,
-        "spike.s2",
-      ),
-    ).toMatchObject({ driveReachable: false, tokenCall: false });
-    expect(world.call(ANA, "spike.s2")).toMatchObject({
-      ok: false,
-      error: { code: "DENIED" },
-    });
-  });
-
-  it("spike.s2b times create, read and write of a 0.85 MB index and trashes the file", () => {
-    const timed = world.ok<Record<string, unknown>>(OWNER, "spike.s2b");
-    expect(timed).toMatchObject({
-      size: "1x",
-      roundTripOk: true,
-      thresholdMs: 2000,
-      readPass: true,
-      writePass: true,
-    });
-    expect(Number(timed["bytes"])).toBeGreaterThan(800_000);
-    expect(world.drive.byName("spike-s2b.json")[0]?.trashed).toBe(true);
-    expect(timed).toMatchObject({ createMs: 0, readMs: 0, writeMs: 0 });
-    expect(world.call(ANA, "spike.s2b")).toMatchObject({
-      ok: false,
-      error: { code: "DENIED" },
-    });
-    expect(world.call(OWNER, "spike.s2b", {}, "addon")).toMatchObject({
-      ok: false,
-      error: { code: "DENIED" },
-    });
-  });
-
-  it("spike.s2b trashes its temp file when the rewrite fails", () => {
-    world.drive.failNext("update", new Error("write refused"));
-    expect(world.call(OWNER, "spike.s2b")).toMatchObject({
-      ok: false,
-      error: { code: "INTERNAL" },
-    });
-    expect(world.drive.byName("spike-s2b.json")[0]?.trashed).toBe(true);
-  });
-
-  it("builds synthetic indexes near the ADR-0002 sizes", () => {
-    const small = Buffer.byteLength(syntheticIndex(S2B_SIZES["1x"]));
-    expect(small).toBeGreaterThan(0.8e6);
-    expect(small).toBeLessThan(0.95e6);
-    expect(Buffer.byteLength(syntheticIndex(10))).toBeGreaterThan(0);
   });
 });
 
