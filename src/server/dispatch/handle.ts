@@ -4,36 +4,48 @@ import {
   toErrorBody,
   type ErrorBody,
 } from "../../shared/errors/codes";
-import type { Logger, LogResult, Surface } from "../../shared/log/logger";
+import type { LogResult, Surface } from "../../shared/log/logger";
 import { parseRpcRequest, type RpcResponse } from "../../shared/model/protocol";
+import type { Services } from "../services";
+import type { Caller } from "./context";
 import { DEFAULT_TABLES, dispatch, type DispatchTables } from "./dispatch";
-import type { Caller } from "./handlers";
 
 export interface HandleDeps {
-  readonly logger: Logger;
-  readonly nowMs: () => number;
-  readonly serverVersion: string;
+  readonly services: Services;
   readonly tables?: DispatchTables;
 }
 
 const DENIAL_CODES: ReadonlySet<string> = new Set<string>([
   ErrorCode.AUTH_NO_USER,
+  ErrorCode.AUTH_DOMAIN,
   ErrorCode.DENIED,
 ]);
 
 function resultOf(error: ErrorBody): LogResult {
-  return DENIAL_CODES.has(error.code) ? "denied" : "error";
+  if (DENIAL_CODES.has(error.code)) return "denied";
+  return error.code === ErrorCode.CONFLICT ? "conflict" : "error";
 }
 
 function runDispatch(
   caller: Caller,
   raw: unknown,
-  tables: DispatchTables | undefined,
+  surface: Surface,
+  deps: HandleDeps,
 ): unknown {
   const request = parseRpcRequest(raw);
   if (request === null)
     throw new AppError(ErrorCode.BAD_REQUEST, "Malformed request");
-  return dispatch(caller, request.op, request.args, tables ?? DEFAULT_TABLES);
+  return dispatch(
+    {
+      caller,
+      op: request.op,
+      args: request.args,
+      surface,
+      requestId: request.requestId,
+    },
+    deps.services,
+    deps.tables ?? DEFAULT_TABLES,
+  );
 }
 
 function requestField(raw: unknown, key: "op" | "requestId"): string {
@@ -44,7 +56,8 @@ function requestField(raw: unknown, key: "op" | "requestId"): string {
 
 /**
  * Runs one request through dispatch and wraps the result in the response envelope.
- * Never throws: every failure becomes `{ ok: false, error }` and one log line.
+ * Never throws: every failure becomes `{ ok: false, error }` and one log line. The log line has the closed
+ * field list of spec section 11, so args (bodies, prompt values, recipients) never reach it.
  */
 export function handleRpc(
   caller: Caller,
@@ -52,7 +65,8 @@ export function handleRpc(
   surface: Surface,
   deps: HandleDeps,
 ): RpcResponse {
-  const started = deps.nowMs();
+  const { services } = deps;
+  const started = services.nowMs();
   const base = {
     surface,
     action: requestField(raw, "op"),
@@ -60,25 +74,31 @@ export function handleRpc(
     actor: caller.email,
   };
   try {
-    const data = runDispatch(caller, raw, deps.tables);
-    const durationMs = deps.nowMs() - started;
-    deps.logger.info({ ...base, result: "ok", durationMs });
-    return { ok: true, data, serverVersion: deps.serverVersion, durationMs };
+    const data = runDispatch(caller, raw, surface, deps);
+    const durationMs = services.nowMs() - started;
+    services.logger.info({
+      ...base,
+      result: "ok",
+      durationMs,
+      cache: services.stats.cache,
+    });
+    return { ok: true, data, serverVersion: services.appVersion, durationMs };
   } catch (error: unknown) {
     const body = toErrorBody(error);
-    const durationMs = deps.nowMs() - started;
+    const durationMs = services.nowMs() - started;
     const level = body.code === ErrorCode.INTERNAL ? "error" : "warn";
-    deps.logger[level]({
+    services.logger[level]({
       ...base,
       result: resultOf(body),
       errorCode: body.code,
       durationMs,
+      cache: services.stats.cache,
       error,
     });
     return {
       ok: false,
       error: body,
-      serverVersion: deps.serverVersion,
+      serverVersion: services.appVersion,
       durationMs,
     };
   }

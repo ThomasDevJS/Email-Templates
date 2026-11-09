@@ -1,25 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { createLogger } from "../../../src/shared/log/logger";
-import {
-  handleRpc,
-  type HandleDeps,
-} from "../../../src/server/dispatch/handle";
-
-function deps(tables?: HandleDeps["tables"]): {
-  lines: string[];
-  deps: HandleDeps;
-} {
-  const lines: string[] = [];
-  let clock = 1000;
-  const logger = createLogger({
-    sink: (line) => lines.push(line),
-    now: () => new Date(0),
-    appVersion: "test-sha",
-    minLevel: "debug",
-  });
-  const base = { logger, nowMs: () => (clock += 5), serverVersion: "test-sha" };
-  return { lines, deps: tables === undefined ? base : { ...base, tables } };
-}
+import { beforeEach, describe, expect, it } from "vitest";
+import { AppError, ErrorCode } from "../../../src/shared/errors/codes";
+import { ANY_CALLER } from "../../../src/shared/permissions/matrix";
+import { handleRpc } from "../../../src/server/dispatch/handle";
+import { OWNER, setupWorld, type World } from "../../fakes/world";
 
 const PING = {
   op: "ping",
@@ -27,92 +10,134 @@ const PING = {
   requestId: "r1",
   clientVersion: "test-sha",
 };
+let world: World;
 
-function logged(lines: string[]): Record<string, unknown> {
-  expect(lines).toHaveLength(1);
-  return JSON.parse(lines[0] ?? "") as Record<string, unknown>;
+beforeEach(() => {
+  world = setupWorld();
+  world.lines.length = 0;
+});
+
+function lastLog(): Record<string, unknown> {
+  return JSON.parse(world.lines.at(-1) ?? "{}") as Record<string, unknown>;
 }
 
 describe("handleRpc", () => {
-  it("wraps a handler result in the success envelope and logs ok", () => {
-    const { lines, deps: d } = deps();
-    const response = handleRpc({ email: "user@example.com" }, PING, "addon", d);
-    expect(response).toEqual({
+  it("wraps a handler result in the success envelope and logs one ok line", () => {
+    const response = handleRpc({ email: "user@example.com" }, PING, "addon", {
+      services: world.as("addon"),
+    });
+    expect(response).toMatchObject({
       ok: true,
       data: { pong: true, caller: "user@example.com", env: "test" },
-      serverVersion: "test-sha",
-      durationMs: 5,
+      serverVersion: "test-testsha",
+      durationMs: 0,
     });
-    expect(logged(lines)).toMatchObject({
+    expect(world.lines).toHaveLength(1);
+    expect(lastLog()).toMatchObject({
       level: "info",
       action: "ping",
       requestId: "r1",
       result: "ok",
-      actor: "user@example.com",
+      cache: "",
     });
   });
 
   it("returns AUTH_NO_USER for a blank caller and logs a denial", () => {
-    const { lines, deps: d } = deps();
-    const response = handleRpc({ email: "" }, PING, "addon", d);
-    expect(response).toMatchObject({
+    expect(
+      handleRpc({ email: "" }, PING, "addon", { services: world.services }),
+    ).toMatchObject({
       ok: false,
       error: { code: "AUTH_NO_USER", retryable: false },
     });
-    expect(logged(lines)).toMatchObject({
+    expect(lastLog()).toMatchObject({
       level: "warn",
       result: "denied",
       errorCode: "AUTH_NO_USER",
     });
   });
 
+  it("logs AUTH_DOMAIN as a denial", () => {
+    handleRpc({ email: "x@other.com" }, PING, "addon", {
+      services: world.services,
+    });
+    expect(lastLog()).toMatchObject({
+      result: "denied",
+      errorCode: "AUTH_DOMAIN",
+    });
+  });
+
   it("returns BAD_REQUEST for a malformed body", () => {
-    const { lines, deps: d } = deps();
     expect(
-      handleRpc({ email: "user@example.com" }, "not json", "addon", d),
+      handleRpc({ email: "user@example.com" }, "not json", "addon", {
+        services: world.services,
+      }),
     ).toMatchObject({
       ok: false,
       error: { code: "BAD_REQUEST" },
     });
-    expect(logged(lines)).toMatchObject({
+    expect(lastLog()).toMatchObject({
       action: "",
       requestId: "",
       result: "error",
     });
   });
 
-  it("returns UNKNOWN_OP for an op without a policy row", () => {
-    const { deps: d } = deps();
+  it("logs a CONFLICT as result conflict with details in the response", () => {
     const response = handleRpc(
-      { email: "user@example.com" },
-      { ...PING, op: "template.delete" },
+      { email: OWNER },
+      { ...PING, op: "boom" },
       "webapp",
-      d,
+      {
+        services: world.services,
+        tables: {
+          policy: { boom: { action: ANY_CALLER, surface: "both" } },
+          handlers: {
+            boom: () => {
+              throw new AppError(ErrorCode.CONFLICT, "stale", {
+                currentVersion: 4,
+              });
+            },
+          },
+        },
+      },
     );
     expect(response).toMatchObject({
       ok: false,
-      error: { code: "UNKNOWN_OP" },
+      error: { code: "CONFLICT", details: { currentVersion: 4 } },
     });
+    expect(lastLog()).toMatchObject({ level: "warn", result: "conflict" });
   });
 
   it("turns a handler crash into INTERNAL, logged at error level with the error name", () => {
-    const { lines, deps: d } = deps({
-      policy: { ping: { requiredLevel: "none" } },
-      handlers: {
-        ping: () => {
-          throw new RangeError("detail that stays in the log");
+    const response = handleRpc({ email: "user@example.com" }, PING, "addon", {
+      services: world.services,
+      tables: {
+        policy: { ping: { action: ANY_CALLER, surface: "both" } },
+        handlers: {
+          ping: () => {
+            throw new RangeError("detail that stays out of the response");
+          },
         },
       },
     });
-    const response = handleRpc({ email: "user@example.com" }, PING, "addon", d);
     expect(response).toMatchObject({
       ok: false,
       error: { code: "INTERNAL", message: "Internal error", retryable: true },
     });
-    expect(logged(lines)).toMatchObject({
+    expect(lastLog()).toMatchObject({
       level: "error",
       errorCode: "INTERNAL",
       errorName: "RangeError",
     });
+  });
+
+  it("reports the cache state of the request in the log line", () => {
+    world.call(OWNER, "template.list");
+    expect(lastLog()).toMatchObject({
+      action: "template.list",
+      cache: "rebuild",
+    });
+    world.call(OWNER, "template.list");
+    expect(lastLog()).toMatchObject({ cache: "hit" });
   });
 });

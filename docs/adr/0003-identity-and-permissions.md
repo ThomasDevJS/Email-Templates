@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -140,7 +140,7 @@ Role matrix (level needed on the target folder; "A" = admin only):
 
 Enforcement mechanism:
 
-- One entry point. `doPost` (add-on) and one `google.script.run` function `rpc(op, args)` (web app) both call `dispatch(caller, op, args)`. All other server functions end with `_`, so the client cannot call them [R4 S49].
+- One entry point for ops. `doPost` (add-on) and one `google.script.run` function `rpc(op, args)` (web app) both call `dispatch(caller, op, args)`. The bundle is one IIFE (ADR-0005), so only its exports become top-level functions, and every top-level function is callable through `google.script.run` [R4 S49]. Each export is listed in an allowlist (`src/shared/entryPoints.ts`) with one surface, and a test fails on any export missing from it: `webapp_rpc` (`doGet`, `rpc`) and `doPost` run `dispatch`, which rejects a blank caller (`AUTH_NO_USER`) and a caller outside Script Property `DOMAIN` (`AUTH_DOMAIN`); `trigger` (`setup`, `tick`, `refreshMembers`, `daily`) runs only when the effective user is Script Property `OWNER_EMAIL` and either the active user is that owner or the call carries the `triggerUid` of this project's trigger for that function with no other active user, and `setup` runs only when active and effective user are the same account and match `OWNER_EMAIL` once it is set; `addon` (`onComposeOpen`, `onHomepage`, `onOpenLibrary`, `onPing`) runs only when the active and effective user are the same account, so a web app caller cannot make it fetch the server with the owner's token. Op names never equal export names, so no callback is reachable through `rpc`. Revised 2026-11-09 in slice 2: this allowlist replaces the rule that non-entry functions end with `_`.
 - `dispatch` looks up `op` in a policy table: `{ op, requiredLevel, targetResolver }`. It resolves the target folder(s), computes the effective level, and denies before the handler runs. Denied requests return `DENIED` and write an audit row.
 - A unit test enumerates the policy table and fails if any handler has no policy row. A second test checks every role matrix cell above (BRIEF 9).
 - List and search results are filtered by the same level function, so hidden templates never leave the server.
