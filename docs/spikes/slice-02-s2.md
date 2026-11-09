@@ -65,3 +65,15 @@ Date:              Deployment mode (`head` or `version`):              Tester:
 | Ping round trip, 5 runs (ms) |  |                                                     |
 
 Pass condition (spec section 14): (a), (b), (e) yes; (c), (d) answered.
+
+## Results 2026-11-09 (orchestrator and owner, dev deployment)
+
+| Question | Result |
+|---|---|
+| (a) `drive.file` token passes the `/exec` or `/dev` front door | No. HTTP 404 "Page Not Found" on both URL forms (`/macros/s/` and `/a/macros/migway.com/s/`). Adding `drive.metadata.readonly` did not help. Adding `script.projects.readonly` fixed it: Ping ok, 35 ms. No token or an invalid token gives 401. |
+| (b) `getActiveUser` set on token calls | Yes. The server identified the owner on token calls from curl and from the add-on. |
+| (c) project must be shared with callers | Open. Only the owner has tested so far. Pilot editors are editors already; domain users are tested at the first non-editor pilot. |
+| (d) token call to `/dev` works for project editors | Yes, for the owner. |
+| Extra | `gmail.addons.execute` is required at runtime (Gmail runtime error without it). Google redirects Workspace accounts to the `/a/macros/<domain>/` URL form; both forms accept token calls once the scope is right. |
+
+Decision: Pattern A stays. Scope list is final at 10 (spec section 9). ADR-0003 Q6 and Q7 fallbacks are not needed.

@@ -51,7 +51,7 @@ Mechanism:
 - Multi-login. Apps Script does not support several signed-in Google accounts [R4 S50]. Add-on to `/exec` calls carry the add-on user's token and are unaffected. The OVERLAY web app opens under the browser's default account. A non-Migway default account gets Google's access-denied page; a blank active user gets the app's "Cannot identify your account" page with the fix (separate Chrome profile or incognito). The web app header always shows "Signed in as <email>". The quick start (slice 7) documents the workaround.
 - Mobile. Same add-on on Gmail Android and iOS, best effort (BRIEF A7). Slice 4 spike tests insert on both. The web app editor targets desktop.
 
-Consent consequence. One manifest gives one scope list (spec section 9, 11 scopes by default). Every user who self-installs the add-on (owner, pilot editors in 2.5a) sees all 11 on the consent screen, including the server-only scopes. After the admin domain install (2.5b), users skip the consent screen [R4 S60]. ADR-0002 removes `spreadsheets` from the list for this reason.
+Consent consequence. One manifest gives one scope list (spec section 9, 10 scopes by default). Every user who self-installs the add-on (owner, pilot editors in 2.5a) sees all 10 on the consent screen, including the server-only scopes. After the admin domain install (2.5b), users skip the consent screen [R4 S60]. ADR-0002 removes `spreadsheets` from the list for this reason.
 
 Pilot editors. Test deployments need editor access to the project [R4 S13], so the 2 to 3 pilot editors (D13) can read and change all code in the browser editor and run functions that read the Script Cache. Mitigations:
 
@@ -63,7 +63,7 @@ Pilot editors. Test deployments need editor access to the project [R4 S13], so t
 ## Consequences
 
 - Easier: one manifest, one deploy, one deployment ID per environment, one set of triggers and properties (ADR-0005). No server URL property: the add-on calls its own deployment.
-- Harder: every self-installing user consents to 11 scopes, 2 of them server-only (`groups`, `admin.directory.user.readonly`). Pilot editors can read code and Script Cache in the dev project. The trust boundary between the add-on path and the server path is the code, which only the owner pushes (ADR-0003 Part A).
+- Harder: every self-installing user consents to 10 scopes, 2 of them server-only (`groups`, `admin.directory.user.readonly`). Pilot editors can read code and Script Cache in the dev project. The trust boundary between the add-on path and the server path is the code, which only the owner pushes (ADR-0003 Part A).
 - Every apply costs one UrlFetch round trip to `/exec`. Slice 2 measures it. If p95 apply exceeds 2 s, the ADR-0002 fallback applies cached bodies in the add-on and sends the apply event later.
 - Revisit when Google ships a rich text card widget for Gmail.
 
