@@ -10,14 +10,14 @@ Internal tool for the Migway Google Workspace domain. Users create, organize and
 
 Scope v1:
 - Templates: create, edit, duplicate, move, delete (soft), folders and categories, search, favorites, version history with restore.
-- Placeholders: basic variables filled at apply time (sender name, title, phone, department; recipient first name when known; prompted free-text fields). Exact syntax decided in Phase 2.
+- Placeholders: basic variables filled at apply time (sender name, title, phone, department; recipient first name when known; prompted free-text fields). Syntax approved at G1 (2026-11-09): dotted double braces `{{sender.name}}`, prompts `{{ask:Label}}`, fallbacks `{{var|fallback}}`, escape `\{{`. Apply is blocked until every prompt has a value. Unknown names fail at save time. ADR-0004 finalizes.
 - Signatures: OUT of v1. v2 adds company-wide, per-department and per-user signatures inserted into compose or copied to clipboard. Central admin push of signatures is a Phase 1 research question only. The data model in Phase 2 reserves room for signatures so v2 needs no migration.
 - Apply: Gmail compose sidebar (Google Workspace add-on, Card Service) inserts the chosen template into the draft body in one click.
-- Permissions: roles admin, manager-editor, user. Assignable per Google Group or org unit. Default deny. Enforced server-side.
+- Permissions: roles admin, manager-editor, user. Assignable per Google Group or org unit. Default deny. Enforced server-side. Grants live on folders with 3 levels (use, edit, manage); subfolders inherit; admins see everything. Each user gets one private folder for personal templates (G1, 2026-11-09).
 - Admin UI: manage folders, signatures, role assignments, audit log, export.
 - Editing UI: Apps Script web app (HtmlService) with a rich-text editor.
 
-Non-goals v1 (unchanged from the original): public Marketplace listing, mail merge or campaigns, third-party servers or paid services, any flow that sends company data outside Google Workspace, signatures (moved to v2).
+Non-goals v1: public Marketplace listing, mail merge or campaigns, third-party servers or paid services, any flow that sends company data outside Google Workspace, signatures (moved to v2), attachments (G1, 2026-11-09), Chrome extension delivery (D4 closed No, 2026-11-09), open and click tracking.
 
 Cost and hosting: $0. Apps Script runs on Google's servers inside the Workspace tenant. No GCP billing, no external hosting. Firestore and any billed service stay out. Apps Script quotas (Phase 1, R4) are the only ceiling. Note: a private, domain-restricted Marketplace SDK configuration is required for admin force-install. That is allowed. A public listing is not.
 
@@ -27,10 +27,11 @@ Quality bar: polished and fast UI, maintainable production-grade engineering. Se
 
 - A1. Domain size: under 500 users, under 1,000 templates, under 100 folders, under 50 signatures. Design for 10x.
 - A2. Delivery: Workspace add-on (compose sidebar) plus Apps Script web app, one Apps Script project, TypeScript bundled to one .gs file via clasp. A Chrome extension is documented as an alternative only.
+- A3b. Research facts (R4, 2026-11-09): the add-on always runs as the user; only the web app can run as its owner. Directory API group lookup needs an admin role; GroupsApp needs none but sees direct membership only. Working assumption until the owner confirms (D7): Business Standard or lower, flat role groups, no admin API restrictions.
 - A3. Execution identity: the web app and add-on will need an admin-owned identity to read group and OU membership through the Admin SDK Directory API. Phase 2 decides "execute as owner" versus "execute as user" per surface, with an ADR.
 - A4. Storage: Google Drive files or Sheets owned by a service mailbox or shared drive, with CacheService in front. Firestore or any billed GCP service needs explicit owner approval.
 - A5. Deployment: the owner runs `clasp push` and `clasp deploy` from their own machine. The cloud session cannot complete the clasp OAuth login. CI runs lint, test and build only.
-- A6. Owner is not a Workspace admin. Development, testing and self-install use Apps Script test deployments on the owner's account and need no admin. A Workspace admin performs the one-time domain install later (Phase 2.5b). Pilot: a few colleagues install the test deployment manually, then the admin installs domain-wide.
+- A6. Owner is not a Workspace admin. Development, testing and self-install use Apps Script test deployments on the owner's account and need no admin. A Workspace admin performs the one-time domain install later (Phase 2.5b). Pilot: 2 to 3 trusted colleagues get editor access to the script and install the test deployment (Google requires editor access for testers, R4 S13). The wider pilot waits for the private Marketplace app.
 - A7. Gmail mobile: compose add-on support is best effort. Web Gmail is the acceptance target.
 - A8. Language: English only in v1.
 - A9. Nothing persists in the cloud container between sessions unless pushed to a GitHub repository. A repository is a Phase 0 prerequisite.
