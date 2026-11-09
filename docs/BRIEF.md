@@ -21,7 +21,7 @@ Non-goals v1: public Marketplace listing, mail merge or campaigns, third-party s
 
 Cost and hosting: $0. Apps Script runs on Google's servers inside the Workspace tenant. No GCP billing, no external hosting. Firestore and any billed service stay out. Apps Script quotas (Phase 1, R4) are the only ceiling. Note: a private, domain-restricted Marketplace SDK configuration is required for admin force-install. That is allowed. A public listing is not.
 
-Quality bar: polished and fast UI, maintainable production-grade engineering. Section 9 gives measurable targets.
+Quality bar: polished and fast UI, maintainable production-grade engineering. Section 9 gives measurable targets. Operations (owner 2026-11-09): near-zero maintenance. Managers and admins add templates in the web app; nobody edits code or data by hand. Target: no recurring manual task except deploying a new version. Housekeeping (trash purge, backups, membership refresh, cache rebuild) runs on triggers. The design minimizes moving parts: one Apps Script project (A2), one manifest, one deploy.
 
 ## 2. Assumptions (owner corrects any that are wrong)
 

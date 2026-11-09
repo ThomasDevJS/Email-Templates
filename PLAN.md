@@ -8,7 +8,7 @@ Owner: thomas@migway.com. Orchestrator keeps this file current. Brief: docs/BRIE
 |---|---|---|---|
 | 0 Setup | G0 | DONE 2026-11-09 | Repo, agents, PLAN.md pushed. 4 agents verified loaded in session 2 |
 | 1 Research | G1 | DONE 2026-11-09 | Owner approved summary.md section 2 and accepted recommendations D4, D8 to D14. D7 open, assumptions below |
-| 2 Spec and ADRs | G2 | AWAITING OWNER 2026-11-09 | docs/spec.md, ADR-0001 to 0005 (Proposed), 7 wireframes. Orchestrator review passed. Owner approves and answers D15 to D20 |
+| 2 Spec and ADRs | G2 | REVISING 2026-11-09 | Owner chose one project (D15) and near-zero maintenance. Architect revising ADR-0001, 0002, 0003, 0005 and spec. Then back to owner |
 | 2.5a Owner dev env | G2.5a | pending | Owner machine: clasp login, dev script project, test deployment |
 | 2.5b Admin domain install | G2.5b | pending | Can wait until slices 1 to 7 PASS |
 | 3 Build | G3 per slice | pending | 7 slices, signatures deferred to v2 |
@@ -35,7 +35,7 @@ Owner reads docs/spec.md and docs/adr/0001 to 0005, approves or edits, and answe
 | D12 | Attachments | Out of v1 | owner 2026-11-09: accepted |
 | D13 | Pilot path before admin install | 2 to 3 colleagues as script editors on the test deployment | owner 2026-11-09: accepted |
 | D14 | Storage backend choice | Architect in ADR-0002, Cache in front | owner 2026-11-09: accepted |
-| D15 | Two Apps Script projects (addon, server) instead of one (BRIEF A2), spec Q2 | Accept. Users consent to 4 scopes instead of about 10, pilot editors never reach storage | open, recommended accept |
+| D15 | Two Apps Script projects (addon, server) instead of one (BRIEF A2), spec Q2 | One project (BRIEF A2 stands). Two identities inside it: add-on as user, web app deployment as owner. Consent list minimized, Drive-only storage preferred | owner 2026-11-09: one project |
 | D16 | Prod server owner identity, spec Q3 | Existing licensed shared mailbox if one exists, else owner account plus handover runbook | open, owner input required |
 | D17 | OU grants stored but inactive in v1, spec Q4 | Accept. Mirror OUs as groups where needed until the Directory resolver is active | open, recommended accept |
 | D18 | Admins can see private folders, spec Q5 | Yes, disclosed in the quick start | open, recommended accept |
@@ -60,3 +60,4 @@ Owner reads docs/spec.md and docs/adr/0001 to 0005, approves or edits, and answe
 - 2026-11-09 Session 2: 4 agents loaded. R1 to R4 ran in parallel (about 6 to 12 min each). Synthesis written: feature-matrix.md, ux-notes.md, summary.md. 209 sources. G1 awaits owner.
 - 2026-11-09 G1: owner approved v1 feature set (summary.md section 2) and recommendations D4, D8 to D14. D7 facts pending. Phase 2 launched.
 - 2026-11-09 Phase 2: architect wrote spec, 5 ADRs, 7 wireframes (about 16 min). Orchestrator review passed. BRIEF 2.5a corrected to execute as me. G2 awaits owner.
+- 2026-11-09 Owner: one Apps Script project (D15), near-zero maintenance as a design goal. Architect revision launched.
