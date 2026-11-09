@@ -7,6 +7,7 @@ export interface FakeRequest {
 export interface FakeReply {
   readonly status: number;
   readonly body: string;
+  readonly headers?: Record<string, string>;
 }
 
 export type Responder = (request: FakeRequest) => FakeReply;
@@ -20,6 +21,7 @@ export interface FakeUrlFetchApp {
   ): {
     getResponseCode(): number;
     getContentText(): string;
+    getHeaders(): Record<string, string>;
   };
 }
 
@@ -38,6 +40,7 @@ export function createUrlFetchApp(): FakeUrlFetchApp {
       return {
         getResponseCode: () => reply.status,
         getContentText: () => reply.body,
+        getHeaders: () => reply.headers ?? {},
       };
     },
   };

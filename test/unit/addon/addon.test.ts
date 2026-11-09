@@ -69,6 +69,34 @@ describe("callServer", () => {
     });
   });
 
+  it("follows one 302 by hand with a GET and no Authorization header", () => {
+    fetchApp.respondWith((request) =>
+      request.url === EXEC_URL
+        ? {
+            status: 302,
+            body: "",
+            headers: { Location: "https://content.example/echo?key=1" },
+          }
+        : { status: 200, body: OK_BODY },
+    );
+    const result = callServer("ping", {});
+    expect(result.ok).toBe(true);
+    expect(fetchApp.requests).toHaveLength(2);
+    const [first, second] = fetchApp.requests;
+    expect(first?.params.followRedirects).toBe(false);
+    expect(second?.url).toBe("https://content.example/echo?key=1");
+    expect(second?.params.method).toBe("get");
+    expect(second?.params.headers).toBeUndefined();
+  });
+
+  it("reports the first hop status when the server rejects the token", () => {
+    fetchApp.respondWith(() => ({ status: 404, body: "" }));
+    expect(callServer("ping", {})).toMatchObject({
+      ok: false,
+      error: { code: "NETWORK", message: "Server returned HTTP 404" },
+    });
+  });
+
   it("returns NETWORK when the fetch throws", () => {
     fetchApp.respondWith(() => {
       throw new Error("DNS");

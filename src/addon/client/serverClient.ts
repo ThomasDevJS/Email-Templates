@@ -44,17 +44,50 @@ export function readResponse(status: number, body: string): RpcResponse {
   );
 }
 
-function fetchServer(
-  request: RpcRequest,
-): GoogleAppsScript.URL_Fetch.HTTPResponse {
-  return UrlFetchApp.fetch(BUILD_INFO.execUrl, {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(request),
-    headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
-    muteHttpExceptions: true,
-    followRedirects: true,
-  });
+const HTTP_FOUND = 302;
+
+interface Hop {
+  readonly status: number;
+  readonly body: string;
+  readonly location: string;
+}
+
+function readHop(response: GoogleAppsScript.URL_Fetch.HTTPResponse): Hop {
+  const headers = response.getHeaders() as Record<string, string | undefined>;
+  return {
+    status: response.getResponseCode(),
+    body: response.getContentText(),
+    location: headers["Location"] ?? headers["location"] ?? "",
+  };
+}
+
+/**
+ * Apps Script answers a web app call with a 302 to script.googleusercontent.com, whose URL carries a
+ * one-time key. The redirect is followed by hand so the first hop's status is visible in errors and
+ * the bearer token is never forwarded to the second host.
+ */
+function fetchServer(request: RpcRequest): Hop {
+  const first = readHop(
+    UrlFetchApp.fetch(BUILD_INFO.execUrl, {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(request),
+      headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
+      muteHttpExceptions: true,
+      followRedirects: false,
+    }),
+  );
+  if (first.status !== HTTP_FOUND || first.location === "") return first;
+  const second = readHop(
+    UrlFetchApp.fetch(first.location, {
+      method: "get",
+      muteHttpExceptions: true,
+      followRedirects: true,
+    }),
+  );
+  return second.status === HTTP_OK
+    ? second
+    : { ...second, body: `${String(second.status)} after redirect` };
 }
 
 export function callServer(op: string, args: unknown): RpcResponse {
@@ -71,8 +104,8 @@ export function callServer(op: string, args: unknown): RpcResponse {
     clientVersion: APP_VERSION,
   };
   try {
-    const response = fetchServer(request);
-    return readResponse(response.getResponseCode(), response.getContentText());
+    const hop = fetchServer(request);
+    return readResponse(hop.status, hop.body);
   } catch {
     return localError(ErrorCode.NETWORK, "Server unreachable");
   }
