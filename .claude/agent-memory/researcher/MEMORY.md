@@ -32,3 +32,29 @@
 - HubSpot sales template token syntax and version history not documented publicly.
 - Can Migway "user" role create private templates? Not stated in BRIEF.
 - Attachments in v1: BRIEF silent. Briskine-style public links conflict with data rules.
+
+## R1 Gmail templates (2026-11-09)
+
+Sources that worked (WebFetch)
+- Ablebits Gmail docs: www.ablebits.com/docs/gmail-shared-templates-* (overview, installation, macros, create-teams, known-issues, create-manage).
+- Ablebits shared docs moved to email-templates.app/en/docs/ (301 from ablebits.com/docs/outlook-*), mostly Outlook-centric.
+- Ablebits pricing table lives on ablebits.com/gmail-shared-email-templates/index.php (pricing.php is 404). Table text arrives flattened; check plan-to-column mapping.
+- Chrome Web Store listing and its /reviews subpage fetch fine.
+- Google user help: support.google.com/mail/answer/14864208 (templates), 10960345 (layouts), 12921167 (mail merge); support.google.com/a/users/answer/9308990.
+- Admin help: knowledge.workspace.google.com/admin/gmail/manage-gmail-settings-for-your-users. workspaceupdates.googleblog.com posts fetch fine.
+
+Pitfalls
+- AppSource returns 403. googlecloudcommunity.com redirects to discuss.google.dev, which 404s.
+- support.google.com/mail/answer/10434152 is a privacy page, not templates.
+- Ablebits docs conflict on Gmail signatures and export (old pages say unsupported). Cite both.
+- Parallel runs share this file and commits land mid-run. Append to your section; never overwrite the file.
+
+Facts to reuse
+- Ablebits Gmail edition: Chrome extension, AWS-hosted data, roles Admin, Editor, User per team, $3 and $4 per user per month annual.
+- Gmail Templates: per-user, web only, no sharing, no admin setting, permanent delete.
+- Gmail Layouts: admin toggle per OU or group, default on, needs Drive and Docs creation, Business Standard and up.
+
+Open questions
+- Gmail native template count cap (50?) and whether subject is saved: no Google source.
+- Ablebits raw macro syntax and monthly-billing price: not public in pages read.
+- Ablebits Gmail export support: conflicting docs.
