@@ -52,6 +52,20 @@ export function toRpcError(error: unknown): RpcError {
   return new RpcError(ErrorCode.INTERNAL, message, "", true);
 }
 
+/** QUOTA: spec section 7 allows a retry after 60 s, so Retry stays disabled that long. */
+export const QUOTA_RETRY_MS = 60_000;
+
+function retryButton(error: RpcError, onRetry: () => void): HTMLButtonElement {
+  const button = h("button", { type: "button", onclick: onRetry }, "Retry");
+  if (error.code === ErrorCode.QUOTA) {
+    button.disabled = true;
+    setTimeout(() => {
+      button.disabled = false;
+    }, QUOTA_RETRY_MS);
+  }
+  return button;
+}
+
 export function showToast(
   region: HTMLElement,
   error: RpcError,
@@ -68,17 +82,10 @@ export function showToast(
   const actions = h("div", { class: "toast-actions" });
   if (retry !== undefined && error.retryable)
     actions.append(
-      h(
-        "button",
-        {
-          type: "button",
-          onclick: () => {
-            toast.remove();
-            retry();
-          },
-        },
-        "Retry",
-      ),
+      retryButton(error, () => {
+        toast.remove();
+        retry();
+      }),
     );
   actions.append(
     h(

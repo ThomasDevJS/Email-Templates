@@ -74,13 +74,17 @@ export function templateList(context: HandlerContext): {
   return { items, rev: index.rev };
 }
 
+/** Item and body for the editor. The body is sanitized again on read, like `template.getBody`. */
 export function templateGet(context: HandlerContext): {
   item: Item;
   html: string;
 } {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   const body = context.services.store().readBody(item.bodyFileId);
-  return { item, html: body.html };
+  return {
+    item,
+    html: readableBody(context.services.props, body.html).html,
+  };
 }
 
 /**

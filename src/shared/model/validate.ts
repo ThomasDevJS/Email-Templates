@@ -33,13 +33,6 @@ export function tagList(values: readonly string[]): string[] {
   return [...new Set(tags)];
 }
 
-export function bodySize(bytes: number): void {
-  if (bytes > BODY_MAX_BYTES)
-    fail(
-      `Body is ${String(bytes)} bytes; the limit is ${String(BODY_MAX_BYTES)}`,
-    );
-}
-
 /**
  * Names are unique among live siblings, case-insensitive. Private folders (D11) are compared only with
  * other private folders of the same owner, so every user can have "My templates".

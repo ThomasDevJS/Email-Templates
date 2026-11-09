@@ -104,6 +104,9 @@ describe("template.getBody (level use)", () => {
       html: "<p>{{ask:Old}}</p>",
       prompts: ["Old"],
     });
+    expect(world.ok(OWNER, "template.get", { id: item.id })).toMatchObject({
+      html: "<p>{{ask:Old}}</p>",
+    });
   });
 });
 

@@ -163,8 +163,27 @@ export function grantAdd(context: HandlerContext): Grant {
       result: after,
     };
   });
-  if (fresh !== null) mergeGroup(context.services, fresh);
+  if (fresh !== null) mergeAfterGrant(context, fresh);
   return added;
+}
+
+/**
+ * The grant is committed; a failed merge (Drive read or lock) leaves the snapshot as it was. The 15-min
+ * `refreshMembers` run adds the group, so the request still succeeds.
+ */
+function mergeAfterGrant(context: HandlerContext, fresh: MembersDoc): void {
+  try {
+    mergeGroup(context.services, fresh);
+  } catch (error: unknown) {
+    context.services.logger.warn({
+      surface: context.surface,
+      requestId: context.requestId,
+      action: "grant.add.snapshotMerge",
+      actor: context.caller.email,
+      result: "error",
+      error,
+    });
+  }
 }
 
 export function grantRemove(context: HandlerContext): { removed: string } {

@@ -130,14 +130,16 @@ function currentResolver(services: SnapshotServices): MembershipResolver {
   );
 }
 
-/** Re-reads `members.json` under the lock, merges, writes, then puts the `gm:*` cache. */
+/**
+ * Re-reads `members.json` under the lock, merges, writes, then puts the `gm:*` cache. A failed read throws and
+ * writes nothing: merging into an empty stand-in would drop every group the read did not return.
+ */
 function writeMerged(
   services: SnapshotServices,
-  resolver: string,
   merge: (latest: MembersDoc) => MembersDoc,
 ): MembersDoc {
   const doc = withLock(services.lock, WRITE_LOCK_MS, () => {
-    const next = merge(readPreviousSnapshot(services, resolver));
+    const next = merge(services.store().readSide("members"));
     services.store().writeSide("members", next);
     return next;
   });
@@ -174,7 +176,7 @@ export function refreshSnapshot(
     readPreviousSnapshot(services, resolver.id),
     nowIso(services),
   );
-  return writeMerged(services, resolver.id, (latest) => {
+  return writeMerged(services, (latest) => {
     const referenced = referencedGroups(
       loadIndexForWrite(services),
       adminGroup,
@@ -209,7 +211,7 @@ export function mergeGroup(
   fresh: MembersDoc,
 ): MembersDoc {
   const keys = Object.keys(fresh.groups);
-  return writeMerged(services, fresh.resolver, (latest) => ({
+  return writeMerged(services, (latest) => ({
     refreshedAt:
       latest.refreshedAt === "" ? fresh.refreshedAt : latest.refreshedAt,
     resolver: fresh.resolver,
