@@ -75,3 +75,32 @@ Diff: `git diff e977695...HEAD --stat`: 80 files changed, 11107 insertions, 1 de
 3. `onOpenLibrary` throws when `execUrl` is empty (handoff risk). Fixed by checklist step 7.
 4. `timeZone` is `Etc/UTC`; `daily` at 02:00 runs in UTC. Owner question.
 5. `npm audit`: 3 advisories in clasp's dev-only tree. Not shipped.
+
+## Retry 1
+
+Verdict: PASS
+
+Fix commit 054a619. Reviewer run 2026-11-09 after `rm -rf node_modules dist coverage`. Node 22.23.4, npm 10.9.9.
+
+| Command | Result |
+|---|---|
+| `npm ci` | PASS, exit 0 |
+| `npm run lint` | PASS, exit 0, 0 problems |
+| `npm run format:check` | PASS, "All matched files use Prettier code style!" |
+| `npm run typecheck` | PASS, exit 0 |
+| `npm run test:coverage` | PASS, Test Files 12 passed (12), Tests 144 passed (144) |
+| coverage | statements 99.39% (163/164), branches 98.05% (101/103), functions 100% (56/56), lines 99.34% (152/153) |
+| `npm run build -- --env dev` | PASS, Code.js 15.5 KB of 800 KB, index.html 1.5 KB of 400 KB, expected execUrl warning |
+| `npm run build -- --env prod` | PASS, same sizes, same warning |
+| `npm run scopes:check` | PASS, "Scope check passed: 8 scopes, all approved." |
+
+Fixes:
+
+- `@types/node` pinned exactly to 22.20.5 in package.json. The lock entry has version 22.20.5 from registry.npmjs.org. `npm ls @types/node` shows 0 invalid entries. Clean `npm ci` exits 0.
+- `missingForDeploy` adds `execUrl` in mode `version`. `npm run deploy -- prod` exits 1 with "deploy/prod.json is missing scriptId, deploymentId, execUrl." before any build or clasp call. A new unit case covers execUrl alone.
+- Boundary test uses `importsSegment`. Cases `../server`, `../../server/dispatch/policy`, `server/x`, `../../src/server/entry` are caught; `serverless`, `observer`, `server-utils` pass. ESLint stdin probes on `src/addon/client/serverClient.ts`: `../server` 1 hit, `../../server/x` 1 hit, `../shared/serverless` 0, `./server-utils` 0. ESLint now also bans shared importing server or addon, and server importing addon.
+- `timeZone` is `America/New_York`. docs/ops/deploy.md section "Time zone" says `daily` runs 02:00 to 03:00 in that zone and the owner may change it.
+
+Secret scan of 054a619: 121 added lines, 0 pattern hits, 0 email addresses. All new lock `resolved` URLs point at registry.npmjs.org.
+
+Still tracked for slice 2: guard the 4 trigger functions and 4 add-on callbacks callable via `google.script.run`, update ADR-0003's `_` suffix rule, add the caller domain check. `npm audit` advisories in clasp's dev-only tree remain.
