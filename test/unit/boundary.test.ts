@@ -21,6 +21,11 @@ const sharedSources = import.meta.glob<string>("../../src/shared/**/*.ts", {
   import: "default",
   eager: true,
 });
+const webSources = import.meta.glob<string>("../../src/web/**/*.ts", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
 
 /** Matches an import or export `from` whose module path has a segment named `segment`, at any depth. */
 function importsSegment(segment: string): RegExp {
@@ -37,6 +42,12 @@ const ADDON_FORBIDDEN = [
 ];
 const SERVER_FORBIDDEN = [/\bgetUserCache\b/, importsSegment("addon")];
 const SHARED_FORBIDDEN = [importsSegment("server"), importsSegment("addon")];
+/** The browser reaches the server only through `google.script.run.rpc`; the dev harness stays out of app code. */
+const WEB_FORBIDDEN = [
+  importsSegment("server"),
+  importsSegment("addon"),
+  importsSegment("dev-harness"),
+];
 
 function violations(
   sources: Record<string, string>,
@@ -66,6 +77,11 @@ describe("ADR-0003 Part A boundary", () => {
 
   it("shared code imports neither side", () => {
     expect(violations(sharedSources, SHARED_FORBIDDEN)).toEqual([]);
+  });
+
+  it("web code imports neither server nor add-on code, nor the dev harness", () => {
+    expect(Object.keys(webSources).length).toBeGreaterThan(0);
+    expect(violations(webSources, WEB_FORBIDDEN)).toEqual([]);
   });
 
   it("detects a violation", () => {
