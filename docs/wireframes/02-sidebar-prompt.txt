@@ -1,0 +1,26 @@
+Screen 2: Sidebar prompt card
+Slice 4. One TextInput per distinct prompt (same label filled once), plus implicit prompts for unresolved values without fallback (ADR-0004). Max 20.
+
++--------------------------------------+
+| < Price quote 2026                   |  CardHeader
+|--------------------------------------|
+| Fill these fields to insert          |
+|                                      |
+| Meeting date *                       |  TextInput id p-1
+| [ 12 November_________________ ]     |
+|                                      |
+| Product name *                       |  TextInput id p-2
+| [ ____________________________ ]     |  used 3 times in the template
+|                                      |
+| Recipient first name *               |  implicit: 2 To recipients,
+| [ ____________________________ ]     |  no fallback in template
+|                                      |
+| (!) Fill 1 field: Product name       |  shown after a blocked Apply
+|--------------------------------------|
+| [Insert]            [Cancel]         |  FixedFooter
++--------------------------------------+
+
+Rules
+- Insert validates every field server-side in the callback. Any blank field: no draft change, card re-rendered with the error line and the field first in order.
+- Values: plain text, max 500 chars, HTML-escaped, newline -> <br>.
+- Cancel pops back to the previous card. Values are not stored.

@@ -1,0 +1,41 @@
+Screen 4: Web app editor (/exec?view=editor&id=...)
+Slice 3.
+
++----------------------------------------------------------------------------------+
+| < Library   Price quote 2026                 Version 7   [History]  [Save Ctrl+S] |
++----------------------------------------------------------------------------------+
+| Title  [ Price quote 2026_________________________ ]                             |
+| Folder [ Sales / Quotes        v ]   Tags [ pricing x ] [ quotes x ] [+ tag]     |
+|----------------------------------------------------------------------------------|
+| [B][I][U][S] [Color v][Size v][Font v] [Align v] [* list][1. list] ["] [--]      |
+| [Link] [Image URL] [Table] [{{ Placeholder v }]                                  |
+|----------------------------------------------------------------------------------|
+| Hi (Recipient first name | there),                       | PREVIEW AS ME         |
+|                                                          | Hi there,             |
+| Thanks for your interest in (Ask: Product name). Our     | Thanks for your       |
+| quote for (Ask: Meeting date) is below.                  | interest in [Product  |
+|                                                          | name]. ...            |
+| +--------+--------+                                      |                       |
+| | Item   | Price  |                                      | Ana Lopez             |
+| +--------+--------+                                      | Sales Manager         |
+|                                                          | +1 555 0100           |
+| (Sender name)                                            |                       |
+| (Sender title)                                           |                       |
+|----------------------------------------------------------------------------------|
+| Problems (2):                                            role="alert" region     |
+|  - Unknown placeholder sender.nmae at char 120. Did you mean sender.name?        |
+|  - Warning: recipient.first_name has no fallback.                                |
+|----------------------------------------------------------------------------------|
+| Status: Saved as version 7, 14:03                        role="status"           |
++----------------------------------------------------------------------------------+
+
+(...) = placeholder chip, atomic, contenteditable=false, aria-label "Placeholder: sender name".
+
+Placeholder menu ({{ or toolbar):
+  Sender name | Sender title | Sender phone | Sender department | Recipient first name
+  Ask the user... -> dialog: Label (1-40 chars)
+  Add fallback... -> dialog on a selected chip: fallback text (0-80 chars)
+
+Conflict dialog (CONFLICT on save):
+  "Ben saved version 8 at 14:05 while you edited."
+  [Open Ben's version]  [Copy my text]  [Cancel]

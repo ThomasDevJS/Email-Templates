@@ -1,0 +1,59 @@
+Screen 7: States (empty, no permission, loading, error, trash)
+Slices 3 (web), 4 (sidebar), 6 (admin). Error codes in docs/spec.md section 7.
+
+A. Sidebar, no templates visible
++--------------------------------------+
+| [M] Migway Templates                 |
+|--------------------------------------|
+| No templates shared with you yet.    |
+| Your private folder is ready.        |
+| [Open library]                       |
++--------------------------------------+
+
+B. Sidebar, no permission (DENIED)
++--------------------------------------+
+| You don't have access to this        |
+| template. Ask a folder manager.      |
+| [Back]                               |
++--------------------------------------+
+
+C. Sidebar, error with retry (BUSY, QUOTA, TIMEOUT, SERVER)
++--------------------------------------+
+| Something went wrong.                |
+| Request ID 01JC8XK2                  |
+| [Retry]  [Back]                      |
++--------------------------------------+
+
+D. Account not identified (AUTH_NO_USER), sidebar and web app
++--------------------------------------------------------------+
+| Cannot identify your Migway account.                         |
+| Apps Script does not support several signed-in Google        |
+| accounts. Use a separate Chrome profile for Migway, or an    |
+| incognito window with only your Migway account.              |
++--------------------------------------------------------------+
+
+E. Web app loading (skeleton, aria-busy="true")
++---------------------------------------------------------+
+| [==========]  [=====================]  [====]  [==]     |
+| [==========]  [=================]      [====]  [==]     |
+| ... 8 rows                                              |
++---------------------------------------------------------+
+
+F. Web app empty folder
+  No templates in Sales / Quotes.
+  [+ New template]          (edit level only; otherwise no button)
+
+G. Web app no search results
+  No templates match "qoute". Try folder: or tag:.
+
+H. Trash (Library > Trash)
++----------------------------------------------------------------------------+
+| Trash. Deleted templates stay 30 days, then are removed.                   |
+| Title              Folder          Deleted      By     Days left           |
+| Old price list     Sales/Quotes    2026-10-30   Ana    20   [Restore]      |
+| (Purge now: admin only)                                                    |
++----------------------------------------------------------------------------+
+Empty: "Trash is empty. Deleted templates stay here for 30 days."
+
+I. Save conflict (CONFLICT): see 04-web-editor.txt.
+J. Busy toast (BUSY): "Busy, try again." [Retry], role="alert", auto-dismiss off.

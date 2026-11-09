@@ -1,0 +1,55 @@
+Screen 1: Sidebar home (Gmail compose, Card Service)
+Slice 4 (Favorites, Recent, search in 5). Width about 300 px. Widgets per card under 100 [R4 S9].
+
++--------------------------------------+
+| [M] Migway Templates                 |  CardHeader
+|--------------------------------------|
+| Search templates                     |  TextInput, onChangeAction -> search
+| [ quote_______________________ ]     |  hint: folder:Sales  tag:pricing
+|--------------------------------------|
+| FAVORITES                            |  CardSection, max 10
+|  * Welcome email          [Insert]   |  DecoratedText + TextButton
+|    Sales / Onboarding                |  bottom label: folder path
+|  * Price quote 2026       [Insert]   |
+|    Sales / Quotes   2 fields to fill |  label when prompts exist
+|--------------------------------------|
+| RECENT                               |  max 5, last used by me
+|  Meeting follow-up        [Insert]   |
+|  Out of office reply      [Insert]   |
+|--------------------------------------|
+| FOLDERS                              |  collapsible section
+|  > Sales (24)                        |  DecoratedText, onClick -> folder card
+|  > Support (41)                      |
+|  > HR (7)                            |
+|  > My templates (3)                  |  private folder (D11)
+|--------------------------------------|
+| [Open library]                       |  OpenLink OVERLAY, RELOAD_ADD_ON
++--------------------------------------+
+
+Folder card (pushed on tap):
++--------------------------------------+
+| < Sales / Quotes                     |
+|--------------------------------------|
+|  Price quote 2026         [Insert]   |
+|    "Hi {first name}, thanks for..."  |  snippet, 80 chars
+|  Discount approval        [Insert]   |
+|  ... 20 per page                     |
+|--------------------------------------|
+| [< Prev]   Page 1 of 3   [Next >]    |
++--------------------------------------+
+
+Tap on a title (not the button) pushes a preview card:
++--------------------------------------+
+| < Price quote 2026                   |
+|--------------------------------------|
+| Plain-text preview, max 600 chars,   |  TextParagraph, 8 allowed tags
+| placeholders shown as [Sender name]  |
+|--------------------------------------|
+| Fields to fill: Meeting date         |
+| [Insert]  [Edit in library]          |  Edit only if level >= edit
++--------------------------------------+
+
+Behavior
+- Insert on a template with no prompts and all values resolved: apply in one click.
+- Insert on a template with prompts: push screen 2.
+- Edit in library: clears add-on cache, opens /exec?view=editor&id=... in OVERLAY, sidebar reloads on close.

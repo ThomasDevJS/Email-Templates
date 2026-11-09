@@ -1,0 +1,46 @@
+Screen 6: Admin (/exec?view=admin)
+Slice 6. Tabs: Folders and grants | Memberships | Audit log | Usage | Export and import | Config.
+Admins see all tabs. manage holders see Folders and grants (their subtrees) and Export folder.
+
+Tab: Folders and grants
++----------------------------------------------------------------------------------+
+| Folders and grants | Memberships | Audit log | Usage | Export and import | Config |
++--------------------------+-------------------------------------------------------+
+| v Sales                  | Sales / Quotes                     [Rename] [Delete]  |
+|    Onboarding            |-------------------------------------------------------|
+|  > Quotes <              | Effective access (includes inherited from Sales)      |
+| > Support                |  Principal                 Level    Source            |
+| > HR                     |  group sales@migway.com    edit     Sales (inherited) |
+| [+ Top-level folder]     |  group all@migway.com      use      this folder       |
+|                          |  ou /Field (inactive)      use      this folder       |
+|                          |    "Inactive: OU resolution needs the Directory       |
+|                          |     resolver" (Q4)                                     |
+|                          |-------------------------------------------------------|
+|                          | Add grant: [group v] [ email____________ ] [use v]    |
+|                          |            [Add]                                      |
++--------------------------+-------------------------------------------------------+
+
+Tab: Memberships
+  Resolver: groupsapp_direct (direct members only)   Last refresh 14:00   [Refresh now]
+  Group                    Members   Child groups   Status
+  admins@migway.com        3         0              ok
+  sales@migway.com         28        1              warn: contains emea-sales@ (members get no access)
+
+Tab: Audit log
+  Filters: [date from] [date to] [actor] [action v] [result v] [target]   [Apply]
+  Time              Actor          Action            Target                 Result
+  2026-11-09 14:03  ana@migway.com template.update   Sales/Quotes/Price...  ok      [Details]
+  2026-11-09 13:58  ben@migway.com template.get      HR/Salary letter       denied  [Details]
+  Details drawer: before / after JSON, durationMs, requestId, appVersion.
+  50 rows per page.
+
+Tab: Usage
+  Template            Folder          Applies 30 d   Last used
+  Price quote 2026    Sales/Quotes    112            2026-11-09
+
+Tab: Export and import
+  Export: (o) Whole library (admin)  ( ) Folder [Sales v]   [Download JSON]
+  Import: [Choose file]  Target folder [ Imports v ]  [Validate]  -> report: 40 ok, 2 skipped, 1 failed  [Import]
+
+Tab: Config (read only)
+  Domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_VERSION, app version, last backup.

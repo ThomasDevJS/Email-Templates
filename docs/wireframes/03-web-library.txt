@@ -1,0 +1,30 @@
+Screen 3: Web app library (/exec, default view)
+Slice 3 (search and favorites in 5). Desktop width 1280 px; usable down to 1024 px.
+
++----------------------------------------------------------------------------------+
+| Migway Templates                         Signed in as user@migway.com   [?]      |
++----------+-----------------------------------------------------------------------+
+| Library  | [ Search: folder:Sales tag:pricing quote________ ] [x]  [ * Favorites ] |
+| Admin    |------------------------------------------------------------------------|
+|          | FOLDERS (tree)        | Sales / Quotes                  [+ New template]|
+|          |  v Sales              |------------------------------------------------|
+|          |     Onboarding        | *  Title              Updated      By    Uses  |
+|          |   > Quotes  <         | *  Price quote 2026   2026-11-02   Ana    112  |
+|          |  > Support            |    Discount approval  2026-10-20   Ben     34  |
+|          |  > HR                 |    Renewal reminder   2026-09-14   Ana     12  |
+|          |  My templates         |                                                |
+|          |  Trash                | Row actions (menu, keyboard: Enter, Shift+F10):|
+|          |                       |  Edit | Duplicate | Move | History | Delete    |
+|          | [+ New folder]        |  (shown only when level allows)                |
+|          |  (manage or admin)    |                                                |
+|          |                       | 1-20 of 24             [< Prev] [Next >]       |
++----------+-----------------------+------------------------------------------------+
+
+Keyboard
+- "/" focuses search. Tree: arrows move, Right expands, Enter opens. Grid: arrows move rows, Enter opens editor.
+- Star toggles favorite (aria-label "Add to favorites: <title>").
+
+Notes
+- Title, folder, tag filtering runs in the browser on the loaded index (under 50 ms).
+- Body matches arrive from server op search.body and append under "Matches in text".
+- Uses column = applyCount from usage (admin and edit levels only).
