@@ -42,7 +42,7 @@ One Apps Script project per environment (D15). One manifest, one scope list (sec
 
 | Piece | Runs as | Reads storage | Users consent to |
 |---|---|---|---|
-| Add-on code (Card Service, compose trigger) | the user | never; calls the same project's `/exec` | the 8 scopes of section 9 at self-install; nothing after the admin domain install [R4 S60] |
+| Add-on code (Card Service, compose trigger) | the user | never; calls the same project's `/exec` | the 9 scopes of section 9 at self-install; nothing after the admin domain install [R4 S60] |
 | Web app deployment (`USER_DEPLOYING`, `DOMAIN`) | the owner | yes, private | nothing extra (same manifest) |
 | Time-driven triggers (section 16) | the owner | yes | nothing |
 | Storage: one Drive folder of JSON files (ADR-0002) | owned by the owner, shared with nobody, `drive.file` | | |
@@ -244,10 +244,11 @@ Loading states:
 
 One manifest, one list (D15, ADR-0001). Every self-installing user consents to all default scopes; the admin domain install skips the consent screen [R4 S60]. Prefix `https://www.googleapis.com/auth/` omitted. Consent text from [A10 in ADR-0002].
 
-Default list, 8 scopes:
+Default list, 9 scopes:
 
 | Scope | Class | Consent text | Used by | Reason |
 |---|---|---|---|---|
+| gmail.addons.execute | Non-sensitive, add-on scope | "Run as a Gmail add-on" | add-on | Required at runtime by Gmail for the compose trigger. Verified 2026-11-09 on the dev deployment: without it Gmail raises "Required permissions: gmail.addons.execute". R4 S42 (release note of 2019) is wrong in practice |
 | gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft |
 | gmail.addons.current.message.metadata | Sensitive [R4 S8] | "View your email message metadata when the add-on is running" | add-on | Read To recipients for `recipient.first_name` (D10) |
 | script.external_request | Unclassified [R4 S7] | not published | add-on | Call the project's own `/exec` with UrlFetchApp |

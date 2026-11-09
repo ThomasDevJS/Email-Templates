@@ -93,22 +93,20 @@ describe("deploy config", () => {
   });
 
   it("needs scriptId always, deploymentId and execUrl in version mode", () => {
-    expect(missingForDeploy(parseDeployConfig(prod))).toEqual([
+    // Blank the committed IDs so the test does not depend on deploy/*.json contents.
+    const blank = { scriptId: "", deploymentId: "", execUrl: "" };
+    const emptyProd = parseDeployConfig({ ...prod, ...blank });
+    const emptyDev = parseDeployConfig({ ...dev, ...blank });
+    expect(missingForDeploy(emptyProd)).toEqual([
       "scriptId",
       "deploymentId",
       "execUrl",
     ]);
-    expect(missingForDeploy(parseDeployConfig(dev))).toEqual(["scriptId"]);
+    expect(missingForDeploy(emptyDev)).toEqual(["scriptId"]);
     expect(
-      missingForDeploy({
-        ...parseDeployConfig(prod),
-        scriptId: "id",
-        deploymentId: "dep",
-      }),
+      missingForDeploy({ ...emptyProd, scriptId: "id", deploymentId: "dep" }),
     ).toEqual(["execUrl"]);
-    expect(
-      missingForDeploy({ ...parseDeployConfig(dev), scriptId: "id" }),
-    ).toEqual([]);
+    expect(missingForDeploy({ ...emptyDev, scriptId: "id" })).toEqual([]);
   });
 });
 

@@ -50,7 +50,7 @@ Run: R4, Phase 1. Researcher (claude-opus-5-5). Date read for every source: 2026
 | `setOnClickOpenLinkAction` | Opens in a new window only | [S1] | 2026-11-09 |
 | `urlFetchWhitelist` | https only, full domain, non-empty path, one leading wildcard max. Optional for test deployments, required for versioned deployments. | [S6] | 2026-11-09 |
 | `oauthScopes` | Setting it disables automatic scope detection | [S41] | 2026-11-09 |
-| `gmail.addons.execute` | No longer required since 2019-11-12. Apps Script and Gmail ignore it. | [S42] | 2026-11-09 |
+| `gmail.addons.execute` | Release note of 2019-11-12 says no longer required. CORRECTION 2026-11-09: the dev deployment failed with "Required permissions: gmail.addons.execute" until the scope was added to the manifest. Treat it as required. | [S42], dev test | 2026-11-09 |
 | Default scope risk | Apps Script may add `https://mail.google.com/` (restricted). Replace with narrow scopes. | [S7] | 2026-11-09 |
 | Navigation stack | Root homepage card can't be popped. No documented depth cap. | [S43] | 2026-11-09 |
 
