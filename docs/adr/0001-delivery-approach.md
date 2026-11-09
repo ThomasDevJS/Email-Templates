@@ -1,6 +1,6 @@
 # ADR-0001: Delivery approach
 
-Status: Proposed (revised 2026-11-09 after D15: one project)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 

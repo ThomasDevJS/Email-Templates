@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Proposed
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 

@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Proposed (revised 2026-11-09 after D15: one project, near-zero maintenance)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -28,7 +28,7 @@ Binding: D15 decided (one Apps Script project: add-on code runs as the user, a w
 ### Options
 
 1. Pattern A, access token plus active user. The project's web app deployment uses `executeAs: USER_DEPLOYING`, `access: DOMAIN`. Add-on code calls `UrlFetchApp.fetch(SERVER_URL, { method: 'post', headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, payload: JSON })`. Google authenticates the token at the `/exec` front door and rejects non-domain callers. `doPost` reads the caller from `Session.getActiveUser().getEmail()` [R4 S45]. Identity cannot be forged, because Google sets it from the token. Cost: the token must carry a Drive scope [A1]; `drive.file` is already in the one manifest for storage (ADR-0002), non-sensitive [R4 S57], and Google's acceptance of it at `/exec` is unverified. Possibly the project must be shared as Viewer with callers [A1]. Same code path as the web app UI, which also uses `getActiveUser`.
-2. Pattern B, ID token. Server deployed with `access: ANYONE_ANONYMOUS`. Add-on sends `ScriptApp.getIdentityToken()` [A4]. Server verifies it with Google's tokeninfo endpoint (`aud` equals the add-on OAuth client ID, `iss`, `exp`, `email_verified`, `hd` equals the Migway domain), caching the result for the token's remaining life. Cost: endpoint is publicly reachable; one extra UrlFetch per new token; needs `openid` scope. Web app access is one manifest setting per project, so the editor UI on the same project would also become anonymous and lose `getActiveUser`; a second project is excluded by D15. Admins can disable public web app access for the domain (unverified), which would break it.
+2. Pattern B, ID token. Server deployed with `access: ANYONE_ANONYMOUS`. Add-on sends `ScriptApp.getIdentityToken()` [A4]. Server verifies it with Google's tokeninfo endpoint (`aud` equals the add-on OAuth client ID, `iss`, `exp`, `email_verified`, `hd` equals the Migway domain), caching the result for the token's remaining life. Cost: endpoint is publicly reachable; one extra UrlFetch per new token; needs `openid` scope. "Execute as" and "Who has access" are chosen per deployment under Deploy > New deployment > Web app > Deployment configuration; the manifest `webapp` field supplies defaults [A12]. One project can therefore carry two web app deployments: the UI deployment (`USER_DEPLOYING`, `DOMAIN`) keeps `getActiveUser`, and an API deployment (`USER_DEPLOYING`, `ANYONE_ANONYMOUS`) accepts only a verified ID token. No second project is needed. Slice 2 confirms two deployments with different access settings. Admins can disable public web app access for the domain (unverified), which would break it.
 3. Pattern C, precomputed per-user index. Server writes each user's visible templates to a file shared to that user only, or to a cache the add-on can read. The add-on reads it without a server call. Cost: fan-out of up to 500 writes per grant or template change; per-user files expose content in Drive (only content the user may see, but outside the app's audit); in the one project, an add-on path that reads the Script Cache directly would make the code the only barrier between a user and every cached body. Apply-time revocation is lost.
 
 ### Decision, Part A
@@ -185,7 +185,7 @@ Structured log (BRIEF 10): one JSON line per request via `console.log(JSON.strin
 - Q3. Prod server owner: a licensed service account mailbox, or the owner's account with a documented handover? Recommendation: an existing licensed shared account if Migway has one (a new licence costs money); otherwise the owner's account and a handover runbook.
 - Q4. OU grants inactive in v1 (GroupsApp cannot read OUs). Recommendation: accept; admins create one group per OU if needed; activate with the Directory resolver plus an admin role with user read.
 - Q5. Admins see private folders. Recommendation: yes, disclosed in the quick start (BRIEF "admins see everything").
-- Q6. If `drive.file` fails the token gate at `/exec`, the token needs `drive.readonly` (restricted) on every user's consent list. Pattern B would make the one web app anonymous and a second project is excluded (D15). Recommendation: then add `drive.readonly`; internal apps need no verification [R4 S18], and the admin trusts the app in API controls if Migway restricts APIs [R4 S60].
+- Q6. If `drive.file` fails the token gate at `/exec`. Recommendation: a second API deployment of the same project (`USER_DEPLOYING`, `ANYONE_ANONYMOUS`) with ID-token verification as in Pattern B; adds `openid` only [A12]. Last resort: `drive.readonly` (restricted) on every user's consent list; internal apps need no verification [R4 S18], and the admin trusts the app in API controls if Migway restricts APIs [R4 S60].
 - Q7. If `getActiveUser` is blank on token calls: switch to `id_token`. Recommendation: accept the config fallback now.
 - Q8. If the project must be shared with callers: share the prod project as Viewer with an all-staff group. Viewers see code only; the code holds no secrets and no data, and Viewers cannot edit or deploy. Recommendation: accept.
 - Q10. Audit retention 24 months. Recommendation: accept.
@@ -196,3 +196,4 @@ Structured log (BRIEF 10): one JSON line per request via `console.log(JSON.strin
 - [A1] https://github.com/tanaikech/taking-advantage-of-Web-Apps-with-google-apps-script, third party, read 2026-11-09.
 - [A4] https://developers.google.com/apps-script/reference/script/script-app (`getIdentityToken`, `getOAuthToken`), read 2026-11-09.
 - [A5] https://developers.google.com/workspace/add-ons/concepts/event-objects (recipients are email strings), read 2026-11-09.
+- [A12] https://developers.google.com/apps-script/guides/web ("Deploy a script as a web app" steps: Deploy > New deployment > Web app > Deployment configuration), read 2026-11-09.

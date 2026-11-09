@@ -264,7 +264,8 @@ Conditional, added only when the stated event happens:
 | Scope | Event | Reason |
 |---|---|---|
 | openid | Q7: `getActiveUser` blank on token calls | `getIdentityToken()` for `CALLER_IDENTITY=id_token` |
-| drive.readonly (restricted) | Q6: `drive.file` fails the `/exec` token gate | Drive scope the front door accepts |
+| openid (second API deployment) | Q6: `drive.file` fails the `/exec` token gate | Recommended: API deployment of the same project, `ANYONE_ANONYMOUS`, ID-token verification; settings are per deployment [A12 in ADR-0003] |
+| drive.readonly (restricted) | Q6, last resort, if the API deployment fails | Drive scope the front door accepts |
 | admin.directory.group.member.readonly | Groups Reader granted, `MEMBERSHIP_RESOLVER=directory` | Nested membership |
 | directory.readonly | Q9: `domain_public` lacks title or phone | `searchDirectoryPeople`, replaces `admin.directory.user.readonly` |
 
@@ -355,7 +356,7 @@ Web Gmail, dev deployment, 200 pilot templates:
 | Q3 | Prod server owner identity | An existing licensed shared account if one exists; else the owner's account plus a handover runbook |
 | Q4 | OU grants inactive in v1 | Accept; mirror OUs as groups if needed |
 | Q5 | Admins see private folders | Yes, disclosed in the quick start |
-| Q6 | If `drive.file` fails the token gate | Add `drive.readonly` (restricted, no verification for an internal app); a second project is excluded by D15 |
+| Q6 | If `drive.file` fails the token gate | Second API deployment of the same project with ID-token verification (adds `openid` only); last resort `drive.readonly` (restricted) |
 | Q7 | If `getActiveUser` is blank on token calls | Switch `CALLER_IDENTITY` to `id_token` |
 | Q8 | If callers need the project shared | Share prod as Viewer with an all-staff group (code only, no data, no secrets) |
 | Q9 | `domain_public` lacks title or phone | Use `searchDirectoryPeople` with `directory.readonly` (owner only) |

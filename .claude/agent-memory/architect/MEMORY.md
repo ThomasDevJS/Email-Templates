@@ -19,13 +19,14 @@ Last run: 2026-11-09, Phase 2 revision after owner decision D15. Repo is the sou
 - 0005: one bundle src/entry.ts, one appsscript.json, deploy/dev.json + deploy/prod.json (scriptId, deploymentId, execUrl, mode). execUrl baked into bundle. `npm run deploy -- <env>`, `npm run rollback -- <env> [version]`. Dev uses /dev (0 versions) if spike S2(d) passes. Maintenance table. Version pruning manual: Apps Script API versions has no delete (A11). Prod 1 version per deploy, prune at 150.
 
 ## Final default scope list (8)
-gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Conditional: openid (Q7), drive.readonly (Q6), admin.directory.group.member.readonly (directory resolver), directory.readonly (Q9). spreadsheets removed.
+gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Conditional: openid (Q7, or Q6 API deployment), drive.readonly (Q6 last resort), admin.directory.group.member.readonly (directory resolver), directory.readonly (Q9). spreadsheets removed.
 
 ## Facts I verified (not in R4)
 - A1 tanaike: token calls to web apps need a Drive scope; sharing note (2018). Spike S2.
 - A9 DriveApp createFile/createFolder need `drive`; getFileById needs drive or drive.readonly. No drive.file.
 - A10 consent texts (oauth2/scopes page): spreadsheets "See, edit, create, and delete all your Google Sheets spreadsheets"; drive.file "...only the specific Google Drive files you use with this app"; groups "View and manage your Google Groups"; admin.directory.user.readonly "See info about users on your domain"; userinfo.email "See your primary Google Account email address".
 - A11 Apps Script API projects.versions: create, get, list only.
+- A12 web app guide: Execute as and access chosen per deployment (Deploy > New deployment); manifest webapp = defaults. One project can have UI (DOMAIN) + API (ANYONE_ANONYMOUS, ID token) deployments.
 - getIdentityToken needs openid. Compose recipients are email strings. 200 versions per script.
 
 ## Conventions

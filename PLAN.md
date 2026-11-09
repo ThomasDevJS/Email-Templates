@@ -8,14 +8,14 @@ Owner: thomas@migway.com. Orchestrator keeps this file current. Brief: docs/BRIE
 |---|---|---|---|
 | 0 Setup | G0 | DONE 2026-11-09 | Repo, agents, PLAN.md pushed. 4 agents verified loaded in session 2 |
 | 1 Research | G1 | DONE 2026-11-09 | Owner approved summary.md section 2 and accepted recommendations D4, D8 to D14. D7 open, assumptions below |
-| 2 Spec and ADRs | G2 | REVISING 2026-11-09 | Owner chose one project (D15) and near-zero maintenance. Architect revising ADR-0001, 0002, 0003, 0005 and spec. Then back to owner |
+| 2 Spec and ADRs | G2 | DONE 2026-11-09 | Revised for one project and Drive-only storage. Self-audit passed (one fix: per-deployment web app access). ADR-0001 to 0005 Accepted |
 | 2.5a Owner dev env | G2.5a | pending | Owner machine: clasp login, dev script project, test deployment |
 | 2.5b Admin domain install | G2.5b | pending | Can wait until slices 1 to 7 PASS |
-| 3 Build | G3 per slice | pending | 7 slices, signatures deferred to v2 |
+| 3 Build | G3 per slice | IN PROGRESS 2026-11-09 | Slice 1 skeleton launched (implementer, worktree, branch slice/01-skeleton) |
 
 ## Next action
 
-Owner delegated G2 approval (2026-11-09): orchestrator self-audits the revised spec and ADRs against docs/BRIEF.md, sets ADR status Accepted, launches slice 1. Owner is contacted next when something is ready to test (2.5a checklist after slice 1 PASS). D7 facts still wanted.
+Slice 1 (skeleton) in progress: implementer then reviewer. On PASS: merge, then the owner gets the 2.5a checklist (clasp login, dev script, setup(), test deployment) and the first smoke test. D7 facts still wanted.
 
 ## Open decisions
 
@@ -62,3 +62,4 @@ Owner delegated G2 approval (2026-11-09): orchestrator self-audits the revised s
 - 2026-11-09 Phase 2: architect wrote spec, 5 ADRs, 7 wireframes (about 16 min). Orchestrator review passed. BRIEF 2.5a corrected to execute as me. G2 awaits owner.
 - 2026-11-09 Owner: one Apps Script project (D15), near-zero maintenance as a design goal. Architect revision launched.
 - 2026-11-09 Owner delegated G2 approval to the orchestrator after a self-audit, and asked to be told when testing is possible. D16 to D20 take the recommended values.
+- 2026-11-09 G2 done by self-audit. Findings: scope list 8, none restricted; role matrix complete; maintenance table has deploy as the only recurring human task; fix applied on per-deployment web app access (Q6 fallback now adds openid only). Slice 1 launched.

@@ -1,6 +1,6 @@
 # ADR-0005: Repository, build, tests, CI, deployment and rollback
 
-Status: Proposed (revised 2026-11-09 after D15: one project, near-zero maintenance)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -121,6 +121,7 @@ dist/            build output, git-ignored: Code.js, index.html, appsscript.json
 |---|---|---|---|---|
 | dev | owner's Drive, default GCP project | Test deployment (HEAD), owner and pilot editors (D13) | `/dev` (HEAD, editors only [R4 S12]) if spike S2 (d) passes; else `/exec` of one versioned deployment | 0 with `/dev`; 1 otherwise |
 | prod | prod owner identity (Q3), standard GCP project (2.5b) | One versioned deployment, its ID referenced by the Marketplace SDK | `/exec` of the same deployment, `USER_DEPLOYING`, `DOMAIN` | 1 |
+| prod, if the Q6 API deployment is ever activated | same project | unchanged | Two web app deployment IDs: UI (`DOMAIN`) and API (`ANYONE_ANONYMOUS`, ID token, ADR-0003 Q6). Default: one. Settings are per deployment [A12 in ADR-0003] | 1 version, both deployments updated to it |
 
 - One versioned deployment per environment carries both entry points, add-on and web app (slice 1 confirms). Updating it to a new version keeps its ID, its `/exec` URL and the Marketplace reference.
 - `deploy/<env>.json` holds `scriptId`, `deploymentId`, `execUrl`, `mode`. Script and deployment IDs are not secrets and may be committed (BRIEF 11). The deploy script writes `dist/.clasp.json` from it. `.clasprc.json` (OAuth tokens) stays in the owner's home directory, git-ignored.

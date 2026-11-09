@@ -1,6 +1,6 @@
 # ADR-0002: Storage, caching and concurrency
 
-Status: Proposed (revised 2026-11-09 after D15: one project, near-zero maintenance)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
