@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <style>
+      /* INLINE:styles */
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Migway Templates</h1>
+      <p class="signed-in">
+        Signed in as
+        <?= email ?>
+      </p>
+    </header>
+    <main>
+      <button type="button" id="ping">Ping server</button>
+      <p id="ping-result" role="status" aria-live="polite"></p>
+    </main>
+    <footer class="app-footer">
+      Version
+      <?= appVersion ?>
+    </footer>
+    <script>
+      /* INLINE:script */
+    </script>
+  </body>
+</html>
