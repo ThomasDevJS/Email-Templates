@@ -9,13 +9,13 @@ Owner: thomas@migway.com. Orchestrator keeps this file current. Brief: docs/BRIE
 | 0 Setup | G0 | DONE 2026-11-09 | Repo, agents, PLAN.md pushed. 4 agents verified loaded in session 2 |
 | 1 Research | G1 | DONE 2026-11-09 | Owner approved summary.md section 2 and accepted recommendations D4, D8 to D14. D7 open, assumptions below |
 | 2 Spec and ADRs | G2 | DONE 2026-11-09 | Revised for one project and Drive-only storage. Self-audit passed (one fix: per-deployment web app access). ADR-0001 to 0005 Accepted |
-| 2.5a Owner dev env | G2.5a | pending | Owner machine: clasp login, dev script project, test deployment |
+| 2.5a Owner dev env | G2.5a | READY FOR OWNER 2026-11-09 | docs/ops/deploy.md steps 1 to 10, then docs/ops/smoke.md. Result (Ping output) decides spike S2 (d) |
 | 2.5b Admin domain install | G2.5b | pending | Can wait until slices 1 to 7 PASS |
-| 3 Build | G3 per slice | IN PROGRESS 2026-11-09 | Slice 1 skeleton launched (implementer, worktree, branch slice/01-skeleton) |
+| 3 Build | G3 per slice | IN PROGRESS 2026-11-09 | Slice 1 PASS (retry 1), merged 151b4c2. Slice 2 launched |
 
 ## Next action
 
-Slice 1 (skeleton) in progress: implementer then reviewer. On PASS: merge, then the owner gets the 2.5a checklist (clasp login, dev script, setup(), test deployment) and the first smoke test. D7 facts still wanted.
+Owner: run docs/ops/deploy.md steps 1 to 10 on their machine and report the step 10 Ping text (or the failure text). Orchestrator: slice 2 (data and permission layer) runs in parallel; spike S2 instructions wait for the dev deployment. D7 facts still wanted.
 
 ## Open decisions
 
@@ -63,3 +63,4 @@ Slice 1 (skeleton) in progress: implementer then reviewer. On PASS: merge, then 
 - 2026-11-09 Owner: one Apps Script project (D15), near-zero maintenance as a design goal. Architect revision launched.
 - 2026-11-09 Owner delegated G2 approval to the orchestrator after a self-audit, and asked to be told when testing is possible. D16 to D20 take the recommended values.
 - 2026-11-09 G2 done by self-audit. Findings: scope list 8, none restricted; role matrix complete; maintenance table has deploy as the only recurring human task; fix applied on per-deployment web app access (Q6 fallback now adds openid only). Slice 1 launched.
+- 2026-11-09 Slice 1: implementer 6 commits, review FAIL (lock file broke clean install), retry fixed 4 findings, review PASS. 144 tests, 99.34% lines, 8 scopes. Merged. Owner asked to run 2.5a.
