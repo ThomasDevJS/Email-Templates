@@ -15,7 +15,7 @@ All commands run on the owner's machine from the repository root. The cloud sess
    - `deploymentId`: the deployment ID shown after Deploy.
    - `execUrl`: in mode `head`, the `/dev` URL from Deploy, Test deployments, Web app. In mode `version`, the `/exec` URL of the new deployment.
 7. Commit `deploy/dev.json`, then `npm run deploy -- dev` again, so the add-on bundle carries `execUrl`.
-8. In the editor, select function `setup` and click Run once. Accept the consent screen (9 scopes, spec section 9). The execution log shows one JSON line with `"action":"setup"`.
+8. In the editor, select function `setup` and click Run once. Accept the consent screen (10 scopes, spec section 9). The execution log shows one JSON line with `"action":"setup"`.
 9. Install the add-on test deployment: Deploy, Test deployments, Application: Google Workspace Add-on, Install.
 10. Open Gmail, compose a new message, open the Migway Templates icon in the compose toolbar. Expect the card "Migway Templates, slice 1". Click Ping. Expect "Ping ok: server dev-<sha> sees <your email> (N ms)".
 
