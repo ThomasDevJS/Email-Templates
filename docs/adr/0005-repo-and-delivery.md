@@ -1,12 +1,12 @@
 # ADR-0005: Repository, build, tests, CI, deployment and rollback
 
-Status: Proposed
+Status: Proposed (revised 2026-11-09 after D15: one project, near-zero maintenance)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
 ## Context
 
-BRIEF 10 requires TypeScript strict, ESLint, Prettier, unit tests for pure logic, CI with lint, typecheck, test and build, no deploy from CI. BRIEF A5: the owner runs clasp from their own machine; the cloud session cannot log in. ADR-0001 splits the code into two Apps Script projects, `addon` and `server`, each with dev and prod: 4 script IDs.
+BRIEF 10 requires TypeScript strict, ESLint, Prettier, unit tests for pure logic, CI with lint, typecheck, test and build, no deploy from CI. BRIEF A5: the owner runs clasp from their own machine; the cloud session cannot log in. ADR-0001 (topology 1a, D15): one Apps Script project per environment, dev and prod, 2 script IDs. BRIEF 1 Operations: the only recurring human task is deploying a new version.
 
 | Fact | Source |
 |---|---|
@@ -20,6 +20,8 @@ BRIEF 10 requires TypeScript strict, ESLint, Prettier, unit tests for pure logic
 | `urlFetchWhitelist` optional for test deployments, required for versioned deployments | [R4 S6] |
 | Test deployments need editor access, same-domain testers | [R4 S13] |
 | Names ending in `_` are not callable from `google.script.run` | [R4 S49] |
+| Apps Script API `projects.versions` has `create`, `get`, `list`; no `delete` | [A11] |
+| One versioned deployment serves every entry point in the manifest (add-on and web app). Not in R4; slice 1 confirms | none |
 
 ## Options
 
@@ -35,12 +37,13 @@ Test runner:
 
 Project layout:
 
-1. Monorepo with one `src/` and shared modules, two bundle entries.
-2. Two repositories. Duplicates shared logic (permissions, placeholders, sanitizer).
+1. One repository, one bundle entry, one manifest, one Apps Script project per environment. Follows D15.
+2. One repository, two bundle entries and two projects (topology 1b). Rejected by the owner (D15): 2 manifests, 2 deploys, 2 trigger sets.
+3. Two repositories. Duplicates shared logic (permissions, placeholders, sanitizer). Rejected.
 
 ## Decision
 
-esbuild, vitest, one repository with two bundle entries.
+esbuild, vitest, one repository with one bundle entry, one manifest, one clasp config per environment, one deploy command, one rollback command.
 
 ### Layout
 
@@ -53,45 +56,46 @@ src/
     sanitize/    htmlparser2 allowlist walker
     log/         JSON line logger
     errors/      error codes
-  server/        server project
-    entry.ts     doGet, doPost, rpc, trigger handlers (exported names)
+  entry.ts       the one bundle entry: re-exports addon and server entry points
+  server/        web app and trigger code, runs as the owner
+    entry.ts     doGet, doPost, rpc, setup, tick, refreshMembers, daily
     dispatch/    op table, authorize then handle
-    storage/     Sheets and Drive adapters behind ports
+    storage/     Drive JSON adapter (Advanced Drive v3) behind ports
+    jobs/        trigger work: flush, cache refresh, purge, backup, audit roll, trigger install
     cache/       chunked Script Cache
     membership/  resolver interface, groupsapp_direct, directory, cloud_identity
     directory/   profile lookup
     audit/
-  addon/         add-on project
-    entry.ts     compose trigger, card actions (exported names)
+  addon/         Card Service code, runs as the user, no storage access (ADR-0003 boundary test)
+    entry.ts     compose trigger, card actions
     cards/       card builders
     client/      UrlFetch client for the server
-  web/           browser code for the server web app
+  web/           browser code for the web app
     index.html   shell template
     app.ts       UI, bundled and inlined into index.html
     editor/      ProseMirror schema, placeholder node
     styles.css   inlined
-manifests/
-  addon.appsscript.json
-  server.appsscript.json
-clasp/
-  addon.dev.json  addon.prod.json  server.dev.json  server.prod.json
+appsscript.json  the one manifest
+deploy/
+  dev.json  prod.json   scriptId, deploymentId, execUrl, mode (dev: head, prod: version). No secrets
 test/
   unit/          mirrors src/shared and src/server
-  fakes/         in-memory CacheService, PropertiesService, LockService, SpreadsheetApp, GroupsApp, UrlFetchApp, Session
+  fakes/         in-memory CacheService, PropertiesService, LockService, Drive (Advanced), GroupsApp, UrlFetchApp, Session, ScriptApp triggers
   fixtures/      sanitizer (40), placeholders, editor round trip
 scripts/         build and deploy scripts (implementer, slice 1)
 docs/            brief, plan, adr, spec, wireframes, ops, reviews, handoffs
-dist/            build output, git-ignored: dist/addon, dist/server
+dist/            build output, git-ignored: Code.js, index.html, appsscript.json, .clasp.json
 ```
 
 ### Build
 
 - `tsconfig.json`: `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`, `noImplicitOverride: true`, target ES2020, types `google-apps-script`.
-- esbuild bundles `src/server/entry.ts` to `dist/server/Code.js` and `src/addon/entry.ts` to `dist/addon/Code.js`, format IIFE, global name `App`, target ES2020. A build step reads the exported names of each entry and appends one stub per name, `function doPost(e) { return App.doPost(e); }`, so Apps Script sees top-level functions. Exports are the only public functions; everything else is hidden in the IIFE.
-- `src/web/app.ts` bundles to one script, inlined with `styles.css` into `dist/server/index.html`. No runtime CDN.
-- Manifests copy to `dist/<project>/appsscript.json`. `oauthScopes` are explicit, so auto-detection cannot add `https://mail.google.com/` [R4 S7, S41].
+- esbuild bundles `src/entry.ts` to `dist/Code.js`, format IIFE, global name `App`, target ES2020. A build step reads the exported names and appends one stub per name, `function doPost(e) { return App.doPost(e); }`, so Apps Script sees top-level functions. Exports are the only public functions; everything else is hidden in the IIFE.
+- The build takes `--env dev|prod` and injects `deploy/<env>.json` values (`execUrl`, environment name, git short SHA) as constants. The add-on reads `execUrl` from the bundle, so no Script Property names the URL.
+- `src/web/app.ts` bundles to one script, inlined with `styles.css` into `dist/index.html`. No runtime CDN.
+- `appsscript.json` copies to `dist/`. `oauthScopes` are explicit, so auto-detection cannot add `https://mail.google.com/` [R4 S7, S41].
 - A build check fails if a manifest scope is not in the approved list in docs/spec.md section 9.
-- Bundle size is printed per file. Budget: server `Code.js` under 600 KB, add-on `Code.js` under 250 KB, `index.html` under 400 KB.
+- Bundle size is printed per file. Budget: `Code.js` under 800 KB, `index.html` under 400 KB.
 
 ### Lint and format
 
@@ -102,7 +106,7 @@ dist/            build output, git-ignored: dist/addon, dist/server
 
 - Unit tests (vitest) for all of `src/shared/` and for `src/server/` handlers through ports. Coverage gate: 90% lines for `src/shared/`, 75% for `src/server/`.
 - Apps Script globals are mocked by in-memory fakes in `test/fakes/`, installed on `globalThis` per test. Fakes model the limits that matter: Cache 100 KB per value and 1,000 items with FIFO eviction [R4 S30, S66], Properties 9 KB per value [R4 S2], lock timeouts.
-- Required suites: role matrix (every cell of ADR-0003 Part C), policy table completeness, sanitizer fixtures (40), placeholder grammar and errors, editor round trip (slice 3, runs in jsdom), optimistic conflict, cache chunk versioning.
+- Required suites: add-on and server boundary (ADR-0003 Part A), trigger set matches the spec table, role matrix (every cell of ADR-0003 Part C), policy table completeness, sanitizer fixtures (40), placeholder grammar and errors, editor round trip (slice 3, runs in jsdom), optimistic conflict with `rev` and item `version`, cache chunk versioning.
 - Smoke tests: manual, 5 minutes, from docs/ops/smoke.md (written in slice 1, extended per slice). Minimum steps: open compose, sidebar loads under 3 s; search; apply a template with a prompt; open the editor via "Edit", save, sidebar reloads; restore a version; non-member account sees no restricted folder; audit row present.
 
 ### CI (GitHub Actions)
@@ -113,22 +117,22 @@ dist/            build output, git-ignored: dist/addon, dist/server
 
 ### Environments and deployment
 
-| Project | Dev | Prod |
-|---|---|---|
-| addon | Test deployment (HEAD) on the owner's account, pilot editors (D13) | Versioned deployment, ID referenced by the Marketplace SDK (2.5b) |
-| server | Versioned web app deployment, `USER_DEPLOYING`, `DOMAIN` | Same, owned by the prod owner identity (Q3) |
+| Environment | Script project | Add-on | Web app URL the add-on calls | Versions created per deploy |
+|---|---|---|---|---|
+| dev | owner's Drive, default GCP project | Test deployment (HEAD), owner and pilot editors (D13) | `/dev` (HEAD, editors only [R4 S12]) if spike S2 (d) passes; else `/exec` of one versioned deployment | 0 with `/dev`; 1 otherwise |
+| prod | prod owner identity (Q3), standard GCP project (2.5b) | One versioned deployment, its ID referenced by the Marketplace SDK | `/exec` of the same deployment, `USER_DEPLOYING`, `DOMAIN` | 1 |
 
-- clasp configs: `clasp/<project>.<env>.json` hold `scriptId` and `rootDir: dist/<project>`. Script IDs are not secrets and may be committed (BRIEF 11). The deploy script copies the chosen file to `dist/<project>/.clasp.json` and runs clasp there. `.clasprc.json` (OAuth tokens) stays in the owner's home directory, git-ignored.
-- Deploy (owner machine): `npm run deploy -- <project> <env>` runs build, `clasp push`, `clasp version "<git short sha>"`, `clasp deploy -i <deploymentId> -V <n> -d "<sha>"`. Redeploying the same deployment ID keeps the server `/exec` URL and the Marketplace deployment ID [R4 S52]. Deploy order: server first, then addon, so the add-on never calls an older API. The server accepts the previous `clientVersion` for one release.
-- Deployment IDs and the server URL live in Script Properties of the add-on (`SERVER_URL`) and in `docs/ops/deploy.md`. They are not secrets.
-- Rollback: `npm run rollback -- <project> <env> <version>` runs `clasp deploy -i <deploymentId> -V <previous>`. Data schema changes are additive only (new columns, new tabs), so code version N-1 still reads data written by N. Rollback is exercised once before v1 is done (BRIEF 13).
-- Version cap: 200 per script [R4 S2]. Runbook step: when `clasp versions` shows over 150, the owner bulk-deletes versions older than the last 20 in Project History [A7]. Versions used by deployments are kept automatically.
+- One versioned deployment per environment carries both entry points, add-on and web app (slice 1 confirms). Updating it to a new version keeps its ID, its `/exec` URL and the Marketplace reference.
+- `deploy/<env>.json` holds `scriptId`, `deploymentId`, `execUrl`, `mode`. Script and deployment IDs are not secrets and may be committed (BRIEF 11). The deploy script writes `dist/.clasp.json` from it. `.clasprc.json` (OAuth tokens) stays in the owner's home directory, git-ignored.
+- Deploy, one command on the owner's machine: `npm run deploy -- <env>`. Steps: (1) refuse if the git tree is dirty or not on `main` (prod). (2) Build with `--env`. (3) Drift check: `clasp pull` into a temp directory and compare with the build recorded at the last push (hash stored in `deploy/.last-push-<env>` on the owner's machine, git-ignored); abort on difference, because someone edited code in the browser. (4) `clasp push`. (5) Mode `version`: `clasp version "<sha>"`, then `clasp deploy -i <deploymentId> -V <n> -d "<sha>"`. (6) Print "versions used N of 200; prune at 150".
+- After deploy the first web app request reinstalls triggers if `TRIGGERS_VERSION` changed and runs data migrations under the lock (ADR-0002, ADR-0003). The owner runs nothing else.
+- Rollback, one command: `npm run rollback -- <env> [version]` runs `clasp deploy -i <deploymentId> -V <previous>` (default: the version before the current one). Data changes are additive only (new fields, `schemaVersion` bumps that version N-1 still reads), so code N-1 reads data written by N. Rollback is exercised once before v1 is done (BRIEF 13). Dev in `/dev` mode rolls back by deploying the previous git commit.
 
 ### GCP project and ownership (2.5b, prod only)
 
 - Dev stays on the default GCP project.
-- Prod addon needs a standard GCP project for Marketplace publishing [R4 S14]. The switch is one way [R4 S61]. Do it once, on prod only, in 2.5b. Prod server may share the same standard project, which puts both projects' logs in one Cloud Logging view.
-- Ownership: move the prod server project, the data spreadsheet and the bodies folder to the prod owner identity before the first prod deploy. Any later move breaks the web app until the new owner redeploys [R4 S12]; the runbook lists redeploy and `SERVER_URL` update as mandatory steps.
+- Prod needs a standard GCP project for Marketplace publishing [R4 S14]. The switch is one way [R4 S61]. Order in 2.5b: (1) prod project created under the prod owner identity (Q3), (2) switched to the standard GCP project, (3) first deploy, (4) owner runs `setup()`, which creates the data folder, (5) pilot data imported from a dev export. Data created before step 2 would be bound to the old OAuth client under `drive.file` (ADR-0002).
+- A later owner change breaks the web app until the new owner redeploys [R4 S12] and loses `drive.file` access to the old owner's files. Runbook (slice 7): export, new owner deploys and runs `setup()`, import. A one-time event, not a recurring task.
 
 ### Secrets policy
 
@@ -136,20 +140,42 @@ dist/            build output, git-ignored: dist/addon, dist/server
 - Any future secret goes to Script Properties of the owning project, set by hand in the Apps Script editor, never in the repository, memory files, handoffs or docs (BRIEF 11).
 - `.gitignore` covers `.clasprc.json`, `.env`, `*.key.json`, `dist`, `coverage`. CI runs gitleaks on every pull request.
 
+## Maintenance
+
+Target: the only recurring human task is deploying a new version. Everything else runs on the 3 triggers in ADR-0003 Part B or happens inside a user action.
+
+| Task | Performed by | Frequency |
+|---|---|---|
+| Deploy a new version (`npm run deploy -- prod`) | owner | per release |
+| Add, edit, move templates and folders, set grants | managers and admins in the web app | normal use, not maintenance |
+| Role group membership | Workspace admins in Google Groups; the app picks it up within 15 min | normal use |
+| Apply-event flush to `usage.json`, cache refresh before the 6 h TTL | `tick` trigger | every 5 min |
+| Membership snapshot | `refreshMembers` trigger | every 15 min |
+| Audit roll to monthly file, trash purge (30 days), orphan body cleanup, backup (14 kept), audit retention (24 months), job health | `daily` trigger | daily |
+| Trigger install and reinstall after code changes | `setup()` on the first web app request after a deploy | per deploy, automatic |
+| Data schema migration | first web app request after a deploy, under the lock | per deploy with a schema change, automatic |
+| Version pruning in Project History | owner, by hand | prod: when the deploy output shows 150 of 200; dev: never in `/dev` mode |
+| Trigger failure email | owner reads it; admin Config tab shows the late job | only on failure |
+| Remove pilot editors from the dev project | owner | once, after 2.5b |
+| Owner identity change, GCP project switch | owner and admin, runbook | once or on staff change |
+
+Version pruning. No automatic way exists: the Apps Script API has no version delete method [A11], with or without a standard GCP project, and bulk delete is only in the editor's Project History [A7]. The driver is 1 version per prod deploy (one project, one version). Interval to the 150 mark: 150 deploys, about 6 years at 2 releases per month, about 3 years at 4. In dev, `/dev` mode creates 0 versions; if spike S2 (d) fails, dev creates 1 per deploy and reaches 150 after about 6 weeks at 5 deploys per working day, so the owner prunes dev every 6 weeks during Phase 3, or deletes and recreates the dev project and reimports dev data.
+
 ## Consequences
 
-- Easier: one repository and one toolchain for both projects; shared code is tested once; scope drift fails the build.
-- Harder: 4 script IDs and 2 deploy commands per environment; the stub generator is custom build code (small, tested).
-- Version pruning stays manual because no API deletes versions [A7].
-- Revisit if clasp gains version deletion, or if bundle sizes exceed budget.
+- Easier: one bundle, one manifest, one deploy and one rollback command per environment; shared code is tested once; scope drift fails the build; browser edits are detected before push; triggers and migrations install themselves.
+- Harder: the stub generator and the drift check are custom build code (small, tested). Prod data is bound to the prod owner and the standard GCP project, so 2.5b must follow the stated order.
+- Version pruning stays manual because no API deletes versions [A11]; at 1 version per prod deploy it falls due after about 150 releases.
+- Revisit if the Apps Script API adds version deletion, or if bundle sizes exceed budget.
 
 ## Open questions
 
-- Q13. BRIEF 2.5a says the dev web app runs "execute as user accessing". D8 and ADR-0003 need "execute as me", access "anyone in Migway". Recommendation: orchestrator updates BRIEF 2.5a.
-- Q2 (ADR-0001) changes 2.5a from 1 dev project to 2. Recommendation: accept with Q2.
+- Q13. BRIEF 2.5a said the dev web app runs "execute as user accessing". Resolved by the orchestrator: execute as me, access anyone in Migway. BRIEF 2.5a also still names a "server project" and topology 1b; recommendation: orchestrator rewrites that bullet for one project.
+- Q19. Dev web app on `/dev` (0 versions, editors only) or on a versioned `/exec` (1 version per dev deploy)? Recommendation: `/dev` if spike S2 (d) passes.
 
 ## Sources
 
-- [R4 S2, S6, S7, S12 to S14, S30, S41, S49, S52, S61, S66], read 2026-11-09.
+- [R4 S2, S6, S7, S12 to S14, S30, S41, S49, S52, S61, S66] in docs/research/r4-platform-constraints.md, read 2026-11-09.
 - [A7] https://developers.google.com/apps-script/guides/versions (200 versions, Project History bulk delete), read 2026-11-09 via search excerpt.
 - [A8] https://github.com/google/clasp/issues/1015 (clasp versions and bulk delete), third party, search excerpt, read 2026-11-09.
+- [A11] https://developers.google.com/apps-script/api/reference/rest/v1/projects.versions (methods: create, get, list), read 2026-11-09.

@@ -27,7 +27,8 @@ Tab: Memberships
   sales@migway.com         28        1              warn: contains emea-sales@ (members get no access)
 
 Tab: Audit log
-  Filters: [date from] [date to] [actor] [action v] [result v] [target]   [Apply]
+  Month [2026-11 v]  Filters: [date from] [date to] [actor] [action v] [result v] [target]   [Apply]
+  Source: audit/2026-11.jsonl plus events not yet rolled (daily). Denied and apply events can arrive up to 5 min late.
   Time              Actor          Action            Target                 Result
   2026-11-09 14:03  ana@migway.com template.update   Sales/Quotes/Price...  ok      [Details]
   2026-11-09 13:58  ben@migway.com template.get      HR/Salary letter       denied  [Details]
@@ -43,4 +44,10 @@ Tab: Export and import
   Import: [Choose file]  Target folder [ Imports v ]  [Validate]  -> report: 40 ok, 2 skipped, 1 failed  [Import]
 
 Tab: Config (read only)
-  Domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_VERSION, app version, last backup.
+  Domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_REV, app version, index size (0.85 MB, warn at 3 MB).
+  Jobs                 Schedule    Last OK            Status
+  tick                 5 min       2026-11-09 14:05   ok
+  refreshMembers       15 min      2026-11-09 14:00   ok
+  daily                02:00       2026-11-09 02:01   ok
+  (a job late by more than 2 intervals shows "late" in red text with the last error)
+  Backups: 14 daily copies   [Restore from backup v]  (admin only, confirms, writes an audit event)

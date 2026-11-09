@@ -14,9 +14,9 @@ Platform facts: draft insert HTML size, tag and style rules are undocumented [R4
 
 Sender values source:
 
-1. Admin SDK Directory `users.get(email, { viewType: 'domain_public' })`, called by the server (owner identity). Scope `admin.directory.user.readonly`, consented by the server owner only (ADR-0001 topology). Fields `name`, `organizations`, `phones` assumed in the public view (unverified).
-2. People API `people/me` from the add-on as the user. Scopes `userinfo.profile`, `user.organization.read`, `user.phonenumbers.read` on every user's consent screen. Returns the user's profile, which may differ from the Directory record.
-3. People API `searchDirectoryPeople` by the server with `directory.readonly`, source `DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE`. Owner consent only. Returns domain profiles including organizations and phones.
+1. Admin SDK Directory `users.get(email, { viewType: 'domain_public' })`, called by the server (owner identity). Scope `admin.directory.user.readonly`, one scope on the single consent list (ADR-0001 topology 1a); the call runs only in the web app path as the owner. Fields `name`, `organizations`, `phones` assumed in the public view (unverified).
+2. People API `people/me` from the add-on as the user. Scopes `userinfo.profile`, `user.organization.read`, `user.phonenumbers.read`: 3 consent lines instead of 1. Returns the user's profile, which may differ from the Directory record.
+3. People API `searchDirectoryPeople` by the server with `directory.readonly`, source `DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE`. One scope on the single consent list. Returns domain profiles including organizations and phones.
 
 HTML sanitizer engine:
 
@@ -93,11 +93,11 @@ Saved items store the parsed `placeholders` (names) and `prompts` (normalized la
 
 ### Sender values: option 1, server-side Directory `domain_public`
 
-- Server calls `AdminDirectory.Users.get(callerEmail, { viewType: 'domain_public', projection: 'basic' })`. Scope `admin.directory.user.readonly` on the server project only; users never consent to it.
+- Server calls `AdminDirectory.Users.get(callerEmail, { viewType: 'domain_public', projection: 'basic' })`. Scope `admin.directory.user.readonly` in the one manifest (revised 2026-11-09, D15): self-installing users see "See info about users on your domain" [A10 in ADR-0002]; the admin domain install skips that screen [R4 S60]. Only web app code calls it.
 - Mapping: `sender.name` = `name.fullName`. `sender.title` = `organizations[primary].title`, else `organizations[0].title`. `sender.department` = same organization's `department`. `sender.phone` = first `phones[]` with `type = work`, else `phones[0].value`.
 - Cache: profile map in Script Cache, 6 h TTL. Directory changes show within 6 h; admin "Refresh memberships now" also clears profiles.
 - The same lookup gives `name.givenName` for internal recipients.
-- Fallback if slice 2 shows `organizations` or `phones` missing in `domain_public`: option 3 (`searchDirectoryPeople`, scope `directory.readonly`, owner consent only). Option 2 is rejected because it adds 3 scopes to every user's consent.
+- Fallback if slice 2 shows `organizations` or `phones` missing in `domain_public`: option 3 (`searchDirectoryPeople`, scope `directory.readonly`, replaces `admin.directory.user.readonly` on the consent list). Option 2 is rejected because it adds 3 consent lines where option 1 adds 1.
 
 ### HTML sanitizer: option 1, server-side allowlist on htmlparser2
 
@@ -177,7 +177,7 @@ Clients: Gmail web on Chrome (acceptance target), Gmail Android app, Gmail iOS a
 
 ## Open questions
 
-- Q9. Does `domain_public` return `organizations` and `phones`? Recommendation: test in slice 2; fallback `searchDirectoryPeople` with `directory.readonly` (owner consent only).
+- Q9. Does `domain_public` return `organizations` and `phones`? Recommendation: test in slice 2; fallback `searchDirectoryPeople` with `directory.readonly` (one consent line, replaces `admin.directory.user.readonly`).
 - Q11. External recipient first names need `contacts.readonly` or `contacts.other.readonly` (user consent, sensitive). Recommendation: not in v1; external recipients use the fallback or the implicit prompt.
 - Q12. Image hosts: any `https` host, or a list? Recommendation: any `https` host in v1, `IMG_HOSTS` config available to restrict.
 

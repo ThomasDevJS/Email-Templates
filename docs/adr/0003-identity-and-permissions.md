@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Proposed
+Status: Proposed (revised 2026-11-09 after D15: one project, near-zero maintenance)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -21,27 +21,43 @@ Deciders: owner (thomas@migway.com), architect
 | `ScriptApp.getIdentityToken()` returns an OpenID Connect JWT when `openid` is in the manifest | [A4] |
 | Gmail compose event gives recipients as email strings only | [A5] |
 
-Binding: D8 accepted (web app "execute as me" is the single server, storage private to it, add-on fetches through it, GroupsApp on flat role groups, Groups Reader later). D7 open: assume Business Standard or lower, flat role groups, no admin API restrictions. D11 accepted: one private folder per user. BRIEF 1: default deny, server-side enforcement, admins see everything.
+Binding: D15 decided (one Apps Script project: add-on code runs as the user, a web app deployment of the same project runs as the owner). D8 accepted (web app "execute as me" is the single server, storage private to it, add-on fetches through it, GroupsApp on flat role groups, Groups Reader later). D7 open: assume Business Standard or lower, flat role groups, no admin API restrictions. D11 accepted: one private folder per user. BRIEF 1: default deny, server-side enforcement, admins see everything.
 
 ## Part A. Add-on to server call pattern
 
 ### Options
 
-1. Pattern A, access token plus active user. Server project deployed as web app, `executeAs: USER_DEPLOYING`, `access: DOMAIN`. Add-on calls `UrlFetchApp.fetch(SERVER_URL, { method: 'post', headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, payload: JSON })`. Google authenticates the token at the `/exec` front door and rejects non-domain callers. `doPost` reads the caller from `Session.getActiveUser().getEmail()` [R4 S45]. Identity cannot be forged, because Google sets it from the token. Cost: the add-on token must carry a Drive scope [A1]; `drive.file` is non-sensitive [R4 S57] if Google accepts it (unverified). Possibly the server project must be shared as Viewer with callers [A1]. Same code path as the web app UI, which also uses `getActiveUser`.
-2. Pattern B, ID token. Server deployed with `access: ANYONE_ANONYMOUS`. Add-on sends `ScriptApp.getIdentityToken()` [A4]. Server verifies it with Google's tokeninfo endpoint (`aud` equals the add-on OAuth client ID, `iss`, `exp`, `email_verified`, `hd` equals the Migway domain), caching the result for the token's remaining life. Cost: endpoint is publicly reachable; one extra UrlFetch per new token; needs `openid` scope; the HTML editor on the same deployment cannot identify users (anonymous access gives no active user), so the UI would need a second deployment or project. Admins can disable public web app access for the domain (unverified), which would break it.
-3. Pattern C, precomputed per-user index. Server writes each user's visible templates to a file shared to that user only, or to a cache the add-on can read. The add-on reads it without a server call. Cost: fan-out of up to 500 writes per grant or template change; per-user files expose content in Drive (only content the user may see, but outside the app's audit); a Script Cache is per project, so the separate add-on project (ADR-0001) cannot read the server's cache; in a single project, every script editor (D13 pilot users) could read every cached body. Apply-time revocation is lost.
+1. Pattern A, access token plus active user. The project's web app deployment uses `executeAs: USER_DEPLOYING`, `access: DOMAIN`. Add-on code calls `UrlFetchApp.fetch(SERVER_URL, { method: 'post', headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, payload: JSON })`. Google authenticates the token at the `/exec` front door and rejects non-domain callers. `doPost` reads the caller from `Session.getActiveUser().getEmail()` [R4 S45]. Identity cannot be forged, because Google sets it from the token. Cost: the token must carry a Drive scope [A1]; `drive.file` is already in the one manifest for storage (ADR-0002), non-sensitive [R4 S57], and Google's acceptance of it at `/exec` is unverified. Possibly the project must be shared as Viewer with callers [A1]. Same code path as the web app UI, which also uses `getActiveUser`.
+2. Pattern B, ID token. Server deployed with `access: ANYONE_ANONYMOUS`. Add-on sends `ScriptApp.getIdentityToken()` [A4]. Server verifies it with Google's tokeninfo endpoint (`aud` equals the add-on OAuth client ID, `iss`, `exp`, `email_verified`, `hd` equals the Migway domain), caching the result for the token's remaining life. Cost: endpoint is publicly reachable; one extra UrlFetch per new token; needs `openid` scope. Web app access is one manifest setting per project, so the editor UI on the same project would also become anonymous and lose `getActiveUser`; a second project is excluded by D15. Admins can disable public web app access for the domain (unverified), which would break it.
+3. Pattern C, precomputed per-user index. Server writes each user's visible templates to a file shared to that user only, or to a cache the add-on can read. The add-on reads it without a server call. Cost: fan-out of up to 500 writes per grant or template change; per-user files expose content in Drive (only content the user may see, but outside the app's audit); in the one project, an add-on path that reads the Script Cache directly would make the code the only barrier between a user and every cached body. Apply-time revocation is lost.
 
 ### Decision, Part A
 
-Pattern A, with Pattern B's ID-token check as a config fallback.
+Pattern A against the same project's `/exec`, with Pattern B's ID-token check as a config fallback. Topology 1a changes the target URL only: the add-on calls its own deployment's `/exec` (a build-time constant, ADR-0005) instead of a second project's. Token, front door, `getActiveUser`, `dispatch`, request shape and fallbacks are unchanged.
 
 - Default `CALLER_IDENTITY=active_user`. The server rejects any request where `getActiveUser().getEmail()` is blank, or not in the configured domain, with `AUTH_NO_USER` (HTTP-style code in the JSON body) and logs it. Default deny: no anonymous path exists.
 - Fallback `CALLER_IDENTITY=id_token`. Used only if slice 2 shows `getActiveUser` is blank for token calls. The add-on adds `openid` and `userinfo.email`, sends the ID token in the JSON body, and the server verifies it via tokeninfo as in Pattern B, while keeping `access: DOMAIN` so the front door still requires a domain token. Config change plus one scope, no redesign.
-- Add-on manifest: `urlFetchWhitelist` lists `https://script.google.com/macros/s/` and `https://script.googleusercontent.com/` (the `/exec` response redirects there) [R4 S6].
+- Manifest: `urlFetchWhitelist` lists `https://script.google.com/macros/s/` and `https://script.googleusercontent.com/` (the `/exec` response redirects there) [R4 S6].
 - Request shape: `{ op, args, requestId, clientVersion }`. Response: `{ ok, data | error: { code, message, retryable }, serverVersion, durationMs }`.
-- Add-on keeps the filtered result in its own User Cache for 10 min (ADR-0002). The data there is only what the server already allowed this user to see.
+- Add-on code keeps the filtered result in its User Cache for 10 min (ADR-0002). The data there is only what the server already allowed this user to see.
 
-Spike S2 (slice 2, first task) settles three unknowns before slice 2 code: (a) does a `drive.file` token pass the `/exec` front door with `access: DOMAIN`, (b) is `getActiveUser` set on token calls, (c) must the server project be shared with callers. Outcomes map to Q6, Q7, Q8.
+### Shared stores in one project
+
+Script Cache and Script Properties belong to the project, so add-on callbacks (as the user) and web app calls (as the owner) see the same stores. User Cache is keyed by the effective user: per user in add-on callbacks, the owner's single cache in web app calls (likely; slice 2 test confirms).
+
+| Store | Add-on code path (as user) | Web app and trigger path (as owner) |
+|---|---|---|
+| Script Cache (`idx`, `body`, `ft`, `gm`, `prof`, `evt`, `aud`) | never reads or writes | reads and writes |
+| Script Properties (`STORE`, `INDEX_REV`, config) | never reads or writes | reads and writes |
+| User Cache | `view:*`, `body:*` for this user | never used (would be the owner's cache, shared by every caller) |
+| Drive data files | no access path in code | Advanced Drive service, `drive.file` |
+
+Mechanism:
+
+- The boundary test (slice 1, extended in slice 2) fails the build if any module under `src/addon/` imports from `src/server/`, or references `getScriptCache`, `getScriptProperties`, `Drive`, `GroupsApp` or `AdminDirectory`. A second check fails if any module under `src/server/` references `getUserCache`. ESLint `no-restricted-syntax` rules give the same errors in the editor.
+- The trust boundary is the code. The add-on user's token carries every manifest scope, so add-on code could technically call any service as the user. It does not, because the code is reviewed and pushed by the owner only (ADR-0001 pilot mitigations, ADR-0005 drift check). Script Properties hold configuration only, no secrets, so a code path reading them would leak nothing secret.
+
+Spike S2 (slice 2, first task) settles three unknowns before slice 2 code: (a) does a `drive.file` token pass the `/exec` front door with `access: DOMAIN`, (b) is `getActiveUser` set on token calls, (c) must the project be shared with callers, (d) does a token call to the `/dev` URL work for project editors (dev environment, ADR-0005). Outcomes map to Q6, Q7, Q8 and the dev deploy mode.
 
 ## Part B. Membership resolution
 
@@ -67,15 +83,28 @@ Interface (contract, not code):
 | `orgUnitOf(email)` | OU path, or `UNSUPPORTED` |
 
 - Referenced groups set G = the admin group plus every group named in `grants`. Expected under 30.
-- Snapshot refresh: time trigger every 15 min runs `listMembers` for each g in G, writes `group_members` rows (durable) and Script Cache `gm:<g>` (60 min TTL). GroupsApp reads per day: 30 groups x 96 runs = 2,880, under 10,000 [R4 S2].
-- Request path reads only the snapshot (cache, then `group_members` tab). It never calls GroupsApp, so user traffic cannot exhaust the quota.
+- Snapshot refresh: time trigger every 15 min runs `listMembers` for each g in G, writes `members.json` (durable, ADR-0002) and Script Cache `gm:*` chunks. GroupsApp reads per day: 30 groups x 96 runs = 2,880, under 10,000 [R4 S2].
+- Request path reads only the snapshot (cache, then `members.json`). It never calls GroupsApp, so user traffic cannot exhaust the quota.
 - Principals for a caller: `user:<email>`, `domain:<domain>`, `group:<g>` for each g whose snapshot contains the email, `ou:<path>` only when `capabilities.orgUnits` is true.
 - Nested groups with `groupsapp_direct`: refresh records child groups from `nestedGroups`; the admin UI flags "Group X contains group Y. Members of Y get no access until the resolver supports nesting."
 - Max staleness: 15 min after a Google Groups change. Admin UI has "Refresh memberships now" (admin only, under lock).
+- A grant to a new group adds it to G and refreshes its snapshot inside the grant request, so the admin waits for no trigger.
 - Switch to `directory` after an admin grants Groups Reader to the server owner (2.5b): adds scope `admin.directory.group.member.readonly` (owner consent only), `nested: true`. `cloud_identity` needs Enterprise or Cloud Identity Premium plus a standard GCP project.
 - OU grants: `groupsapp_direct` cannot resolve OUs. Grants to OUs are stored but inactive and shown as "Inactive: OU resolution needs the Directory resolver" (Q4).
 
 Admin role: member of `ADMIN_GROUP` (Script Property, group email) via the snapshot, or listed in `ADMIN_EMAILS` (Script Property, break-glass, initial value the owner). Admin membership is never granted in-app.
+
+### Triggers
+
+All triggers are time-driven, owned by the owner identity, and run as the owner. The setup function `setup()` installs them: it deletes every project trigger and recreates the set below, so a second run changes nothing. The owner runs it once per environment from the Apps Script editor after the first deploy. Afterwards the first web app request after each deploy compares Script Property `TRIGGERS_VERSION` with the code constant and reruns the install under the script lock when they differ, so new or changed triggers need no human step. Limit: 20 triggers per user per script [R4 S2]; this design uses 3.
+
+| Trigger | Schedule | Work | Runtime per run (estimate) | Runtime per day |
+|---|---|---|---|---|
+| `tick` | every 5 min | flush `evt:*` apply events to `usage.json`, denied events to `pendingAudit`; re-put cache chunk sets older than 5 h; flush `pendingAudit` early above 200 KB | 2 s | about 10 min |
+| `refreshMembers` | every 15 min | `listMembers` for each referenced group, write `members.json` and `gm:*` | 10 s | about 16 min |
+| `daily` | once a day, 02:00 to 03:00 script time zone | append `pendingAudit` to `audit/YYYY-MM.jsonl`; purge trash older than 30 days; trash orphan body files; backup `index.json`, `favorites.json`, `usage.json` and keep 14; trash audit month files older than 24 months; record job health | 60 s | about 1 min |
+
+Total about 27 min per day, under the 6 h trigger budget [R4 S2]. Each run writes `job:<name>:lastOk` and `job:<name>:lastError` to Script Properties; the admin Config tab shows them and flags a job late by more than 2 schedule intervals. Trigger failures also send Apps Script's failure email to the owner.
 
 ## Part C. Permission model
 
@@ -118,7 +147,7 @@ Enforcement mechanism:
 
 ## Part D. Audit trail and logging
 
-Audit row (tab `audit`, append-only, server writes only):
+Audit event (one JSON line in `audit/YYYY-MM.jsonl` after the daily flush, `pendingAudit` before it; append-only, server writes only, ADR-0002):
 
 | Field | Type | Example |
 |---|---|---|
@@ -139,14 +168,14 @@ Audit row (tab `audit`, append-only, server writes only):
 | `requestId` | string | from the client |
 | `appVersion` | string | deployment version |
 
-Retention: 24 months (Q10). At 300,000 rows the tab moves to an archive spreadsheet.
+Retention: 24 months (Q10). The `daily` trigger trashes month files older than 24 months. Admins read events in the admin UI audit tab (wireframe 06), one month at a time.
 
 Structured log (BRIEF 10): one JSON line per request via `console.log(JSON.stringify(...))`. Fields: `ts, level, requestId, surface, action, actor, targetId, result, errorCode, durationMs, cache (hit|miss|rebuild), appVersion`. Logs never contain template bodies, prompt values or recipient addresses.
 
 ## Consequences
 
 - Easier: one enforcement point, testable as a table. Storage never leaves the server account. D7 answers change one Script Property.
-- Harder: server runs every request, so its availability and owner quotas bound the product (ADR-0002). The server owner's account is the blast radius: whoever controls it reads all templates. Mitigation: dedicated owner identity with 2-step verification, no other data, script editors limited to the owner and one backup admin (Q3).
+- Harder: the web app path runs every request, so its availability and owner quotas bound the product (ADR-0002). The owner's account is the blast radius: whoever controls it reads all templates. Mitigation: dedicated owner identity with 2-step verification, no other data, prod project editors limited to the owner and one backup admin (Q3). Dev pilot editors (D13) can read dev code and dev Script Cache until removed after 2.5b (ADR-0001).
 - Revocation latency: up to 15 min for group changes, immediate for grant changes (apply re-checks on the server).
 - Revisit when D7 is answered, when Groups Reader is granted, or if spike S2 fails all three fallbacks.
 
@@ -156,9 +185,9 @@ Structured log (BRIEF 10): one JSON line per request via `console.log(JSON.strin
 - Q3. Prod server owner: a licensed service account mailbox, or the owner's account with a documented handover? Recommendation: an existing licensed shared account if Migway has one (a new licence costs money); otherwise the owner's account and a handover runbook.
 - Q4. OU grants inactive in v1 (GroupsApp cannot read OUs). Recommendation: accept; admins create one group per OU if needed; activate with the Directory resolver plus an admin role with user read.
 - Q5. Admins see private folders. Recommendation: yes, disclosed in the quick start (BRIEF "admins see everything").
-- Q6. If `drive.file` fails the token gate, the add-on needs `drive.readonly` (restricted). Recommendation: then ask the owner to choose between `drive.readonly` (restricted, no verification for an internal app [R4 S18]) and Pattern B with a small third Apps Script project as the anonymous API, because web app access is set per project manifest.
+- Q6. If `drive.file` fails the token gate at `/exec`, the token needs `drive.readonly` (restricted) on every user's consent list. Pattern B would make the one web app anonymous and a second project is excluded (D15). Recommendation: then add `drive.readonly`; internal apps need no verification [R4 S18], and the admin trusts the app in API controls if Migway restricts APIs [R4 S60].
 - Q7. If `getActiveUser` is blank on token calls: switch to `id_token`. Recommendation: accept the config fallback now.
-- Q8. If the server project must be shared with callers: share it as Viewer with an all-staff group. Viewers see code only; the code holds no secrets and no data. Recommendation: accept.
+- Q8. If the project must be shared with callers: share the prod project as Viewer with an all-staff group. Viewers see code only; the code holds no secrets and no data, and Viewers cannot edit or deploy. Recommendation: accept.
 - Q10. Audit retention 24 months. Recommendation: accept.
 
 ## Sources

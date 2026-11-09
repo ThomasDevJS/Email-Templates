@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Proposed (gate G2)
+Status: Proposed (gate G2, revised 2026-11-09 after D15: one project, Drive-only storage, near-zero maintenance)
 Date: 2026-11-09
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D14), docs/research/*.md, ADR-0001 to ADR-0005.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D15), docs/research/*.md, ADR-0001 to ADR-0005.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -14,7 +14,7 @@ v1 delivers templates only: create, edit, duplicate, move, soft delete, folders,
 ## 2. Information architecture
 
 ```
-Gmail compose sidebar (addon project)
+Gmail compose sidebar (add-on code, runs as the user)
   Home: search, Favorites, Recent, Folders
     Folder view (paged, 20 per page)
     Search results (paged)
@@ -23,7 +23,7 @@ Gmail compose sidebar (addon project)
         Apply -> draft body updated
     Open library / Edit -> web app in OVERLAY
 
-Web app (server project, /exec)
+Web app (same project, /exec, runs as the owner)
   Library  (default view)
     Folder tree | template list | search | favorites filter | trash
   Editor   (?view=editor&id=...)
@@ -38,13 +38,18 @@ Navigation in the web app is a left rail: Library, Admin (visible to admins and 
 
 ## 3. Topology and identity (summary of ADR-0001, ADR-0003)
 
+One Apps Script project per environment (D15). One manifest, one scope list (section 9), one versioned deployment carrying both entry points (ADR-0005).
+
 | Piece | Runs as | Reads storage | Users consent to |
 |---|---|---|---|
-| addon project (Card Service) | the user | never | 4 scopes (section 9) |
-| server project (web app, `USER_DEPLOYING`, `DOMAIN`) | the server owner | yes, private | nothing |
-| Storage: spreadsheet, bodies folder, backups folder | owned by the server owner, shared with nobody | | |
+| Add-on code (Card Service, compose trigger) | the user | never; calls the same project's `/exec` | the 8 scopes of section 9 at self-install; nothing after the admin domain install [R4 S60] |
+| Web app deployment (`USER_DEPLOYING`, `DOMAIN`) | the owner | yes, private | nothing extra (same manifest) |
+| Time-driven triggers (section 16) | the owner | yes | nothing |
+| Storage: one Drive folder of JSON files (ADR-0002) | owned by the owner, shared with nobody, `drive.file` | | |
 
-Every server request passes `dispatch(caller, op, args)`: identify caller, resolve principals from the membership snapshot, compute effective folder level, deny or run (ADR-0003 Part C).
+Shared stores: Script Cache and Script Properties are read and written only by web app and trigger code. Add-on code uses only its User Cache. A boundary test enforces both rules (ADR-0003 Part A). The trust boundary is the code, which only the owner pushes.
+
+Every web app request passes `dispatch(caller, op, args)`: identify caller, resolve principals from the membership snapshot, compute effective folder level, deny or run (ADR-0003 Part C).
 
 ## 4. Key screens and flows
 
@@ -93,11 +98,11 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 ## 5. Data model
 
-Spreadsheet tabs (ADR-0002). IDs are 26-character time-sortable strings. Times are ISO 8601 UTC. Arrays and objects are JSON strings in one cell. Every table with mutable rows carries `version`.
+JSON files in one private Drive folder (ADR-0002). `index.json` holds the `folders`, `grants` and `items` arrays below; side files hold favorites, usage and the membership snapshot. IDs are 26-character time-sortable strings. Times are ISO 8601 UTC. Every mutable record carries `version`; `index.json` carries `rev`. Tables below list record fields.
 
 ### 5.1 `folders`
 
-| Column | Type | Notes |
+| Field | Type | Notes |
 |---|---|---|
 | id | string | |
 | parentId | string or empty | empty = top level |
@@ -111,7 +116,7 @@ Spreadsheet tabs (ADR-0002). IDs are 26-character time-sortable strings. Times a
 
 ### 5.2 `grants`
 
-| Column | Type | Notes |
+| Field | Type | Notes |
 |---|---|---|
 | id | string | |
 | folderId | string | |
@@ -123,30 +128,30 @@ Spreadsheet tabs (ADR-0002). IDs are 26-character time-sortable strings. Times a
 
 ### 5.3 `items` (templates now, signatures in v2)
 
-| Column | Type | v1 use |
+| Field | Type | v1 use |
 |---|---|---|
 | id | string | |
 | kind | `template` or `signature` | always `template` in v1 |
 | folderId | string | |
 | title | string, 1 to 120 chars | |
 | subject | string or empty | reserved, not applied in v1 |
-| tags | JSON string array, max 10, each 1 to 30 chars | |
+| tags | string array, max 10, each 1 to 30 chars | |
 | status | `published` or `draft` | always `published` in v1 |
 | currentVersion | integer | |
 | bodyFileId | string | Drive file of the current version |
 | snippet | string, 140 chars | plain text for lists |
-| placeholders | JSON string array | parsed names |
-| prompts | JSON string array | normalized labels |
+| placeholders | string array | parsed names |
+| prompts | string array | normalized labels |
 | sizeBytes | integer | sanitized HTML size |
 | createdAt, createdBy, updatedAt, updatedBy | | |
 | deletedAt, deletedBy | | soft delete, 30-day trash |
 | version | integer | equals currentVersion |
 
-### 5.4 Reserved v2 signature fields (columns exist, empty in v1)
+### 5.4 Reserved v2 signature fields (reserved names, omitted when empty in v1)
 
 From [R2 lessons]. Present now so v2 needs no migration.
 
-| Column | Type | Meaning |
+| Field | Type | Meaning |
 |---|---|---|
 | scope | `company`, `department`, `user` or empty | signature audience level |
 | targets | JSON `{ groups: [], ous: [], users: [] }` | who the signature applies to, by ID where known |
@@ -158,22 +163,21 @@ From [R2 lessons]. Present now so v2 needs no migration.
 | approvalRequired | boolean | user edits need approval |
 | schedule | JSON `{ start, end }` | banner campaigns |
 
-Reserved tab `push_log` (created empty): `id, itemId, userEmail, sendAs, pushedVersion, lastPushedAt, result, htmlLength, errorCode`.
+Reserved file `push_log.json` (created in v2): records `id, itemId, userEmail, sendAs, pushedVersion, lastPushedAt, result, htmlLength, errorCode`.
 
-### 5.5 Other tabs
+### 5.5 Other files
 
-| Tab | Columns |
+| File | Content |
 |---|---|
-| versions | itemId, version, fileId, savedAt, savedBy, note, restoredFrom, sizeBytes, sha256 |
-| favorites | userEmail, itemId, createdAt |
-| usage | userEmail, itemId, applyCount, lastUsedAt |
-| group_members | groupEmail, resolver, members (JSON, chunked over rows if over 45,000 chars), childGroups (JSON), refreshedAt |
-| audit | ADR-0003 Part D schema |
-| meta | key, value (schemaVersion, lastBackupAt, lastRebuildAt) |
+| `index.json` | `{ schemaVersion, rev, updatedAt, folders[], grants[], items[], pendingAudit[] }`. 0.85 MB at 1,000 items, 8.4 MB at 10,000 (ADR-0002) |
+| `favorites.json` | `{ rev, byUser: { email: [itemId] } }` |
+| `usage.json` | `{ rev, items: { itemId: { applyCount, lastUsedAt } }, recent: { email: [itemId, max 20] } }` |
+| `members.json` | `{ refreshedAt, resolver, groups: { groupEmail: { members[], childGroups[], status } } }` |
+| `bodies/<itemId>.v<version>.json` | `{ itemId, version, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. Drive `appProperties`: `itemId, version, savedBy, restoredFrom`. Version history = one `files.list` by `itemId` |
+| `audit/YYYY-MM.jsonl` | one ADR-0003 Part D event per line, append-only |
+| `backups/YYYY-MM-DD/` | copies of `index.json`, `favorites.json`, `usage.json`, 14 kept |
 
-Body file JSON (Drive): `{ itemId, version, html, plainText, savedAt, savedBy }`.
-
-Script Properties (config, no secrets): server `SPREADSHEET_ID`, `BODIES_FOLDER_ID`, `BACKUP_FOLDER_ID`, `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `INDEX_VERSION`, `IMG_HOSTS`, `LOG_LEVEL`. Add-on `SERVER_URL`, `LOG_LEVEL`.
+Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property.
 
 ## 6. Server operations
 
@@ -191,7 +195,7 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | folder.create (top level), trash.purge | admin | web |
 | grant.list, grant.add, grant.remove | manage | web |
 | export.folder | manage | web |
-| export.library, import, audit.query, usage.report, membership.refresh, config.get | admin | web |
+| export.library, import, audit.query, usage.report, membership.refresh, config.get, backup.list, backup.restore | admin | web |
 | me | none beyond a valid caller | both |
 
 ## 7. Error, empty and loading states
@@ -238,51 +242,52 @@ Loading states:
 
 ## 9. OAuth scopes
 
-Prefix `https://www.googleapis.com/auth/` omitted. Each scope has one reason.
+One manifest, one list (D15, ADR-0001). Every self-installing user consents to all default scopes; the admin domain install skips the consent screen [R4 S60]. Prefix `https://www.googleapis.com/auth/` omitted. Consent text from [A10 in ADR-0002].
 
-addon project (every user consents):
+Default list, 8 scopes:
 
-| Scope | Class | Reason |
+| Scope | Class | Consent text | Used by | Reason |
+|---|---|---|---|---|
+| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft |
+| gmail.addons.current.message.metadata | Sensitive [R4 S8] | "View your email message metadata when the add-on is running" | add-on | Read To recipients for `recipient.first_name` (D10) |
+| script.external_request | Unclassified [R4 S7] | not published | add-on | Call the project's own `/exec` with UrlFetchApp |
+| drive.file | Non-sensitive [R4 S57] | "See, edit, create, and delete only the specific Google Drive files you use with this app" | web app, triggers; also in the add-on token | Storage files the app creates (ADR-0002); the `/exec` front door needs a Drive scope in the bearer token [A1] |
+| userinfo.email | Non-sensitive | "See your primary Google Account email address" | web app | `Session.getActiveUser().getEmail()` caller identity |
+| groups | Unverified [R4 S22] | "View and manage your Google Groups" | triggers, web app | GroupsApp membership snapshot (`groupsapp_direct`) |
+| admin.directory.user.readonly | Unverified [R4 S59] | "See info about users on your domain" | web app | `domain_public` profiles for sender values and internal recipient first names (ADR-0004) |
+| script.scriptapp | Unclassified | not published | web app, `setup()` | Install the 3 time-driven triggers (section 16) |
+
+Removed from the first proposal: `spreadsheets` (storage moved to Drive JSON, ADR-0002), the separate server list (one project).
+
+Conditional, added only when the stated event happens:
+
+| Scope | Event | Reason |
 |---|---|---|
-| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | Insert the template into the draft |
-| gmail.addons.current.message.metadata | Sensitive [R4 S8] | Read To recipients for `recipient.first_name` (D10) |
-| script.external_request | Unclassified [R4 S7] | Call the server `/exec` URL with UrlFetchApp |
-| drive.file | Non-sensitive [R4 S57] | The server `/exec` front door requires a Drive scope in the bearer token [A1]; `drive.file` grants access to no existing user files. Spike S2 confirms (Q6) |
-| openid, userinfo.email | Non-sensitive | Only if `CALLER_IDENTITY=id_token` fallback is activated (Q7) |
+| openid | Q7: `getActiveUser` blank on token calls | `getIdentityToken()` for `CALLER_IDENTITY=id_token` |
+| drive.readonly (restricted) | Q6: `drive.file` fails the `/exec` token gate | Drive scope the front door accepts |
+| admin.directory.group.member.readonly | Groups Reader granted, `MEMBERSHIP_RESOLVER=directory` | Nested membership |
+| directory.readonly | Q9: `domain_public` lacks title or phone | `searchDirectoryPeople`, replaces `admin.directory.user.readonly` |
 
-server project (server owner consents, users never see these):
-
-| Scope | Class | Reason |
-|---|---|---|
-| spreadsheets | Sensitive [R4 S58] | Read and write the data spreadsheet |
-| drive.file | Non-sensitive [R4 S57] | Create and read body files, backups, exports created by the app |
-| groups | Unverified [R4 S22] | GroupsApp membership snapshot (`groupsapp_direct`) |
-| admin.directory.user.readonly | Unverified [R4 S59] | `domain_public` profiles for sender values and internal recipient first names |
-| userinfo.email | Non-sensitive | `Session.getActiveUser().getEmail()` caller identity |
-| script.scriptapp | Unclassified | Time-driven triggers: membership refresh, apply-event flush, purge, backup |
-| script.external_request | Unclassified | Drive REST fallback, tokeninfo fallback |
-| admin.directory.group.member.readonly | Unverified | Only after Groups Reader is granted and `MEMBERSHIP_RESOLVER=directory` |
-| directory.readonly | Unverified | Only if Q9 fallback is needed |
-
-No restricted scope is in the default set. `https://mail.google.com/` must never appear [R4 S7]; the build fails on unknown scopes (ADR-0005).
+No restricted scope is in the default list. `https://mail.google.com/` must never appear [R4 S7]; the build fails on any scope outside these two tables (ADR-0005). Slice 1 confirms that Cache, Properties and Lock need no extra scope and that the Advanced Drive service runs on `drive.file` alone (Q16).
 
 ## 10. Quota budget per user action
 
-Owner = server owner account. Figures with 200 templates, cache warm unless stated. Latency figures in ADR-0002.
+Owner = the account that owns the project and the web app deployment. Figures with 200 templates, cache warm unless stated. Latency figures in ADR-0002.
 
 | Action | Add-on (user quotas) | Server (owner quotas) | Target |
 |---|---|---|---|
 | Sidebar load, add-on cache hit | 1 User Cache getAll | none | under 1 s |
 | Sidebar load, add-on cache miss | 1 UrlFetch, 1 User Cache putAll | 1 execution, about 4 Script Cache reads | under 3 s |
-| Sidebar load, server rebuild | same | +3 tab reads (SpreadsheetApp), about 8 Script Cache writes, 1 script lock | under 5 s, rare |
+| Sidebar load, server rebuild | same | +1 Drive file read (`index.json`), about 10 Script Cache writes, 1 script lock | under 3 s, rare |
 | Apply | 1 UrlFetch, 0 to 1 User Cache read | 1 execution, about 4 Script Cache reads, 1 lock of 500 ms max for the event buffer | under 2 s p95 |
 | Search (sidebar) | 1 UrlFetch | 1 execution, about 3 Script Cache reads | under 2 s |
 | Search (web app) | n/a | 0 (browser) or 1 execution over `ft:*` | under 1 s |
-| Save template | n/a | 1 execution, 1 Drive file create, 1 lock, 1 row update, 2 row appends, cache refresh | under 3 s |
-| Membership refresh (trigger, 15 min) | n/a | up to 30 GroupsApp reads, 1 tab write | 2,880 GroupsApp reads per day max, under 10,000 [R4 S2] |
-| Apply-event flush (trigger, 5 min) | n/a | 1 lock, 2 tab writes | 288 runs per day |
+| Save template | n/a | 1 execution, 1 Drive file create, 1 lock, 1 `index.json` write (change and audit event together), cache refresh | under 3 s (about 2.1 s at 1,000 items) |
+| Membership refresh (trigger, 15 min) | n/a | up to 30 GroupsApp reads, 1 Drive file write | 2,880 GroupsApp reads per day max, under 10,000 [R4 S2] |
+| `tick` (trigger, 5 min) | n/a | 1 lock, 1 `usage.json` write when events exist, cache re-puts | 288 runs per day |
+| `daily` (trigger) | n/a | 1 month-file append, purge, backup copies (3 files) | 1 run per day |
 
-Daily ceilings at 500 users and 20 applies per user per day: 10,000 applies, about 20,000 server executions including sidebar loads. UrlFetch per user about 60 per day against 100,000 [R4 S2]. Trigger runtime about 40 min per day against 6 h [R4 S2]. Simultaneous executions are the tightest limit: 30 for the owner [R4 S2]; expected peak under 5.
+Daily ceilings at 500 users and 20 applies per user per day: 10,000 applies, about 20,000 server executions including sidebar loads. UrlFetch per user about 60 per day against 100,000 [R4 S2]. Trigger runtime about 27 min per day against 6 h [R4 S2]. Simultaneous executions are the tightest limit: 30 for the owner [R4 S2]; expected peak under 5.
 
 ## 11. Logging format
 
@@ -314,17 +319,18 @@ Web Gmail, dev deployment, 200 pilot templates:
 |---|---|
 | 1 Scope | all |
 | 2 Information architecture | 3 (web shell), 4 (sidebar) |
-| 3 Topology and identity | 1 (two projects, manifests), 2 (dispatch, caller identity, spike S2) |
+| 3 Topology and identity | 1 (one project, one manifest, one deployment per environment, boundary test), 2 (dispatch, caller identity, spike S2) |
 | 4 Screens 1, 2 and flow 4.1 | 4 |
 | 4 Screens 3, 4 and flow 4.2 save | 3 |
 | 4 Screen 5 and flow 4.2 restore, flow 4.4 search, favorites | 5 |
 | 4 Screen 6, flows 4.3 and 4.5 | 6 |
 | 4 Screen 7 states | 3 (web), 4 (sidebar), 6 (admin) |
-| 5 Data model, tabs, reserved fields | 2 |
+| 5 Data model, JSON files, reserved fields | 2 |
 | 6 Server operations and policy table | 2 (dispatch and policy), 3 to 6 (handlers) |
 | 7 Error, empty, loading states | 3, 4, 6 |
 | 8 Accessibility | 3, 5, 6 |
 | 9 OAuth scopes and scope check | 1 |
+| 16 Operations: `setup()`, triggers, job health | 1 (`setup()` and empty trigger handlers), 2 (`tick`, `refreshMembers`, `daily` work), 6 (job health in Config tab, backup restore) |
 | 10 Quota budget, measurements | 2 (spike S2, cache), 4 (apply) |
 | 11 Logging | 1 (logger), 2 (audit) |
 | 12 Measurable targets | 2, 3, 4, 5, 6 as listed |
@@ -336,8 +342,8 @@ Web Gmail, dev deployment, 200 pilot templates:
 
 | ID | Slice | Question | Pass condition |
 |---|---|---|---|
-| S2 | 2, first task | `drive.file` token passes `/exec` with `DOMAIN`; `getActiveUser` set on token calls; project sharing needed | first two yes; sharing answered |
-| S2b | 2 | UrlFetch round trip to `/exec`, add-on start time, Drive file read time, `domain_public` fields | p95 numbers recorded in ADR-0002 |
+| S2 | 2, first task | (a) `drive.file` token passes `/exec` with `DOMAIN`; (b) `getActiveUser` set on token calls; (c) project sharing needed; (d) token call to `/dev` works for editors; (e) Advanced Drive service works on `drive.file` alone | (a), (b), (e) yes; (c), (d) answered |
+| S2b | 2 | UrlFetch round trip to `/exec`, add-on start time, Drive read and write of 0.85 MB and 8.4 MB files, `domain_public` fields | p95 recorded in ADR-0002; 0.85 MB read and write each under 2 s (Q17) |
 | S4 | 4, first task | Draft insert on web, Android, iOS (ADR-0004 table) | allowlist and size cap updated |
 
 ## 15. Open questions for the owner
@@ -345,20 +351,51 @@ Web Gmail, dev deployment, 200 pilot templates:
 | ID | Question | Recommendation |
 |---|---|---|
 | Q1 (D7) | Edition, nested role groups, admin API restrictions | Keep `groupsapp_direct` and flat role groups until answered |
-| Q2 | Two Apps Script projects instead of one (BRIEF A2) | Accept: users consent to 4 scopes, pilot editors never touch storage |
+| Q2 | Two Apps Script projects instead of one (BRIEF A2) | Decided 2026-11-09 by the owner (D15): one project, topology 1a |
 | Q3 | Prod server owner identity | An existing licensed shared account if one exists; else the owner's account plus a handover runbook |
 | Q4 | OU grants inactive in v1 | Accept; mirror OUs as groups if needed |
 | Q5 | Admins see private folders | Yes, disclosed in the quick start |
-| Q6 | If `drive.file` fails the token gate | Owner chooses `drive.readonly` or an anonymous API project with ID tokens |
+| Q6 | If `drive.file` fails the token gate | Add `drive.readonly` (restricted, no verification for an internal app); a second project is excluded by D15 |
 | Q7 | If `getActiveUser` is blank on token calls | Switch `CALLER_IDENTITY` to `id_token` |
-| Q8 | If callers need the server project shared | Share as Viewer with an all-staff group (code only, no data) |
+| Q8 | If callers need the project shared | Share prod as Viewer with an all-staff group (code only, no data, no secrets) |
 | Q9 | `domain_public` lacks title or phone | Use `searchDirectoryPeople` with `directory.readonly` (owner only) |
 | Q10 | Audit retention | 24 months, archive at 300,000 rows |
 | Q11 | External recipient first names | Not in v1; fallback or prompt |
 | Q12 | Image hosts | Any `https` host, `IMG_HOSTS` to restrict |
-| Q13 | BRIEF 2.5a says "execute as user accessing" | Update to "execute as me, access anyone in Migway" |
+| Q13 | BRIEF 2.5a still describes topology 1b ("server project", add-on installed separately) | Orchestrator rewrites 2.5a for one project; `setup()` creates the storage folder, not the owner by hand |
 | Q14 | Apply events may lose up to 5 min on cache eviction | Accept, analytics only |
 | Q15 | Version retention | Keep all in v1, revisit at 50,000 files |
+| Q16 | Advanced Drive service on `drive.file` alone | Spike S2 (e); fallback Drive REST via UrlFetch, same scope |
+| Q17 | Thresholds that keep Drive-only storage | 0.85 MB read and write each under 2 s in spike S2b; else ADR-0002 reopens with Sheets and its consent cost |
+| Q18 | Prod data in My Drive or a shared drive | Prod owner's My Drive; shared drive only if `setup()` can create its own folder there (2.5b dry run) |
+| Q19 | Dev web app on `/dev` or versioned `/exec` | `/dev` if spike S2 (d) passes: 0 versions per dev deploy |
+
+## 16. Operations and maintenance
+
+Target (BRIEF 1 Operations): the only recurring human task is deploying a new version. Details in ADR-0003 Part B (triggers) and ADR-0005 (Maintenance).
+
+Triggers. All time-driven, owned by and running as the owner. `setup()` installs them idempotently; the owner runs it once per environment after the first deploy, and the first web app request after each deploy reinstalls them when `TRIGGERS_VERSION` changes.
+
+| Trigger | Schedule | Work | Runtime per day (estimate) |
+|---|---|---|---|
+| `tick` | every 5 min | apply events to `usage.json`, denied events to `pendingAudit`, cache re-put before the 6 h TTL, early audit flush above 200 KB | about 10 min |
+| `refreshMembers` | every 15 min | membership snapshot to `members.json` and cache | about 16 min |
+| `daily` | once a day, 02:00 to 03:00 script time zone | audit roll to `audit/YYYY-MM.jsonl`, trash purge after 30 days, orphan body cleanup, backup (14 kept), audit retention 24 months, job health | about 1 min |
+
+Total about 27 min per day against the 6 h trigger budget; 3 of 20 allowed triggers [R4 S2]. The admin Config tab shows `lastOk` per job and flags a job late by more than 2 intervals.
+
+Human tasks:
+
+| Task | Who | Frequency |
+|---|---|---|
+| Deploy a new version (`npm run deploy -- prod`) | owner | per release |
+| Prune versions in Project History | owner | when deploy output shows 150 of 200: about every 150 prod releases (6 years at 2 per month); dev never in `/dev` mode, else every 6 weeks during Phase 3 |
+| Run `setup()` | owner | once per environment |
+| Read a trigger failure email, redeploy or roll back | owner | only on failure |
+| Remove pilot editors from dev | owner | once, after 2.5b |
+| Owner identity change: export, deploy, `setup()`, import | owner and admin | on staff change |
+
+Template, folder and grant changes and backup restores happen in the web app, done by managers and admins. Role group membership changes happen in Google Groups. Nobody edits code or data files by hand.
 
 ## Sources
 
