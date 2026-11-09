@@ -6,7 +6,7 @@ import {
   putChunked,
   readMeta,
   splitByBytes,
-} from "../../../src/server/cache/chunked";
+} from "../../../src/shared/cache/chunked";
 import {
   INDEX_PREFIX,
   INDEX_REV_KEY,

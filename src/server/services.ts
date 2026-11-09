@@ -1,3 +1,4 @@
+import type { CacheStore } from "../shared/cache/store";
 import type { CacheState, Logger, Surface } from "../shared/log/logger";
 import type { DriveClient } from "./storage/driveClient";
 import type { StorePort } from "./storage/port";
@@ -9,14 +10,7 @@ export interface PropertyStore {
   deleteProperty(key: string): unknown;
 }
 
-/** Script Cache as the server uses it. The real `Cache` object satisfies it. */
-export interface CacheStore {
-  get(key: string): string | null;
-  getAll(keys: string[]): Record<string, string>;
-  put(key: string, value: string, ttlSeconds?: number): void;
-  putAll(values: Record<string, string>, ttlSeconds?: number): void;
-  removeAll(keys: string[]): void;
-}
+export type { CacheStore };
 
 export interface ScriptLock {
   tryLock(timeoutMs: number): boolean;

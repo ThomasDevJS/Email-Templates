@@ -1,7 +1,7 @@
 import type { IndexDoc } from "../../shared/model/data";
 import { WRITE_LOCK_MS } from "../lock";
 import type { Services } from "../services";
-import { getChunked, putChunked } from "./chunked";
+import { getChunked, putChunked } from "../../shared/cache/chunked";
 
 /**
  * `index.json` through the Script Cache (ADR-0002 Caching). Readers read Script Property `INDEX_REV`, then the

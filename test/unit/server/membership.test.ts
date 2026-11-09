@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { emptyMembers, type IndexDoc } from "../../../src/shared/model/data";
-import { readMeta } from "../../../src/server/cache/chunked";
+import { readMeta } from "../../../src/shared/cache/chunked";
 import { loadIndex } from "../../../src/server/cache/indexCache";
 import { handleRpc } from "../../../src/server/dispatch/handle";
 import {

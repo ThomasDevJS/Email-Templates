@@ -9,7 +9,7 @@ import {
   principalsFor,
 } from "../../shared/permissions/principals";
 import type { Subject } from "../../shared/permissions/effective";
-import { getChunked, putChunked } from "../cache/chunked";
+import { getChunked, putChunked } from "../../shared/cache/chunked";
 import { loadIndexForWrite } from "../cache/indexCache";
 import { WRITE_LOCK_MS, withLock } from "../lock";
 import { nowIso, type Services } from "../services";

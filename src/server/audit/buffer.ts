@@ -1,5 +1,5 @@
 import type { AuditEvent } from "../../shared/model/data";
-import { CACHE_TTL_S } from "../cache/chunked";
+import { CACHE_TTL_S } from "../../shared/cache/chunked";
 import type { CacheStore, ScriptLock } from "../services";
 
 /**
