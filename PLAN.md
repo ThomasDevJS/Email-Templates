@@ -7,7 +7,7 @@ Owner: thomas@migway.com. Orchestrator keeps this file current. Brief: docs/BRIE
 | Phase | Gate | Status | Notes |
 |---|---|---|---|
 | 0 Setup | G0 | DONE 2026-11-09 | Repo, agents, PLAN.md pushed. Fresh session required so agents load. |
-| 1 Research | G1 | NEXT | 4 parallel researcher runs, then synthesis, then owner approval |
+| 1 Research | G1 | IN PROGRESS 2026-11-09 | R1 to R4 launched in parallel, session 2 |
 | 2 Spec and ADRs | G2 | pending | |
 | 2.5a Owner dev env | G2.5a | pending | Owner machine: clasp login, dev script project, test deployment |
 | 2.5b Admin domain install | G2.5b | pending | Can wait until slices 1 to 7 PASS |
