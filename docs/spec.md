@@ -42,7 +42,7 @@ One Apps Script project per environment (D15). One manifest, one scope list (sec
 
 | Piece | Runs as | Reads storage | Users consent to |
 |---|---|---|---|
-| Add-on code (Card Service, compose trigger) | the user | never; calls the same project's `/exec` | the 10 scopes of section 9 at self-install; nothing after the admin domain install [R4 S60] |
+| Add-on code (Card Service, compose trigger) | the user | never; calls the same project's `/exec` | the 11 scopes of section 9 at self-install; nothing after the admin domain install [R4 S60] |
 | Web app deployment (`USER_DEPLOYING`, `DOMAIN`) | the owner | yes, private | nothing extra (same manifest) |
 | Time-driven triggers (section 16) | the owner | yes | nothing |
 | Storage: one Drive folder of JSON files (ADR-0002) | owned by the owner, shared with nobody, `drive.file` | | |
@@ -244,7 +244,7 @@ Loading states:
 
 One manifest, one list (D15, ADR-0001). Every self-installing user consents to all default scopes; the admin domain install skips the consent screen [R4 S60]. Prefix `https://www.googleapis.com/auth/` omitted. Consent text from [A10 in ADR-0002].
 
-Default list, 10 scopes:
+Default list, 11 scopes (spike S2 in progress, list to be trimmed once the front door rule is known):
 
 | Scope | Class | Consent text | Used by | Reason |
 |---|---|---|---|---|
@@ -254,6 +254,7 @@ Default list, 10 scopes:
 | script.external_request | Unclassified [R4 S7] | not published | add-on | Call the project's own `/exec` with UrlFetchApp |
 | drive.file | Non-sensitive [R4 S57] | "See, edit, create, and delete only the specific Google Drive files you use with this app" | web app, triggers; also in the add-on token | Storage files the app creates (ADR-0002); the `/exec` front door needs a Drive scope in the bearer token [A1] |
 | drive.metadata.readonly | Sensitive, not restricted | "See information about your Google Drive files" | add-on | Spike S2 (a) result 2026-11-09: a `drive.file`-only token gets HTTP 404 from the `/exec` and `/dev` front door, because the script project is not a file the app created. Metadata read lets Google resolve the script. Alternative: Pattern B second deployment (ADR-0003 Q6). Owner decision pending |
+| script.projects.readonly | Sensitive (Apps Script API) | "View Google Apps Script projects" | add-on | Spike S2 (a) test 2026-11-09: drive.file plus drive.metadata.readonly still gave 404 on both URL forms. The working token from the orchestrator session carried script.projects. Under test |
 | userinfo.email | Non-sensitive | "See your primary Google Account email address" | web app | `Session.getActiveUser().getEmail()` caller identity |
 | groups | Unverified [R4 S22] | "View and manage your Google Groups" | triggers, web app | GroupsApp membership snapshot (`groupsapp_direct`) |
 | admin.directory.user.readonly | Unverified [R4 S59] | "See info about users on your domain" | web app | `domain_public` profiles for sender values and internal recipient first names (ADR-0004) |

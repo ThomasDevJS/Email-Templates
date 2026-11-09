@@ -21,14 +21,14 @@
 
 ## Slice log
 - Slice 1 (2026-11-09): FAIL then PASS on retry 1 (501090f). Blocker was npm ci EUSAGE (@types/node peer). 144 tests, 99.34% lines.
-- Slice 2 (2026-11-09): FAIL, retry 1 pending. Review commit 195ab90 on slice/02-data-permissions, docs/reviews/slice-02.md. All commands green: 21 files, 385 tests, 99.45% lines, 10 scopes, Code.js 100.9 KB.
-  - Blocker: write handlers authorize on the pre-lock index; inside the lock no re-check of the record's folder. templateUpdate defaults folderId to the pre-lock folder (templates.ts:178), so a concurrent move is reverted and a caller edits an item in a folder without a level. Reproduced by probe. Item version does not bump on move.
-  - Gaps: s2.md lacks 404 and getActiveUser outcomes; no per-op level test vs spec 6; admin ops load index before admin check; purgeTrash trashes bodies outside lock; refreshSnapshot vs refreshGroup race; spikeS2b no finally trash; writer adopts file rev (ADR-0002 says abort).
+- Slice 2 (2026-11-09): FAIL (195ab90, stale authorization under concurrent move), retry 1 fix 6052320: PASS (64078b8). 22 files, 439 tests, 99.39% lines, Code.js 103.4 KB, 10 scopes.
+  - Fix: dispatch returns target placement; handlers/commit.ts rechecks inside the lock (CONFLICT reason moved, DENIED on lost level). races.test.ts 9 tests.
+  - Open minor: readPreviousSnapshot swallows Drive errors, mergeGroup can then write members.json with one group. Add-on 404 at first hop (deploy issue, s2.md).
 
-## Check on slice 2 retry
-- Race test for update, move, delete, folder move (pattern: items.test.ts "detects a conflict inside the lock", wrap store.createBody).
-- s2.md results rows for (a) 404 + drive.metadata.readonly and (b) getActiveUser set.
-- Rerun full command list from clean.
+## Check in slice 3
+- New write handlers must commit via handlers/commit.ts (recheck), not mutateIndex directly.
+- readPreviousSnapshot error handling.
+- Sanitizer replaces identity port; 30+ fixtures (BRIEF 9).
 
 ## Recurring lessons
 - ESLint probes without editing src/: pipe code to `npx eslint --stdin --stdin-filename <existing src file>` (new paths hit the projectService parse error).

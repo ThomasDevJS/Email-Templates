@@ -12,10 +12,10 @@ describe("approved scope check (spec section 9)", () => {
 
   it("manifest oauthScopes equal the approved default list exactly", () => {
     expect(manifest.oauthScopes).toEqual(approved.default);
-    expect(approved.default).toHaveLength(10);
+    expect(approved.default).toHaveLength(11);
   });
 
-  it("approved list matches the spec tables: 10 default, 4 distinct conditional", () => {
+  it("approved list matches the spec tables: 11 default, 4 distinct conditional", () => {
     expect(approved.default.map((scope) => scope.replace(PREFIX, ""))).toEqual([
       "gmail.addons.execute",
       "gmail.addons.current.action.compose",
@@ -23,6 +23,7 @@ describe("approved scope check (spec section 9)", () => {
       "script.external_request",
       "drive.file",
       "drive.metadata.readonly",
+      "script.projects.readonly",
       "userinfo.email",
       "groups",
       "admin.directory.user.readonly",
