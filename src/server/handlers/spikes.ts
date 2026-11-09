@@ -53,6 +53,15 @@ export function syntheticIndex(bytes: number): string {
   });
 }
 
+/** True when both texts parse to equal JSON (key order and whitespace may differ after a Drive read). */
+function sameJson(a: string, b: string): boolean {
+  try {
+    return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b));
+  } catch {
+    return false;
+  }
+}
+
 function timed<T>(nowMs: () => number, run: () => T): { value: T; ms: number } {
   const started = nowMs();
   const value = run();
@@ -80,6 +89,9 @@ export function spikeS2b(
       size,
       bytes: utf8Length(text),
       roundTripOk: read.value === text,
+      roundTripSemanticOk: sameJson(read.value, text),
+      readLength: read.value.length,
+      readHead: read.value.slice(0, 120),
       createMs: created.ms,
       readMs: read.ms,
       writeMs: written.ms,
