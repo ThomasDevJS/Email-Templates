@@ -58,3 +58,31 @@ Open questions
 - Gmail native template count cap (50?) and whether subject is saved: no Google source.
 - Ablebits raw macro syntax and monthly-billing price: not public in pages read.
 - Ablebits Gmail export support: conflicting docs.
+
+## R4 platform constraints (2026-11-09)
+
+Output: docs/research/r4-platform-constraints.md (81 sources, ID [Sn]).
+
+Sources that worked
+- developers.google.com/apps-script/... and /workspace/... reference and guides fetch cleanly with WebFetch.
+- docs.cloud.google.com/identity/... (cloud.google.com 301s there; refetch the new URL).
+- support.google.com via WebFetch hits google.com/sorry (rate limit). Plain curl to support.google.com/<path>?hl=en returned 200; strip HTML with python3 -I. support.google.com/a/answer/172482 now redirects to knowledge.workspace.google.com.
+- Chrome policy text: raw.githubusercontent.com chromium policy_definitions YAML (chromeenterprise.google/policies is a JS shell).
+- InboxSDK README on raw.githubusercontent.com.
+
+Facts to reuse
+- Add-on 30 s, script 6 min, 30 simultaneous per user, 1,000 per script.
+- Cards: 100 sections per card, 100 widgets per section.
+- Cache 100 KB/value, 250-char key, 21,600 s max, 1,000 items. Properties 9 KB/value, 500 KB/store.
+- Gmail scope classes: action.compose non-sensitive, message.metadata sensitive, settings.basic restricted.
+- Test deployments need script editor access, same domain.
+- Directory API: admin role needed; prebuilt Groups Reader role exists (support.google.com/a/answer/2405986).
+- Cloud Identity transitive APIs gated to Enterprise and CI Premium.
+- GroupsApp: direct membership only, scope `groups`, 10,000 reads/day Workspace.
+
+Pitfalls
+- No official numbers for draft-insert HTML limits, google.script.run payload, HtmlOutput size, LockService max wait, latency.
+- Sensitivity of script.*, admin.directory.*, groups scopes not in public tables.
+
+Open questions
+- Migway edition, nested group use, admin API access settings.
