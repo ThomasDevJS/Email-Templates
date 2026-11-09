@@ -22,16 +22,21 @@ const sharedSources = import.meta.glob<string>("../../src/shared/**/*.ts", {
   eager: true,
 });
 
+/** Matches an import or export `from` whose module path has a segment named `segment`, at any depth. */
+function importsSegment(segment: string): RegExp {
+  return new RegExp(`from\\s+["'](?:[^"']*/)?${segment}(?:/[^"']*)?["']`);
+}
+
 const ADDON_FORBIDDEN = [
-  /from\s+["'][^"']*\/server\//,
+  importsSegment("server"),
   /\bgetScriptCache\b/,
   /\bgetScriptProperties\b/,
   /\bDrive(App)?\b\s*\./,
   /\bGroupsApp\b/,
   /\bAdminDirectory\b/,
 ];
-const SERVER_FORBIDDEN = [/\bgetUserCache\b/, /from\s+["'][^"']*\/addon\//];
-const SHARED_FORBIDDEN = [/from\s+["'][^"']*\/(server|addon)\//];
+const SERVER_FORBIDDEN = [/\bgetUserCache\b/, importsSegment("addon")];
+const SHARED_FORBIDDEN = [importsSegment("server"), importsSegment("addon")];
 
 function violations(
   sources: Record<string, string>,
@@ -73,5 +78,22 @@ describe("ADR-0003 Part A boundary", () => {
     expect(
       violations({ "y.ts": "CacheService.getUserCache()" }, SERVER_FORBIDDEN),
     ).toHaveLength(1);
+  });
+
+  it.each([
+    'import { a } from "../server";',
+    "import { a } from '../../server/dispatch/policy';",
+    'export { a } from "server/x";',
+    'import type { A } from "../../src/server/entry";',
+  ])("catches any path segment named server: %s", (source) => {
+    expect(violations({ "x.ts": source }, ADDON_FORBIDDEN)).toHaveLength(1);
+  });
+
+  it.each([
+    'import { a } from "../shared/serverless";',
+    'import { a } from "../observer";',
+    'import { a } from "./server-utils";',
+  ])("ignores paths without a segment named server: %s", (source) => {
+    expect(violations({ "x.ts": source }, ADDON_FORBIDDEN)).toEqual([]);
   });
 });

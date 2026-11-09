@@ -92,12 +92,20 @@ describe("deploy config", () => {
     expect(() => parseDeployConfig(raw)).toThrow(message);
   });
 
-  it("needs scriptId always and deploymentId in version mode", () => {
+  it("needs scriptId always, deploymentId and execUrl in version mode", () => {
     expect(missingForDeploy(parseDeployConfig(prod))).toEqual([
       "scriptId",
       "deploymentId",
+      "execUrl",
     ]);
     expect(missingForDeploy(parseDeployConfig(dev))).toEqual(["scriptId"]);
+    expect(
+      missingForDeploy({
+        ...parseDeployConfig(prod),
+        scriptId: "id",
+        deploymentId: "dep",
+      }),
+    ).toEqual(["execUrl"]);
     expect(
       missingForDeploy({ ...parseDeployConfig(dev), scriptId: "id" }),
     ).toEqual([]);

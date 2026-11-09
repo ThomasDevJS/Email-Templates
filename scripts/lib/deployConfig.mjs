@@ -66,5 +66,8 @@ export function missingForDeploy(config) {
   if (config.scriptId === "") missing.push("scriptId");
   if (config.mode === "version" && config.deploymentId === "")
     missing.push("deploymentId");
+  // A versioned add-on bundle without execUrl cannot reach its server.
+  if (config.mode === "version" && config.execUrl === "")
+    missing.push("execUrl");
   return missing;
 }

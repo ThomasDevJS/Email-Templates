@@ -46,7 +46,7 @@ function checkPreconditions(env, config) {
   const missing = missingForDeploy(config);
   if (missing.length > 0)
     fail(
-      `deploy/${env}.json is missing ${missing.join(", ")}. See docs/ops/deploy.md.`,
+      `deploy/${env}.json is missing ${missing.join(", ")}. Mode version needs scriptId, deploymentId and execUrl, or the add-on cannot reach the server. See docs/ops/deploy.md.`,
     );
   if (gitIsDirty())
     fail("Working tree has uncommitted changes. Commit or discard them first.");

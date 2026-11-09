@@ -37,6 +37,22 @@ const APPS_SCRIPT_GLOBALS = [
   "google",
 ];
 
+/** Bans imports whose path has a segment named one of `segments`, for example `../server` or `../../server/x`. */
+const restrictedSegments = (segments, message) => [
+  "error",
+  {
+    patterns: [
+      {
+        group: segments.flatMap((segment) => [
+          `**/${segment}`,
+          `**/${segment}/**`,
+        ]),
+        message,
+      },
+    ],
+  },
+];
+
 const restrictedGlobals = (names, reason) =>
   names.map((name) => ({ name, message: `${name}: ${reason}` }));
 
@@ -68,24 +84,20 @@ export default defineConfig(
           "src/shared is pure TypeScript; pass platform services in from src/server or src/addon.",
         ),
       ],
+      "no-restricted-imports": restrictedSegments(
+        ["server", "addon"],
+        "Shared code imports neither side.",
+      ),
     },
   },
   {
     // ADR-0003 Part A: add-on code runs as the user and never reads storage or shared stores.
     files: ["src/addon/**/*.ts"],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
-            {
-              group: ["**/server/**", "**/server"],
-              message:
-                "Add-on code must not import server code (ADR-0003 Part A).",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": restrictedSegments(
+        ["server"],
+        "Add-on code must not import server code (ADR-0003 Part A).",
+      ),
       "no-restricted-globals": [
         "error",
         ...restrictedGlobals(
@@ -121,6 +133,10 @@ export default defineConfig(
             "Server code runs as the owner; the User Cache would be shared by every caller.",
         },
       ],
+      "no-restricted-imports": restrictedSegments(
+        ["addon"],
+        "Server code must not import add-on code (ADR-0003 Part A).",
+      ),
     },
   },
 );

@@ -39,6 +39,11 @@ If step 10 shows `Ping failed: NETWORK. Server returned HTTP 401` or `403` in mo
 - When the deploy output shows 150 or more: open the editor, Project History, select old versions not used by any deployment, Bulk delete.
 - Dev in mode `head` creates no versions and never needs pruning.
 
+## Time zone
+
+- `appsscript.json` sets `"timeZone": "America/New_York"`. The `daily` trigger runs between 02:00 and 03:00 in this zone.
+- The owner may change it to the office zone (IANA name, for example `Europe/Berlin`), commit, and deploy. No other file depends on it.
+
 ## Never in the repository
 
 - `~/.clasprc.json` or any OAuth token, client secret, API key, `.env` file or `*.key.json`.
