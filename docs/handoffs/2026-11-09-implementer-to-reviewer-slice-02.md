@@ -1,6 +1,8 @@
 # Handoff: implementer to reviewer, slice 2 (data and permission layer)
 
-Branch `slice/02-data-permissions`, based on bcfe8e9 (orchestrator branch head). 4 commits: 22a79f1 (shared logic), a5a9d62 (server layer), bba06f9 (docs), plus this handoff. Not merged.
+Branch `slice/02-data-permissions`, based on bcfe8e9 (orchestrator branch head). 4 commits: fdb6122 (shared logic), 468d6a4 (server layer), 1e1590c (docs), plus this handoff. Not merged.
+
+Rebase: rebased onto origin/claude/gracious-franklin-3n8zbq at c84cc7e (10 default scopes, add-on client follows the 302 by hand). One conflict, docs/ops/deploy.md step 8: kept the slice 2 text with 10 scopes. Manifest keeps the 10 scopes plus the 2 Drive REST whitelist prefixes. Results below are after the rebase.
 
 ## Done, per acceptance criterion
 
@@ -15,8 +17,8 @@ Branch `slice/02-data-permissions`, based on bcfe8e9 (orchestrator branch head).
 9. `directory/profile.ts`: `AdminDirectory.Users.get(email, { viewType: 'domain_public', projection: 'basic' })`, ADR-0004 mapping, `prof:<email>` 6 h, failures not cached. Op `profile.me`.
 10. Logger: every request and job writes one line with `cache` (`hit`, `miss`, `rebuild`, or empty for ops without the index). Redaction test sends a body, a prompt value and a recipient address and asserts none reaches the log.
 11. `spike.s2` and `spike.s2b` (admin only; s2b web only). Sheets: docs/spikes/slice-02-s2.md, docs/spikes/slice-02-s2b.md.
-12. 21 test files, 383 tests. All slice 1 tests kept or ported to the new signatures (dispatch, handle, entry rewritten for the `Services` world).
-13. docs/ops/smoke.md "Slice 2" (11 steps); docs/ops/deploy.md step 8 rewritten. Scopes unchanged at 8.
+12. 21 test files, 385 tests. All slice 1 tests kept or ported to the new signatures (dispatch, handle, entry rewritten for the `Services` world).
+13. docs/ops/smoke.md "Slice 2" (11 steps); docs/ops/deploy.md step 8 rewritten. Slice 2 adds no scope; the manifest has the 10 from the base branch.
 
 ## Decisions the reviewer should check
 
@@ -35,9 +37,9 @@ Branch `slice/02-data-permissions`, based on bcfe8e9 (orchestrator branch head).
 - `npm run lint`: exit 0, 0 problems.
 - `npm run format:check`: "All matched files use Prettier code style!"
 - `npm run typecheck`: exit 0.
-- `npm run test:coverage`: "Test Files 21 passed (21)", "Tests 383 passed (383)". Statements 99.14% (1395/1407), Branches 94.22% (636/675), Functions 100% (476/476), Lines 99.45% (1273/1280). Lines per area: shared 100%, server dirs 97.43% to 100%.
-- `npm run build -- --env dev` and `--env prod`: "Code.js: 100.2 KB of 800 KB", "index.html: 1.5 KB of 400 KB", expected execUrl warning. `dist/Code.js` has 11 top-level stubs, equal to `ENTRY_POINTS`.
-- `npm run scopes:check`: "Scope check passed: 8 scopes, all approved."
+- `npm run test:coverage`: "Test Files 21 passed (21)", "Tests 385 passed (385)". Statements 99.15% (1402/1414), Branches 94.15% (644/684), Functions 100% (477/477), Lines 99.45% (1279/1286). Lines per area: shared 100%, server dirs 97.43% to 100%.
+- `npm run build -- --env dev` and `--env prod`: "Code.js: 100.9 KB of 800 KB", "index.html: 1.5 KB of 400 KB", expected execUrl warning. `dist/Code.js` has 11 top-level stubs, equal to `ENTRY_POINTS`.
+- `npm run scopes:check`: "Scope check passed: 10 scopes, all approved."
 - Secret scan of the diff: 0 hits for key, token and secret patterns; emails only `@example.com`, `@other.com`, `@b.com`.
 - Not verified: anything against Google. Advanced Drive on `drive.file`, the `alt: 'media'` return type (code accepts string, byte array or blob), GroupsApp and AdminDirectory behaviour, trigger `triggerUid` values, lock re-entrancy (code never nests; fake counts nested acquisitions, tests assert 0).
 
