@@ -161,11 +161,18 @@ describe("add-on entry points", () => {
     onHomepage();
     expect(argsOf("setText")).toEqual([
       "Ping",
+      "Diag",
       "Migway Templates, slice 1",
       "Ping",
+      "Diag",
       "Migway Templates, slice 1",
     ]);
-    expect(argsOf("setFunctionName")).toEqual(["onPing", "onPing"]);
+    expect(argsOf("setFunctionName")).toEqual([
+      "onPing",
+      "onDiag",
+      "onPing",
+      "onDiag",
+    ]);
   });
 
   it("Ping shows the server reply as a notification", () => {

@@ -3,7 +3,8 @@
  * Script Properties (ADR-0003 Part A). Data comes from the server through `callServer`.
  */
 import { BUILD_INFO } from "../shared/buildInfo";
-import { buildHomeCard, pingMessage } from "./cards/home";
+import { buildDiagCard, buildHomeCard, pingMessage } from "./cards/home";
+import { runDiagnostics } from "./client/diag";
 import { callServer } from "./client/serverClient";
 
 /** Gmail compose trigger (`addOns.gmail.composeTrigger.selectActions`). */
@@ -34,5 +35,13 @@ export function onOpenLibrary(): GoogleAppsScript.Card_Service.UniversalActionRe
     .setOnClose(CardService.OnClose.RELOAD_ADD_ON);
   return CardService.newUniversalActionResponseBuilder()
     .setOpenLink(link)
+    .build();
+}
+
+/** Temporary spike S2 diagnostic (slice 1): shows raw front-door responses for the add-on token. */
+export function onDiag(): GoogleAppsScript.Card_Service.ActionResponse {
+  const card = buildDiagCard(runDiagnostics());
+  return CardService.newActionResponseBuilder()
+    .setNavigation(CardService.newNavigation().pushCard(card))
     .build();
 }

@@ -87,6 +87,7 @@ describe("manifest settings (ADR-0001, ADR-0003, ADR-0005)", () => {
     expect(manifest.urlFetchWhitelist).toEqual([
       "https://script.google.com/macros/s/",
       "https://script.googleusercontent.com/",
+      "https://oauth2.googleapis.com/",
     ]);
     expect(manifest.addOns.common.openLinkUrlPrefixes).toEqual([
       "https://script.google.com/macros/s/",

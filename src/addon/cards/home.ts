@@ -9,9 +9,13 @@ export function buildHomeCard(): GoogleAppsScript.Card_Service.Card {
   const ping = CardService.newTextButton()
     .setText("Ping")
     .setOnClickAction(CardService.newAction().setFunctionName(PING_FUNCTION));
+  const diag = CardService.newTextButton()
+    .setText("Diag")
+    .setOnClickAction(CardService.newAction().setFunctionName("onDiag"));
   const section = CardService.newCardSection()
     .addWidget(CardService.newTextParagraph().setText(SLICE_TEXT))
-    .addWidget(ping);
+    .addWidget(ping)
+    .addWidget(diag);
   return CardService.newCardBuilder()
     .setHeader(CardService.newCardHeader().setTitle(HOME_TITLE))
     .addSection(section)
@@ -30,4 +34,17 @@ export function pingMessage(response: RpcResponse): string {
     return `Ping failed: ${response.error.code}. ${response.error.message}`;
   const ms = String(response.durationMs);
   return `Ping ok: server ${response.serverVersion} sees ${callerOf(response.data)} (${ms} ms)`;
+}
+
+/** Diagnostic card: one paragraph per probe line. */
+export function buildDiagCard(
+  lines: readonly string[],
+): GoogleAppsScript.Card_Service.Card {
+  const section = CardService.newCardSection();
+  for (const line of lines)
+    section.addWidget(CardService.newTextParagraph().setText(line));
+  return CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle("Diag"))
+    .addSection(section)
+    .build();
 }
