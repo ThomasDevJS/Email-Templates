@@ -9,9 +9,9 @@ Owner: thomas@migway.com. Orchestrator keeps this file current. Brief: docs/BRIE
 | 0 Setup | G0 | DONE 2026-11-09 | Repo, agents, PLAN.md pushed. 4 agents verified loaded in session 2 |
 | 1 Research | G1 | DONE 2026-11-09 | Owner approved summary.md section 2 and accepted recommendations D4, D8 to D14. D7 open, assumptions below |
 | 2 Spec and ADRs | G2 | DONE 2026-11-09 | Revised for one project and Drive-only storage. Self-audit passed (one fix: per-deployment web app access). ADR-0001 to 0005 Accepted |
-| 2.5a Owner dev env | G2.5a | READY FOR OWNER 2026-11-09 | docs/ops/deploy.md steps 1 to 10, then docs/ops/smoke.md. Result (Ping output) decides spike S2 (d) |
+| 2.5a Owner dev env | G2.5a | IN PROGRESS 2026-11-09 | clasp login and deploys run from the cloud session with the owner's one-time consent. Card loads in Gmail, web app UI works with identity. Add-on to server call fails (404), spike S2 (a) in progress |
 | 2.5b Admin domain install | G2.5b | pending | Can wait until slices 1 to 7 PASS |
-| 3 Build | G3 per slice | IN PROGRESS 2026-11-09 | Slice 1 PASS (retry 1), merged 151b4c2. Slice 2 launched |
+| 3 Build | G3 per slice | IN PROGRESS 2026-11-09 | Slice 1 PASS, merged 151b4c2. Slice 2 PASS (retry 1), merged 5ed2c19. Slice 3 launched. Spike S2 (a) open: add-on token gets 404 at the web app front door |
 
 ## Next action
 
@@ -64,3 +64,5 @@ Owner: run docs/ops/deploy.md steps 1 to 10 on their machine and report the step
 - 2026-11-09 Owner delegated G2 approval to the orchestrator after a self-audit, and asked to be told when testing is possible. D16 to D20 take the recommended values.
 - 2026-11-09 G2 done by self-audit. Findings: scope list 8, none restricted; role matrix complete; maintenance table has deploy as the only recurring human task; fix applied on per-deployment web app access (Q6 fallback now adds openid only). Slice 1 launched.
 - 2026-11-09 Slice 1: implementer 6 commits, review FAIL (lock file broke clean install), retry fixed 4 findings, review PASS. 144 tests, 99.34% lines, 8 scopes. Merged. Owner asked to run 2.5a.
+- 2026-11-09 2.5a: dev script 1eVG4M... pushed from the cloud session (clasp login via pasted redirect URL). Fixes found live: gmail.addons.execute is required (R4 S42 wrong); add-on token (drive.file, drive.metadata.readonly) gets HTTP 404 at /dev and /exec, plain and /a/macros forms, while the owner's clasp token (has script.projects) gets 302 and ok; no token gives 401. Web app UI works with Session identity. Testing script.projects.readonly next; fallback is ADR-0003 Pattern B.
+- 2026-11-09 Slice 2: implementer 4 commits, review FAIL (write authorized before lock, no in-lock re-check), retry fixed with in-lock re-check and 9 race tests, review PASS. 439 tests, 99.39% lines. Merged.
