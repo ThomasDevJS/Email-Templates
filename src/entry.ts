@@ -4,6 +4,7 @@
  */
 export {
   onComposeOpen,
+  onDiag,
   onHomepage,
   onOpenLibrary,
   onPing,
