@@ -53,9 +53,12 @@ function retryLines(failure: Failure): string[] {
       : failure.code === ErrorCode.QUOTA
         ? "Service is busy. Try again in a minute."
         : "Something went wrong.";
-  return failure.requestId === ""
-    ? [head]
-    : [head, `Request ID ${failure.requestId}`];
+  const lines = [head];
+  if (failure.requestId !== "") lines.push(`Request ID ${failure.requestId}`);
+  // NETWORK messages come from the add-on itself ("Server returned HTTP 401"); deploy.md step 10 needs them.
+  if (failure.code === ErrorCode.NETWORK)
+    lines.push(`Network: ${failure.message}`);
+  return lines;
 }
 
 const ACCOUNT_LINES = [

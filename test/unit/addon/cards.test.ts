@@ -318,12 +318,13 @@ describe("state cards (wireframe 07, spec section 7)", () => {
   });
 
   it.each([
-    [ErrorCode.BUSY, "Busy, try again."],
-    [ErrorCode.NETWORK, "Something went wrong."],
-    [ErrorCode.INTERNAL, "Something went wrong."],
-  ])("shows %s with the request ID, Retry and Back", (code, head) => {
+    [ErrorCode.BUSY, ["Busy, try again."]],
+    [ErrorCode.NETWORK, ["Something went wrong.", "Network: m"]],
+    [ErrorCode.INTERNAL, ["Something went wrong."]],
+  ])("shows %s with the request ID, Retry and Back", (code, lines) => {
     const card = at(code);
-    expect(texts(card)).toEqual([head, "Request ID REQ-1"]);
+    const [head, ...rest] = lines;
+    expect(texts(card)).toEqual([head, "Request ID REQ-1", ...rest]);
     expect(buttons(card).map((b) => b.text)).toEqual(["Retry", "Back"]);
     expect(buttons(card)[0]?.action).toEqual(retry);
     expect(buttons(at(code, false)).map((b) => b.text)).toEqual(["Retry"]);

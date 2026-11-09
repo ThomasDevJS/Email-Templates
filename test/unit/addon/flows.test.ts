@@ -133,14 +133,22 @@ describe("home (spec 4.1 steps 1 and 2)", () => {
         requestId: "REQ-9",
         response: {
           ok: false,
-          error: { code: ErrorCode.NETWORK, message: "x", retryable: true },
+          error: {
+            code: ErrorCode.NETWORK,
+            message: "Server returned HTTP 401",
+            retryable: true,
+          },
           serverVersion: "",
           durationMs: 0,
         },
       }),
     };
     const card = homeFlow(down);
-    expect(texts(card)).toEqual(["Something went wrong.", "Request ID REQ-9"]);
+    expect(texts(card)).toEqual([
+      "Something went wrong.",
+      "Request ID REQ-9",
+      "Network: Server returned HTTP 401",
+    ]);
     expect(readView(cache)).toBeNull();
   });
 
