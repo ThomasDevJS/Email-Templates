@@ -60,3 +60,35 @@ Tracked risks from slice 1 are closed: every export is guarded (a), and dispatch
 ## Not verified
 
 Anything against Google: Advanced Drive on `drive.file`, `alt: 'media'` return types, GroupsApp, AdminDirectory, real `triggerUid` values, `getActiveUser` inside time-driven triggers. Spike S2 and S2b sheets cover them.
+
+## Retry 1
+
+Verdict: PASS
+
+Reviewer run 2026-11-09. Fix commit 6052320 on top of 195ab90. All commands run in the worktree after `rm -rf node_modules dist coverage`.
+
+| Command | Result |
+|---|---|
+| `npm ci` | PASS, "added 427 packages, and audited 428 packages in 7s" |
+| `npm run lint` | PASS, exit 0 |
+| `npm run format:check` | PASS, "All matched files use Prettier code style!" |
+| `npm run typecheck` | PASS, exit 0 |
+| `npm run test:coverage` | PASS, Test Files 22 passed (22), Tests 439 passed (439) |
+| coverage | statements 98.97% (1445/1460), branches 94.06% (666/708), functions 99.59% (491/493), lines 99.39% (1318/1326). Only file under 100% functions: membership/snapshot.ts (lines 219, 233) |
+| `npm run build -- --env dev` | PASS, Code.js 103.4 KB of 800 KB, index.html 1.5 KB of 400 KB |
+| `npm run scopes:check` | PASS, "Scope check passed: 10 scopes, all approved." |
+
+Findings:
+
+1. Blocker fixed. `dispatch.authorize` returns the placement of the authorized targets (each target with its ancestor chain). `handlers/commit.ts` calls `context.recheck` on the index read inside the lock: changed placement gives `CONFLICT` (`reason: "moved"`), and a lower level on the same placement gives `DENIED`. Every write handler now commits through `commit`: template create, update, move, delete and restore, folder create, rename, move and delete, the private folder, and grant add and remove. `templateUpdate` takes `before.folderId` inside the lock. test/unit/server/races.test.ts has 9 tests and arms the race at the 10 s write lock. The original scratch scenario was rerun in a scratch copy (move during the body file create): the update answers `CONFLICT`, and X stays in B with its old title.
+2. `purgeTrash` commits the index first, then trashes the body files, and a test covers it. `spikeS2b` trashes its file in `finally`, and a test covers it. `grant.add` reads the group before the commit and merges it after. `refreshSnapshot` and `mergeGroup` re-read `members.json` under the lock, and `refreshSnapshot` keeps groups the index references at write time. 2 tests cover this.
+3. The ADR-0002 reason for adopting the file's rev is sound. The `rev` guard exists so a write that bypassed the lock is not lost. Adopting the file keeps that write, and aborting would refuse writes until something republished `INDEX_REV`. Item `version` and the new recheck still catch lost updates.
+4. A policy-level test copies spec section 6: 39 rows plus 2 `folder.create` cases, plus a coverage check against `POLICY`. Admin-only rows now read only the snapshot before the deny.
+5. The spike sheet records both outcomes in docs/spikes/slice-02-s2.md "Known outcomes": the 404 for `drive.file` alone, then 302 with `drive.metadata.readonly`, and `getActiveUser` set on the token call. Step 1 lists 404. It also records an open item: the add-on still gets 404 at the first hop.
+6. Secret scan of 6052320: 0 hits for key or token patterns. Emails: `admins@example.com`, `ana@example.com`, `sales@example.com` only. The diff adds no URLs.
+
+Remaining minor items (track, not blocking):
+
+- `readPreviousSnapshot` returns an empty snapshot on any Drive read error. `mergeGroup` would then write `members.json` with only the new group until the next 15-min refresh. Admins in `ADMIN_EMAILS` keep access. Rethrow in `writeMerged` (slice 3 or 6).
+- 2 uncovered functions in snapshot.ts (warning filter, read catch).
+- The add-on still gets 404 at the first hop. That is a deploy issue outside this diff, recorded in s2.md.
