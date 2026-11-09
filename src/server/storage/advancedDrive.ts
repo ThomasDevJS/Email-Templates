@@ -34,17 +34,40 @@ interface ListPage {
 
 const PAGE_SIZE = 1000;
 
-/** `files.get` with `alt: 'media'` returns text, bytes or a blob depending on the runtime (spike S2 (e)). */
-function mediaToText(media: unknown): string {
+/** A Drive file resource (what `files.get` returns when `alt: 'media'` is ignored). */
+function looksLikeFileResource(value: Record<string, unknown>): boolean {
+  return (
+    typeof value["id"] === "string" &&
+    typeof value["mimeType"] === "string" &&
+    (value["kind"] === "drive#file" || typeof value["name"] === "string")
+  );
+}
+
+/**
+ * `files.get` with `alt: 'media'` returns text, bytes or a blob depending on the runtime, and for a JSON
+ * file the Advanced service may hand back the parsed object itself (spike S2 (e), observed 2026-11-09).
+ */
+export function mediaToText(media: unknown): string {
   if (typeof media === "string") return media;
   if (Array.isArray(media)) {
     const bytes = Uint8Array.from(media as number[], (byte) => byte & 0xff);
     return new TextDecoder().decode(bytes);
   }
-  const blob = media as { getDataAsString?: () => string } | null;
-  if (blob !== null && typeof blob.getDataAsString === "function")
-    return blob.getDataAsString();
-  throw new AppError(ErrorCode.INTERNAL, "Unreadable Drive media");
+  if (media === null || typeof media !== "object")
+    throw new AppError(
+      ErrorCode.INTERNAL,
+      `Unreadable Drive media: type=${typeof media}`,
+    );
+  const record = media as Record<string, unknown>;
+  const getDataAsString = record["getDataAsString"];
+  if (typeof getDataAsString === "function")
+    return (getDataAsString as () => string).call(media);
+  if (looksLikeFileResource(record))
+    throw new AppError(
+      ErrorCode.INTERNAL,
+      "Unreadable Drive media: alt=media ignored, got a file resource",
+    );
+  return JSON.stringify(media);
 }
 
 function idOf(file: unknown): string {
