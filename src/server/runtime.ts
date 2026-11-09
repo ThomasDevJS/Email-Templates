@@ -89,9 +89,6 @@ function directoryUsers(): DirectoryUsers {
   return requireService(admin.Users, "AdminDirectory.Users");
 }
 
-/** Slice 3 replaces this with the htmlparser2 allowlist sanitizer (ADR-0004). */
-export const identitySanitize = (html: string): string => html;
-
 /** Services for one request or job run, from Apps Script globals. Drive and the store are built on first use. */
 export function createServices(surface: Surface): Services {
   const props = PropertiesService.getScriptProperties();
@@ -108,7 +105,6 @@ export function createServices(surface: Surface): Services {
     nowMs: () => Date.now(),
     newId: () => makeId(Date.now(), (n) => Math.floor(Math.random() * n)),
     sha256,
-    sanitize: identitySanitize,
     drive,
     store: memo(() => driveStore(drive(), requireStoreIds(props))),
     groups: () => GroupsApp,

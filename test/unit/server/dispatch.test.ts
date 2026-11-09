@@ -178,7 +178,7 @@ describe("dispatch: authorization before the handler", () => {
   });
 });
 
-/** Spec section 6 op list, plus `ping` (slice 1), `profile.me` (ADR-0004) and the two spike ops. */
+/** Spec section 6 op list, plus `ping` (slice 1), `profile.me` (ADR-0004), the two spike ops and `template.getBody` (slice 3). */
 const SPEC_OPS = [
   "sidebar.home",
   "folder.list",
@@ -217,7 +217,13 @@ const SPEC_OPS = [
   "backup.restore",
   "me",
 ];
-const EXTRA_OPS = ["ping", "profile.me", "spike.s2", "spike.s2b"];
+const EXTRA_OPS = [
+  "ping",
+  "profile.me",
+  "spike.s2",
+  "spike.s2b",
+  "template.getBody",
+];
 const LIST_OPS = [
   "sidebar.home",
   "folder.list",
@@ -231,7 +237,7 @@ describe("policy table completeness (ADR-0003 Part C)", () => {
     expect(Object.keys(HANDLERS).sort()).toEqual(Object.keys(POLICY).sort());
   });
 
-  it("covers every op of spec section 6 and nothing else beyond the 4 extras", () => {
+  it("covers every op of spec section 6 and nothing else beyond the 5 extras", () => {
     expect(Object.keys(POLICY).sort()).toEqual(
       [...SPEC_OPS, ...EXTRA_OPS].sort(),
     );
@@ -291,6 +297,7 @@ const SPEC_LEVELS: Readonly<Record<string, string>> = {
   search: "use",
   "search.body": "use",
   "template.get": "use",
+  "template.getBody": "use",
   "template.apply": "use",
   "favorite.set": "use",
   "favorite.unset": "use",

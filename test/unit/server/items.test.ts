@@ -215,16 +215,60 @@ describe("template create, get, update (save sequence)", () => {
     });
   });
 
-  it("calls the sanitize port on create and update (TODO slice 3: htmlparser2 allowlist replaces identity)", () => {
+  it("sanitizes and parses placeholders on create and update", () => {
     const folder = sharedFolder();
-    const item = create(OWNER, folder.id, "<p>one</p>");
-    world.ok(OWNER, "template.update", {
+    const item = create(
+      OWNER,
+      folder.id,
+      '<p onclick="x">Hi {{sender.name}}, {{ask:Date}}</p><script>x()</script>',
+    );
+    expect(item).toMatchObject({
+      placeholders: ["sender.name"],
+      prompts: ["Date"],
+      snippet: "Hi {{sender.name}}, {{ask:Date}}",
+      sizeBytes: 39,
+    });
+    const store = world.services.store();
+    expect(store.readBody(item.bodyFileId)).toMatchObject({
+      html: "<p>Hi {{sender.name}}, {{ask:Date}}</p>",
+      plainText: "Hi {{sender.name}}, {{ask:Date}}",
+    });
+    const next = world.ok<Item>(OWNER, "template.update", {
       id: item.id,
       baseVersion: 1,
       title: "T",
-      html: "<p>two</p>",
+      html: "<p>two {{recipient.first_name|there}}</p>",
     });
-    expect(world.sanitized).toEqual(["<p>one</p>", "<p>two</p>"]);
+    expect(next).toMatchObject({
+      placeholders: ["recipient.first_name"],
+      prompts: [],
+    });
+  });
+
+  it("rejects placeholder problems before the lock with positions in details", () => {
+    const folder = sharedFolder();
+    const bodies = world.services.store().listBodies().length;
+    world.lock.holdElsewhere();
+    const error = errorOf(OWNER, "template.create", {
+      folderId: folder.id,
+      title: "T",
+      html: "<p>Hi {{sender.nmae}}</p>",
+    });
+    world.lock.holdElsewhere(false);
+    expect(error).toMatchObject({
+      code: "VALIDATION",
+      details: {
+        problems: [
+          {
+            code: "PH_UNKNOWN",
+            message:
+              "Unknown placeholder sender.nmae at character 4. Did you mean sender.name?",
+            offset: 3,
+          },
+        ],
+      },
+    });
+    expect(world.services.store().listBodies()).toHaveLength(bodies);
   });
 
   it("rejects bodies over 100 KB and invalid titles", () => {
