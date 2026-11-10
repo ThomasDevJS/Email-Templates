@@ -6,6 +6,8 @@ import {
   type SidebarHome,
   type SidebarTemplate,
 } from "../shared/model/sidebar";
+import type { AppliedRecipients, Recipients } from "../shared/model/recipients";
+import { domainOf } from "../shared/permissions/principals";
 import { previewText, subjectPreview } from "../shared/placeholders/preview";
 import {
   promptsFor,
@@ -16,6 +18,15 @@ import { folderCard } from "./cards/folder";
 import { homeCard, searchCard } from "./cards/home";
 import { previewCard } from "./cards/preview";
 import { promptCard, tooManyFieldsCard } from "./cards/prompt";
+import {
+  RECIPIENTS_CHANGED,
+  RECIPIENT_SWITCH,
+  hasRecipients,
+  recipientActions,
+  recipientPlan,
+  recipientsText,
+  switchLabel,
+} from "./cards/recipients";
 import {
   SEARCH_INPUT,
   SKIP_SUBJECT,
@@ -36,6 +47,7 @@ import {
   type ServerCall,
 } from "./client/serverClient";
 import {
+  draftRecipients,
   formValue,
   internalRecipient,
   draftHasSubject,
@@ -73,6 +85,8 @@ export interface Ports {
   readonly execUrl: string;
   /** `entryOf` of the callback's own event; decides the row and preview buttons and the hint. */
   readonly entry: Entry;
+  /** First 16 hex characters of the SHA-256 of `text` (`rh`, spec 5.7). */
+  hash(text: string): string;
 }
 
 type Loaded<T> =
@@ -170,11 +184,48 @@ function templateOf(view: SidebarHome, id: string): SidebarTemplate | null {
   return view.templates.find((template) => template.id === id) ?? null;
 }
 
-interface BodyReply {
+type BodyReply = {
   readonly id: string;
   readonly version: number;
   readonly subject: string;
   readonly html: string;
+} & AppliedRecipients;
+
+/** The lists a server reply carries (spec 5.7); everything else in the reply is dropped. */
+function listsOf(reply: AppliedRecipients): AppliedRecipients {
+  return {
+    to: reply.to,
+    cc: reply.cc,
+    bcc: reply.bcc,
+    blocked: reply.blocked,
+  };
+}
+
+function rhOf(ports: Ports, lists: AppliedRecipients): string {
+  return ports.hash(recipientsText(lists));
+}
+
+/** Preview card from a body and its lists; `changed`: an Insert found other lists than the card showed. */
+function previewOf(
+  ports: Ports,
+  event: AddonEvent | undefined,
+  template: SidebarTemplate,
+  body: BodyReply,
+  changed: boolean,
+): CardSpec {
+  return previewCard(
+    template,
+    previewText(body.html),
+    subjectPreview(body.subject),
+    draftHasSubject(event),
+    ports.entry,
+    {
+      plan: recipientPlan(body, draftRecipients(event)),
+      rh: rhOf(ports, body),
+      domain: domainOf(ports.userEmail),
+      changed,
+    },
+  );
 }
 
 export function previewFlow(
@@ -194,13 +245,7 @@ export function previewFlow(
   writeBody(ports.cache, id, { version, html, subject });
   return {
     kind: "push",
-    card: previewCard(
-      template,
-      previewText(html),
-      subjectPreview(subject),
-      draftHasSubject(event),
-      ports.entry,
-    ),
+    card: previewOf(ports, event, template, body.data, false),
   };
 }
 
@@ -214,16 +259,24 @@ interface Ready {
   /** Whether the subject goes into the draft: `replacesSubject` of the Insert; the prompt card switch starts here. */
   readonly replaceSubject: boolean;
   readonly values: Readonly<Record<string, string>>;
+  /** The template lists, or null for "Insert body only" (no recipient action, no switch). */
+  readonly recipients: AppliedRecipients | null;
+  /** The draft's lists from the tap's event. */
+  readonly draft: Recipients;
+  readonly rh: string;
+  readonly domain: string;
 }
 
 /** Spec 4.1 steps 4 and 5: insert at once when nothing needs asking, else the prompt card. */
 function insertOrAsk(ready: Ready): Reply {
   const fields = promptsFor(ready.html, ready.values, ready.subject);
+  const lists = ready.recipients;
   if (fields.length === 0) {
     const input = { values: ready.values, answers: {} };
     return insertReply(
       renderBody(ready.html, input).html,
       ready.replaceSubject ? renderSubject(ready.subject, input).text : "",
+      lists === null ? {} : recipientActions(lists, ready.draft, true),
     );
   }
   if (fields.length > MAX_FIELDS)
@@ -235,6 +288,12 @@ function insertOrAsk(ready: Ready): Reply {
     kind: "push",
     card: promptCard({
       ...ready,
+      rh: lists === null ? "" : ready.rh,
+      recipientsLabel:
+        lists === null
+          ? ""
+          : switchLabel(recipientPlan(lists, ready.draft), ready.domain),
+      addRecipients: true,
       fields,
       entered: [],
       order: fields.map((_, n) => n),
@@ -259,6 +318,43 @@ function appliedBody(
   return fresh;
 }
 
+/**
+ * The cached row of the template, else a minimal one from the apply result (no "Edit in library"). Reads the
+ * User Cache only: no server call.
+ */
+function rowOf(ports: Ports, result: ApplyResult, body: CachedBody) {
+  const cached = readView(ports.cache);
+  const row = cached === null ? null : templateOf(cached, result.id);
+  return (
+    row ?? {
+      id: result.id,
+      folderId: "",
+      title: result.title,
+      subject: body.subject,
+      snippet: "",
+      version: result.version,
+      prompts: [],
+      level: "use" as const,
+    }
+  );
+}
+
+/**
+ * Spec 5.7 disclosure: an Insert that would add an address the user has not seen gets a card in place of the
+ * insert. With `rh` (a card showed lists) and other lists now: the preview card again with the change line. Without
+ * `rh` (a list row, so a view cached before the template gained recipients): the preview card, or the prompt card
+ * when fields need asking (it lists the addresses too).
+ */
+function needsReview(
+  shown: string | undefined,
+  rh: string,
+  lists: AppliedRecipients,
+  asks: boolean,
+): boolean {
+  if (shown !== undefined) return shown !== rh;
+  return hasRecipients(lists) && !asks;
+}
+
 export function insertFlow(
   ports: Ports,
   event: AddonEvent | undefined,
@@ -279,6 +375,21 @@ export function insertFlow(
   const result = applied.data;
   const body = appliedBody(ports, result, cached);
   if (body === null) return failed(ports, notFound, retry);
+  const values = variableValues(result.sender, result.recipientFirstName);
+  const lists = listsOf(result);
+  const rh = rhOf(ports, lists);
+  const asks = promptsFor(body.html, values, body.subject).length > 0;
+  if (!skip && needsReview(params["rh"], rh, lists, asks)) {
+    const reply: BodyReply = { id, ...body, ...lists };
+    const card = previewOf(
+      ports,
+      event,
+      rowOf(ports, result, body),
+      reply,
+      params["rh"] !== undefined,
+    );
+    return { kind: params["rh"] === undefined ? "push" : "update", card };
+  }
   return insertOrAsk({
     id,
     title: result.title,
@@ -286,7 +397,11 @@ export function insertFlow(
     html: body.html,
     subject: skip ? "" : body.subject,
     replaceSubject: replacesSubject(choice, draftHasSubject(event)),
-    values: variableValues(result.sender, result.recipientFirstName),
+    values,
+    recipients: skip ? null : lists,
+    draft: draftRecipients(event),
+    rh,
+    domain: domainOf(ports.userEmail),
   });
 }
 
@@ -305,8 +420,9 @@ function parseValues(raw: string): Record<string, string> {
 }
 
 /**
- * Body for the prompt card's Insert. `template.apply` with `followUp: true` re-checks `use` on the server (a removed
- * grant gives DENIED) and buffers no second event. The body travels only when the cached copy is gone or stale.
+ * Body and lists for the prompt card's Insert. `template.apply` with `followUp: true` re-checks `use` on the server
+ * (a removed grant gives DENIED) and buffers no second event. The body travels only when the cached copy is gone or
+ * stale; the lists travel on every call.
  */
 function bodyFor(ports: Ports, id: string, version: number): Loaded<BodyReply> {
   const cached = readBody(ports.cache, id);
@@ -319,13 +435,14 @@ function bodyFor(ports: Ports, id: string, version: number): Loaded<BodyReply> {
   if (!applied.ok) return applied;
   const body = appliedBody(ports, applied.data, usable);
   if (body === null) return { ok: false, failure: notFound };
-  return { ok: true, data: { id, ...body } };
+  return { ok: true, data: { id, ...body, ...listsOf(applied.data) } };
 }
 
 /**
  * Prompt card Insert (wireframe 02). Blank or over-long values re-render the card with the error line and those
- * fields first; the draft does not change. A new template version since the card opened re-renders it too.
- * The subject goes into the draft only while the "Replace the subject" switch is on.
+ * fields first; the draft does not change. A new template version or other recipient lists since the card opened
+ * re-render it too. The subject goes into the draft only while "Replace the subject" is on, the recipients only
+ * while "Add recipients" is on.
  */
 export function promptInsertFlow(
   ports: Ports,
@@ -339,21 +456,31 @@ export function promptInsertFlow(
   if (!body.ok) return failed(ports, body.failure, action("onBack"));
   const { html } = body.data;
   const subject = params["subject"] === SKIP_SUBJECT ? "" : body.data.subject;
+  // The card carries `rh` unless it was opened by "Insert body only": then no recipients and no check.
+  const bodyOnly = params["rh"] === undefined;
   const replaceSubject = formValue(event, SUBJECT_SWITCH) === SWITCH_ON;
+  const addRecipients = formValue(event, RECIPIENT_SWITCH) === SWITCH_ON;
+  const lists = listsOf(body.data);
+  const draft = draftRecipients(event);
+  const rh = rhOf(ports, lists);
   const fields = promptsFor(html, values, subject);
   const entered = fields.map((_, n) => formValue(event, inputName(n)));
   const check = checkAnswers(fields, entered);
   const changed = body.data.version !== version;
-  if (!changed && isClean(check)) {
+  const listsChanged = !bodyOnly && params["rh"] !== rh;
+  if (!changed && !listsChanged && isClean(check)) {
     const input = { values, answers: answersByKey(fields, entered) };
     return insertReply(
       renderBody(html, input).html,
       replaceSubject ? renderSubject(subject, input).text : "",
+      bodyOnly ? {} : recipientActions(lists, draft, addRecipients),
     );
   }
   const problem = changed
     ? "The template changed. Check the fields and insert again."
-    : problemText(fields, check);
+    : listsChanged
+      ? RECIPIENTS_CHANGED
+      : problemText(fields, check);
   return {
     kind: "update",
     card: promptCard({
@@ -361,8 +488,13 @@ export function promptInsertFlow(
       title: params["title"] ?? "",
       version: body.data.version,
       subject,
-      // A changed template shows the switch at its default: off when the draft has a subject (D24).
+      // A changed template shows the switches at their defaults: subject off when the draft has one (D24).
       replaceSubject: replaceSubject || (changed && !draftHasSubject(event)),
+      rh: bodyOnly ? "" : rh,
+      recipientsLabel: bodyOnly
+        ? ""
+        : switchLabel(recipientPlan(lists, draft), domainOf(ports.userEmail)),
+      addRecipients: addRecipients || changed || listsChanged,
       values,
       fields,
       entered,

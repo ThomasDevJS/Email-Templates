@@ -4,6 +4,7 @@ import {
   type DraftField,
   type DraftInfo,
 } from "../shared/model/protocol";
+import type { Recipients } from "../shared/model/recipients";
 import { domainOf } from "../shared/permissions/principals";
 
 /**
@@ -101,6 +102,30 @@ export function draftInfo(event: AddonEvent | undefined): DraftInfo {
     cc: count("ccRecipients"),
     bcc: count("bccRecipients"),
     hasSubject: draftHasSubject(event),
+  };
+}
+
+function stringList(value: unknown): readonly string[] | undefined {
+  return Array.isArray(value) && value.every((v) => typeof v === "string")
+    ? value
+    : undefined;
+}
+
+/**
+ * The draft's To, Cc and Bcc as the tap's event carries them (spike S6: arrays of bare addresses in `draftMetadata`;
+ * `gmail` repeats the non-empty ones). A missing list reads as empty. Values stay in the add-on: they only go back
+ * to Gmail in the recipient actions.
+ */
+export function draftRecipients(event: AddonEvent | undefined): Recipients {
+  const read = (name: string) =>
+    sourcesOf(event)
+      .reverse()
+      .map((source) => stringList(source[name]))
+      .find((list) => list !== undefined) ?? [];
+  return {
+    to: read("toRecipients"),
+    cc: read("ccRecipients"),
+    bcc: read("bccRecipients"),
   };
 }
 

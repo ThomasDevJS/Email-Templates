@@ -15,6 +15,15 @@ import {
   searchCard,
 } from "../../../src/addon/cards/home";
 import { previewCard } from "../../../src/addon/cards/preview";
+import { NO_RECIPIENTS } from "../../../src/shared/model/recipients";
+
+const NONE = {
+  plan: { added: NO_RECIPIENTS, notAdded: [] },
+  rh: "RH",
+  domain: "migway.com",
+  changed: false,
+};
+const NO_RCPT = { rh: "", recipientsLabel: "", addRecipients: false };
 import { promptCard, tooManyFieldsCard } from "../../../src/addon/cards/prompt";
 import {
   CALLBACKS,
@@ -280,6 +289,7 @@ describe("preview card (wireframe 01)", () => {
       "",
       false,
       "compose",
+      NONE,
     );
     expect(card.title).toBe("Template T1");
     expect(texts(card)).toEqual([
@@ -289,14 +299,21 @@ describe("preview card (wireframe 01)", () => {
     expect(buttons(card).map((b) => b.text)).toEqual(["Insert"]);
     expect(buttons(card)[0]).toMatchObject({ filled: true });
     for (const level of ["edit", "manage"] as const) {
-      const editable = previewCard({ ...t, level }, "x", "", false, "compose");
+      const editable = previewCard(
+        { ...t, level },
+        "x",
+        "",
+        false,
+        "compose",
+        NONE,
+      );
       expect(buttons(editable)[1]).toMatchObject({
         text: "Edit in library",
         action: { fn: "onOpenLink", params: { id: "T1" } },
       });
     }
     expect(
-      texts(previewCard(template("T2"), "", "", false, "compose")),
+      texts(previewCard(template("T2"), "", "", false, "compose", NONE)),
     ).toEqual(["(Empty template)"]);
   });
 
@@ -307,6 +324,7 @@ describe("preview card (wireframe 01)", () => {
       "Quote for [Product]",
       false,
       "compose",
+      NONE,
     );
     expect(widgets(card)[0]).toEqual({
       kind: "item",
@@ -315,23 +333,30 @@ describe("preview card (wireframe 01)", () => {
     });
     expect(texts(card)).toContain("Sets the draft subject.");
     expect(buttons(card).map((b) => b.action)).toEqual([
-      { fn: "onInsert", params: { id: "T1" } },
+      { fn: "onInsert", params: { id: "T1", rh: "RH" } },
       { fn: "onInsert", params: { id: "T1", subject: "skip" } },
     ]);
     expect(buttons(card)[1]?.text).toBe("Insert body only");
   });
 
   it("with a draft subject: says it is kept and offers Insert with subject (D24)", () => {
-    const card = previewCard(template("T1"), "Body", "Quote", true, "compose");
+    const card = previewCard(
+      template("T1"),
+      "Body",
+      "Quote",
+      true,
+      "compose",
+      NONE,
+    );
     expect(texts(card)).toContain(
       "The draft already has a subject. It is kept.",
     );
     expect(buttons(card).map((b) => [b.text, b.action.params])).toEqual([
-      ["Insert", { id: "T1" }],
-      ["Insert with subject", { id: "T1", subject: "use" }],
+      ["Insert", { id: "T1", rh: "RH" }],
+      ["Insert with subject", { id: "T1", subject: "use", rh: "RH" }],
     ]);
     expect(
-      buttons(previewCard(template("T1"), "Body", "", true, "compose")),
+      buttons(previewCard(template("T1"), "Body", "", true, "compose", NONE)),
     ).toHaveLength(1);
   });
 });
@@ -374,7 +399,14 @@ describe.each(["inbox", "message"] as const)(
     });
 
     it("preview: no Insert, no draft subject note; Edit in library stays", () => {
-      const card = previewCard(template("T1"), "Body", "Quote", false, entry);
+      const card = previewCard(
+        template("T1"),
+        "Body",
+        "Quote",
+        false,
+        entry,
+        NONE,
+      );
       expect(buttons(card)).toEqual([]);
       expect(card.sections).toHaveLength(1);
       expect(texts(card)).not.toContain("Sets the draft subject.");
@@ -384,6 +416,7 @@ describe.each(["inbox", "message"] as const)(
         "",
         true,
         entry,
+        NONE,
       );
       expect(buttons(editable).map((b) => b.text)).toEqual(["Edit in library"]);
       expect(texts(editable)).toContain("Fields to fill: Date");
@@ -401,7 +434,14 @@ describe("compose entry keeps Insert everywhere", () => {
     expect(folder && buttons(folder).map((b) => b.text)).toContain("Insert");
     const search = searchCard(full, "t", full.templates, "compose");
     expect(buttons(search).map((b) => b.text)).toContain("Insert");
-    const preview = previewCard(template("T1"), "x", "", false, "compose");
+    const preview = previewCard(
+      template("T1"),
+      "x",
+      "",
+      false,
+      "compose",
+      NONE,
+    );
     expect(buttons(preview).map((b) => b.text)).toEqual(["Insert"]);
   });
 });
@@ -414,6 +454,7 @@ describe("prompt card (wireframe 02)", () => {
 
   it("has one input per field in the given order, the error line, Insert and Cancel", () => {
     const card = promptCard({
+      ...NO_RCPT,
       id: "T1",
       title: "Quote",
       version: 4,
@@ -464,6 +505,7 @@ describe("prompt card (wireframe 02)", () => {
 
   it("skips unknown indexes and omits an empty error line", () => {
     const card = promptCard({
+      ...NO_RCPT,
       id: "T1",
       title: "Quote",
       version: 1,
@@ -480,6 +522,7 @@ describe("prompt card (wireframe 02)", () => {
 
   it("adds the Replace the subject switch with the subject preview when there is a subject", () => {
     const card = promptCard({
+      ...NO_RCPT,
       id: "T1",
       title: "Quote",
       version: 1,

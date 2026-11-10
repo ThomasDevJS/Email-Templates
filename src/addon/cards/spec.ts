@@ -3,6 +3,7 @@
  * return these values; render.ts is the only code that turns them into Card Service objects. All text is plain
  * text: the renderer escapes it.
  */
+import type { RecipientActions } from "./recipients";
 
 /** Top-level add-on callbacks a card may name. Each one is an export of src/entry.ts and an ENTRY_POINTS row. */
 export const CALLBACKS = [
@@ -29,7 +30,7 @@ export const SWITCH_ON = "on";
 export const SUBJECT_SWITCH = "subj";
 /** Home card search input (wireframe 01). */
 export const SEARCH_INPUT = "q";
-/** Callback parameter `subject` of "Insert body only": the draft subject stays as it is. */
+/** Callback parameter `subject` of "Insert body only": no subject and no recipient action (D24, spec 5.7). */
 export const SKIP_SUBJECT = "skip";
 /** Callback parameter `subject` of "Insert with subject": overrides a draft subject (D24). */
 export const WITH_SUBJECT = "use";
@@ -120,12 +121,13 @@ export type Reply =
   | { readonly kind: "open"; readonly url: string }
   /**
    * One `UpdateDraftActionResponse`: the body action (`IN_PLACE_INSERT`, `MUTABLE_HTML`) always, the subject action
-   * only when `subject` is not null. Built by `insertReply`.
+   * only when `subject` is not null, one recipient action per field in `recipients`. Built by `insertReply`.
    */
   | {
       readonly kind: "insert";
       readonly html: string;
       readonly subject: string | null;
+      readonly recipients: RecipientActions;
     }
   /** TEMPORARY (spike S7): one `ComposeActionResponse` that opens `draft` in a compose window. */
   | { readonly kind: "s7"; readonly draft: GoogleAppsScript.Gmail.GmailDraft }
@@ -137,11 +139,21 @@ export type Reply =
     };
 
 /**
- * Spec 4.1 step 4 and 5.6: the rendered body, plus the rendered subject when it is not empty. An empty subject
- * (none in the template, or the user opted out) sends no subject action, so the draft subject is never cleared.
+ * Spec 4.1 step 4, 5.6 and 5.7: the rendered body, plus the rendered subject when it is not empty, plus the
+ * recipient actions of `recipientActions`. An empty subject (none in the template, or the user opted out) sends no
+ * subject action, so the draft subject is never cleared.
  */
-export function insertReply(html: string, subject: string): Reply {
-  return { kind: "insert", html, subject: subject === "" ? null : subject };
+export function insertReply(
+  html: string,
+  subject: string,
+  recipients: RecipientActions = {},
+): Reply {
+  return {
+    kind: "insert",
+    html,
+    subject: subject === "" ? null : subject,
+    recipients,
+  };
 }
 
 export const action = (fn: Callback, params?: Params): ActionSpec =>

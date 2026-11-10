@@ -1,4 +1,5 @@
 import { escapeText } from "../../shared/html/escape";
+import type { RecipientActions } from "./recipients";
 import {
   SWITCH_ON,
   type ActionSpec,
@@ -128,8 +129,15 @@ function navigate(
     .build();
 }
 
-/** Body and, when present, subject in one response (spec 4.1 step 4; spike S5 checks Gmail accepts both). */
-function insertResponse(html: string, subject: string | null): DraftResponse {
+/**
+ * Body, the subject when present, and one action per recipient field in one response (spec 4.1 step 4; spikes S5
+ * and S6 showed Gmail applies all 5). Each recipient action replaces its field. Never `setSendStatus`.
+ */
+function insertResponse(
+  html: string,
+  subject: string | null,
+  recipients: RecipientActions,
+): DraftResponse {
   const body = CardService.newUpdateDraftBodyAction()
     .addUpdateContent(html, CardService.ContentType.MUTABLE_HTML)
     .setUpdateType(CardService.UpdateDraftBodyType.IN_PLACE_INSERT);
@@ -140,6 +148,24 @@ function insertResponse(html: string, subject: string | null): DraftResponse {
   if (subject !== null)
     response.setUpdateDraftSubjectAction(
       CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject),
+    );
+  if (recipients.to !== undefined)
+    response.setUpdateDraftToRecipientsAction(
+      CardService.newUpdateDraftToRecipientsAction().addUpdateToRecipients([
+        ...recipients.to,
+      ]),
+    );
+  if (recipients.cc !== undefined)
+    response.setUpdateDraftCcRecipientsAction(
+      CardService.newUpdateDraftCcRecipientsAction().addUpdateCcRecipients([
+        ...recipients.cc,
+      ]),
+    );
+  if (recipients.bcc !== undefined)
+    response.setUpdateDraftBccRecipientsAction(
+      CardService.newUpdateDraftBccRecipientsAction().addUpdateBccRecipients([
+        ...recipients.bcc,
+      ]),
     );
   return response.build();
 }
@@ -172,7 +198,7 @@ export function renderReply(
         )
         .build();
     case "insert":
-      return insertResponse(reply.html, reply.subject);
+      return insertResponse(reply.html, reply.subject, reply.recipients);
     case "s7":
       return CardService.newComposeActionResponseBuilder()
         .setGmailDraft(reply.draft)

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Folder, Item } from "../../../src/shared/model/data";
 import { ErrorCode } from "../../../src/shared/errors/codes";
@@ -58,6 +59,8 @@ function ports(email = ANA, entry: Entry = "compose"): Ports {
     userEmail: email,
     execUrl: EXEC,
     entry,
+    hash: (text) =>
+      createHash("sha256").update(text).digest("hex").slice(0, 16),
   };
 }
 
@@ -107,6 +110,11 @@ function formEvent(values: Record<string, string>): AddonEvent {
     },
   };
 }
+
+const EMPTY_RH = createHash("sha256")
+  .update(JSON.stringify([[], [], [], []]))
+  .digest("hex")
+  .slice(0, 16);
 
 const toBob: AddonEvent = { draftMetadata: { toRecipients: [BOB] } };
 
@@ -370,6 +378,7 @@ describe("subject (spec 5.6, wireframe 02)", () => {
       kind: "insert",
       html: "<p>Hi</p>",
       subject: "From Ana <Lima> & Co",
+      recipients: {},
     });
     expect(readBody(cache, item.id)?.subject).toBe("From {{sender.name}}");
     expect(
@@ -390,7 +399,12 @@ describe("subject (spec 5.6, wireframe 02)", () => {
       insertOf(
         insertFlow(ports(), undefined, { id: item.id, subject: "skip" }),
       ),
-    ).toEqual({ kind: "insert", html: "<p>Hi</p>", subject: null });
+    ).toEqual({
+      kind: "insert",
+      html: "<p>Hi</p>",
+      subject: null,
+      recipients: {},
+    });
   });
 
   it("the preview card shows the subject with [Label] and Insert body only", () => {
@@ -420,6 +434,7 @@ describe("subject (spec 5.6, wireframe 02)", () => {
       kind: "insert",
       html: "<p>Pen<br>red Mon</p>",
       subject: "Quote for Pen red",
+      recipients: {},
     });
     expect(submit({ "p-1": "Pen", "p-2": "Mon" }).subject).toBeNull();
   });
@@ -508,6 +523,7 @@ describe("draft subject rule (D24)", () => {
       kind: "insert",
       html: "<p>Hi</p>",
       subject: null,
+      recipients: {},
     });
   });
 
@@ -522,8 +538,8 @@ describe("draft subject rule (D24)", () => {
       w.kind === "buttons" ? w.buttons : [],
     );
     expect(buttons.map((b) => [b.text, b.action.params])).toEqual([
-      ["Insert", { id: item.id }],
-      ["Insert with subject", { id: item.id, subject: "use" }],
+      ["Insert", { id: item.id, rh: EMPTY_RH }],
+      ["Insert with subject", { id: item.id, subject: "use", rh: EMPTY_RH }],
     ]);
     const plain = buttons[0]?.action.params ?? {};
     expect(subjectOf(insertFlow(ports(), reply, plain))).toBeNull();
@@ -605,6 +621,7 @@ describe("prompt card Insert (wireframe 02)", () => {
       title: "Quote",
       version,
       values,
+      rh: EMPTY_RH,
     });
 
   it("inserts escaped values, newlines as <br>; re-checks use without the body or a second event", () => {
@@ -677,7 +694,7 @@ describe("prompt card Insert (wireframe 02)", () => {
     const reply = promptInsertFlow(
       ports(),
       formEvent({ "p-1": "N", "p-2": "a", "p-3": "b" }),
-      { id: item.id, version: "1", values: "{broken" },
+      { id: item.id, version: "1", values: "{broken", rh: EMPTY_RH },
     );
     expect(htmlOf(reply)).toBe("<p>N: a / b / a</p>");
     expect(sent).toMatchObject([

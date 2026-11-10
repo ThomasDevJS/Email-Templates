@@ -184,7 +184,12 @@ describe("renderReply", () => {
   });
 
   it("insert with a subject adds UpdateDraftSubjectAction to the same response", () => {
-    renderReply({ kind: "insert", html: "<p>x</p>", subject: "Quote <b>" });
+    renderReply({
+      kind: "insert",
+      html: "<p>x</p>",
+      subject: "Quote <b>",
+      recipients: {},
+    });
     expect(calls.map((c) => c.method)).toEqual([
       "newUpdateDraftBodyAction",
       "addUpdateContent",
@@ -200,7 +205,12 @@ describe("renderReply", () => {
   });
 
   it("insert builds an UpdateDraftActionResponse with IN_PLACE_INSERT and MUTABLE_HTML", () => {
-    renderReply({ kind: "insert", html: "<p>x</p>", subject: null });
+    renderReply({
+      kind: "insert",
+      html: "<p>x</p>",
+      subject: null,
+      recipients: {},
+    });
     expect(calls.map((c) => c.method)).toEqual([
       "newUpdateDraftBodyAction",
       "addUpdateContent",
@@ -211,5 +221,35 @@ describe("renderReply", () => {
     ]);
     expect(calls[1]?.args).toEqual(["<p>x</p>", "MUTABLE_HTML"]);
     expect(argsOf("setUpdateType")).toEqual(["IN_PLACE_INSERT"]);
+  });
+
+  it("insert adds one recipient action per field it carries, after body and subject, and never setSendStatus", () => {
+    renderReply({
+      kind: "insert",
+      html: "<p>x</p>",
+      subject: "S",
+      recipients: { cc: ["a@x.com", "b@x.com"], bcc: ["c@x.com"] },
+    });
+    const methods = calls.map((c) => c.method);
+    expect(methods.slice(-8)).toEqual([
+      "setUpdateDraftSubjectAction",
+      "newUpdateDraftCcRecipientsAction",
+      "addUpdateCcRecipients",
+      "setUpdateDraftCcRecipientsAction",
+      "newUpdateDraftBccRecipientsAction",
+      "addUpdateBccRecipients",
+      "setUpdateDraftBccRecipientsAction",
+      "build",
+    ]);
+    expect(methods).not.toContain("setUpdateDraftToRecipientsAction");
+    expect(methods).not.toContain("setSendStatus");
+    expect(argsOf("addUpdateCcRecipients")).toEqual([["a@x.com", "b@x.com"]]);
+    renderReply({
+      kind: "insert",
+      html: "",
+      subject: null,
+      recipients: { to: ["t@x.com"] },
+    });
+    expect(argsOf("addUpdateToRecipients")).toEqual([["t@x.com"]]);
   });
 });

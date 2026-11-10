@@ -47,7 +47,20 @@ function ports(event: AddonEvent | undefined): Ports {
     userEmail: Session.getActiveUser().getEmail(),
     execUrl: BUILD_INFO.execUrl,
     entry: entryOf(event),
+    hash: shortSha256,
   };
+}
+
+/** `rh` (spec 5.7): first 16 hex characters of the SHA-256. Apps Script digests are signed bytes. */
+function shortSha256(text: string): string {
+  return Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    text,
+    Utilities.Charset.UTF_8,
+  )
+    .slice(0, 8)
+    .map((byte) => ((byte + 256) % 256).toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /** Guard, QUOTA wait (spec section 7: retry after 60 s), flow, render. */
