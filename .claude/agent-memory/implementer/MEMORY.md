@@ -7,7 +7,7 @@
 - No external binaries (permission classifier). Node 22.23.4, npm 10.9.9; clasp login impossible here.
 
 ## Lessons
-- Always prove the lock file with `rm -rf node_modules && npm ci` before reporting. Slice 1 failed review on that.
+- Always prove the lock file with `rm -rf node_modules && npm ci` before reporting. Slice 1 failed review on that. Run `prettier --write` before every commit.
 - Boundary checks must match path segments (`../server`, `server/x`), not only `/server/`.
 - Test ID generators: an LCG's low bits cycle fast; use high bits (`Math.floor(seq / 65536) % n`), or IDs collide.
 - Real runtime uses `Date.now()`; entry tests need `vi.useFakeTimers({ now, toFake: ["Date"] })`.
@@ -18,7 +18,6 @@
 - typescript 6.0.3 (typescript-eslint 8.72.2 peer `<6.1.0`). eslint 10.14.0 `defineConfig`. vitest 5.1.0. @types/node 22.20.5 pinned for vitest's peer range.
 - Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
 - Build constants `__APP_ENV__`, `__EXEC_URL__`, `__GIT_SHA__`. Stubs `function name(...args) { return App.name(...args); }`.
-
 - clasp 3.4.1: global `--json`, `-P <dir>`; `.clasp.json` `rootDir` relative to itself; `push --force` overwrites the manifest.
 
 ## Code map (after slice 2)
@@ -71,18 +70,11 @@
 - `loadIndex` is lock-free; `maintain` runs in `doGet` only. Body cache `bd:<bodyFileId>` in handlers/body.ts (`readStoredBody`, `cacheBody`).
 - Web: views/rowActions.ts (row menu), grid "Actions" column, `AppContext.pushRoute`, library selects folders in place, `openDialog({ returnFocus })`.
 
-## Lessons (slice 4b)
-- Verify "fails on old code" by `git diff src > patch; git checkout src; run; git apply patch`.
-- Call counts: a scratch vitest file with Proxy counters on the fake globals, run on base and head; delete before commit.
-- Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
-
-## Lessons (slice 4b retry 1)
-- `handleRpc` enforces `REQUEST_ID_PATTERN`; tests send `TESTREQ0-000001`. Every client string in a log line needs a server format check. Snapshots break read-check-write; re-read live in the lock.
 ## Lessons (slices 4b to 6b, merged)
+- Snapshots break read-check-write; re-read live in the lock.
 - Old-code check: `git checkout <base> -- src`, run, `git reset -q; git checkout HEAD -- src` (base-only files: `git rm -f`).
 - Call counts: scratch test with Proxy counters or `appendFileSync` of `world.lines`; delete before commit.
 - `handleRpc` enforces `REQUEST_ID_PATTERN` (tests send `TESTREQ0-000001`); every client string in a log needs a server format check and an upper bound.
-- Prettier may reformat after other edits; run `prettier --write` before every commit.
 
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
@@ -93,8 +85,7 @@
 - Web: `searchItems` (library/model.ts), `AppContext.favorites/recent/setFavorite`, grid star + `GridActions.isFavorite/toggleFavorite`, `subjectPickerItems` (picker.ts).
 
 ## Lessons (slice 5)
-- Worktree guard rejects bash heredocs with python edits; use scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>` blocks) written with the Write tool. Empty replacement needs `===\n>>>`.
-- `git checkout <base> -- src` adds base-only files to the index; remove them with `git rm -f` afterwards.
+- Worktree guard rejects bash heredocs with python edits; use scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>` blocks) written with the Write tool, or the Edit tool.
 - New side-file reads need a published rev property, else readers never cache (warm counter test catches it).
 
 ## Code map (after slice 5b)
@@ -122,8 +113,6 @@
 - Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
 ## Lessons kept from 5b to 6b
-- jsdom: `vi.stubEnv("TZ", ...)` changes Date and Intl local time at runtime. Dialog actions close in a microtask.
-- Data read back from Drive needs a shape check before a write; multi-file writes write sides first, index last.
 - `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines.
 - A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
 
@@ -138,7 +127,11 @@
 - TEMPORARY: src/addon/spikeS6.ts (pure builders, flows gated on env `dev`), `onS6Card`/`onS6Apply`, Reply kind `s6`, `s6Response` in render.ts, home `s6Sections`. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-09-s6.md.
 - `UpdateDraftActionResponse` cannot update the card or notify; harness results go into the draft body.
 - Env-gated card tests: `vi.hoisted` mutable `BUILD_INFO` mock in its own file. Adding to `CALLBACKS` auto-covers the guard test.
-- Scratchpad ed.py with `sub(path, old, new)` asserts is the reliable multi-edit path.
+
+## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
+- Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry` set in `ports(event)`; `templateItem(t, entry, below)`, `folderCard(..., entry)`, `homeCard(view, entry)`, `searchCard(..., entry)`, `previewCard(..., entry)`; `TOOLBAR_HINT` (home.ts); `onMessageOpen` + manifest `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
+- TEMPORARY: src/addon/spikeS7.ts, `onS7Card/Compose/Notify`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-10-s7.md.
+- Harness guard stays outside the error wrapper (the guard test expects a throw). `perl -0pi` multi-file edits pass the worktree guard; python heredocs do not.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.

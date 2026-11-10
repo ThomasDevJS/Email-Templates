@@ -3,7 +3,7 @@ import type { Folder, Item } from "../../../src/shared/model/data";
 import { ErrorCode } from "../../../src/shared/errors/codes";
 import type { CardSpec, Reply, Widget } from "../../../src/addon/cards/spec";
 import type { ServerCall } from "../../../src/addon/client/serverClient";
-import type { AddonEvent } from "../../../src/addon/event";
+import type { AddonEvent, Entry } from "../../../src/addon/event";
 import {
   folderFlow,
   homeFlow,
@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 /** Ports wired to the real server through `handleRpc` on the add-on surface. */
-function ports(email = ANA): Ports {
+function ports(email = ANA, entry: Entry = "compose"): Ports {
   return {
     call: (op, args): ServerCall => {
       sent.push({ op, args });
@@ -57,6 +57,7 @@ function ports(email = ANA): Ports {
     nowMs: () => world.clock.now,
     userEmail: email,
     execUrl: EXEC,
+    entry,
   };
 }
 

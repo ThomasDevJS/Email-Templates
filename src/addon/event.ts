@@ -23,8 +23,34 @@ export interface AddonEvent {
     readonly toRecipients?: readonly string[];
     readonly [field: string]: unknown;
   };
-  /** Gmail fields of the event (recipients, subject); read by `draftInfo` and `draftHasSubject`. */
+  /** Gmail fields of the event (recipients, subject, `messageId`, `accessToken`). */
   readonly gmail?: Readonly<Record<string, unknown>>;
+  /** Deprecated twin of `gmail` (`messageId`, `accessToken`); side-panel events carry the key (spike S6 runs). */
+  readonly messageMetadata?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * Where Gmail opened the add-on (ADR-0007 section 4): `compose` from a draft's toolbar (`draftMetadata` present),
+ * `message` from the right side panel with a message open, `inbox` from the side panel with none.
+ */
+export type Entry = "compose" | "message" | "inbox";
+
+function trimmed(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+/** The open message's ID: `gmail.messageId`, else the deprecated `messageMetadata.messageId`; "" when none. */
+export function messageIdOf(event: AddonEvent | undefined): string {
+  return (
+    trimmed(event?.gmail?.["messageId"]) ||
+    trimmed(event?.messageMetadata?.["messageId"])
+  );
+}
+
+/** The one place that decides the entry; every callback derives it from its own event. */
+export function entryOf(event: AddonEvent | undefined): Entry {
+  if (event?.draftMetadata !== undefined) return "compose";
+  return messageIdOf(event) === "" ? "inbox" : "message";
 }
 
 function sourcesOf(event: AddonEvent | undefined) {

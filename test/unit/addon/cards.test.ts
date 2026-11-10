@@ -9,7 +9,11 @@ import {
   folderCard,
   folderPath,
 } from "../../../src/addon/cards/folder";
-import { homeCard, searchCard } from "../../../src/addon/cards/home";
+import {
+  TOOLBAR_HINT,
+  homeCard,
+  searchCard,
+} from "../../../src/addon/cards/home";
 import { previewCard } from "../../../src/addon/cards/preview";
 import { promptCard, tooManyFieldsCard } from "../../../src/addon/cards/prompt";
 import {
@@ -59,7 +63,7 @@ describe("callbacks", () => {
 
 describe("home card (wireframe 01)", () => {
   it("has Search, Favorites (empty hint), Folders with counts and Open library", () => {
-    const card = homeCard(view());
+    const card = homeCard(view(), "compose");
     expect(card.title).toBe("Migway Templates");
     expect(card.sections.map((s) => s.header)).toEqual([
       undefined,
@@ -91,6 +95,7 @@ describe("home card (wireframe 01)", () => {
   it("lists Favorites and Recent in their order with the folder path and Insert; unknown IDs drop", () => {
     const card = homeCard(
       view({ favorites: ["T3", "GONE", "T1"], recent: ["T2"] }),
+      "compose",
     );
     expect(card.sections.map((s) => s.header)).toEqual([
       undefined,
@@ -120,7 +125,10 @@ describe("home card (wireframe 01)", () => {
   });
 
   it("shows the empty state of wireframe 07 A", () => {
-    const card = homeCard(view({ folders: [], subfolders: [], templates: [] }));
+    const card = homeCard(
+      view({ folders: [], subfolders: [], templates: [] }),
+      "compose",
+    );
     expect(texts(card)).toEqual([
       "No templates shared with you yet.",
       "Your private folder is ready: open the library to create one.",
@@ -138,6 +146,7 @@ describe("home card (wireframe 01)", () => {
         subfolders: [],
         templates: [],
       }),
+      "compose",
     );
     expect(texts(card)[0]).toBe("No templates shared with you yet.");
     expect(texts(card)).not.toContain("My templates (0)");
@@ -148,7 +157,12 @@ describe("home card (wireframe 01)", () => {
 describe("search card (spec 4.4)", () => {
   it("keeps the query in the input and lists results with their folder path", () => {
     const v = view();
-    const card = searchCard(v, "quo", [v.templates[2] ?? template("X")]);
+    const card = searchCard(
+      v,
+      "quo",
+      [v.templates[2] ?? template("X")],
+      "compose",
+    );
     expect(widgets(card)[0]).toMatchObject({ kind: "input", value: "quo" });
     expect(card.sections[1]).toMatchObject({
       header: "Results",
@@ -163,7 +177,7 @@ describe("search card (spec 4.4)", () => {
   });
 
   it("shows the no-results text of spec section 7", () => {
-    expect(texts(searchCard(view(), "zzz", []))).toEqual([
+    expect(texts(searchCard(view(), "zzz", [], "compose"))).toEqual([
       "No templates match zzz. Try folder: or tag:.",
     ]);
   });
@@ -171,7 +185,7 @@ describe("search card (spec 4.4)", () => {
 
 describe("folder card (wireframe 01)", () => {
   it("shows the path, subfolders, then templates with Insert and preview on tap", () => {
-    const card = folderCard(view(), "F1", "1");
+    const card = folderCard(view(), "F1", "1", "compose");
     expect(card?.title).toBe("Sales");
     expect(card?.sections[0]).toMatchObject({ header: "Folders" });
     const items = card === null ? [] : widgets(card);
@@ -190,7 +204,9 @@ describe("folder card (wireframe 01)", () => {
     });
     expect(items[2]).not.toHaveProperty("bottomLabel");
     expect(items[2]).not.toHaveProperty("topLabel");
-    expect(folderCard(view(), "F2", "1")?.title).toBe("Sales / Quotes");
+    expect(folderCard(view(), "F2", "1", "compose")?.title).toBe(
+      "Sales / Quotes",
+    );
   });
 
   it("pages 20 templates at a time with Prev and Next", () => {
@@ -198,8 +214,8 @@ describe("folder card (wireframe 01)", () => {
       template(`X${String(n)}`),
     );
     const big = view({ templates: many });
-    const first = folderCard(big, "F1", "1");
-    const last = folderCard(big, "F1", "3");
+    const first = folderCard(big, "F1", "1", "compose");
+    const last = folderCard(big, "F1", "3", "compose");
     if (first === null || last === null) throw new Error("no card");
     const items = (card: CardSpec) =>
       widgets(card).filter(
@@ -221,20 +237,20 @@ describe("folder card (wireframe 01)", () => {
       params: { folderId: "F1", page: "2", nav: "page" },
     });
     expect(nav(last).map((b) => b.disabled)).toEqual([false, true]);
-    expect(folderCard(view(), "F1", "1")?.sections).toHaveLength(2);
+    expect(folderCard(view(), "F1", "1", "compose")?.sections).toHaveLength(2);
   });
 
   it("clamps pages and handles empty and unknown folders", () => {
     expect(clampPage("9", 3)).toBe(3);
     expect(clampPage("0", 3)).toBe(1);
     expect(clampPage("abc", 3)).toBe(1);
-    const empty = folderCard(view(), "MY", "1");
+    const empty = folderCard(view(), "MY", "1", "compose");
     expect(empty && texts(empty)).toEqual(["No templates in My templates."]);
-    expect(folderCard(view(), "GONE", "1")).toBeNull();
+    expect(folderCard(view(), "GONE", "1", "compose")).toBeNull();
     const parentOnly = view({
       templates: [template("T3", { folderId: "F2" })],
     });
-    const card = folderCard(parentOnly, "F1", "1");
+    const card = folderCard(parentOnly, "F1", "1", "compose");
     expect(card && texts(card)).toEqual(["Quotes (1)"]);
   });
 
@@ -258,7 +274,13 @@ describe("folder card (wireframe 01)", () => {
 describe("preview card (wireframe 01)", () => {
   it("shows text, fields to fill, Insert, and Edit only for edit or manage", () => {
     const t = template("T1", { prompts: ["Meeting date"] });
-    const card = previewCard(t, "Hi [Recipient first name]", "", false);
+    const card = previewCard(
+      t,
+      "Hi [Recipient first name]",
+      "",
+      false,
+      "compose",
+    );
     expect(card.title).toBe("Template T1");
     expect(texts(card)).toEqual([
       "Hi [Recipient first name]",
@@ -267,15 +289,15 @@ describe("preview card (wireframe 01)", () => {
     expect(buttons(card).map((b) => b.text)).toEqual(["Insert"]);
     expect(buttons(card)[0]).toMatchObject({ filled: true });
     for (const level of ["edit", "manage"] as const) {
-      const editable = previewCard({ ...t, level }, "x", "", false);
+      const editable = previewCard({ ...t, level }, "x", "", false, "compose");
       expect(buttons(editable)[1]).toMatchObject({
         text: "Edit in library",
         action: { fn: "onOpenLink", params: { id: "T1" } },
       });
     }
-    expect(texts(previewCard(template("T2"), "", "", false))).toEqual([
-      "(Empty template)",
-    ]);
+    expect(
+      texts(previewCard(template("T2"), "", "", false, "compose")),
+    ).toEqual(["(Empty template)"]);
   });
 
   it("shows the subject, the replace note and Insert body only when the template has a subject", () => {
@@ -284,6 +306,7 @@ describe("preview card (wireframe 01)", () => {
       "Body",
       "Quote for [Product]",
       false,
+      "compose",
     );
     expect(widgets(card)[0]).toEqual({
       kind: "item",
@@ -299,7 +322,7 @@ describe("preview card (wireframe 01)", () => {
   });
 
   it("with a draft subject: says it is kept and offers Insert with subject (D24)", () => {
-    const card = previewCard(template("T1"), "Body", "Quote", true);
+    const card = previewCard(template("T1"), "Body", "Quote", true, "compose");
     expect(texts(card)).toContain(
       "The draft already has a subject. It is kept.",
     );
@@ -307,9 +330,79 @@ describe("preview card (wireframe 01)", () => {
       ["Insert", { id: "T1" }],
       ["Insert with subject", { id: "T1", subject: "use" }],
     ]);
-    expect(buttons(previewCard(template("T1"), "Body", "", true))).toHaveLength(
-      1,
-    );
+    expect(
+      buttons(previewCard(template("T1"), "Body", "", true, "compose")),
+    ).toHaveLength(1);
+  });
+});
+
+describe.each(["inbox", "message"] as const)(
+  "side panel, entry %s (interim fix, spec 13.7)",
+  (entry) => {
+    const full = view({ favorites: ["T1"], recent: ["T2"] });
+    const insertTexts = (card: CardSpec | null) =>
+      (card === null ? [] : buttons(card))
+        .map((b) => b.text)
+        .filter((text) => text.startsWith("Insert"));
+
+    it("home: rows keep preview but lose Insert; the toolbar hint is the last section", () => {
+      const card = homeCard(full, entry);
+      expect(insertTexts(card)).toEqual([]);
+      expect(card.sections.at(-1)?.widgets).toEqual([
+        { kind: "text", text: TOOLBAR_HINT },
+      ]);
+      expect(TOOLBAR_HINT).toBe(
+        "Writing an email? Open Migway Templates from the toolbar at the bottom of the draft to insert at the cursor.",
+      );
+      expect(card.sections[1]?.widgets[0]).toMatchObject({
+        text: "Template T1",
+        onClick: { fn: "onPreview", params: { id: "T1" } },
+      });
+      const empty = homeCard(view({ templates: [] }), entry);
+      expect(texts(empty).at(-1)).toBe(TOOLBAR_HINT);
+      expectNoEmptySection(card);
+    });
+
+    it("folder and search: rows without Insert", () => {
+      expect(insertTexts(folderCard(full, "F1", "1", entry))).toEqual([]);
+      expect(insertTexts(searchCard(full, "t", full.templates, entry))).toEqual(
+        [],
+      );
+      expect(texts(searchCard(full, "t", full.templates, entry))).toContain(
+        "Template T3",
+      );
+    });
+
+    it("preview: no Insert, no draft subject note; Edit in library stays", () => {
+      const card = previewCard(template("T1"), "Body", "Quote", false, entry);
+      expect(buttons(card)).toEqual([]);
+      expect(card.sections).toHaveLength(1);
+      expect(texts(card)).not.toContain("Sets the draft subject.");
+      const editable = previewCard(
+        template("T1", { level: "edit", prompts: ["Date"] }),
+        "Body",
+        "",
+        true,
+        entry,
+      );
+      expect(buttons(editable).map((b) => b.text)).toEqual(["Edit in library"]);
+      expect(texts(editable)).toContain("Fields to fill: Date");
+    });
+  },
+);
+
+describe("compose entry keeps Insert everywhere", () => {
+  it("home, folder, search and preview show Insert and no toolbar hint", () => {
+    const full = view({ favorites: ["T1"] });
+    const home = homeCard(full, "compose");
+    expect(buttons(home).map((b) => b.text)).toContain("Insert");
+    expect(texts(home)).not.toContain(TOOLBAR_HINT);
+    const folder = folderCard(full, "F1", "1", "compose");
+    expect(folder && buttons(folder).map((b) => b.text)).toContain("Insert");
+    const search = searchCard(full, "t", full.templates, "compose");
+    expect(buttons(search).map((b) => b.text)).toContain("Insert");
+    const preview = previewCard(template("T1"), "x", "", false, "compose");
+    expect(buttons(preview).map((b) => b.text)).toEqual(["Insert"]);
   });
 });
 

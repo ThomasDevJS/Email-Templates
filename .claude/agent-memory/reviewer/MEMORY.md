@@ -90,6 +90,11 @@
   - Must fix: 390 px panel (`.side.open .side-panel` absolute) lets Tab reach search/grid under it; no outside-click close (app.ts:74-86). `--star` #c58a00 2.99 on paper, 2.74 on canvas; star-off 2.80 on `--select` (button hover).
   - Minors: `.owner` on tree hover 4.19; history.ts:113 full address; admin 390 px width 665 (base 506), 8c; input borders 1.58 (design system); disabled buttons exempt.
   - Accepted all 17 mockup differences (17 deferred to 8b). XSS probe via patched harness data clean.
+- Slice 10 S7 harness (2026-11-10): PASS (f7f05a7). 58 files, 1332 tests, lines 96.48, Code.js 335.7 KB, 10 scopes, manifest adds contextualTriggers unconditional onMessageOpen.
+  - `entryOf` (event.ts): draftMetadata -> compose, else gmail.messageId or messageMetadata.messageId -> message, else inbox. Compose clicks carry top-level draftMetadata (runbook.md:125 fields).
+  - Interim fix: Insert only when entry compose (templateItem, preview insertButtons); TOOLBAR_HINT on home card only.
+  - Harness src/addon/spikeS7.ts, callbacks onS7Card/onS7Compose/onS7Notify, Reply kinds s7, s7Error; s7Visible wraps after the guard.
+  - Minors: hint missing on folder/search/preview; smoke lacks Drafts/Executions check and "reopen harness"; spec 10 no onMessageOpen row, failures uncached (1 server call per message open); no compose regression step; messageMetadata fallback not in spec.
 
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
@@ -119,3 +124,4 @@
 - Harness data injection: page.route the HTML and replace `\"literal\"` strings in the JSON-escaped bundle; wrapping google.script.run after load does not work (runner captured at start).
 - Contrast: compute every token pair incl. hover (`--hover`), `--select`, button hover fills, disabled at 55% opacity; check overrides for hover as well as selected.
 - Overlay panels: Tab past the last item and check where focus lands; check outside click.
+- Entry gating by event fields: verify the field exists on action (click) events too, from live logs, before trusting the classifier.

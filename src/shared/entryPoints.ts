@@ -19,6 +19,7 @@ export const ENTRY_POINTS = {
   daily: "trigger",
   onComposeOpen: "addon",
   onHomepage: "addon",
+  onMessageOpen: "addon",
   onOpenLibrary: "addon",
   onOpenFolder: "addon",
   onPreview: "addon",
@@ -31,6 +32,10 @@ export const ENTRY_POINTS = {
   // TEMPORARY (spike S6)
   onS6Card: "addon",
   onS6Apply: "addon",
+  // TEMPORARY (spike S7)
+  onS7Card: "addon",
+  onS7Compose: "addon",
+  onS7Notify: "addon",
 } as const satisfies Readonly<Record<string, EntrySurface>>;
 
 export type EntryName = keyof typeof ENTRY_POINTS;

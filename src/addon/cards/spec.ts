@@ -18,6 +18,10 @@ export const CALLBACKS = [
   // TEMPORARY (spike S6)
   "onS6Card",
   "onS6Apply",
+  // TEMPORARY (spike S7)
+  "onS7Card",
+  "onS7Compose",
+  "onS7Notify",
 ] as const;
 export type Callback = (typeof CALLBACKS)[number];
 
@@ -64,6 +68,8 @@ export interface ButtonSpec {
   readonly alt?: string;
   readonly disabled?: boolean;
   readonly filled?: boolean;
+  /** `setComposeAction` with this `ComposedEmailType` in place of a click action; the callback returns a draft. */
+  readonly compose?: "STANDALONE_DRAFT" | "REPLY_AS_DRAFT";
 }
 
 export type Widget =
@@ -126,7 +132,15 @@ export type Reply =
       readonly subject: string | null;
     }
   /** TEMPORARY (spike S6): one `UpdateDraftActionResponse` with the actions of `draft`. */
-  | { readonly kind: "s6"; readonly draft: S6Draft };
+  | { readonly kind: "s6"; readonly draft: S6Draft }
+  /** TEMPORARY (spike S7): one `ComposeActionResponse` that opens `draft` in a compose window. */
+  | { readonly kind: "s7"; readonly draft: GoogleAppsScript.Gmail.GmailDraft }
+  /** TEMPORARY (spike S7): a failed harness callback, as a notification and a pushed card. */
+  | {
+      readonly kind: "s7Error";
+      readonly text: string;
+      readonly card: CardSpec;
+    };
 
 /**
  * Spec 4.1 step 4 and 5.6: the rendered body, plus the rendered subject when it is not empty. An empty subject
