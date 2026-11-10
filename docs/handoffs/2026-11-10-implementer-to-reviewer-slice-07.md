@@ -67,3 +67,24 @@ npm ci
 npm run lint && npm run typecheck && npm run test && npm run format:check
 npx vitest run test/unit/docs
 ```
+
+## Retry 1 (after docs/reviews/slice-07.md, d1e2ca7)
+
+| Item | Change |
+|---|---|
+| Must fix 1 | runbook.md "Staff change": the Workspace admin resets password and 2-step verification; the new holder sets a new password and enrolls their own second factor; nobody passes a password or code by chat, mail or paper. Same advice added under admin-guide.md install step 1 |
+| Must fix 2 | user-quick-start.md "What admins can see": each insert writes a server log entry with the user's address, template ID and time; the app keeps each person's last 20 inserted templates for Recent (`RECENT_MAX`, src/server/audit/usage.ts:4); message text, recipients and typed values are not stored |
+| Claim 1 | Recent: "can take up to about 15 minutes" (tick 5 min plus panel cache 10 min) |
+| Claim 2 | Forward case: "Not yet verified in Gmail"; removed from the "kept" bullet |
+| Claim 3 | editor-guide.md columns add "By" (grid.ts:21) |
+| Claim 4 | runbook.md QUOTA: web app Retry disabled 60 s; Gmail panel Retry clickable, answers "Service is busy. Try again in N s." (addon/entry.ts:58) |
+| Claim 5 | editor-guide.md Image: every inserted image gets width 600, a smaller one is stretched |
+| Claim 6 | admin-guide.md scope table: `drive.file` used by web app, triggers and the add-on token, with the front door reason; other 9 rows rechecked against spec 9, unchanged |
+| Claim 7 | Quick start cut from 1,087 to 844 words: placeholder table moved to a link to the editor guide; D18, subject rule and known limits kept. Added "More options" for a narrow compose window |
+| Claim 8 | admin-guide.md Part 2 new step 7: push the code first (deploy.md step 5); step 8 deploys again so the add-on carries `execUrl` (deploy.md step 7). Steps now 16, all not yet exercised |
+
+Product defect for the UI pass: src/web/views/editor.ts:236 sets `width: "600"` on every inserted image while the dialog hint reads "Width is set to 600 pixels or less". Small images are stretched. Fix the code (cap, do not set) or the hint.
+
+Left for later (architect): link test checks file paths only, no anchors (review claim 9); spec 7, 8, 12 and ADR-0004 mismatches listed above.
+
+Commands after retry: `npm run lint` exit 0; `npm run typecheck` exit 0; `npm run test` 52 files, 1244 tests passed; `npm run format:check` "All matched files use Prettier code style!".
