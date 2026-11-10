@@ -13,6 +13,7 @@ export {
   onPreview,
   onPromptInsert,
   onRefresh,
+  onSearch,
 } from "./addon/entry";
 export {
   daily,

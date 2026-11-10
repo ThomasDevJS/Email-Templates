@@ -17,6 +17,7 @@ import {
   previewFlow,
   promptInsertFlow,
   refreshFlow,
+  searchFlow,
   type Ports,
 } from "./flows";
 import { requireAddonSession } from "./guard";
@@ -101,6 +102,11 @@ export function onPromptInsert(event?: AddonEvent): Response {
   return respond("onPromptInsert", event, (context, params) =>
     promptInsertFlow(context, event, params),
   );
+}
+
+/** Home card search input, on change (spec 4.4). */
+export function onSearch(event?: AddonEvent): Response {
+  return respond("onSearch", event, (context) => searchFlow(context, event));
 }
 
 export function onRefresh(event?: AddonEvent): Response {

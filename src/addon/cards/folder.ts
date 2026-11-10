@@ -3,7 +3,6 @@ import type {
   SidebarHome,
   SidebarTemplate,
 } from "../../shared/model/sidebar";
-import { folderItem } from "./home";
 import {
   action,
   type ButtonSpec,
@@ -27,13 +26,25 @@ export function insertButton(template: SidebarTemplate): ButtonSpec {
   };
 }
 
-function templateItem(template: SidebarTemplate): Widget {
+export function folderItem(folder: SidebarFolder): Widget {
+  return {
+    kind: "item",
+    text: `${folder.name} (${String(folder.count)})`,
+    onClick: action("onOpenFolder", { folderId: folder.id, page: "1" }),
+  };
+}
+
+/** Title, "n fields to fill", a line below (the snippet in folders, the folder path elsewhere), Insert. */
+export function templateItem(
+  template: SidebarTemplate,
+  below = template.snippet,
+): Widget {
   const prompts = template.prompts.length;
   return {
     kind: "item",
     text: template.title,
     ...(prompts > 0 ? { topLabel: fieldsLabel(prompts) } : {}),
-    ...(template.snippet === "" ? {} : { bottomLabel: template.snippet }),
+    ...(below === "" ? {} : { bottomLabel: below }),
     onClick: action("onPreview", { id: template.id }),
     button: insertButton(template),
   };
@@ -101,7 +112,9 @@ function templateSections(
     return [{ widgets: [{ kind: "text", text: `No templates in ${path}.` }] }];
   const pages = pageCount(templates.length);
   const shown = templates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const list: SectionSpec = { widgets: shown.map(templateItem) };
+  const list: SectionSpec = {
+    widgets: shown.map((template) => templateItem(template)),
+  };
   return pages > 1 ? [list, pager(folderId, page, pages)] : [list];
 }
 

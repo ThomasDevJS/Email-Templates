@@ -13,10 +13,11 @@ import {
   renderSubject,
 } from "../shared/placeholders/render";
 import { folderCard } from "./cards/folder";
-import { homeCard } from "./cards/home";
+import { homeCard, searchCard } from "./cards/home";
 import { previewCard } from "./cards/preview";
 import { promptCard, tooManyFieldsCard } from "./cards/prompt";
 import {
+  SEARCH_INPUT,
   SKIP_SUBJECT,
   SUBJECT_SWITCH,
   SWITCH_ON,
@@ -110,6 +111,26 @@ export function homeFlow(ports: Ports): CardSpec {
         canGoBack: false,
         nowMs: ports.nowMs(),
       });
+}
+
+/**
+ * Sidebar search (spec 4.4, wireframe 01): the home card's input calls this on change. An empty query shows Home;
+ * any other query asks the server's `search` op and shows its results in place of Home.
+ */
+export function searchFlow(ports: Ports, event: AddonEvent | undefined): Reply {
+  const query = formValue(event, SEARCH_INPUT).trim();
+  const retry = action("onRefresh");
+  const view = loadView(ports);
+  if (!view.ok) return failed(ports, view.failure, retry);
+  if (query === "") return { kind: "update", card: homeCard(view.data) };
+  const found = load<{ results: SidebarTemplate[] }>(ports, "search", {
+    query,
+  });
+  if (!found.ok) return failed(ports, found.failure, retry);
+  return {
+    kind: "update",
+    card: searchCard(view.data, query, found.data.results),
+  };
 }
 
 export function refreshFlow(ports: Ports): Reply {

@@ -13,6 +13,7 @@ export const CALLBACKS = [
   "onRefresh",
   "onBack",
   "onOpenLink",
+  "onSearch",
 ] as const;
 export type Callback = (typeof CALLBACKS)[number];
 
@@ -22,6 +23,8 @@ export type Params = Readonly<Record<string, string>>;
 export const SWITCH_ON = "on";
 /** Prompt card switch "Replace the subject" (wireframe 02). */
 export const SUBJECT_SWITCH = "subj";
+/** Home card search input (wireframe 01). */
+export const SEARCH_INPUT = "q";
 /** Callback parameter `subject` of "Insert body only": the draft subject stays as it is. */
 export const SKIP_SUBJECT = "skip";
 
@@ -58,6 +61,9 @@ export type Widget =
       readonly title: string;
       readonly value: string;
       readonly multiline: boolean;
+      readonly hint?: string;
+      /** Runs when the user changes the value (sidebar search). */
+      readonly onChange?: ActionSpec;
     };
 
 export interface SectionSpec {

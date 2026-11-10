@@ -9,7 +9,7 @@ import {
   folderCard,
   folderPath,
 } from "../../../src/addon/cards/folder";
-import { homeCard } from "../../../src/addon/cards/home";
+import { homeCard, searchCard } from "../../../src/addon/cards/home";
 import { previewCard } from "../../../src/addon/cards/preview";
 import { promptCard, tooManyFieldsCard } from "../../../src/addon/cards/prompt";
 import {
@@ -58,16 +58,65 @@ describe("callbacks", () => {
 });
 
 describe("home card (wireframe 01)", () => {
-  it("lists top-level folders with counts and opens a folder card on tap", () => {
+  it("has Search, Favorites (empty hint), Folders with counts and Open library", () => {
     const card = homeCard(view());
     expect(card.title).toBe("Migway Templates");
-    expect(card.sections[0]).toMatchObject({ header: "Folders" });
-    expect(texts(card)).toEqual(["Sales (3)", "My templates (0)"]);
-    expect(widgets(card)[0]).toMatchObject({
+    expect(card.sections.map((s) => s.header)).toEqual([
+      undefined,
+      "Favorites",
+      "Folders",
+      undefined,
+    ]);
+    expect(widgets(card)[0]).toEqual({
+      kind: "input",
+      name: "q",
+      title: "Search templates",
+      value: "",
+      multiline: false,
+      hint: "folder:Sales  tag:pricing",
+      onChange: { fn: "onSearch" },
+    });
+    expect(texts(card)).toEqual([
+      "Star templates in the library to pin them here.",
+      "Sales (3)",
+      "My templates (0)",
+    ]);
+    expect(card.sections[2]?.widgets[0]).toMatchObject({
       onClick: { fn: "onOpenFolder", params: { folderId: "F1", page: "1" } },
     });
     expect(buttons(card).map((b) => b.text)).toEqual(["Open library"]);
     expectNoEmptySection(card);
+  });
+
+  it("lists Favorites and Recent in their order with the folder path and Insert; unknown IDs drop", () => {
+    const card = homeCard(
+      view({ favorites: ["T3", "GONE", "T1"], recent: ["T2"] }),
+    );
+    expect(card.sections.map((s) => s.header)).toEqual([
+      undefined,
+      "Favorites",
+      "Recent",
+      "Folders",
+      undefined,
+    ]);
+    expect(card.sections[1]?.widgets).toEqual([
+      expect.objectContaining({
+        text: "Template T3",
+        bottomLabel: "Sales / Quotes",
+      }),
+      expect.objectContaining({
+        text: "Template T1",
+        topLabel: "2 fields to fill",
+        bottomLabel: "Sales",
+      }),
+    ]);
+    expect(card.sections[2]?.widgets).toEqual([
+      expect.objectContaining({ text: "Template T2" }),
+    ]);
+    expect(buttons(card)[0]?.action).toEqual({
+      fn: "onInsert",
+      params: { id: "T3" },
+    });
   });
 
   it("shows the empty state of wireframe 07 A", () => {
@@ -93,6 +142,30 @@ describe("home card (wireframe 01)", () => {
     expect(texts(card)[0]).toBe("No templates shared with you yet.");
     expect(texts(card)).not.toContain("My templates (0)");
     expect(buttons(card).map((b) => b.text)).toEqual(["Open library"]);
+  });
+});
+
+describe("search card (spec 4.4)", () => {
+  it("keeps the query in the input and lists results with their folder path", () => {
+    const v = view();
+    const card = searchCard(v, "quo", [v.templates[2] ?? template("X")]);
+    expect(widgets(card)[0]).toMatchObject({ kind: "input", value: "quo" });
+    expect(card.sections[1]).toMatchObject({
+      header: "Results",
+      widgets: [
+        expect.objectContaining({
+          text: "Template T3",
+          bottomLabel: "Sales / Quotes",
+        }),
+      ],
+    });
+    expect(buttons(card).map((b) => b.text)).toContain("Open library");
+  });
+
+  it("shows the no-results text of spec section 7", () => {
+    expect(texts(searchCard(view(), "zzz", []))).toEqual([
+      "No templates match zzz. Try folder: or tag:.",
+    ]);
   });
 });
 

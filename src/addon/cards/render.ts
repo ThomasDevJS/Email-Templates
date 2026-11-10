@@ -61,6 +61,18 @@ function toItem(spec: Extract<Widget, { kind: "item" }>) {
   return item;
 }
 
+function toInput(spec: Extract<Widget, { kind: "input" }>) {
+  let input = CardService.newTextInput()
+    .setFieldName(spec.name)
+    .setTitle(spec.title)
+    .setValue(spec.value)
+    .setMultiline(spec.multiline);
+  if (spec.hint !== undefined) input = input.setHint(spec.hint);
+  if (spec.onChange !== undefined)
+    input = input.setOnChangeAction(toAction(spec.onChange));
+  return input;
+}
+
 function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
   switch (spec.kind) {
     case "text":
@@ -73,11 +85,7 @@ function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
         CardService.newButtonSet(),
       );
     case "input":
-      return CardService.newTextInput()
-        .setFieldName(spec.name)
-        .setTitle(spec.title)
-        .setValue(spec.value)
-        .setMultiline(spec.multiline);
+      return toInput(spec);
   }
 }
 

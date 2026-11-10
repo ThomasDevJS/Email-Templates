@@ -206,7 +206,9 @@ describe("add-on entry points", () => {
     expect(ops).toEqual(["sidebar.home"]);
     expect(argsOf("setTitle")).toEqual([
       "Migway Templates",
+      "Search templates",
       "Migway Templates",
+      "Search templates",
     ]);
     expect(argsOf("setText")).toContain("Sales (1)");
     expect(argsOf("build")).toHaveLength(2);

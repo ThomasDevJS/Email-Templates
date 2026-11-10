@@ -12,6 +12,7 @@ import {
   previewFlow,
   promptInsertFlow,
   refreshFlow,
+  searchFlow,
   type Ports,
 } from "../../../src/addon/flows";
 import { readBody, readView } from "../../../src/addon/view";
@@ -111,7 +112,7 @@ const toBob: AddonEvent = { draftMetadata: { toRecipients: [BOB] } };
 describe("home (spec 4.1 steps 1 and 2)", () => {
   it("calls sidebar.home on a cache miss and reads the User Cache after that", () => {
     create("Welcome", "<p>Hi</p>");
-    expect(texts(homeFlow(ports()))).toEqual(["Sales (1)"]);
+    expect(texts(homeFlow(ports()))).toContain("Sales (1)");
     expect(homeFlow(ports()).title).toBe("Migway Templates");
     expect(sent.map((s) => s.op)).toEqual(["sidebar.home"]);
     expect(readView(cache)?.templates).toHaveLength(1);
@@ -155,7 +156,7 @@ describe("home (spec 4.1 steps 1 and 2)", () => {
     create("Late", "<p>x</p>");
     const reply = refreshFlow(ports());
     expect(reply.kind).toBe("root");
-    expect(texts(cardOf(reply))).toEqual(["Sales (1)"]);
+    expect(texts(cardOf(reply))).toContain("Sales (1)");
   });
 });
 
@@ -309,6 +310,39 @@ describe("insert flow (spec 4.1 steps 3 to 5)", () => {
     };
     const card = cardOf(insertFlow(stale, undefined, { id: item.id }));
     expect(texts(card)).toEqual(["This template was removed or moved."]);
+  });
+});
+
+describe("search, favorites and recent (spec 4.4, wireframe 01)", () => {
+  it("search calls the server op and shows its results; an empty query shows Home again", () => {
+    create("Quote reply", "<p>x</p>");
+    create("Welcome", "<p>x</p>");
+    const results = cardOf(searchFlow(ports(), formEvent({ q: " quote " })));
+    expect(texts(results)).toEqual(["Quote reply"]);
+    expect(sent.map((s) => s.op)).toEqual(["sidebar.home", "search"]);
+    expect(sent[1]?.args).toEqual({ query: "quote" });
+    const home = searchFlow(ports(), formEvent({ q: "" }));
+    expect(home.kind).toBe("update");
+    expect(texts(cardOf(home))).toContain("Sales (2)");
+    expect(sent).toHaveLength(2);
+  });
+
+  it("search shows the error state when the server fails", () => {
+    homeFlow(ports());
+    const reply = searchFlow(ports("eve@other.example"), formEvent({ q: "x" }));
+    expect(reply.kind).toBe("push");
+    expect(cardOf(reply).footer).toBeUndefined();
+    expect(sent.map((s) => s.op)).toEqual(["sidebar.home", "search"]);
+  });
+
+  it("home lists the caller's favorites", () => {
+    const item = create("Welcome", "<p>x</p>");
+    world.ok(ANA, "favorite.set", { id: item.id });
+    const card = homeFlow(ports());
+    expect(card.sections[1]).toMatchObject({
+      header: "Favorites",
+      widgets: [expect.objectContaining({ text: "Welcome" })],
+    });
   });
 });
 
