@@ -18,9 +18,11 @@ For the account owner of each environment. Daily admin work in the web app: [adm
 
 ### Staff change (the normal case)
 
-1. The leaving person hands over the dedicated owner account's password and 2-step verification to the next person.
-2. Check that the recovery phone and email belong to the company.
-3. Remove the leaving person from `ADMIN_EMAILS` or `ADMIN_GROUP` if listed.
+1. The Workspace admin resets the password and the 2-step verification of the dedicated owner account.
+2. The new holder signs in, sets a new password and enrolls their own second factor, on a company device or security key.
+3. Nobody passes a password or a code to another person, by chat, mail or paper.
+4. Check that the recovery phone and email belong to the company.
+5. Remove the leaving person from `ADMIN_EMAILS` or `ADMIN_GROUP` if listed.
 
 No data moves. Nothing in the app changes.
 
@@ -90,7 +92,7 @@ The server runs as the owner, so all server work counts against the owner accoun
 | Trigger runtime         | about 27 min per day against 6 h                 |
 | GroupsApp reads         | up to 2,880 per day against 10,000               |
 
-A QUOTA error means Apps Script answered "too many simultaneous invocations" or "service invoked too many times". The user sees "Service is busy. Try again in a minute." and Retry stays disabled 60 s. Single cases need no action. Repeated cases: check the Executions view for long or looping runs, and the daily quota of the owner account.
+A QUOTA error means Apps Script answered "too many simultaneous invocations" or "service invoked too many times". The user sees "Service is busy. Try again in a minute." In the web app, Retry stays disabled 60 s. In the Gmail panel, Retry can be clicked; within 60 s it answers "Service is busy. Try again in N s." with the seconds left. Single cases need no action. Repeated cases: check the Executions view for long or looping runs, and the daily quota of the owner account.
 
 ## Logs
 
