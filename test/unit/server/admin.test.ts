@@ -408,6 +408,8 @@ describe("grants", () => {
       const sales = folder("Sales");
       grant(sales.id, ANA, "manage");
       expect(principalKey.length).toBeGreaterThan(PRINCIPAL_KEY_MAX);
+      // The group exists, so only the length rule can refuse it.
+      world.groups.groups.set(principalKey, { users: [BOB] });
       const response = world.call(ANA, "grant.add", {
         folderId: sales.id,
         principalType,
