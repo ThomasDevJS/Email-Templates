@@ -180,6 +180,8 @@ export interface ConfigView {
   readonly appVersion: string;
   readonly indexBytes: number;
   readonly indexWarnBytes: number;
+  /** Spec 5.7 `RECIPIENTS_EXTERNAL`; `config.get` does not return it yet, so the Config tab shows no row. */
+  readonly recipientsExternal?: "allow" | "deny";
   readonly jobs: readonly JobRow[];
   readonly triggersError: string;
 }

@@ -13,8 +13,10 @@ import { folderPath } from "../library/model";
 import type { FolderRow, GrantRow } from "../rpc/api";
 import { openDialog, promptText } from "../ui/dialog";
 import { h, replace, uid } from "../ui/dom";
+import { icon, type IconName } from "../ui/icons";
 import { lineText, skeletonRows } from "../ui/status";
 import type { AdminData } from "./admin";
+import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 import { createFolderTree } from "./tree";
 
@@ -35,13 +37,41 @@ const TYPES: readonly [PrincipalType, string][] = [
   ["domain", "Domain"],
   ["ou", "OU (inactive in v1)"],
 ];
-const LEVELS: readonly Level[] = ["use", "edit", "manage"];
+const LEVELS: readonly [Level, string][] = [
+  ["use", "Use"],
+  ["edit", "Edit"],
+  ["manage", "Manage"],
+];
+const TYPE_ICONS: Readonly<Record<PrincipalType, IconName>> = {
+  group: "group",
+  user: "person",
+  domain: "domain",
+  ou: "org",
+};
+const ACCESS_COLUMNS: readonly Column[] = [
+  { label: "Principal" },
+  { label: "Level" },
+  { label: "Source" },
+  { label: "Actions", hidden: true },
+];
+
+const levelWord = (level: Level): string =>
+  LEVELS.find(([value]) => value === level)?.[1] ?? level;
 
 function selectOf(id: string, options: readonly [string, string][]) {
   return h(
     "select",
     { id },
     ...options.map(([value, label]) => h("option", { value }, label)),
+  );
+}
+
+function labelled(id: string, label: string, ...control: HTMLElement[]) {
+  return h(
+    "div",
+    { class: "field" },
+    h("label", { for: id }, label),
+    ...control,
   );
 }
 
@@ -141,12 +171,7 @@ export function foldersTab(
     );
     openDialog({
       title: "Move folder",
-      body: h(
-        "div",
-        { class: "field" },
-        h("label", { for: id }, `Move "${folder.name}" into`),
-        select,
-      ),
+      body: labelled(id, `Move "${folder.name}" into`, select),
       actions: [
         {
           label: "Move",
@@ -213,6 +238,8 @@ export function foldersTab(
     status.textContent = pending;
     work()
       .then((text) => {
+        // A grant can change the caller's own levels: the library loads the folders again on its next view.
+        app.foldersChanged();
         status.textContent = text;
         loadGrants(folder.id);
       })
@@ -227,6 +254,7 @@ export function foldersTab(
       "button",
       {
         type: "button",
+        class: "ghost",
         "aria-label": `Remove grant for ${label}`,
         onclick: () => {
           grantWrite(folder, "Removing grant...", async () => {
@@ -253,45 +281,30 @@ export function foldersTab(
     }
     replace(
       access,
-      h(
-        "table",
-        { class: "admin-table", "aria-labelledby": "access-heading" },
-        h(
-          "thead",
-          {},
-          h(
-            "tr",
-            {},
-            ...["Principal", "Level", "Source", "Actions"].map((label) =>
-              h("th", { scope: "col" }, label),
-            ),
-          ),
-        ),
-        h(
-          "tbody",
-          {},
-          ...accessRows(grants).map((row) =>
+      adminTable(
+        ACCESS_COLUMNS,
+        accessRows(grants).map((row) =>
+          tableRow(ACCESS_COLUMNS, [
             h(
-              "tr",
-              {},
+              "span",
+              { class: "principal" },
+              icon(TYPE_ICONS[row.grant.principalType]),
               h(
-                "td",
+                "span",
                 {},
-                row.principal,
+                h("span", { class: "sr-only" }, `${row.typeLabel} `),
+                row.grant.principalKey,
                 row.note === "" ? null : h("p", { class: "hint" }, row.note),
               ),
-              h("td", {}, row.grant.level),
-              h("td", {}, row.source),
-              h(
-                "td",
-                {},
-                row.grant.inherited
-                  ? null
-                  : removeButton(folder, row.grant, row.principal),
-              ),
             ),
-          ),
+            toneTag(levelWord(row.grant.level), "plain"),
+            h("span", { class: "meta" }, row.source),
+            row.grant.inherited
+              ? null
+              : removeButton(folder, row.grant, row.principal),
+          ]),
         ),
+        { labelledBy: "access-heading" },
       ),
     );
   };
@@ -324,18 +337,19 @@ export function foldersTab(
     const levelId = uid("grant-level");
     const type = selectOf(typeId, TYPES);
     const hint = h("p", { class: "hint", id: `${keyId}-hint` });
+    const error = h("p", {
+      class: "error",
+      id: `${keyId}-error`,
+      role: "alert",
+    });
     const key = h("input", {
       type: "text",
       id: keyId,
       autocomplete: "off",
       maxlength: PRINCIPAL_KEY_MAX,
-      "aria-describedby": `${keyId}-hint`,
+      "aria-describedby": `${keyId}-hint ${keyId}-error`,
     });
-    const level = selectOf(
-      levelId,
-      LEVELS.map((value) => [value, value]),
-    );
-    const error = h("p", { class: "error", role: "alert" });
+    const level = selectOf(levelId, LEVELS);
     const showHint = () => {
       hint.textContent = principalHint(type.value as PrincipalType);
     };
@@ -344,36 +358,39 @@ export function foldersTab(
     const form = h(
       "form",
       { class: "grant-form", "aria-labelledby": "grant-heading" },
-      h("h3", { id: "grant-heading" }, "Add grant"),
+      h("h2", { id: "grant-heading" }, "Add grant"),
       h(
         "div",
-        { class: "grant-fields" },
-        h("div", { class: "field" }, h("label", { for: typeId }, "Type"), type),
+        { class: "form-row" },
+        labelled(typeId, "Type", type),
         h(
           "div",
-          { class: "field" },
+          { class: "field grow" },
           h("label", { for: keyId }, "Principal"),
           key,
+          error,
           hint,
         ),
+        labelled(levelId, "Level", level),
         h(
           "div",
           { class: "field" },
-          h("label", { for: levelId }, "Level"),
-          level,
+          h("span", { class: "label-gap", "aria-hidden": "true" }),
+          h("button", { type: "submit", class: "primary" }, "Add grant"),
         ),
       ),
-      h("button", { type: "submit", class: "primary" }, "Add grant"),
-      error,
     );
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       const principalKey = key.value.trim();
-      error.textContent = principalKey === "" ? "Enter a principal." : "";
-      if (principalKey === "") {
+      const missing = principalKey === "";
+      error.textContent = missing ? "Enter a principal." : "";
+      if (missing) {
+        key.setAttribute("aria-invalid", "true");
         key.focus();
         return;
       }
+      key.removeAttribute("aria-invalid");
       const principalType = type.value as PrincipalType;
       const chosen = level.value as Level;
       grantWrite(folder, "Adding grant...", async () => {
@@ -390,8 +407,13 @@ export function foldersTab(
     return form;
   };
 
-  const actionButton = (label: string, run: () => void) =>
-    h("button", { type: "button", onclick: run }, label);
+  const actionButton = (label: string, run: () => void, name?: IconName) =>
+    h(
+      "button",
+      { type: "button", onclick: run },
+      name === undefined ? null : icon(name),
+      label,
+    );
 
   const folderActions = (folder: FolderRow): HTMLElement => {
     const isPrivate = folder.kind === "private";
@@ -400,9 +422,13 @@ export function foldersTab(
       { class: "list-actions" },
       isPrivate
         ? null
-        : actionButton("+ Subfolder", () => {
-            createFolder(folder.id);
-          }),
+        : actionButton(
+            "New subfolder",
+            () => {
+              createFolder(folder.id);
+            },
+            "plus",
+          ),
       actionButton("Rename...", () => {
         renameFolder(folder);
       }),
@@ -425,9 +451,9 @@ export function foldersTab(
       detail,
       h(
         "div",
-        { class: "list-header" },
+        { class: "detail-head" },
         h(
-          "h3",
+          "h2",
           { id: "folder-heading", tabindex: "-1" },
           folderPath(data.folders, folder.id),
         ),
@@ -440,7 +466,7 @@ export function foldersTab(
             `Private folder of ${folder.ownerEmail}. Private folders cannot be shared, moved or deleted.`,
           )
         : null,
-      h("h3", { id: "access-heading" }, "Effective access"),
+      h("h2", { id: "access-heading" }, "Effective access"),
       access,
       isPrivate ? null : grantForm(folder),
     );
@@ -450,7 +476,11 @@ export function foldersTab(
   const drawRoot = () => {
     replace(
       detail,
-      h("h3", { id: "folder-heading", tabindex: "-1" }, "All folders"),
+      h(
+        "div",
+        { class: "detail-head" },
+        h("h2", { id: "folder-heading", tabindex: "-1" }, "All folders"),
+      ),
       h(
         "p",
         { class: "hint" },
@@ -458,19 +488,6 @@ export function foldersTab(
           ? "Select a folder to see who has access, or create a top-level folder."
           : "Select a folder you manage to see who has access.",
       ),
-      data.isAdmin
-        ? h(
-            "button",
-            {
-              type: "button",
-              class: "primary",
-              onclick: () => {
-                createFolder("");
-              },
-            },
-            "+ Top-level folder",
-          )
-        : null,
     );
   };
 
@@ -489,6 +506,20 @@ export function foldersTab(
         "nav",
         { class: "folders", "aria-label": "Folders to manage" },
         tree.element,
+        data.isAdmin
+          ? h(
+              "button",
+              {
+                type: "button",
+                class: "ghost new-top",
+                onclick: () => {
+                  createFolder("");
+                },
+              },
+              icon("plus"),
+              "New top-level folder",
+            )
+          : null,
       ),
       detail,
     ),

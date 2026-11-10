@@ -100,7 +100,37 @@ describe("audit log tab", () => {
     const results = [
       ...main().querySelectorAll(".admin-table tbody td:nth-child(5)"),
     ].map((cell) => cell.textContent);
-    expect(new Set(results)).toEqual(new Set(["denied"]));
+    expect(new Set(results)).toEqual(new Set(["Denied"]));
+    // The word is the tag; the tint repeats it.
+    expect(
+      main().querySelector(".admin-table tbody td:nth-child(5) .tag")
+        ?.className,
+    ).toBe("tag bad");
+  });
+
+  it("shows actions in words, the actor as an avatar with the full address as tooltip", async () => {
+    await boot("/?latency=0#/admin/audit");
+    await until(() => {
+      expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(50);
+    });
+    const first = main().querySelector(".admin-table tbody tr") as HTMLElement;
+    expect(first.querySelector("td:nth-child(3)")?.textContent).toBe(
+      "Template updated",
+    );
+    expect(first.querySelector(".who")?.getAttribute("title")).toBe(
+      "dev.user@example.com",
+    );
+    expect(first.querySelector(".who")?.textContent).toBe("DUDev U.");
+    expect(first.querySelector("td:nth-child(5)")?.textContent).toBe("OK");
+    expect(first.querySelector("td:nth-child(5) .tag")?.className).toBe(
+      "tag ok",
+    );
+    expect(
+      [...labelled<HTMLSelectElement>("Action").options].map((o) => [
+        o.value,
+        o.text,
+      ]),
+    ).toContainEqual(["template.get", "Template opened"]);
   });
 
   it("opens the details drawer with before and after, traps focus and returns it", async () => {
@@ -111,7 +141,9 @@ describe("audit log tab", () => {
     const opener = main().querySelector<HTMLButtonElement>(
       ".admin-table tbody button",
     ) as HTMLButtonElement;
-    expect(opener.getAttribute("aria-label")).toMatch(/^Details: template\./);
+    expect(opener.getAttribute("aria-label")).toMatch(
+      /^Details: Template updated at /,
+    );
     opener.focus();
     opener.click();
     expect(status()).toContain("Loading event details...");
@@ -124,6 +156,13 @@ describe("audit log tab", () => {
     expect(drawer.textContent).toContain("Request ID");
     expect(drawer.textContent).toContain("App version");
     expect(drawer.textContent).toContain("ms");
+    // The drawer keeps the raw operation name next to the words.
+    expect(drawer.querySelector("dd code")?.textContent).toBe(
+      "template.update",
+    );
+    expect(drawer.querySelector("pre.json")?.getAttribute("tabindex")).toBe(
+      "0",
+    );
     expect(drawer.contains(document.activeElement)).toBe(true);
     drawer.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
@@ -206,10 +245,10 @@ describe("export and import tab", () => {
     });
     await boot("/?latency=0#/admin/transfer");
     await until(() => {
-      expect(button("Download JSON")).toBeTruthy();
+      expect(button("Export")).toBeTruthy();
     });
     expect(labelled<HTMLSelectElement>("Folder").disabled).toBe(true);
-    button("Download JSON").click();
+    button("Export").click();
     expect(status()).toContain("Exporting...");
     await until(() => {
       expect(status()).toMatch(
@@ -261,6 +300,22 @@ describe("export and import tab", () => {
     expect(text()).toContain(
       "A template with this title is already in this folder",
     );
+    const report = [...main().querySelectorAll(".import-report table")];
+    expect(report.map((t) => t.querySelector("caption")?.textContent)).toEqual([
+      "Validate report",
+      "Skipped and failed records",
+    ]);
+    expect(
+      [...(report[0]?.querySelectorAll("tbody td") ?? [])].map(
+        (td) => `${td.getAttribute("data-label") ?? ""} ${td.textContent}`,
+      ),
+    ).toEqual([
+      "Templates 1",
+      "Skipped 1",
+      "Failed 0",
+      "New folders 0",
+      "Existing folders 0",
+    ]);
     expect(run.disabled).toBe(false);
     run.click();
     expect(status()).toContain("Importing...");
@@ -306,10 +361,14 @@ describe("config tab", () => {
   it("shows the settings, the jobs table with a late job and its error, and backups", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelector("tr.late")?.textContent).toContain(
-        "late: 2026-11-09T10:15:00.000Z Error: GroupsApp unavailable",
+      expect(main().querySelector("tr.late .tag.warn")?.textContent).toBe(
+        "Late",
       );
     });
+    expect(main().querySelector("tr.late .status-cell")?.textContent).toBe(
+      "Late2026-11-09T10:15:00.000Z Error: GroupsApp unavailable",
+    );
+    expect(text()).not.toContain("Outside recipients");
     for (const value of [
       "example.com",
       "admins@example.com",
@@ -320,9 +379,11 @@ describe("config tab", () => {
     ])
       expect(text()).toContain(value);
     await until(() => {
-      expect(labelled<HTMLSelectElement>("Backup date").value).toBe(
-        "2026-11-09",
-      );
+      expect(
+        [...main().querySelectorAll(".backups li .row-title")].map(
+          (date) => date.textContent,
+        ),
+      ).toEqual(["2026-11-09", "2026-11-08", "2026-11-07"]);
     });
     expect(text()).toContain("3 daily copies (14 kept).");
   });
@@ -330,10 +391,12 @@ describe("config tab", () => {
   it("restores a backup after a confirmation that names the date, Cancel first", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(button("Restore from backup")).toBeTruthy();
+      expect(main().querySelectorAll(".backups li")).toHaveLength(3);
     });
-    labelled<HTMLSelectElement>("Backup date").value = "2026-11-08";
-    const restore = button("Restore from backup");
+    const restore = main().querySelector(
+      '[aria-label="Restore the backup of 2026-11-08"]',
+    ) as HTMLButtonElement;
+    expect(restore.textContent).toBe("Restore");
     restore.focus();
     restore.click();
     const confirm = dialog() as HTMLElement;
