@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { stubLayout } from "./domStubs";
+import { mediaListeners, stubLayout } from "./domStubs";
 
 const INDEX = readFileSync(
   join(import.meta.dirname, "..", "..", "..", "src", "web", "index.html"),
@@ -818,25 +818,79 @@ describe("shell (slice 8a)", () => {
     });
   }
 
-  it("opens the narrow-screen panel with the menu button and closes it with Esc or a pick", async () => {
-    await library();
-    const side = document.getElementById("side") as HTMLElement;
-    const menu = document.getElementById("menu-button") as HTMLButtonElement;
-    expect(menu.getAttribute("aria-label")).toBe("Menu");
-    menu.click();
-    expect(menu.getAttribute("aria-expanded")).toBe("true");
-    expect(side.classList.contains("open")).toBe(true);
-    const trash = document.querySelector("[data-nav=trash]") as HTMLElement;
-    trash.focus();
-    key(trash, "Escape");
-    expect(side.classList.contains("open")).toBe(false);
-    expect(menu.getAttribute("aria-expanded")).toBe("false");
-    expect(document.activeElement).toBe(menu);
-    menu.click();
-    trash.click();
-    expect(side.classList.contains("open")).toBe(false);
-    expect(window.location.hash).toBe("#/trash");
-    expect(trash.hasAttribute("aria-current")).toBe(true);
+  describe("narrow-screen panel (modal while open)", () => {
+    const side = () => document.getElementById("side") as HTMLElement;
+    const menu = () =>
+      document.getElementById("menu-button") as HTMLButtonElement;
+    const isOpen = () => side().classList.contains("open");
+
+    async function openPanel(): Promise<void> {
+      await library();
+      await until(() => {
+        expect(document.querySelector("[data-nav=admin]")).not.toBeNull();
+      });
+      expect(menu().getAttribute("aria-label")).toBe("Menu");
+      menu().click();
+      expect(menu().getAttribute("aria-expanded")).toBe("true");
+      expect(isOpen()).toBe(true);
+    }
+
+    it("makes the page behind inert while open, and live again after", async () => {
+      await openPanel();
+      expect(main().hasAttribute("inert")).toBe(true);
+      expect(main().getAttribute("aria-hidden")).toBe("true");
+      menu().click();
+      expect(isOpen()).toBe(false);
+      expect(main().hasAttribute("inert")).toBe(false);
+      expect(main().hasAttribute("aria-hidden")).toBe(false);
+    });
+
+    it("wraps Tab and Shift+Tab inside the panel", async () => {
+      await openPanel();
+      const admin = document.querySelector("[data-nav=admin]") as HTMLElement;
+      admin.focus();
+      key(admin, "Tab");
+      expect(document.activeElement).toBe(menu());
+      key(menu(), "Tab", { shiftKey: true });
+      expect(document.activeElement).toBe(admin);
+      expect(isOpen()).toBe(true);
+    });
+
+    it("closes with Esc and returns focus to the menu button", async () => {
+      await openPanel();
+      const trash = document.querySelector("[data-nav=trash]") as HTMLElement;
+      trash.focus();
+      key(trash, "Escape");
+      expect(isOpen()).toBe(false);
+      expect(menu().getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(menu());
+    });
+
+    it("closes on a press outside the panel, and not on a press inside", async () => {
+      await openPanel();
+      side().dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      expect(isOpen()).toBe(true);
+      main().dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      expect(isOpen()).toBe(false);
+      expect(main().hasAttribute("inert")).toBe(false);
+    });
+
+    it("closes when a nav item is chosen", async () => {
+      await openPanel();
+      const trash = document.querySelector("[data-nav=trash]") as HTMLElement;
+      trash.click();
+      expect(isOpen()).toBe(false);
+      expect(main().hasAttribute("inert")).toBe(false);
+      expect(window.location.hash).toBe("#/trash");
+      expect(trash.hasAttribute("aria-current")).toBe(true);
+    });
+
+    it("closes when the window grows past 860 px", async () => {
+      await openPanel();
+      mediaListeners.at(-1)?.({ matches: true });
+      expect(isOpen()).toBe(false);
+      expect(main().hasAttribute("inert")).toBe(false);
+    });
   });
 
   it("opens Favorites from another view", async () => {

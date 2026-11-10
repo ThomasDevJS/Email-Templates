@@ -1,5 +1,22 @@
-/** jsdom lacks layout. ProseMirror's scrollIntoView and coordinate code need these to exist. */
+/** `change` listeners of the stubbed `matchMedia`; a test calls them to act as a window resize. */
+export const mediaListeners: ((event: { matches: boolean }) => void)[] = [];
+
+/**
+ * jsdom lacks layout. ProseMirror's scrollIntoView and coordinate code need these to exist, and the shell's
+ * `matchMedia`.
+ */
 export function stubLayout(): void {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      addEventListener: (
+        _type: string,
+        listener: (event: { matches: boolean }) => void,
+      ) => {
+        mediaListeners.push(listener);
+      },
+    }) as unknown as MediaQueryList;
   const rect = (): DOMRect => ({
     x: 0,
     y: 0,

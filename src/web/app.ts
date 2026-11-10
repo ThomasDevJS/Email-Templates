@@ -23,6 +23,7 @@ import {
   showToast,
   toRpcError,
 } from "./ui/status";
+import { trapTab } from "./ui/dialog";
 import { h } from "./ui/dom";
 import { icon, iconSprite } from "./ui/icons";
 import { initials, shortName } from "./ui/person";
@@ -70,20 +71,42 @@ export function startApp(host: Host): AppContext {
   let favoritesOnly = false;
   document.body.prepend(iconSprite());
 
-  /** Under 860 px the sidebar is a panel behind the menu button; these close it. */
-  const closePanel = (focusButton = false) => {
-    side.classList.remove("open");
-    menuButton.setAttribute("aria-expanded", "false");
+  /**
+   * Under 860 px the sidebar opens as a modal panel from the menu button: Tab wraps inside it, the page behind is
+   * inert, and Esc, a pick or a press outside closes it.
+   */
+  const isOpen = () => side.classList.contains("open");
+  const outside = (event: Event) => {
+    if (!side.contains(event.target as Node)) setPanel(false);
+  };
+  const setPanel = (open: boolean, focusButton = false) => {
+    side.classList.toggle("open", open);
+    menuButton.setAttribute("aria-expanded", String(open));
+    main.toggleAttribute("inert", open);
+    // `aria-hidden` for browsers without `inert`.
+    if (open) main.setAttribute("aria-hidden", "true");
+    else main.removeAttribute("aria-hidden");
+    if (open) document.addEventListener("mousedown", outside, true);
+    else document.removeEventListener("mousedown", outside, true);
     if (focusButton) menuButton.focus();
   };
+  const closePanel = () => {
+    if (isOpen()) setPanel(false);
+  };
   menuButton.addEventListener("click", () => {
-    const open = side.classList.toggle("open");
-    menuButton.setAttribute("aria-expanded", String(open));
+    setPanel(!isOpen());
   });
   side.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && side.classList.contains("open"))
-      closePanel(true);
+    if (!isOpen()) return;
+    if (event.key === "Escape") setPanel(false, true);
+    else if (event.key === "Tab") trapTab(side, event);
   });
+  // A window that grows past 860 px shows the sidebar again, so the page behind must not stay inert.
+  window
+    .matchMedia("(min-width: 860px)")
+    .addEventListener("change", (event) => {
+      if (event.matches) closePanel();
+    });
 
   /** Sidebar state: the current entry, the selected folder and the counts from the loaded index. */
   const tree = createFolderTree((id) => {
