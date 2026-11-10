@@ -212,6 +212,7 @@ Every step in this part is not yet exercised. The dev deployment runs on the def
    - A full Workspace user account with a license. A Google Group, an alias or a collaborative inbox cannot own a script or run it.
    - No Workspace admin role. It needs none and should have none.
    - 2-step verification on. Recovery phone and email belong to the company, not to one person.
+   - On a staff change the Workspace admin resets its password and 2-step verification, and the new holder sets a new password and enrolls their own second factor. Nobody passes a password or a code to another person, by chat, mail or paper ([runbook](../ops/runbook.md)).
    - It signs in to clasp for prod deploys, runs `setup()` once, and becomes `OWNER_EMAIL`.
    - It owns the prod Apps Script project, the web app deployment ("Execute as: Me"), the Drive data folder and the 3 triggers.
    - People who administer the app are listed in `ADMIN_EMAILS` or `ADMIN_GROUP`. They use their own accounts for daily work and do not sign in as the dedicated account.
@@ -220,15 +221,16 @@ Every step in this part is not yet exercised. The dev deployment runs on the def
 4. Cloud console, OAuth consent screen: user type Internal. Internal apps owned by the organization need no Google verification.
 5. Enable the Google Workspace Marketplace SDK. Probably also the Drive API and the Admin SDK API, because the manifest uses both as advanced services (unknown on a standard project).
 6. Apps Script editor, Project Settings, Google Cloud Platform project: change to the standard project's number. This is one way, and it must happen before `setup()` creates any data: files created under another project stay invisible to the app.
-7. Create the web app deployment as in deploy.md step 6: Execute as Me, Who has access: Anyone within Migway. Put `deploymentId` and the `/exec` URL in the Workspace form into `deploy/prod.json`. Run `npm run deploy -- prod` from a clean `main`.
-8. The dedicated owner account runs `setup()` once in the editor and accepts the consent screen.
-9. Google Groups: an admins group, editor groups as needed, a pilot group. Flat groups, members added directly. The dedicated owner account must see each group's member list.
-10. Script Properties: `ADMIN_GROUP` = the admins group. Keep one break-glass address in `ADMIN_EMAILS`.
-11. Marketplace SDK, App Configuration: visibility Private (permanent once saved); installation Admin Only install; integration Google Workspace add-on with the deployment ID; the 10 OAuth scopes below, identical to the manifest and the consent screen. Fill the store listing (logo, website); private apps need one too. Google does not review private apps.
-12. Admin console: Apps, Google Workspace Marketplace apps, Apps list, Install app, Admin install. Audience: "Certain groups or organizational units", the pilot group. Propagation takes up to 24 hours. Users then skip the consent screen.
-13. Pilot smoke test with [smoke.md](../ops/smoke.md) on prod. Exit G2.5b: the pilot group sees the add-on without a manual install.
-14. Widen the audience to "Everyone at your organization".
-15. The dev owner removes the pilot editors from the dev project. Dev data stays on dev.
+7. Push the code first, as in [deploy.md](../ops/deploy.md) step 5: commit `deploy/prod.json`, then `npm run deploy -- prod` from a clean `main`.
+8. Create the web app deployment as in deploy.md step 6: Execute as Me, Who has access: Anyone within Migway. Put `deploymentId` and the `/exec` URL in the Workspace form into `deploy/prod.json`. Commit, then run `npm run deploy -- prod` again, so the add-on carries the URL (deploy.md step 7).
+9. The dedicated owner account runs `setup()` once in the editor and accepts the consent screen.
+10. Google Groups: an admins group, editor groups as needed, a pilot group. Flat groups, members added directly. The dedicated owner account must see each group's member list.
+11. Script Properties: `ADMIN_GROUP` = the admins group. Keep one break-glass address in `ADMIN_EMAILS`.
+12. Marketplace SDK, App Configuration: visibility Private (permanent once saved); installation Admin Only install; integration Google Workspace add-on with the deployment ID; the 10 OAuth scopes below, identical to the manifest and the consent screen. Fill the store listing (logo, website); private apps need one too. Google does not review private apps.
+13. Admin console: Apps, Google Workspace Marketplace apps, Apps list, Install app, Admin install. Audience: "Certain groups or organizational units", the pilot group. Propagation takes up to 24 hours. Users then skip the consent screen.
+14. Pilot smoke test with [smoke.md](../ops/smoke.md) on prod. Exit G2.5b: the pilot group sees the add-on without a manual install.
+15. Widen the audience to "Everyone at your organization".
+16. The dev owner removes the pilot editors from the dev project. Dev data stays on dev.
 
 ## OAuth scopes (spec section 9)
 
@@ -240,7 +242,7 @@ Prefix `https://www.googleapis.com/auth/` omitted. The build fails on any scope 
 | `gmail.addons.current.action.compose` | add-on | Insert the template into the draft and set the draft subject |
 | `gmail.addons.current.message.metadata` | add-on | Read the To recipients for "Recipient first name" |
 | `script.external_request` | add-on | Call the app's own web app address |
-| `drive.file` | web app, triggers | Read and write only the storage files the app created |
+| `drive.file` | web app, triggers, add-on token | Read and write only the storage files the app created. The web app front door also needs a Drive scope in the add-on's token |
 | `script.projects.readonly` | add-on | The web app front door accepts the add-on's token only with this scope (spike S2) |
 | `userinfo.email` | web app | Identify the caller's Migway address |
 | `groups` | triggers, web app | Read group members for grants |

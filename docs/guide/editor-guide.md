@@ -15,7 +15,7 @@ Open it with "Open library" in the Gmail panel, or with the library address your
 | "Search templates" | Filters by title, subject, folder and tag as you type. Press `/` to jump here |
 | "★ Favorites" | Shows only your starred templates. Press it again to see all |
 | "+ New template" | New template in the selected folder. Shown only where you can edit |
-| Template list | Columns Favorite, Title, Folder, Updated, Actions |
+| Template list | Columns Favorite, Title, Folder, Updated, By, Actions |
 
 - Search terms match the start of words, ignore case and accents, and allow one typo in words of 5 letters or more.
 - `folder:` and `tag:` narrow the list, for example `folder:sales tag:pricing`.
@@ -65,7 +65,7 @@ The toolbar is one Tab stop. Arrow keys move between its buttons.
 | "Quote" | Indented quote block |
 | "Line" | Horizontal line |
 | "Link" | Link (Ctrl+K). The address must start with https://, http://, mailto: or tel: |
-| "Image" | Image by its https:// address. Images are linked, not uploaded. Width is set to 600 pixels or less |
+| "Image" | Image by its https:// address. Images are linked, not uploaded. The dialog says "Width is set to 600 pixels or less", but every inserted image gets width 600, so a smaller image is stretched |
 | "Table" | Inserts a table |
 | "{{ Placeholder" | Placeholder menu. Typing `{{` in the text opens the same menu |
 
