@@ -103,3 +103,18 @@ Needs: the dev deployment of this build (reopen the sidebar), "Smoke 5b plain" (
 2. Typed subject: Compose, type `old` in Subject, click into the body, open the add-on, preview "Smoke 5b plain": "The draft already has a subject. It is kept.", Insert and "Insert with subject". Insert: the body changes, Subject stays `old`. Preview again, "Insert with subject": Subject becomes `Plain 5b`. Insert "Smoke 3 quote": the prompt card shows "Replace the subject" off.
 3. Reply: open any received message, press Reply, click into the body, open the add-on, Insert "Smoke 5b plain": the body changes, Subject stays `Re: ...`. Send the reply to yourself: it stays in its conversation.
 4. Log: Apps Script editor, Executions, open the `doPost` runs of steps 1 to 3. Each `template.apply` line carries `"draft":{"fields":[...],"to":n,"cc":n,"bcc":n,"hasSubject":...}`: `false` in step 1, `true` in steps 2 and 3. If step 2 or 3 shows `false`, Gmail sends the field without its value and Insert replaces the subject as in build 32a446c: report it. Every line has `actor` and `targetId` (spec 11); no line has a recipient address, subject text, body text or prompt value.
+
+## Slice 6a
+
+Needs: the dev deployment of this build, the owner account (admin) in one Chrome profile and the second account (not in `ADMIN_EMAILS`) in another. Optional: one Google Group whose members the owner can see, with the second account as a direct member. Without a group, use a user grant in step 4.
+
+1. Owner, web app: the rail shows Admin. Open it (or `?view=admin`): tabs "Folders and grants" and "Memberships", no other tab. Left and Right move between the tabs.
+2. "+ Top-level folder", name `Smoke 6a`: the status shows "Creating folder..." at once, then the folder is selected. Effective access says "Only admins can see this folder. Add a grant to share it." Add a subfolder `Inner`, rename it `Inner 2`, delete `Inner 2` (Cancel has the focus first; Delete confirms).
+3. In the library, create template `Smoke 6a secret` in `Smoke 6a`.
+4. Second account, web app: no `Smoke 6a` in the tree, no Admin in the rail; `?view=admin` shows "You don't have access to the admin view." and no folder. Sidebar search `secret`: no result.
+5. Owner, Admin, `Smoke 6a`: Add grant, type Group, the group address, level use (or type User, the second account, level use). A group the owner cannot see answers "was not found or its members are not visible". The row shows the principal, `use`, "this folder".
+6. Second account: reload. The library shows `Smoke 6a` and the template; the sidebar inserts it. Admin is still absent (use only).
+7. Owner, Memberships: the group (step 5) has a member count; "Refresh now" shows "Refreshing memberships..." then "Refreshed n groups." A group with a child group shows a "Warning:" row.
+8. Owner, Admin, `Smoke 6a`: Remove the grant. Second account, reload: `Smoke 6a` is gone; opening the template link answers "You don't have access". This is BRIEF 13 DoD 3.
+9. Owner, library: delete `Smoke 6a secret`. Trash (under the folder tree) lists it with the deleted time in local time and 30 days left. Restore: it is back in `Smoke 6a`. Delete it again, then "Empty trash now..." (Cancel has the focus first), confirm: "Removed n items for good."
+10. Apps Script editor, Executions: the `grant.add` and `grant.remove` lines carry `action`, `actor` and `targetId` (the folder ID for `grant.add`, empty for `grant.remove`), and no group or user address of the grant.

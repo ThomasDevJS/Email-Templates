@@ -491,7 +491,8 @@ describe("library text search (slice 5b minors 3 and 4)", () => {
     await until(() => {
       expect(document.querySelectorAll("#toasts .toast")).toHaveLength(1);
     });
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // Both replies are in after 450 ms more: "interest" at about 450 ms, "zzz" at about 750 ms.
+    await new Promise((resolve) => setTimeout(resolve, 450));
     expect(document.querySelectorAll("#toasts .toast")).toHaveLength(1);
   });
 });
