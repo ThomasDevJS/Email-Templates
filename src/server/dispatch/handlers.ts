@@ -11,7 +11,6 @@ import { grantAdd, grantList, grantRemove } from "../handlers/grants";
 import { versionGet, versionList, versionRestore } from "../handlers/history";
 import { me, ping, profileMe } from "../handlers/identity";
 import { sidebarHome, templateApply } from "../handlers/sidebar";
-import { spikeS4 } from "../handlers/spikeS4";
 import {
   templateCreate,
   templateDelete,
@@ -94,6 +93,5 @@ export const HANDLERS: HandlerTable = {
   "membership.refresh": membershipRefresh,
   "sidebar.home": sidebarHome,
   "template.apply": templateApply,
-  "spike.s4": spikeS4,
   ...Object.fromEntries(LATER_SLICE_OPS.map((op) => [op, notImplemented(op)])),
 };

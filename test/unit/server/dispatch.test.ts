@@ -181,7 +181,7 @@ describe("dispatch: authorization before the handler", () => {
   });
 });
 
-/** Spec section 6 op list, plus `ping` (slice 1), `profile.me` (ADR-0004), the temporary `spike.s4` (slice 4) and `template.getBody` (slice 3). */
+/** Spec section 6 op list, plus `ping` (slice 1), `profile.me` (ADR-0004) and `template.getBody` (slice 3). */
 const SPEC_OPS = [
   "sidebar.home",
   "folder.list",
@@ -220,7 +220,7 @@ const SPEC_OPS = [
   "backup.restore",
   "me",
 ];
-const EXTRA_OPS = ["ping", "profile.me", "spike.s4", "template.getBody"];
+const EXTRA_OPS = ["ping", "profile.me", "template.getBody"];
 const LIST_OPS = [
   "sidebar.home",
   "folder.list",
@@ -326,7 +326,6 @@ const SPEC_LEVELS: Readonly<Record<string, string>> = {
   me: "none",
   ping: "none",
   "profile.me": "none",
-  "spike.s4": "admin",
 };
 
 function levelOfRow(op: string, args: unknown): string {

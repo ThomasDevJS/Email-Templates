@@ -44,16 +44,16 @@ Needs: the dev deployment after `npm run deploy -- dev`, and the second Migway a
 
 Needs: the dev deployment after `npm run deploy -- dev` (code only: reopen the sidebar), the "Smoke 3" folder and "Smoke 3 quote" template from slice 3, and the second account from slice 2 (no grant).
 
-1. Gmail web, compose, open Migway Templates. Within 3 s the home card shows "Folders" with "Smoke 3 (1)" and "My templates (n)", "Open library", and "Spike S4 (temporary, admins)". Close and reopen within 10 min: the card shows faster (User Cache hit, no `sidebar.home` line in Executions).
+1. Gmail web, compose, open Migway Templates. Within 3 s the home card shows "Folders" with "Smoke 3 (1)" and "My templates (n)", and "Open library". Close and reopen within 10 min: the card shows faster (User Cache hit, no `sidebar.home` line in Executions).
 2. Tap "Smoke 3": the folder card is titled "Smoke 3" and lists "Smoke 3 quote" with "1 field to fill" and its snippet. Tap the title: the preview shows plain text with "[Recipient first name]", "[Product]" and "[Sender name]", "Fields to fill: Product", Insert and "Edit in library".
 3. To: one Migway colleague. Tap Insert: the prompt card asks "Product *". Tap Insert with the field blank: "(!) Fill 1 field: Product" and the draft is unchanged.
 4. Enter `<b>A & B</b>`, a new line, `second line`; tap Insert. The body shows the colleague's first name, the text literally (no bold), on 2 lines, and your Directory name in bold. Stopwatch from tap to body change: under 2 s.
 5. In the library, create "Smoke 4 plain" in "Smoke 3" with body `Hello {{recipient.first_name|there}}` (no prompts). Back in Gmail, compose with no recipient and open the "Smoke 3" folder card (Open library cleared the cached view). Tap Insert on "Smoke 4 plain": "Hello there" appears at the cursor in one click.
 6. Preview "Smoke 3 quote", tap "Edit in library": the editor opens in an overlay on that template. Close it: the sidebar reloads to the home card.
 7. In the library, on the "Smoke 4 plain" row, "Actions", "Delete...", "Delete" (since slice 4b), while its folder card is open in another compose window. Tap its Insert: "This template was removed or moved." with Refresh; Refresh shows the home card without it.
-8. Second account: compose, open the add-on. The home card shows "No templates shared with you yet." and "Open library"; no spike section.
-9. Spike S4: run docs/spikes/slice-04-insert.md steps 1 to 6 (fixtures F1 to F9 on Gmail web), then steps 7 to 9 on Android and iOS. Fill in its result tables.
-10. Editor, Executions: one JSON line per `sidebar.home`, `template.apply` and `spike.s4` call, with `surface` `addon`; no recipient address, prompt value or body text. After the next `tick` (5 min), `usage.json` shows `applyCount` for "Smoke 3 quote" and the template in `recent` for your email.
+8. Second account: compose, open the add-on. The home card shows "No templates shared with you yet." and "Open library".
+9. (Removed in slice 5 with the spike S4 harness. Results: docs/spikes/slice-04-insert.md.)
+10. Editor, Executions: one JSON line per `sidebar.home` and `template.apply` call, with `surface` `addon`; no recipient address, prompt value or body text. After the next `tick` (5 min), `usage.json` shows `applyCount` for "Smoke 3 quote" and the template in `recent` for your email.
 
 ## Slice 4b
 

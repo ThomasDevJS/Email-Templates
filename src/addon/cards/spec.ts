@@ -13,8 +13,6 @@ export const CALLBACKS = [
   "onRefresh",
   "onBack",
   "onOpenLink",
-  "onSpikeCard",
-  "onSpikeInsert",
 ] as const;
 export type Callback = (typeof CALLBACKS)[number];
 

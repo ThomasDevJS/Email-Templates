@@ -12,8 +12,6 @@ import {
   previewFlow,
   promptInsertFlow,
   refreshFlow,
-  spikeCardFlow,
-  spikeInsertFlow,
   type Ports,
 } from "../../../src/addon/flows";
 import { readBody, readView } from "../../../src/addon/view";
@@ -444,7 +442,7 @@ describe("prompt card Insert (wireframe 02)", () => {
   });
 });
 
-describe("links and spike S4 (TEMPORARY)", () => {
+describe("links", () => {
   it("opens the library or the editor and drops the cached view", () => {
     homeFlow(ports());
     expect(openLinkFlow(ports(), {})).toEqual({ kind: "open", url: EXEC });
@@ -455,21 +453,4 @@ describe("links and spike S4 (TEMPORARY)", () => {
     expect(readView(cache)).toBeNull();
   });
 
-  it("pushes the fixture card", () => {
-    expect(texts(cardOf(spikeCardFlow()))[1]).toContain("F1");
-  });
-
-  it("inserts a fixture with its timing line for admins", () => {
-    let now = 1000;
-    const timed: Ports = { ...ports(OWNER), nowMs: () => (now += 40) };
-    const html = htmlOf(spikeInsertFlow(timed, toBob, { fixture: "F9" }));
-    expect(html).toMatch(
-      /^<p>F9 inserted here\.<\/p><p>\[S4 F9: 24 bytes, add-on callback 40 ms, server \d+ ms\]<\/p>$/,
-    );
-  });
-
-  it("denies the fixtures to non-admins", () => {
-    const card = cardOf(spikeInsertFlow(ports(), undefined, { fixture: "F1" }));
-    expect(texts(card)[0]).toContain("You don't have access");
-  });
 });

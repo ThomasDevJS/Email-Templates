@@ -35,21 +35,6 @@ function emptySection(): SectionSpec {
   };
 }
 
-/** TEMPORARY (spike S4): admin-only entry to the insert fixtures. */
-function spikeSection(): SectionSpec {
-  return {
-    header: "Spike S4 (temporary, admins)",
-    widgets: [
-      {
-        kind: "buttons",
-        buttons: [
-          { text: "Insert test fixtures", action: action("onSpikeCard") },
-        ],
-      },
-    ],
-  };
-}
-
 function homeSections(view: SidebarHome): SectionSpec[] {
   // Spec section 7 "no visible templates": an empty private folder still counts as empty.
   const empty = view.templates.length === 0;
@@ -59,7 +44,7 @@ function homeSections(view: SidebarHome): SectionSpec[] {
         { header: "Folders", widgets: view.folders.map(folderItem) },
         { widgets: [openLibraryButton] },
       ];
-  return view.isAdmin ? [...sections, spikeSection()] : sections;
+  return sections;
 }
 
 export function homeCard(view: SidebarHome): CardSpec {

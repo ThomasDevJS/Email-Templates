@@ -26,7 +26,6 @@ export interface SidebarTemplate {
 }
 
 export interface SidebarHome {
-  readonly isAdmin: boolean;
   /** Top-level visible folders with counts (AC 1). */
   readonly folders: readonly SidebarFolder[];
   /** Visible folders below the top level, for the folder card. */

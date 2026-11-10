@@ -27,7 +27,6 @@ let cache: FakeCache;
 let now: number;
 
 const HOME: SidebarHome = {
-  isAdmin: false,
   folders: [{ id: "F1", name: "Sales", parentId: "", count: 1 }],
   subfolders: [],
   templates: [
@@ -253,8 +252,6 @@ describe("add-on entry points", () => {
     expect(argsOf("pushCard")).toHaveLength(2);
     addon.onRefresh();
     expect(argsOf("popToRoot")).toHaveLength(1);
-    addon.onSpikeCard();
-    expect(argsOf("pushCard")).toHaveLength(3);
   });
 
   it("the prompt card Insert re-checks with template.apply and renders the cached body", () => {
@@ -280,15 +277,6 @@ describe("add-on entry points", () => {
       "<p>filled</p>",
     );
     expect(ops).toEqual(["template.apply"]);
-  });
-
-  it("a spike fixture insert goes through spike.s4", () => {
-    const ops = serve({ "spike.s4": { html: "<p>F1</p>", bytes: 9 } });
-    addon.onSpikeInsert({ parameters: { fixture: "F1" } });
-    expect(ops).toEqual(["spike.s4"]);
-    expect(
-      String(calls.find((c) => c.method === "addUpdateContent")?.args[0]),
-    ).toMatch(/^<p>F1<\/p><p>\[S4 F1: 9 bytes/);
   });
 
   it("Open library and Edit open the web app in an overlay and drop the cached view", () => {

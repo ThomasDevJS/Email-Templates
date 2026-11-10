@@ -17,8 +17,6 @@ import {
   previewFlow,
   promptInsertFlow,
   refreshFlow,
-  spikeCardFlow,
-  spikeInsertFlow,
   type Ports,
 } from "./flows";
 import { requireAddonSession } from "./guard";
@@ -115,16 +113,4 @@ export function onBack(event?: AddonEvent): Response {
 
 export function onOpenLink(event?: AddonEvent): Response {
   return respond("onOpenLink", event, openLinkFlow);
-}
-
-/** TEMPORARY (spike S4). */
-export function onSpikeCard(event?: AddonEvent): Response {
-  return respond("onSpikeCard", event, spikeCardFlow);
-}
-
-/** TEMPORARY (spike S4). */
-export function onSpikeInsert(event?: AddonEvent): Response {
-  return respond("onSpikeInsert", event, (context, params) =>
-    spikeInsertFlow(context, event, params),
-  );
 }

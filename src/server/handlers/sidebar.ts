@@ -97,7 +97,7 @@ function subtreeCounts(
 }
 
 export function sidebarHome(context: HandlerContext): SidebarHome {
-  const { index, levelOf, subject } = context.access();
+  const { index, levelOf } = context.access();
   const visible = visibleFolders(index, levelOf, context.caller.email);
   const parentOf = new Map(
     [...visible.values()].map(({ folder }) => [
@@ -120,7 +120,6 @@ export function sidebarHome(context: HandlerContext): SidebarHome {
       count: counts.get(folder.id) ?? 0,
     }));
   return {
-    isAdmin: subject.isAdmin,
     folders: folders.filter((folder) => folder.parentId === ""),
     subfolders: folders.filter((folder) => folder.parentId !== ""),
     templates,

@@ -18,7 +18,6 @@ import {
   type CardSpec,
   type Reply,
 } from "./cards/spec";
-import { spikeCard, timingLine } from "./cards/spike";
 import { stateCard } from "./cards/states";
 import {
   failureOf,
@@ -304,37 +303,4 @@ export function openLinkFlow(
       ? ports.execUrl
       : `${ports.execUrl}?view=editor&id=${encodeURIComponent(id)}`;
   return { kind: "open", url };
-}
-
-/** TEMPORARY (spike S4). */
-export function spikeCardFlow(): Reply {
-  return { kind: "push", card: spikeCard() };
-}
-
-/** TEMPORARY (spike S4): one fixture through `spike.s4` (admin only on the server), timed from callback start. */
-export function spikeInsertFlow(
-  ports: Ports,
-  event: AddonEvent | undefined,
-  params: Readonly<Record<string, string>>,
-): Reply {
-  const started = ports.nowMs();
-  const fixture = params["fixture"] ?? "";
-  const { requestId, response } = ports.call("spike.s4", {
-    fixture,
-    recipientEmailIfInternal: internalRecipient(event, ports.userEmail),
-  });
-  if (!response.ok)
-    return failed(
-      ports,
-      failureOf(requestId, response.error),
-      action("onSpikeInsert", { fixture }),
-    );
-  const data = response.data as { html: string; bytes: number };
-  const line = timingLine(
-    fixture,
-    data.bytes,
-    ports.nowMs() - started,
-    response.durationMs,
-  );
-  return { kind: "insert", html: data.html + line };
 }

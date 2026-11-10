@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { ErrorCode } from "../../../src/shared/errors/codes";
 import { ENTRY_POINTS } from "../../../src/shared/entryPoints";
 import { template, view } from "./fixtures";
-import { S4_FIXTURES } from "../../../src/shared/spike/s4Fixtures";
 import {
   PAGE_SIZE,
   clampPage,
@@ -18,7 +17,6 @@ import {
   type CardSpec,
   type Widget,
 } from "../../../src/addon/cards/spec";
-import { spikeCard, timingLine } from "../../../src/addon/cards/spike";
 import {
   NOT_BEFORE,
   QUOTA_WAIT_MS,
@@ -97,13 +95,6 @@ describe("home card (wireframe 01)", () => {
     expect(buttons(card).map((b) => b.text)).toEqual(["Open library"]);
   });
 
-  it("adds the temporary spike S4 entry for admins only", () => {
-    const label = (card: CardSpec) => buttons(card).map((b) => b.text);
-    expect(label(homeCard(view()))).not.toContain("Insert test fixtures");
-    const admin = homeCard(view({ isAdmin: true }));
-    expect(label(admin)).toContain("Insert test fixtures");
-    expect(buttons(admin).at(-1)?.action.fn).toBe("onSpikeCard");
-  });
 });
 
 describe("folder card (wireframe 01)", () => {
@@ -365,23 +356,5 @@ describe("state cards (wireframe 07, spec section 7)", () => {
     expect(waitSeconds(params, 1000 + QUOTA_WAIT_MS)).toBe(0);
     expect(waitSeconds({}, 5)).toBe(0);
     expect(waitSeconds({ [NOT_BEFORE]: "x" }, 5)).toBe(0);
-  });
-});
-
-describe("spike S4 card (TEMPORARY)", () => {
-  it("lists F1 to F9 with one Insert each", () => {
-    const card = spikeCard();
-    const inserts = buttons(card);
-    expect(inserts).toHaveLength(9);
-    expect(inserts.map((b) => b.action.params?.["fixture"])).toEqual([
-      ...S4_FIXTURES,
-    ]);
-    expect(inserts.every((b) => b.action.fn === "onSpikeInsert")).toBe(true);
-  });
-
-  it("formats the timing line", () => {
-    expect(timingLine("F6", 51200, 812, 300)).toBe(
-      "<p>[S4 F6: 51200 bytes, add-on callback 812 ms, server 300 ms]</p>",
-    );
   });
 });
