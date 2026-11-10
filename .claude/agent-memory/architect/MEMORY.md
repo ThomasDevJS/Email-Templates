@@ -1,10 +1,10 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-10, errata run 3 (slices 6a/6b as built, owner handover amendment). Before: run 2 (D24, 6a/6b split). Repo is the source of truth; this file is a cache.
+Last run: 2026-11-10, D26 run (template recipients, ADR-0006, commit 2579b6b). Before: errata run 3 (6a/6b as built, owner handover). Repo is the source of truth; this file is a cache.
 
 ## Files I own
-- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
-- docs/spec.md (sections 1-16; 4.5 export/import as built; 5.1 depth 5; 5.2 key max 254; 5.6 subject D24; 11 `draft`; 11.1 admin audit/log rules; 12.1 measured; 13.3 6a/6b done; 13.4 known limits; 13.5 slice 7 and v1.1 items; Q1-Q31; 16.1 restore, 16.2 damaged-file recovery, 16.3 owner handover)
+- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). 0006 template recipients (Proposed 2026-11-10). Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
+- docs/spec.md (sections 1-16; 4.5 export/import as built; 5.1 depth 5; 5.2 key max 254; 5.6 subject D24; 11 `draft`; 11.1 admin audit/log rules; 12.1 measured; 13.3 6a/6b done; 13.4 known limits; 13.5 slice 7 and v1.1 items; 5.7 recipients; 7.1 recipient texts; 13.6 slice 9; 14.1 spike S6; Q1-Q39; 16.1 restore, 16.2 damaged-file recovery, 16.3 owner handover)
 - docs/wireframes/01-07 (02 preview and prompt cards; 06 as built: tabs, inline error format, restore dialog, Trash view)
 
 ## Owner decisions in force
@@ -14,6 +14,7 @@ Last run: 2026-11-10, errata run 3 (slices 6a/6b as built, owner handover amendm
 - D22 (2026-11-10) Gmail web is the only acceptance client; Android and iOS best effort, untested. Spike S4 closed on web.
 - D23 open: assumption 3 s accepted for apply in v1 (Q22).
 - D24 (orchestrator, confirmed smoke 5c dev-848206f): template subject set only when the draft subject is empty or whitespace; "Insert with subject" and switch override; "Insert body only" never.
+- D26 (owner 2026-11-10, updated same day): templates hold To, Cc, Bcc; insert adds, never removes. Outside addresses ALLOWED by default; admins need a way to turn them off (Script Property RECIPIENTS_EXTERNAL allow|deny in v1, in-app switch v1.1, Q32).
 - Near-zero maintenance: only recurring human task = deploy.
 
 ## Decisions
@@ -23,6 +24,8 @@ Last run: 2026-11-10, errata run 3 (slices 6a/6b as built, owner handover amendm
 - 0003 run 3: amendment denied rows (also after policy check, max 1 per call), BUFFER_MAX 200 + `audit.dropped`, usage `days` 30, trigger create-then-delete, admin op log lines. Export writes no audit event (gap, 13.5).
 - 0003: Pattern A (add-on UrlFetch to own /exec). Triggers tick 5 min, refreshMembers 15 min, daily. Trigger version check runs in doGet and tick, reads TRIGGERS_VERSION live in the lock (spec 16).
 - 0004: grammar, sanitizer allowlist, ProseMirror atoms. Amendments 2026-11-10: (errata) no sanitize-on-paste; (S4) allowlist unchanged, cap 100 KB; (subject D21) same grammar, prompts shared, SUBJ_TOO_LONG 200, SUBJ_LINEBREAK; (D24 + S5, Accepted) set only on empty draft subject, `draftHasSubject`, `replacesSubject`; S5 one response, no new scope.
+- 0006 (D26): fields `to`,`cc`,`bcc` arrays on item, version file, export meta; absent = []. 10/field, 20 total, 254 chars; trim+lowercase, dup in field dropped, dup across fields RCPT_DUPLICATE. Codes RCPT_FORMAT/TOO_LONG/TOO_MANY/DUPLICATE/EXTERNAL. No placeholders. deny: stored outside addresses kept, apply returns them in `blocked`, never inserted. Insert: skip present, To only when draft To empty, Cc/Bcc always. "Insert body only" = no subject, no recipients. Prompt switch `rcpt`. Any recipient -> no one-click, row "Review", card shows each address with markers. `rh` hash check at Insert. Apply returns lists every call, never cached. Logs: nothing new. Search: web app only. Private folders allowed. Import drops bad addresses, TOO_MANY refuses file.
+- 0004 amendment D26: pointer to 0006.
 - 0005 run 3: amendment owner change and dev to prod follow ADR-0002 owner handover.
 - 0005: esbuild, vitest, one bundle. Amendment 2026-11-10: bundle ships as JSON string literal, `/` before `/` or `*` written as `\/`, `(0, eval)(literal)`; HtmlService cut `//` after template literals on 43f10de; sandbox frame sets no CSP.
 
@@ -39,21 +42,24 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - A21 web guide: Execute as me = owner of the script; cross-domain move breaks; shared drive runs as deployer. A22 collaborating: installable triggers not shared. A23 getProjectTriggers current user only. A24 Drive Manage versions: upload new version; ID kept not stated.
 - A16 gmail scopes page: action.compose non-sensitive, "Manage drafts and send emails when you interact with the Google Workspace add-on".
 
+- A25-A27 recipient action pages (2026-11-10): `addUpdate{To,Cc,Bcc}Recipients(String[])`, "insert to the email draft"; add vs replace, scope, limits, combining NOT stated. A14 compose guide Cc/Bcc examples wrongly call addUpdateToRecipients. A28 add-ons-response-service builder has setSendStatus (never use).
+
 ## Measured (spec 12.1)
 - 9bbd262: first sidebar open 4.064 s add-on; apply first use 4.07 s; save about 10 s observed.
 - 637ce77 (after 4b): add-on no server call 1.1-2.7 s; apply one server call 2.2-5.2 s, handler 0.2-0.6 s.
 - 32a446c: warm save 4.2-5.2 s, Drive writes 2.0-2.7 s.
 
 ## Slice plan
-- Slices 1-6b done (6a bb53d6c, 6b f6b567f merged 3bffb70, no stubs left). Next: slice 7 docs (runbooks of spec 16.1-16.3, 13.5). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
+- Slices 1-7 done. 8a (shell, library, trash, history) running; then 9 (recipients, S6 first), then 8b (editor redesign moves recipient fields into Details panel). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
+- Q32-Q39 (D26): admin switch v1.1, limits, no placeholders, To in reply not added, secondary domains (RECIPIENT_DOMAINS if needed), private allowed, no existence check, address search web only.
 - Q22 = D23 open, assumption 3 s apply. Q23 built 6a. Q25 rec accept.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A24]. Question IDs global Q1-Q31. Spikes S2, S2b, S4, S5 all closed.
+- External sources [A1]..[A28]. Question IDs global Q1-Q39. Spikes S2, S2b, S4, S5 closed; S6 open (slice 9 first task).
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
