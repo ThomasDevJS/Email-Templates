@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5")
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -201,15 +201,15 @@ Decision:
 - F9 mid-line stays an owner hand check in docs/ops/smoke.md. It tests `IN_PLACE_INSERT` position and changes neither allowlist nor cap.
 - Harness removal in slice 5: `spike.s4` and its policy row, `onSpikeCard`, `onSpikeInsert`, `src/shared/spike/`, the "Spike S4" home section.
 
-## Amendment 2026-11-10: template subject (D21, Proposed)
+## Amendment 2026-11-10: template subject (D21) [was Proposed; Accepted 2026-11-10 with the draft rule replaced by D24, next amendment]
 
 Owner decision D21 (2026-11-10): the template subject is applied to the draft in v1, built in slice 5. Spec section 5.6 holds the field rules; this section records options and mechanism.
 
 Platform facts, read 2026-11-10:
 - `UpdateDraftActionResponseBuilder.setUpdateDraftSubjectAction(UpdateDraftSubjectAction)` "Sets an action that updates the subject line of a draft". `CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject)` "Updates the subject line of an email draft" [A15].
-- The same builder has `setUpdateDraftBodyAction`; every setter returns the builder for chaining. No page says whether body and subject combine in one response; Google's examples set one action each [A14, A15]. Unverified, spike S5 (spec Q20).
-- Scope: Google's compose guide asks for the scopes "required for compose actions" and names none per action; `gmail.addons.current.action.compose` reads "Manage drafts and send emails when you interact with the Google Workspace add-on" [A14, A16]. Expected: no new scope. Unverified until spike S5. A new scope needs owner approval before any manifest change.
-- The Gmail event object has no draft subject field; with `draftAccess: METADATA` it carries recipients only [A5, A13]. The add-on cannot read what the user typed in Subject.
+- The same builder has `setUpdateDraftBodyAction`; every setter returns the builder for chaining. No page says whether body and subject combine in one response; Google's examples set one action each [A14, A15]. Unverified, spike S5 (spec Q20). [Verified: they combine, spike S5 on dev-32a446c.]
+- Scope: Google's compose guide asks for the scopes "required for compose actions" and names none per action; `gmail.addons.current.action.compose` reads "Manage drafts and send emails when you interact with the Google Workspace add-on" [A14, A16]. Expected: no new scope. Unverified until spike S5. A new scope needs owner approval before any manifest change. [Verified: no new scope, spike S5.]
+- The Gmail event object has no draft subject field; with `draftAccess: METADATA` it carries recipients only [A5, A13]. The add-on cannot read what the user typed in Subject. [Wrong for the live event: the compose event carries `subject`; next amendment.]
 - Mobile: no page mentions Android or iOS support for the subject action. Best effort, untested (D22, BRIEF A7).
 
 Options, existing subject:
@@ -217,7 +217,7 @@ Options, existing subject:
 2. Never set it automatically; a separate "Set subject" button. Typed subjects are safe. Two clicks for the common case, against D21's intent.
 3. Replace by default, with an opt-out at the points where the user already decides: "Insert body only" on the preview card, a "Replace the subject" switch (default on) on the prompt card. One-click list Insert replaces.
 
-Decision: option 3. Mechanism: the add-on adds `UpdateDraftSubjectAction` to the same `UpdateDraftActionResponse` as the body action only when the rendered subject is not empty and the user did not opt out. An empty template subject sends no subject action, so the draft subject is never cleared. Reply drafts follow spec Q21.
+Decision: option 3 [replaced by D24, next amendment]. Mechanism: the add-on adds `UpdateDraftSubjectAction` to the same `UpdateDraftActionResponse` as the body action only when the rendered subject is not empty and the user did not opt out. An empty template subject sends no subject action, so the draft subject is never cleared. Reply drafts follow spec Q21.
 
 Options, placeholders in the subject:
 1. Plain text, no placeholders. Simple. Authors cannot put `{{ask:Product name}}` or `{{recipient.first_name}}` in the subject.
@@ -233,6 +233,32 @@ Storage and history: the index item `subject` holds the current version's subjec
 
 Consequences: one more field on save and apply; no new op, no new scope expected. A user who typed a subject and taps one-click Insert loses it; the preview and prompt cards offer the opt-out, and the quick start (slice 7) states it. Revisit after spike S5.
 
+## Amendment 2026-11-10: subject rule D24 and spike S5
+
+Status of the subject amendment: Accepted 2026-11-10 (orchestrator assumption D24, confirmed in Gmail; the owner may flip it). Spec 5.6 holds the rule.
+
+Spike S5 result (smoke "Slice 5" step 1, dev-32a446c, Gmail web): one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` and `UpdateDraftSubjectAction` updates both. No new scope; the manifest keeps 10 scopes (Q20 closed). Replacing a reply's subject started a new thread.
+
+Platform facts from the owner's runs:
+- The Gmail compose event carries `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients` and `subject`. It never carried `threadId` or `messageId`, on new drafts or replies (smoke "Slice 5b", dev-4a233d4). Google's event object page lists neither `subject` nor `draftMetadata` (re-read 2026-11-10) [A13].
+- `subject` holds the draft subject: `hasSubject` was true with a filled subject (smoke "Slice 5c", dev-848206f).
+
+Options, existing draft subject:
+1. Replace by default with opt-outs (option 3 above). A reply leaves its conversation unless the user picks "Insert body only".
+2. Detect replies by `threadId` or `messageId` and keep their subject (slice 5b). Failed in Gmail: the compose event carries neither field, so every reply counted as a new draft.
+3. Set the template subject only when the draft subject is empty (D24). Typed, reply and forward subjects are kept. "Insert with subject" and the prompt card switch override.
+
+Decision: option 3. Mechanism:
+- `draftHasSubject(event)` reads `subject` from the event of the Insert callback (`event.gmail` and `event.draftMetadata`). Only a string with a non-space character counts. A missing field, null, a number or a blank string count as empty.
+- `replacesSubject(choice, draftHasSubject)` decides: plain Insert sets the subject on an empty draft subject and keeps a filled one; "Insert with subject" always sets it; "Insert body only" never sends it. The prompt card switch "Replace the subject" starts at the plain Insert value (on for an empty draft subject, off for a filled one). The switch state read from the form at Insert decides.
+- The preview card shows "Sets the draft subject." with Insert and "Insert body only" on an empty draft subject, or "The draft already has a subject. It is kept." with Insert and "Insert with subject" on a filled one (wireframe 02).
+- The subject text never leaves the add-on except as the subject action: it is in no request argument, User Cache entry, card parameter or log line. The server log gets `hasSubject` only (spec 11).
+- Degraded case: if Gmail stops sending `subject`, `draftHasSubject` is false and Insert replaces the subject as in option 1. "Insert body only" stays the escape.
+
+Verified: smoke "Slice 5c" on dev-848206f, 4 of 4. Empty subject set; typed subject kept; "Insert with subject" replaced it; reply subject kept and the reply stayed in its conversation; `hasSubject` true in the log with a filled subject.
+
+Consequences: no new op, no new scope. Users who want the template subject on a reply or a typed draft press "Insert with subject"; the quick start (slice 7) states it. Open: Q25 (spec 15), prompts used only in the subject are asked while the switch is off.
+
 ## Consequences
 
 - Easier: one grammar, one regex, one registry; unresolved values become prompts, so nothing ships empty. Server-side sanitizing keeps the stored body safe for every client.
@@ -242,7 +268,8 @@ Consequences: one more field on save and apply; no new op, no new scope expected
 
 ## Open questions
 
-- Q20, Q21 (spec section 15, added 2026-11-10): body and subject in one response and per-action scope; subject on reply drafts. Recommendation: spike S5, first task of slice 5.
+- Q20, Q21 (spec section 15): closed 2026-11-10. Q20 by spike S5 (one response, no new scope); Q21 by D24.
+- Q25 (spec section 15): prompts used only in the subject are asked while "Replace the subject" is off. Recommendation: accept in v1.
 
 - Q9. Does `domain_public` return `organizations` and `phones`? Recommendation: test in slice 2; fallback `searchDirectoryPeople` with `directory.readonly` (one consent line, replaces `admin.directory.user.readonly`).
 - Q11. External recipient first names need `contacts.readonly` or `contacts.other.readonly` (user consent, sensitive). Recommendation: not in v1; external recipients use the fallback or the implicit prompt.
@@ -253,7 +280,7 @@ Consequences: one more field on save and apply; no new op, no new scope expected
 - [R1 S24], [R2 S8, S16, lessons], [R3 S4, S12, S26], [R4 S3 to S5b, S8, S18, S26, S28, S29, S35, S36, S65, S78], read 2026-11-09.
 - [A5] https://developers.google.com/workspace/add-ons/concepts/event-objects, read 2026-11-09.
 - [A6] https://developers.google.com/workspace/admin/directory/v1/guides/manage-users (domain_public, contact sharing, fields not listed), read 2026-11-09.
-- [A13] https://developers.google.com/workspace/add-ons/concepts/event-objects (Gmail event object fields, no subject), read 2026-11-10.
+- [A13] https://developers.google.com/workspace/add-ons/concepts/event-objects (6 documented Gmail fields, no `subject`, no `draftMetadata`), read and re-read 2026-11-10. Corrected 2026-11-10: the live compose event carries `subject` (owner smoke runs "Slice 5b" dev-4a233d4 and "Slice 5c" dev-848206f).
 - [A14] https://developers.google.com/workspace/add-ons/gmail/extending-compose-ui (`UpdateDraftActionResponse`, subject example, one action per example, no per-action scope, no mobile note), read 2026-11-10.
 - [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder and https://developers.google.com/apps-script/reference/card-service/update-draft-subject-action, read 2026-11-10.
 - [A16] https://developers.google.com/workspace/gmail/api/auth/scopes (`gmail.addons.current.action.compose`, non-sensitive), read 2026-11-10.

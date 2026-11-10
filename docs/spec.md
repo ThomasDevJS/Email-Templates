@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves.
 Date: 2026-11-09, amended 2026-11-10
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D22), docs/research/*.md, ADR-0001 to ADR-0005.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D24), docs/research/*.md, ADR-0001 to ADR-0005.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -20,7 +20,7 @@ Gmail compose sidebar (add-on code, runs as the user)
     Search results (paged)
     Template preview
       Prompt card (only if prompts or unresolved values)
-        Apply -> draft body updated, subject set when the template has one (D21)
+        Apply -> draft body updated; template subject set when the draft subject is empty (D21, D24)
     Open library / Edit -> web app in OVERLAY
 
 Web app (same project, /exec, runs as the owner)
@@ -64,7 +64,7 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 | 3 | Web app library | docs/wireframes/03-web-library.txt | 3 (search, favorites in 5) |
 | 4 | Web app editor | docs/wireframes/04-web-editor.txt | 3 (subject field in 5) |
 | 5 | Web app history | docs/wireframes/05-web-history.txt | 3 (subject line in 5) |
-| 6 | Admin | docs/wireframes/06-web-admin.txt | 6 |
+| 6 | Admin | docs/wireframes/06-web-admin.txt | 6a (shell, Folders and grants, Memberships), 6b (other tabs) |
 | 7 | States | docs/wireframes/07-states.txt | 3, 4, 6 |
 
 ### 4.1 Flow: apply a template (DoD 1)
@@ -72,7 +72,7 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 1. User opens compose, opens the add-on. Compose trigger reads the add-on User Cache `view:*`; on miss it calls server op `sidebar.home`.
 2. Server returns Favorites (max 10), Recent (max 5, from `usage`), top-level folders the caller can `use`, and the caller's filtered list for caching.
 3. User taps Insert on a template. The callback calls server op `template.apply` with `{ id, knownVersion, recipientEmailIfInternal }`. The server re-checks `use`, returns body and subject (if version changed), sender profile, internal recipient first name, and buffers the apply event.
-4. No prompts and no unresolved values: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the rendered subject is not empty, `UpdateDraftSubjectAction` (D21, section 5.6). One click.
+4. No prompts and no unresolved values: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the subject rule of section 5.6 (D24) says so, `UpdateDraftSubjectAction`. One click. Verified on Gmail web: spike S5 on dev-32a446c, smoke "Slice 5c" on dev-848206f.
 5. Otherwise the add-on pushes the prompt card. Its Insert calls `template.apply` again with `followUp: true`. The server re-checks `use` on that call and buffers no second apply event, so one Insert tap counts once. A grant removed while the card is open gives DENIED and leaves the draft unchanged. Then the callback validates every field, renders body and subject, inserts. Blank fields keep the card with an error.
 6. Usage counts the first Insert tap. A cancelled prompt card still counts in `applyCount` and Recent (accepted, Q14: usage is analytics).
 
@@ -90,9 +90,9 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 ### 4.4 Flow: search
 
-- Sidebar: search input with `onChangeAction`. Server op `search` returns the top 20 visible matches. Operators `folder:<name>` and `tag:<name>`. Empty query shows Home.
-- Web app: title, folder and tag filtering runs in the browser on the loaded index; body matches come from server op `search.body` over `ft:*` chunks. Sort: relevance, then last used by the caller.
-- Matching: case-insensitive, accent-insensitive token prefix match on title (weight 3), subject (2, D21), tags (2), folder (2), body text (1). Subject terms come from the index item, so the sidebar `search` op and the browser filter both see them without `search.body`. Fuzzy tolerance: one typo for terms of 5 or more characters.
+- Sidebar: search input with `onChangeAction`. Server op `search` returns the top 20 visible matches. Operators `folder:<name>` and `tag:<name>`. Empty query shows Home, with no server call. The sidebar matches title, subject, tags, folder path and the 140-character `snippet` of the index item. It never reads full body text (amended 2026-11-10, slice 5 review minor 1).
+- Web app: title, subject, folder path and tag filtering runs in the browser on the loaded index. Full body text is searched in the web app only: server op `search.body` runs 300 ms after the last keystroke, reads Script Cache entries `ft:<bodyFileId>` with one `getAll`, and makes at most 25 Drive reads per call for misses. The rest are reported as `skipped` ("N templates were not searched yet."). Results not already listed show under "Matches in text". While the call runs the list shows "Searching text...". Sort: relevance, then the caller's Recent position, then title.
+- Matching: case-insensitive, accent-insensitive token prefix match on title (weight 3), subject (2, D21), tags (2), folder (2), body text (1: the snippet in the sidebar, the full text in `search.body`). Every term must match. Query cut at 200 characters. Both ops filter to the caller's visible templates before ranking. Fuzzy tolerance: one typo for terms of 5 or more characters, at half weight.
 
 ### 4.5 Flow: export and import
 
@@ -189,12 +189,21 @@ Mechanism and options in ADR-0004, Amendment 2026-11-10 (subject).
 - Rendering: values are inserted as plain text, never HTML-escaped. Every CR, LF, tab and other control character in the rendered result becomes one space; runs of spaces collapse; the result is trimmed.
 - Save validation (server, every write: create, update, duplicate, restore, import). Codes carry `field: "subject"` and the character offset: `SUBJ_TOO_LONG` ("Subject must be 200 characters or fewer"), `SUBJ_LINEBREAK` ("Subject must be one line"), and the ADR-0004 `PH_*` codes except `PH_ATTR` and `PH_BACKSLASH`. Import replaces line breaks with one space and reports the count; it rejects only `SUBJ_TOO_LONG` and `PH_*`.
 - Apply: `template.apply` and `template.getBody` return `subject` with the body (same `knownVersion` rule). The add-on caches it in `body:<id>` next to the HTML.
-- Draft: a non-empty rendered subject replaces whatever the draft subject holds. The add-on cannot read the draft subject (the Gmail event object has no subject field [A13]), so it cannot merge or detect a typed subject. The preview card shows the subject and offers "Insert body only" next to Insert. The prompt card shows a switch "Replace the subject", on by default; off sends no subject action. The one-click Insert in lists sets the subject (wireframe 02).
+- Draft (D24, amended 2026-11-10; replaces the D21 rule "a non-empty rendered subject replaces whatever the draft subject holds"). The Gmail compose event carries `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients` and `subject`. It never carries `threadId` or `messageId` (smoke "Slice 5b", dev-4a233d4) [A13]. The add-on reads the draft subject from the event of the Insert callback (`draftHasSubject`): only a string with a non-space character counts as filled. The template subject is set only when the draft subject is empty or whitespace. A typed, reply or forward subject is kept, so a reply stays in its conversation. Rules per Insert path:
+
+  | Insert path | Draft subject empty | Draft subject filled |
+  |---|---|---|
+  | One-click Insert (lists), preview Insert | sets it | keeps it |
+  | Preview "Insert with subject" (shown when the draft has a subject) | sets it | replaces it |
+  | Preview "Insert body only" (shown when the draft subject is empty) | keeps it | keeps it |
+  | Prompt card switch "Replace the subject" | starts on, user decides | starts off, user decides |
+
+  An empty rendered subject sends no subject action, so the draft subject is never cleared. Verified in smoke "Slice 5c" on dev-848206f, 4 of 4 (wireframe 02).
 - History: each version file stores its subject. Restore of version K copies subject and body of K into version N+1. History shows the subject line of each version.
 - Search: subject weight 2 (section 4.4).
 - Logs: the subject is template content. It is never logged, like the body.
 
-Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property.
+Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` (published revisions of `favorites.json` and `usage.json`, ADR-0002 Amendment 2026-11-10), `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property.
 
 ## 6. Server operations
 
@@ -214,9 +223,10 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | export.folder | manage | web |
 | export.library, import, audit.query, usage.report, membership.refresh, config.get, backup.list, backup.restore | admin | web |
 | me | none beyond a valid caller | both |
-| spike.s4 | admin | both. Temporary harness of spike S4; removed in slice 5 |
 
-Status 2026-11-10: `template.getBody` (built in slice 3) returns the readable body without an apply event; the add-on uses it on a body cache miss. `template.apply` takes `followUp: true` on the prompt card Insert (section 4.1 step 5). `template.duplicate` is built (slice 4b): title "Copy of ...", cut to 120, tags, subject and the current body become version 1; edit on source and target. `template.restoreFromTrash`, `search`, `search.body`, `favorite.set` and `favorite.unset` are still stubs (`LATER_SLICE_OPS`).
+`spike.s4` and its policy row were removed in slice 5.
+
+Status 2026-11-10 (build a7e5abb): `template.getBody` (slice 3) returns the readable body without an apply event; the add-on uses it on a body cache miss. `template.apply` takes `followUp: true` on the prompt card Insert (section 4.1 step 5). `template.duplicate` is built (slice 4b): title "Copy of ...", cut to 120, tags, subject and the current body become version 1; edit on source and target. `search`, `search.body`, `favorite.set` and `favorite.unset` are built (slice 5). `template.restoreFromTrash` has a server handler; its Trash view is slice 6a. Stubs that answer "not implemented" (`LATER_SLICE_OPS`): `trash.purge` (6a), `export.folder`, `export.library`, `import`, `audit.query`, `usage.report`, `config.get`, `backup.list`, `backup.restore` (6b).
 
 ## 7. Error, empty and loading states
 
@@ -270,7 +280,7 @@ Default list, 10 scopes (final after spike S2 (a), 2026-11-09):
 | Scope | Class | Consent text | Used by | Reason |
 |---|---|---|---|---|
 | gmail.addons.execute | Non-sensitive, add-on scope | "Run as a Gmail add-on" | add-on | Required at runtime by Gmail for the compose trigger. Verified 2026-11-09 on the dev deployment: without it Gmail raises "Required permissions: gmail.addons.execute". R4 S42 (release note of 2019) is wrong in practice |
-| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft; set the draft subject (D21). Google's compose guide uses one set of compose-action scopes for body, subject and recipient updates and names no extra scope for `UpdateDraftSubjectAction` [A14]. Per-action scope unverified until the slice 5 smoke run (Q20) |
+| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft; set the draft subject (D21, D24). Google's compose guide names no extra scope for `UpdateDraftSubjectAction` [A14]. Spike S5 on dev-32a446c: body and subject actions in one response, no new scope (Q20 closed) |
 | gmail.addons.current.message.metadata | Sensitive [R4 S8] | "View your email message metadata when the add-on is running" | add-on | Read To recipients for `recipient.first_name` (D10) |
 | script.external_request | Unclassified [R4 S7] | not published | add-on | Call the project's own `/exec` with UrlFetchApp |
 | drive.file | Non-sensitive [R4 S57] | "See, edit, create, and delete only the specific Google Drive files you use with this app" | web app, triggers; also in the add-on token | Storage files the app creates (ADR-0002); the `/exec` front door needs a Drive scope in the bearer token [A1] |
@@ -304,8 +314,9 @@ Owner = the account that owns the project and the web app deployment. Figures wi
 | Sidebar load, add-on cache miss | 1 UrlFetch, 1 User Cache putAll | 1 execution, about 4 Script Cache reads | under 3 s |
 | Sidebar load, server rebuild | same | +1 Drive file read (`index.json`), about 10 Script Cache writes, 1 script lock | under 3 s, rare |
 | Apply | 1 UrlFetch, 0 to 1 User Cache read | 1 execution, about 4 Script Cache reads, 1 lock of 500 ms max for the event buffer | under 2 s p95 |
-| Search (sidebar) | 1 UrlFetch | 1 execution, about 3 Script Cache reads | under 2 s |
-| Search (web app) | n/a | 0 (browser) or 1 execution over `ft:*` | under 1 s |
+| Search (sidebar) | 1 UrlFetch | 1 execution, 1 Properties read, 6 Script Cache reads, 0 Drive reads (title, subject, tags, folder, snippet) | under 2 s |
+| Search (web app) | n/a | 0 (browser filter on the loaded index) or 1 `search.body` execution: 1 Properties read, 7 Script Cache reads with all `ft:<bodyFileId>` entries warm, 1 Drive read per missing entry, at most 25 per call | under 1 s |
+| Favorite set or unset | n/a | 1 execution, 1 lock, 1 Drive read and 1 Drive write of `favorites.json`, 1 property write (`FAVORITES_REV`) | not set |
 | Save template | n/a | 1 execution, 1 Drive file create, 1 lock, 1 `index.json` write (change and audit event together), cache refresh | under 3 s (about 2.1 s at 1,000 items) |
 | Membership refresh (trigger, 15 min) | n/a | up to 30 GroupsApp reads, 1 Drive file write | 2,880 GroupsApp reads per day max, under 10,000 [R4 S2] |
 | `tick` (trigger, 5 min) | n/a | 1 lock, 1 `usage.json` write when events exist, cache re-puts | 288 runs per day |
@@ -315,7 +326,7 @@ Daily ceilings at 500 users and 20 applies per user per day: 10,000 applies, abo
 
 ## 11. Logging format
 
-One JSON line per request and per trigger run, via `console.log(JSON.stringify(entry))`. Add-on executions log nothing; their phase times reach the server line.
+One JSON line per request and per trigger run, via `console.log(JSON.stringify(entry))`. Add-on executions log nothing; their phase times and the `draft` object reach the server line.
 
 ```
 {"ts":"2026-11-10T14:03:22.120Z","level":"info","requestId":"MWARO9CA-YG9VT8","surface":"addon","action":"template.apply","actor":"user@migway.com","targetId":"01JC7...","result":"ok","errorCode":"","durationMs":412,"cache":"hit","appVersion":"42","calls":{"props":1,"cache":9,"drive":0,"lock":1,"dir":0},"timing":{"startupMs":40,"totalMs":420,"propsMs":3,"cacheMs":60,"driveReadMs":0,"driveWriteMs":0,"lockMs":35,"dirMs":0,"addonPreMs":310,"addonTokenMs":20,"prevFetchMs":0,"prevTotalMs":0}}
@@ -332,7 +343,15 @@ Fields added 2026-11-10 (slice 4b):
 | `timing` server keys | `startupMs` (bundle evaluation to handler start), `totalMs` (to the log line), `propsMs`, `cacheMs`, `driveReadMs`, `driveWriteMs`, `lockMs`, `dirMs` |
 | `timing` add-on keys | `addonPreMs` (add-on start to this call), `addonTokenMs` (`getOAuthToken`), `prevFetchMs` and `prevTotalMs` (the previous server call of the same add-on execution). The server keeps only these 4 keys, whole ms from 0 to 600,000, and drops anything else |
 
-Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`). Never log template bodies, subjects, prompt values, recipient addresses or tokens. `calls` and `timing` hold numbers only. Errors add `errorName` and the first 3 stack frames. Logs appear in the Apps Script executions view on the default GCP project and in Cloud Logging on the standard project (2.5b).
+Field added 2026-11-10 (slices 5b and 5c), add-on calls only:
+
+| Field | Content |
+|---|---|
+| `draft` | `{ fields, to, cc, bcc, hasSubject }`. `fields`: the compose event field names present, each from the fixed list `messageId`, `threadId`, `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients`, `subject`, in that order. A field counts as present when its value is not undefined, null or "". `to`, `cc`, `bcc`: recipient counts, integers 0 to 1,000. `hasSubject`: boolean, true when the draft subject has a non-space character. The server requires exactly these 5 keys; any other key, name, repeated name, count or a non-boolean `hasSubject` answers VALIDATION "Draft fields must come from the fixed list", and the rejected value is not logged |
+
+Example: `"draft":{"fields":["draftMetadata","toRecipients","subject"],"to":1,"cc":0,"bcc":0,"hasSubject":true}`.
+
+Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`). `actor` and `targetId` are in every line. No line holds a recipient address, subject text, body text, prompt value or token: `draft` carries names, counts and one boolean only. Never log template bodies, subjects, prompt values, recipient addresses or tokens. `calls` and `timing` hold numbers only. Errors add `errorName` and the first 3 stack frames. Logs appear in the Apps Script executions view on the default GCP project and in Cloud Logging on the standard project (2.5b).
 
 ## 12. Measurable targets (BRIEF 9)
 
@@ -340,7 +359,7 @@ Web Gmail, dev deployment, 200 pilot templates:
 
 | Target | Value | Measured by |
 |---|---|---|
-| Apply, click to body update | under 2 s p95 | `durationMs` logs plus stopwatch on 20 applies (slice 4) |
+| Apply, click to body update | under 2 s p95 (BRIEF 9). D23 open, assumption in force: 3 s accepted for apply in v1 | `durationMs` logs plus stopwatch on 20 applies (slice 4) |
 | Sidebar initial load | under 3 s | logs plus stopwatch on 10 cold opens (slice 4) |
 | Web app list and search after first load | under 1 s | browser performance marks (slice 5) |
 | UI-only permission checks | zero; every op passes `dispatch` | policy completeness test, role matrix test (slice 2) |
@@ -368,8 +387,17 @@ Dev build 9bbd262, Gmail web on Chrome, smoke run through the Claude Chrome exte
 - doPost spends 0.6 to 1.1 s outside the handler: platform start and parsing of the 266 KB bundle.
 - The add-on spends 1.4 to 2.7 s outside the server call: token, two UrlFetch hops (POST to `/exec`, GET of the 302 target), Card Service rendering.
 - Spike S4 callbacks on Gmail web: 1,285 to 2,910 ms per fixture (server 55 to 1,015 ms).
-- Slice 4b cut per-request Properties reads from 7 to 12 down to 1 or 2, removed the read-path lock and the Drive body read on a warm body cache. Call counts before and after: docs/handoffs/2026-11-10-implementer-to-reviewer-slice-04b.md. Times after 4b come from smoke "Slice 4b" step 8 (`calls`, `timing`); none are recorded yet.
-- If the 4b numbers stay above target, the owner decides on ADR-0003 Pattern A (Q22). The 6 larger proposals from the 4b handoff stay unbuilt until then.
+- Slice 4b cut per-request Properties reads from 7 to 12 down to 1 or 2, removed the read-path lock and the Drive body read on a warm body cache. Call counts before and after: docs/handoffs/2026-11-10-implementer-to-reviewer-slice-04b.md.
+
+After slice 4b (source: PLAN D23 and log 2026-11-10):
+
+| Point | Build | Value | Target | Met |
+|---|---|---|---|---|
+| Add-on execution with no server call | dev-637ce77 | 1.1 to 2.7 s | n/a | n/a |
+| Apply with one server call | dev-637ce77 | 2.2 to 5.2 s; handler code 0.2 to 0.6 s of it | under 2 s p95 | no. D23: 3 s accepted for v1 (assumption) |
+| Web app save, warm | dev-32a446c | Duration 4.2 to 5.2 s; Drive writes 2.0 to 2.7 s of it | under 3 s | no |
+
+- D23 is open with the owner. Assumption in force: 3 s accepted for apply in v1, measured again on `/exec` at prod setup. Option recorded in D23: insert from the add-on cache with a 10 min permission lag. The 6 larger proposals from the 4b handoff stay unbuilt until the owner decides (Q22).
 
 ## 13. Slice map
 
@@ -381,19 +409,20 @@ Dev build 9bbd262, Gmail web on Chrome, smoke run through the Claude Chrome exte
 | 4 Screens 1, 2 and flow 4.1 | 4 |
 | 4 Screens 3, 4 and flow 4.2 save | 3 |
 | 4 Screen 5 and flow 4.2 restore | 3 (built); subject line in 5 |
-| Flow 4.4 search, favorites, Recent, subject (5.6) | 5 |
-| Trash view, `template.restoreFromTrash` | 6 |
-| 4 Screen 6, flows 4.3 and 4.5 | 6 |
-| 4 Screen 7 states | 3 (web), 4 (sidebar), 6 (admin) |
+| Flow 4.4 search, favorites, Recent, subject (5.6) | 5; library fixes 5b; subject rule D24 5c |
+| Trash view, `template.restoreFromTrash`, `trash.purge` | 6a |
+| 4 Screen 6: admin shell, Folders and grants, Memberships, flow 4.3 | 6a |
+| 4 Screen 6: Audit log, Usage, Export and import, Config; flow 4.5 | 6b |
+| 4 Screen 7 states | 3 (web), 4 (sidebar), 6a and 6b (admin) |
 | 5 Data model, JSON files, reserved fields | 2 |
 | 6 Server operations and policy table | 2 (dispatch and policy), 3 to 6 (handlers) |
 | 7 Error, empty, loading states | 3, 4, 6 |
-| 8 Accessibility | 3, 5, 6 |
+| 8 Accessibility | 3, 5, 6a, 6b |
 | 9 OAuth scopes and scope check | 1 |
-| 16 Operations: `setup()`, triggers, job health | 1 (`setup()` and empty trigger handlers), 2 (`tick`, `refreshMembers`, `daily` work), 6 (job health in Config tab, backup restore) |
+| 16 Operations: `setup()`, triggers, job health | 1 (`setup()` and empty trigger handlers), 2 (`tick`, `refreshMembers`, `daily` work), 6a (trigger reinstall order, Q23), 6b (job health in Config tab, backup restore) |
 | 10 Quota budget, measurements | 2 (spike S2, cache), 4 (apply) |
 | 11 Logging | 1 (logger), 2 (audit) |
-| 12 Measurable targets | 2, 3, 4, 5, 6 as listed |
+| 12 Measurable targets | 2, 3, 4, 5, 6a, 6b as listed |
 | ADR-0004 placeholder parser and sanitizer | 3; insert spike in 4; spike S4 closed 2026-11-10 on Gmail web (D22), allowlist unchanged, cap 100 KB; harness removal in 5 |
 | ADR-0005 repo, CI, deploy, rollback | 1; rollback exercise before slice 7 ends |
 | Docs: README, admin install, quick start, runbook | 7 |
@@ -409,7 +438,26 @@ Dev build 9bbd262, Gmail web on Chrome, smoke run through the Claude Chrome exte
 7. Removal of the S4 harness: `spike.s4` and its policy row, `onSpikeCard`, `onSpikeInsert`, `src/shared/spike/`, the home card section, smoke steps.
 8. Spec 12 measurement: web app list and search under 1 s after first load.
 
-Trash view and `template.restoreFromTrash` go to slice 6. Reasons: slice 5 already holds 8 items across sidebar, web app and server; the Trash view shares the admin slice's folder-delete and `trash.purge` work (restore into a deleted folder needs a target picker, and purge is admin only); soft delete since slice 4b keeps data, and the `daily` purge deletes only after 30 days. Risk until slice 6: a template deleted on dev more than 30 days before slice 6 ships is purged with no restore UI. Mitigation: none needed on dev data; `backups/` keeps 14 days.
+Trash view and `template.restoreFromTrash` go to slice 6 (6a since 2026-11-10, section 13.3). Reasons: slice 5 already holds 8 items across sidebar, web app and server; the Trash view shares the admin slice's folder-delete and `trash.purge` work (restore into a deleted folder needs a target picker, and purge is admin only); soft delete since slice 4b keeps data, and the `daily` purge deletes only after 30 days. Risk until slice 6: a template deleted on dev more than 30 days before slice 6 ships is purged with no restore UI. Mitigation: none needed on dev data; `backups/` keeps 14 days.
+
+### 13.2 Slices 5b and 5c (added 2026-11-10)
+
+- 5b, library fixes from the fourth smoke run (dev-32a446c): `draft` diagnostics in log lines, owner label "My templates (owner address)" on other users' private folders, local time in the web app, busy status on row actions, History focus, Delete dialog focus on Cancel, "Searching text...", `/` on a non-element target. Its reply rule (`threadId` or `messageId` present) failed in Gmail: the event carries neither field (smoke "Slice 5b", dev-4a233d4).
+- 5c, subject rule D24 (section 5.6): `draftHasSubject` replaces the reply rule, `hasSubject` in the logged `draft`, `folder.rename` strips the owner label. Smoke "Slice 5c" on dev-848206f: 4 of 4 pass.
+
+### 13.3 Slice 6 split (2026-11-10)
+
+| Slice | Contents |
+|---|---|
+| 6a | Admin shell (`?view=admin`, rail entry for admins and manage holders); tab Folders and grants (flow 4.3); tab Memberships; Trash view with `template.restoreFromTrash` and `trash.purge`; trigger reinstall order: create the new set, then delete the old (Q23); open review minors |
+| 6b | Tab Audit log; tab Usage; tab Export and import, with `subject` in export and the import rules of section 5.6; tab Config with job health and backups (`backup.list`, `backup.restore`) |
+
+### 13.4 Known limits (Gmail web, recorded 2026-11-10)
+
+- The first `/` after a library load may need a second press. The browser gives the app frame no focus before a click or a key press inside it.
+- History loads the preview of a version on Enter. Arrow keys move the selection only.
+- The compose card is modal on Gmail web. The user places the cursor in the draft body before opening the add-on; Insert (`IN_PLACE_INSERT`) then lands at the cursor.
+- "Edit in library" (OVERLAY window close and sidebar reload) is unverified on Gmail web. It is an owner hand check (PLAN Next action).
 
 ## 14. Spikes
 
@@ -418,7 +466,7 @@ Trash view and `template.restoreFromTrash` go to slice 6. Reasons: slice 5 alrea
 | S2 | 2, first task | (a) `drive.file` token passes `/exec` with `DOMAIN`; (b) `getActiveUser` set on token calls; (c) project sharing needed; (d) token call to `/dev` works for editors; (e) Advanced Drive service works on `drive.file` alone | (a), (b), (e) yes; (c), (d) answered |
 | S2b | 2 | UrlFetch round trip to `/exec`, add-on start time, Drive read and write of 0.85 MB and 8.4 MB files, `domain_public` fields | p95 recorded in ADR-0002; 0.85 MB read and write each under 2 s (Q17) |
 | S4 | 4, first task | Draft insert on Gmail web (ADR-0004 table) | Resolved 2026-11-10: F1 to F9 inserted on Gmail web, 204,837 bytes (F7) included. Allowlist unchanged, cap 100 KB. Android and iOS runs dropped by the owner (D22). Harness removed in slice 5 |
-| S5 | 5, first task | Body and subject actions in one `UpdateDraftActionResponse` on Gmail web; subject replaced, not appended; reply drafts (Q20, Q21) | answered in the slice 5 handoff |
+| S5 | 5, first task | Body and subject actions in one `UpdateDraftActionResponse` on Gmail web; subject replaced, not appended; reply drafts (Q20, Q21) | Resolved 2026-11-10 on dev-32a446c: body and subject in one response, no new scope (Q20 closed). A replaced reply subject started a new thread; the event carries no `threadId` or `messageId` (dev-4a233d4). Rule D24 (section 5.6) keeps any filled subject; smoke "Slice 5c" on dev-848206f: the reply stayed in its conversation (Q21 closed) |
 
 ## 15. Open questions for the owner
 
@@ -443,11 +491,12 @@ Trash view and `template.restoreFromTrash` go to slice 6. Reasons: slice 5 alrea
 | Q17 | Thresholds that keep Drive-only storage | 0.85 MB read and write each under 2 s in spike S2b; else ADR-0002 reopens with Sheets and its consent cost |
 | Q18 | Prod data in My Drive or a shared drive | Prod owner's My Drive; shared drive only if `setup()` can create its own folder there (2.5b dry run) |
 | Q19 | Dev web app on `/dev` or versioned `/exec` | `/dev` if spike S2 (d) passes: 0 versions per dev deploy. Spike S2 (d) passed 2026-11-10 for a non-owner editor |
-| Q20 | Does `UpdateDraftSubjectAction` need a scope beyond `gmail.addons.current.action.compose`, and does Gmail web accept it with `UpdateDraftBodyAction` in one response? Google's pages list both setters on one builder but show one action per example and name no per-action scope [A14, A15] | Spike S5 on dev. If one response fails: Insert sets the body, the preview card gets a second button "Set subject". If Gmail asks for a new scope: stop; a new scope needs owner approval and a manifest and approved-list change |
-| Q21 | Reply drafts. Replacing a reply's "Re: ..." subject may split the Gmail conversation (unverified). The add-on cannot read the subject; whether the compose event of a reply carries `gmail.threadId` or `gmail.messageId` is not documented [A13] | Spike S5 logs whether those fields are present on a reply (boolean only). If present: skip the subject on one-click Insert in replies and default the prompt card switch off. If absent: keep "Insert body only" as the escape and state it in the quick start |
-| Q22 | Apply and sidebar targets missed on 2026-11-10 (section 12.1) | Wait for smoke "Slice 4b" step 8 numbers. If apply stays above 2 s p95, the owner decides between accepting the measured value and an ADR-0003 change (4b proposals 3 and 6) |
-| Q23 | `installTriggers` deletes the old triggers before it creates the new set; a failed create leaves fewer than 3 until a web app page load (4b review minor 7) | Create the new set first, then delete the old one; record a `job:triggers:lastError` health key the Config tab flags. Slice 6 |
-| Q24 | `template.apply` accepts `recipientEmailIfInternal` on `followUp` calls, an event-free first-name lookup (slice 4 review) | Ignore the field when `followUp` is true. Slice 5, one line |
+| Q20 | Does `UpdateDraftSubjectAction` need a scope beyond `gmail.addons.current.action.compose`, and does Gmail web accept it with `UpdateDraftBodyAction` in one response? | Closed 2026-11-10: spike S5 on dev-32a446c. Body and subject actions work in one response. No new scope; 10 scopes unchanged |
+| Q21 | Reply drafts: replacing a reply's subject may split the conversation | Closed 2026-11-10 by D24. A replaced reply subject did start a new thread (dev-32a446c). The event has no `threadId` or `messageId`, but it has `subject`. The template subject is set only on an empty draft subject; the reply stayed in its conversation (smoke "Slice 5c", dev-848206f). The quick start (slice 7) states "Insert with subject" as the override |
+| Q22 (D23) | Apply and sidebar targets missed (section 12.1). Apply with one server call measured 2.2 to 5.2 s on dev-637ce77; warm save 4.2 to 5.2 s on dev-32a446c | Open, owner. Assumption in force: 3 s accepted for apply in v1, measured again on `/exec` at prod setup. If the owner wants 2 s: the D23 option, insert from the add-on cache with a 10 min permission lag (ADR-0003 change) |
+| Q23 | `installTriggers` deletes the old triggers before it creates the new set; a failed create leaves fewer than 3 until a web app page load (4b review minor 7) | Create the new set first, then delete the old one; record a `job:triggers:lastError` health key the Config tab flags. Slice 6a |
+| Q24 | `template.apply` accepts `recipientEmailIfInternal` on `followUp` calls, an event-free first-name lookup (slice 4 review) | Closed in slice 5: `followUp: true` returns `recipientFirstName: ""` with no Directory read |
+| Q25 | With "Replace the subject" off, the prompt card still asks prompts that only the subject uses (slice 5 review minor 2, 5c minor 3) | Accept in v1: the value goes nowhere, the draft stays correct. Hiding those fields probably needs a card re-render on each switch change, one more callback per toggle |
 
 ## 16. Operations and maintenance
 
@@ -480,7 +529,7 @@ Template, folder and grant changes and backup restores happen in the web app, do
 
 - docs/research/r1 to r4, feature-matrix.md, ux-notes.md, summary.md, read 2026-11-09. Tags [R2 S43], [R4 Sn] as in those files.
 - [A1] https://github.com/tanaikech/taking-advantage-of-Web-Apps-with-google-apps-script, third party, read 2026-11-09. Other [An] tags are listed in the ADR that uses them.
-- [A13] https://developers.google.com/workspace/add-ons/concepts/event-objects (Gmail event object: `accessToken`, `messageId`, `threadId`, `toRecipients`, `ccRecipients`, `bccRecipients`; no subject field; `commonEventObject.platform` WEB, IOS, ANDROID), read 2026-11-10.
+- [A13] https://developers.google.com/workspace/add-ons/concepts/event-objects, read 2026-11-10 and re-read 2026-11-10 (errata run 2). The page documents 6 Gmail fields: `accessToken`, `bccRecipients`, `ccRecipients`, `messageId`, `threadId`, `toRecipients`; it names no `subject` field and no `draftMetadata` object. `commonEventObject.platform` WEB, IOS, ANDROID. Correction 2026-11-10: the page is incomplete for compose events. Owner smoke runs on Gmail web logged the field names `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients`, `subject` and never `threadId` or `messageId` (smoke "Slice 5b", dev-4a233d4). Smoke "Slice 5c" (dev-848206f) showed `subject` holds the draft subject: `hasSubject` was true with a filled subject, and typed and reply subjects were kept. The earlier note "no subject field" was wrong for the live event.
 - [A14] https://developers.google.com/workspace/add-ons/gmail/extending-compose-ui (compose actions return `UpdateDraftActionResponse`; subject example `setUpdateDraftSubjectAction(CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject))`; one action per example; scopes "required for compose actions" not listed; no mobile note), read 2026-11-10.
 - [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder (setters for body, subject, To, Cc, Bcc on one builder, each returns the builder for chaining; no statement on combining; no scope listed) and https://developers.google.com/apps-script/reference/card-service/update-draft-subject-action (`addUpdateSubject(subject)`: "Updates the subject line of an email draft"), read 2026-11-10.
 - [A16] https://developers.google.com/workspace/gmail/api/auth/scopes (`gmail.addons.current.action.compose` "Manage drafts and send emails when you interact with the Google Workspace add-on", non-sensitive), read 2026-11-10.

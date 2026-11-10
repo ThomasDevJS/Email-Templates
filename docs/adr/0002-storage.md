@@ -1,6 +1,6 @@
 # ADR-0002: Storage, caching and concurrency
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -95,8 +95,8 @@ Drive access: Advanced Drive service v3 (`Drive.Files.create`, `Drive.Files.upda
 | Script Cache | `idx:meta` | `{ rev, chunkCount, builtAt }` | under 1 KB | 6 h |
 | Script Cache | `idx:<rev>:<n>` | `index.json` text, 90 KB chunks | 10 chunks at 1x, 94 at 10x | 6 h |
 | Script Cache | `fav:<rev>:<n>`, `use:<rev>:<n>`, `gm:<rev>:<n>` | side files, 90 KB chunks | 2, 6, 5 chunks | 6 h |
-| Script Cache | `ft:<rev>:<n>` | plain-text bodies for search | about 23 chunks at 1x | 6 h |
-| Script Cache | `body:<itemId>:<version>[:part]` | sanitized HTML | 90 KB parts | 6 h |
+| Script Cache | `ft:<rev>:<n>` [built as `ft:<bodyFileId>`, one entry per body; Amendment 2026-11-10] | plain-text bodies for search | about 23 chunks at 1x | 6 h |
+| Script Cache | `body:<itemId>:<version>[:part]` [built as `bd:<bodyFileId>`, bodies over 90 KB not cached; Amendment 2026-11-10] | sanitized HTML | 90 KB parts | 6 h |
 | Script Cache | `prof:<n>` | Directory profile map (ADR-0004) | chunked | 6 h |
 | Script Cache | `evt:<n>` | buffered apply and denied events | 90 KB parts | 6 h |
 | User Cache (add-on code only, as the user) | `view:<n>`, `body:<itemId>:<version>` | the caller's filtered list, bodies for apply | 2 chunks, 90 KB parts | 10 min |
@@ -104,7 +104,7 @@ Drive access: Advanced Drive service v3 (`Drive.Files.create`, `Drive.Files.upda
 Rules:
 
 - Chunk sets are keyed by `rev`, so a reader never mixes two builds. Reads use `getAll`, one round trip. A missing chunk triggers a rebuild.
-- Script Property `INDEX_REV` names the current revision (80 ms read [R4 S72]). Readers read `INDEX_REV`, then `idx:<rev>:*`. A miss rebuilds under the script lock from `index.json` (1 file read).
+- Script Property `INDEX_REV` names the current revision (80 ms read [R4 S72]). Readers read `INDEX_REV`, then `idx:<rev>:*`. A miss rebuilds under the script lock from `index.json` (1 file read). [Readers take no lock since slice 4b; Amendment 2026-11-10.]
 - The 5-min trigger checks `idx:meta` and re-puts every chunk set older than 5 h, so the 6 h TTL never lapses and FIFO eviction is repaired within 5 min. Users pay the coldest path only after an eviction inside a 5-min window.
 - The server code never calls `CacheService.getUserCache()`: in the web app it returns the owner's cache, shared by every caller (ADR-0003 Part A).
 
@@ -114,7 +114,7 @@ Rules:
 - Optimistic version inside the JSON. `index.json` carries `rev`; every item and folder carries `version`. The client sends `baseVersion`; a mismatch returns `CONFLICT` with the current version, author and time. `rev` guards against writes that bypass the lock (a restore from backup, a future bug): the writer re-reads `rev` inside the lock and aborts on mismatch. Revised 2026-11-09 in slice 2: the writer adopts the file (it reads `index.json` when the cached `rev` differs from the `rev` in its appProperties) instead of aborting, because a crash between save steps 6 and 7 leaves `INDEX_REV` behind by design and aborting would block every write until a rebuild; lost updates are still caught by the item `version` check and the in-lock recheck of target folders.
 - Save sequence: (1) sanitize and validate (ADR-0004). (2) Create body file `<id>.v<base+1>.json` outside the lock. (3) Take the lock. (4) Load the index for `INDEX_REV` from cache, else from Drive; check `rev` and the item `version`. (5) Apply the change, append the audit event to `pendingAudit`, set `rev + 1`. (6) Write `index.json` (commit point; the change and its audit event land in one write). (7) Set `INDEX_REV`, put cache chunks. (8) Release. A crash after (6) leaves `INDEX_REV` behind the file; the next writer and the rebuild read `rev` from the file and adopt it.
 - Lock hold at 1x: about 1.3 s (index write 1 s assumed, cache and Properties 0.3 s). Serial capacity about 45 writes per minute. Expected peak under 10 per minute (opinion: 50 editors). At 10x the hold reaches about 3.5 s and the save exceeds 3 s; see Revisit.
-- Favorites use the same lock and file pattern on `favorites.json` (hold about 0.5 s).
+- Favorites use the same lock and file pattern on `favorites.json` (hold about 0.5 s). [Cache and revision property: Amendment 2026-11-10.]
 - An orphan body file (step 2 done, step 6 failed or `CONFLICT`) is trashed by the daily job when its version exceeds the item's current version and it is older than 1 h.
 
 ### Version history
@@ -165,6 +165,28 @@ Apply: add-on start 500 ms, UrlFetch 900 ms, server checks from cache 200 ms, re
 Save: validate 50 ms, body create 700 ms (assumed), lock 50 ms, load index from cache 150 ms, write index 1,000 ms (assumed), Properties and cache 200 ms. Total about 2.1 s, under the 3 s budget.
 
 Web app list and search: one call loads the caller's filtered index (under 1.5 s); title, folder and tag filtering runs in the browser (under 50 ms). Body matches come from one call over `ft:*` (under 1 s).
+
+## Amendment 2026-11-10: lock-free readers, body cache, side caches
+
+Built in slices 4b and 5, reviewed PASS (docs/reviews/slice-04b.md, slice-05.md). The Drive JSON decision stands. Reason for the change: before 4b a reader waited up to 10 s for the script lock on a cache miss, and every request read Script Properties 7 to 12 times (spec 12.1).
+
+Options for the read path:
+1. Readers rebuild under the script lock (original rule). One rebuild per miss. A reader queues behind every writer, up to 10 s.
+2. Readers take no lock and never publish a revision; writers and `setup` publish. A miss costs one Drive read per reader until the cache is put. No reader waits for a writer.
+
+Decision: option 2. Mechanism:
+- One `getProperties()` per request execution (snapshot). Writes go through and update the copy. Triggers read live properties.
+- Readers take no script lock. `loadIndex` reads `INDEX_REV`, then `idx:<rev>:*`. On a miss it reads `index.json` and puts the chunks only when the file `rev` equals the published `INDEX_REV`. It never sets or moves `INDEX_REV`. `setup` publishes it under the lock. With `INDEX_REV` missing or behind, readers serve the file from Drive (`cache: "miss"`) and the `tick` trigger rebuilds within 5 min.
+- Write paths re-check inside the lock. `loadIndexForWrite` uses the cached index only when its `rev` equals the `rev` in the file's appProperties, else it reads Drive. `commit` re-runs authorization inside the lock. `ensureTriggers` reads `TRIGGERS_VERSION` live inside the lock, so two stale executions reinstall once.
+- Bodies: Script Cache `bd:<bodyFileId>`, 6 h, filled on save (create, update, restore, duplicate) and on a miss. Bodies over 90 KB are not cached. The key is the file ID, so an orphan body file of a failed save never shadows the committed body. `template.get`, `template.getBody`, `template.apply` and `template.duplicate` read through it; history reads stay on Drive (they need file metadata). `bd:*` shares Script Cache capacity with index and member chunks; eviction costs Drive reads, never wrong data.
+- Search text: Script Cache `ft:<bodyFileId>`, written at save. `search.body` reads all entries with one `getAll` and makes at most 25 Drive reads per call for misses; the rest are reported as `skipped`.
+- Side caches: `favorites.json` and `usage.json` go through Script Cache chunk sets keyed by revision, with Script Properties `FAVORITES_REV` and `USAGE_REV` (the `INDEX_REV` pattern). Writers run under the script lock and read the file live from Drive: `favorite.set` and `favorite.unset`, and `tick` (usage flush and side upkeep). Writers write the file, then publish the property. Readers put a chunk set only when the file `rev` equals the published one.
+
+Consequences:
+- Warm `sidebar.home`, `search` and `template.apply`: 1 Properties read, 0 Drive reads (pinned in test/unit/server/entry.test.ts).
+- Environments set up before slice 5 have no `FAVORITES_REV` or `USAGE_REV`; `sidebar.home`, `template.list` and `search` read both files from Drive on every call until the first `tick` publishes them.
+- A crash between the side file write and `setProperty` leaves readers on the older cached set until the next write of that file. No data loss. Accepted (slice 5 review minor 4).
+- A reader's late put of `idx:meta` can overwrite a newer one; the next reader misses and reads Drive once. No stale data, because chunk keys carry `rev`.
 
 ## Consequences
 

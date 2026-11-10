@@ -1,5 +1,5 @@
 Screen 2: Sidebar preview card and prompt card
-Slice 4. Subject added in slice 5 (D21, spec 5.6, ADR-0004 Amendment 2026-11-10).
+Slice 4. Subject added in slice 5 (D21); rule D24 in slice 5c (spec 5.6, ADR-0004 Amendments 2026-11-10).
 One TextInput per distinct prompt (same label filled once, across subject and body),
 plus implicit prompts for unresolved values without fallback (ADR-0004). Max 20.
 
@@ -15,10 +15,15 @@ Preview card (tap on a title in Home, Folder or Search):
 |--------------------------------------|
 | Fields to fill: Product name,        |
 |   Meeting date                       |
-| Replaces the draft subject.          |  only when the subject is not empty
-| [Insert]  [Insert body only]         |  second button only when the subject is not empty
+| Sets the draft subject.              |  template subject not empty, draft subject empty
+| [Insert]  [Insert body only]         |  second button only when the template subject is not empty
 | [Edit in library]                    |  only if level >= edit
 +--------------------------------------+
+
+Preview card, draft subject already filled (typed, reply, forward):
+| The draft already has a subject.     |
+| It is kept.                          |
+| [Insert]  [Insert with subject]      |  Insert keeps the draft subject; "Insert with subject" replaces it
 
 Prompt card (Insert on a template with prompts or unresolved values):
 +--------------------------------------+
@@ -35,7 +40,7 @@ Prompt card (Insert on a template with prompts or unresolved values):
 | Recipient first name *               |  implicit: 2 To recipients,
 | [ ____________________________ ]     |  no fallback in template
 |                                      |
-| Replace the subject          [on ]   |  DecoratedText + SwitchControl, id subj
+| Replace the subject          [on ]   |  DecoratedText + SwitchControl, id subj. Default: on when the draft subject is empty, off when filled
 | Quote for [Product name]             |  bottom label; row shown only when the subject is not empty
 |                                      |
 | (!) Fill 1 field: Product name       |  shown after a blocked Insert
@@ -47,7 +52,13 @@ Rules
 - Insert calls template.apply with followUp: true. The server re-checks use; no second apply event.
 - Insert validates every field in the callback. Any blank field: no draft change, card re-rendered with the error line and the field first in order.
 - Values: plain text, max 500 chars. Body: HTML-escaped, newline -> <br>. Subject: not escaped, line breaks and control characters -> one space, trimmed.
-- One UpdateDraftActionResponse: body action always; subject action only when the rendered subject is not empty and "Replace the subject" is on (or Insert, not "Insert body only", on the preview card).
-- The add-on cannot read the draft subject. A typed subject is replaced unless the user opts out.
-- Reply drafts: see spec Q21 (switch may default off).
+- One UpdateDraftActionResponse: body action always; subject action only when the rendered subject is not empty and the rule below says so.
+- Rule D24: the add-on reads the draft subject from the compose event. Template subject set only when the draft subject is empty or whitespace.
+    Insert path                   draft subject empty   draft subject filled
+    One-click Insert, preview     sets it               keeps it
+    "Insert with subject"         sets it               replaces it
+    "Insert body only"            keeps it              keeps it
+    Prompt card switch            starts on             starts off; user decides
+- "Insert with subject" opens the prompt card (if any) with the switch on. "Insert body only" shows no switch.
+- A template changed under the open prompt card resets the switch to its default.
 - Cancel pops back to the previous card. Values are not stored.

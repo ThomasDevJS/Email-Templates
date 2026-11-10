@@ -1,5 +1,6 @@
 Screen 6: Admin (/exec?view=admin)
 Slice 6. Tabs: Folders and grants | Memberships | Audit log | Usage | Export and import | Config.
+Split 2026-11-10 (spec 13.3): 6a builds the shell, Folders and grants, Memberships and the Trash view; 6b builds Audit log, Usage, Export and import, Config.
 Admins see all tabs. manage holders see Folders and grants (their subtrees) and Export folder.
 
 Tab: Folders and grants
