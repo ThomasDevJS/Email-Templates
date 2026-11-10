@@ -14,9 +14,10 @@ import { createFolderTree } from "./tree";
 export function libraryView(
   app: AppContext,
   main: HTMLElement,
-  folderId: string,
+  startFolderId: string,
   loading: Promise<boolean>,
 ): View {
+  let folderId = startFolderId;
   const search = h("input", {
     type: "search",
     id: "search",
@@ -36,8 +37,12 @@ export function libraryView(
     },
     ...skeletonRows(),
   );
+  /** Selects a folder in place, so focus stays in the tree (smoke defect 7). */
   const tree = createFolderTree((id) => {
-    app.go({ name: "library", folderId: id });
+    folderId = id;
+    app.pushRoute({ name: "library", folderId: id });
+    tree.render(app.folders(), id);
+    drawList();
   });
 
   const folderName = () =>

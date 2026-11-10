@@ -110,6 +110,9 @@ export function startApp(host: Host): AppContext {
     replaceRoute: (route) => {
       host.navigate(routeHash(route), true);
     },
+    pushRoute: (route) => {
+      host.navigate(routeHash(route), false);
+    },
     fail: (error, retry) => {
       const rpc = toRpcError(error);
       const presentation = presentationOf(rpc.code);

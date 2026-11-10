@@ -165,6 +165,8 @@ describe("library (screen 3)", () => {
       expect(text()).toContain("No templates in HR.");
     });
     expect(window.location.hash).toBe("#/library?folder=F-EMPTY");
+    expect(document.activeElement?.textContent).toBe("HR");
+    expect(document.activeElement?.getAttribute("aria-selected")).toBe("true");
     button(
       "+ New template",
       main().querySelector(".empty") as HTMLElement,
@@ -173,6 +175,31 @@ describe("library (screen 3)", () => {
       expect(main().querySelector(".editor-title")?.textContent).toBe(
         "New template",
       );
+    });
+  });
+
+  it("keeps focus in the tree after a click or Enter, so arrows and Enter go on working (smoke defect 7)", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    const items = () => [...main().querySelectorAll('[role="treeitem"]')];
+    const support = items().find((item) => item.textContent === "Support");
+    (support as HTMLElement).click();
+    expect(document.activeElement?.textContent).toBe("Support");
+    expect(window.location.hash).toBe("#/library?folder=F-SUPPORT");
+    expect(main().querySelector("#list-heading")?.textContent).toBe("Support");
+    key(document.activeElement as Element, "ArrowDown");
+    key(document.activeElement as Element, "Enter");
+    expect(document.activeElement?.textContent).toBe("My templates");
+    expect(main().querySelector("#list-heading")?.textContent).toBe(
+      "My templates",
+    );
+    key(document.activeElement as Element, "ArrowUp");
+    expect(document.activeElement?.textContent).toBe("Support");
+    window.history.back();
+    await until(() => {
+      expect(window.location.hash).toBe("#/library?folder=F-SUPPORT");
     });
   });
 

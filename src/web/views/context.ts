@@ -12,6 +12,8 @@ export interface AppContext {
   go(route: Route): void;
   /** Changes the URL to `route` without rendering again (a new template that got its ID). */
   replaceRoute(route: Route): void;
+  /** Adds `route` to the history without rendering again (the library selects a folder in place). */
+  pushRoute(route: Route): void;
   /** Central error handling: auth page, toast with Retry, or the returned banner for DENIED and NOT_FOUND. */
   fail(error: unknown, retry?: () => void): HTMLElement | null;
 }

@@ -76,6 +76,7 @@ export function createFolderTree(
         class: "tree-item",
         style: `padding-left: ${String(row.depth * 12)}px`,
         onclick: () => {
+          li.focus();
           focused = row.id;
           if (row.hasChildren) expanded.add(row.id);
           onOpen(row.id);
@@ -157,7 +158,8 @@ export function createFolderTree(
       selected = folderId;
       focused = folderId;
       for (const id of ancestorsOf(folders, folderId)) expanded.add(id);
-      draw(false);
+      // Redrawing replaces the rows; a tree that had focus keeps it on the selected row.
+      draw(list.contains(document.activeElement));
     },
   };
 }
