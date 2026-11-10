@@ -62,44 +62,67 @@ export function templateEvent(
   });
 }
 
-/** Live templates in folders where the caller holds `use`; with `trash`, deleted ones where the caller holds `edit`. */
-function listed(
-  context: HandlerContext,
-  trash: boolean,
-  folderId: string,
-): ItemView[] {
+/** Live templates in live folders where the caller holds `use`. */
+function listed(context: HandlerContext, folderId: string): ItemView[] {
   const { index, levelOf } = context.access();
   const live = new Set(
     index.folders.filter((f) => f.deletedAt === "").map((f) => f.id),
   );
-  const need: AccessLevel = trash ? "edit" : "use";
   return index.items
-    .filter((item) => (item.deletedAt !== "") === trash)
+    .filter((item) => item.deletedAt === "")
     .filter((item) => live.has(item.folderId))
     .filter((item) => folderId === "" || item.folderId === folderId)
     .map((item) => ({ ...item, level: levelOf(item.folderId) }))
-    .filter((item) => atLeast(item.level, need));
+    .filter((item) => atLeast(item.level, "use"));
+}
+
+export interface TrashView extends ItemView {
+  /** False when the original folder was deleted or purged: Restore then needs a target folder. */
+  readonly folderLive: boolean;
+  readonly folderPath: string;
+}
+
+/**
+ * Soft-deleted templates the caller may edit (wireframe 07 H). Levels resolve through deleted folders too, so a
+ * template in a deleted folder stays restorable. Admins also see templates whose folder was purged.
+ */
+function trashed(context: HandlerContext, folderId: string): TrashView[] {
+  const { index, levelOf, subject } = context.access();
+  const live = new Set(
+    index.folders.filter((f) => f.deletedAt === "").map((f) => f.id),
+  );
+  return index.items
+    .filter((item) => item.deletedAt !== "")
+    .filter((item) => folderId === "" || item.folderId === folderId)
+    .map((item) => ({
+      ...item,
+      level: levelOf(item.folderId),
+      folderLive: live.has(item.folderId),
+      folderPath: folderPath(index, item.folderId),
+    }))
+    .filter((item) => subject.isAdmin || atLeast(item.level, "edit"));
 }
 
 /**
  * The library list (`trash: true` for the trash) with the caller's Favorites and Recent among the listed items
- * (web app star, filter and "last used" sort, spec 4.4).
+ * (web app star, filter and "last used" sort, spec 4.4). `canPurge`: the caller is an admin (Trash "Empty now").
  */
 export function templateList(context: HandlerContext): {
   items: ItemView[];
   rev: number;
+  canPurge: boolean;
 } & CallerLists {
-  const items = listed(
-    context,
-    optBool(context.args, "trash"),
-    optString(context.args, "folderId"),
-  );
+  const folderId = optString(context.args, "folderId");
+  const items = optBool(context.args, "trash")
+    ? trashed(context, folderId)
+    : listed(context, folderId);
   const lists = callerLists(
     context.services,
     context.caller.email,
     new Set(items.map((item) => item.id)),
   );
-  return { items, rev: context.access().index.rev, ...lists };
+  const { index, subject } = context.access();
+  return { items, rev: index.rev, canPurge: subject.isAdmin, ...lists };
 }
 
 /**
@@ -112,7 +135,7 @@ export function searchBody(context: HandlerContext): {
 } {
   const query = parseQuery(optString(context.args, "query"));
   if (query.terms.length === 0) return { ids: [], skipped: 0 };
-  const items = listed(context, false, "");
+  const items = listed(context, "");
   const { texts, skipped } = bodyTexts(context.services, items);
   const recent = callerRecent(
     context.services,
@@ -395,14 +418,20 @@ export function templateDelete(context: HandlerContext): Item {
   });
 }
 
+/**
+ * Back from the trash into its folder, or into `folderId` when the original folder is gone or the caller lacks
+ * edit there. Dispatch checked edit on the original folder and the target (`restoreTargets`).
+ */
 export function templateRestoreFromTrash(context: HandlerContext): Item {
+  const target = optString(context.args, "folderId");
   return changeItem(context, "template.restoreFromTrash", (item, current) => {
     if (item.deletedAt === "")
       throw new AppError(
         ErrorCode.VALIDATION,
         "This template is not in the trash",
       );
-    liveFolder(current, item.folderId);
-    return { ...item, deletedAt: "", deletedBy: "" };
+    const folderId = target || item.folderId;
+    liveFolder(current, folderId);
+    return { ...item, folderId, deletedAt: "", deletedBy: "" };
   });
 }

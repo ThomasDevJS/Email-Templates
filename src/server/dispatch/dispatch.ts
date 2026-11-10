@@ -5,7 +5,6 @@ import {
   ancestry,
   folderMap,
   levelResolver,
-  type Subject,
 } from "../../shared/permissions/effective";
 import {
   checkNeed,
@@ -16,6 +15,7 @@ import {
 import { auditEvent, type EventSource } from "../audit/events";
 import { bufferEvent } from "../audit/buffer";
 import { requireDomain } from "../guards";
+import { readSnapshot, subjectFor } from "../membership/snapshot";
 import { nowIso, type Services } from "../services";
 import {
   createContext,
@@ -157,19 +157,36 @@ function placement(index: IndexDoc, targets: readonly string[]): string {
     .join(",");
 }
 
+function deniedError(): AppError {
+  return new AppError(
+    ErrorCode.DENIED,
+    "You don't have access to this. Ask a folder manager.",
+  );
+}
+
 /**
  * Same check on the index read inside the lock (save step 4). A concurrent move changes the resolved targets:
- * CONFLICT, so the caller reloads. Unchanged targets with a lower level (grant removed): DENIED.
+ * CONFLICT, so the caller reloads. Unchanged targets with a lower level (grant removed): DENIED. Admin rows read
+ * the membership snapshot again, so an admin removed meanwhile is refused.
  */
 function recheck(
   row: PolicyRow,
   request: DispatchRequest,
-  subject: Subject,
+  context: HandlerContext,
   authorized: string,
   index: IndexDoc,
 ): void {
   const need = needOf(actionOf(row, request.args));
+  if (need.kind === "admin") {
+    const { services, caller } = context;
+    if (
+      !subjectFor(caller.email, readSnapshot(services), services.props).isAdmin
+    )
+      throw deniedError();
+    return;
+  }
   if (need.kind !== "level") return;
+  const subject = context.subject();
   const fresh = row.targets?.(request.args, index) ?? [];
   if (placement(index, fresh) !== authorized) {
     throw new AppError(
@@ -181,10 +198,7 @@ function recheck(
     );
   }
   if (!checkNeed(need, subject.isAdmin, levelResolver(subject, index), fresh))
-    throw new AppError(
-      ErrorCode.DENIED,
-      "You don't have access to this. Ask a folder manager.",
-    );
+    throw deniedError();
 }
 
 function checkDomain(request: DispatchRequest, services: Services): void {
@@ -215,9 +229,16 @@ export function dispatch(
     ...request,
     services,
     recheck: (index) => {
-      recheck(row, request, context.subject(), authorized, index);
+      recheck(row, request, context, authorized, index);
     },
   });
   authorized = authorize(row, context, request);
-  return handler(context);
+  try {
+    return handler(context);
+  } catch (error: unknown) {
+    // A DENIED after the policy check (handler refusal, in-lock re-check) writes the same audit row (ADR-0003 C).
+    if (error instanceof AppError && error.code === ErrorCode.DENIED)
+      recordDenied(request, services, ErrorCode.DENIED, [], "");
+    throw error;
+  }
 }

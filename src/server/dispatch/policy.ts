@@ -7,6 +7,7 @@ import {
   grantFolder,
   itemFolder,
   parentArg,
+  restoreTargets,
   templateCopy,
   templateMove,
   type TargetResolver,
@@ -61,7 +62,7 @@ export const POLICY: PolicyTable = {
   "template.update": web("template.write", templateCopy),
   "template.duplicate": web("template.write", templateCopy),
   "template.delete": web("template.trash", itemFolder),
-  "template.restoreFromTrash": web("template.trash", itemFolder),
+  "template.restoreFromTrash": web("template.trash", restoreTargets),
   "template.move": web("template.move", templateMove),
   "version.list": web("version.history", itemFolder),
   "version.get": web("version.history", itemFolder),
@@ -77,6 +78,8 @@ export const POLICY: PolicyTable = {
   "folder.delete": web("folder.moveDelete", folderAndParent),
   "trash.purge": web("trash.purge"),
 
+  // List op: the handler keeps the folders the caller manages and answers DENIED when there are none.
+  "admin.folders": web("grant.manage"),
   "grant.list": web("grant.manage", folderArg),
   "grant.add": web("grant.manage", folderArg),
   "grant.remove": web("grant.manage", grantFolder),
@@ -87,6 +90,7 @@ export const POLICY: PolicyTable = {
   "audit.query": web("audit.view"),
   "usage.report": web("audit.view"),
   "membership.refresh": web("admin.ops"),
+  "membership.status": web("admin.ops"),
   "config.get": web("admin.ops"),
   "backup.list": web("admin.ops"),
   "backup.restore": web("admin.ops"),

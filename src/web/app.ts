@@ -1,6 +1,7 @@
 /** Web app shell (screens 3 to 5), bundled and inlined into index.html by scripts/build.mjs (ADR-0005). */
 import { googleHost, type GoogleScript, type Host } from "./host";
 import {
+  ADMIN,
   LIBRARY,
   parseRoute,
   routeHash,
@@ -22,10 +23,13 @@ import {
   showToast,
   toRpcError,
 } from "./ui/status";
+import { h } from "./ui/dom";
+import { adminView } from "./views/admin";
 import type { AppContext, View } from "./views/context";
 import { editorView } from "./views/editor";
 import { historyView } from "./views/history";
 import { libraryView } from "./views/library";
+import { trashView } from "./views/trash";
 
 declare const google: { readonly script: GoogleScript };
 
@@ -82,20 +86,48 @@ export function startApp(host: Host): AppContext {
     });
   };
 
+  let section = "library";
   const render = (route: Route) => {
     view?.dispose();
-    for (const link of document.querySelectorAll("[data-nav]"))
-      link.toggleAttribute("aria-current", route.name === "library");
-    if (route.name === "library")
-      view = libraryView(app, main, route.folderId, loaded());
-    else if (route.name === "history") view = historyView(app, main, route.id);
-    else
-      view = editorView(
-        app,
-        main,
-        route.name === "edit" ? { id: route.id } : { folderId: route.folderId },
-        loaded(),
-      );
+    section = route.name === "admin" ? "admin" : "library";
+    for (const link of document.querySelectorAll<HTMLElement>("[data-nav]"))
+      link.toggleAttribute("aria-current", link.dataset["nav"] === section);
+    view = viewOf(route);
+  };
+
+  const viewOf = (route: Route): View => {
+    switch (route.name) {
+      case "library":
+        return libraryView(app, main, route.folderId, loaded());
+      case "history":
+        return historyView(app, main, route.id);
+      case "trash":
+        return trashView(app, main, loaded());
+      case "admin":
+        return adminView(app, main, route.tab);
+      case "edit":
+        return editorView(app, main, { id: route.id }, loaded());
+      case "new":
+        return editorView(app, main, { folderId: route.folderId }, loaded());
+    }
+  };
+
+  /** The rail shows Admin to callers who manage a folder (admins manage all); `admin.folders` decides on entry. */
+  const showAdminLink = () => {
+    const rail = document.querySelector(".rail");
+    const manages = folders.some((folder) => folder.level === "manage");
+    const link = document.querySelector("[data-nav=admin]");
+    if (!manages || link !== null || rail === null) return;
+    const button = h(
+      "button",
+      { type: "button", class: "nav-link", "data-nav": "admin" },
+      "Admin",
+    );
+    button.addEventListener("click", () => {
+      app.go(ADMIN);
+    });
+    button.toggleAttribute("aria-current", section === "admin");
+    rail.append(button);
   };
 
   const app: AppContext = {
@@ -141,7 +173,7 @@ export function startApp(host: Host): AppContext {
     },
   };
 
-  void load(rerender);
+  void load(rerender).then(showAdminLink);
   api
     .profile()
     .then((me) => {
@@ -157,7 +189,7 @@ export function startApp(host: Host): AppContext {
     event.preventDefault();
     main.focus();
   });
-  for (const link of document.querySelectorAll("[data-nav]"))
+  for (const link of document.querySelectorAll("[data-nav=library]"))
     link.addEventListener("click", () => {
       app.go(LIBRARY);
     });

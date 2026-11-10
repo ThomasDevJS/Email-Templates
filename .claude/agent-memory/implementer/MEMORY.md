@@ -85,13 +85,9 @@
 - Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
 
 ## Slice 4b retry 1 (review FAIL: request ID not enforced)
-- `handleRpc` enforces `REQUEST_ID_PATTERN` (src/shared/requestId.ts) on both surfaces: bad ID = VALIDATION, log gets a server ID. Tests must send valid IDs (`TESTREQ0-000001`; world.call does).
-- Log `action` only for ops in the policy table.
-- `ensureTriggers(services, live)`: re-check inside the lock reads live properties; `tick` runs it too.
-- Readers never set `INDEX_REV`; `runSetup` publishes it under the lock.
-- Lesson: every client-supplied string that reaches a log line needs a format check at the server boundary, not only in the client.
-- Lesson: a per-execution property snapshot breaks any read-check-write across executions; re-read live inside the lock.
-- Old-code check of earlier commits: `git checkout <testCommit> -- test; git checkout <oldCommit> -- src; run; git checkout HEAD -- src test`.
+- `handleRpc` enforces `REQUEST_ID_PATTERN`; tests send `TESTREQ0-000001`. Log `action` only for policy ops.
+- Lesson: every client string that reaches a log line needs a server-side format check.
+- Lesson: per-execution property snapshots break read-check-write; re-read live inside the lock.
 
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
@@ -118,6 +114,19 @@
 - jsdom: `vi.stubEnv("TZ", ...)` changes Date local time at runtime.
 - Old-code check of the whole slice: `git checkout <base> -- src`, run, `git checkout HEAD -- src`.
 
+## Code map (after slice 6a)
+- Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
+- Web: router `trash`, `admin` (tab folders|memberships), `?view=admin`; views/admin.ts (tablist), adminFolders.ts, memberships.ts, trash.ts; admin/model.ts (pure); tree `rootLabel`; rail Admin link from `manage` levels; harness `?admin=0`, grants, memberships, trash ops.
+- Tests: test/unit/server/admin.test.ts (6-role matrix with `calls.drive` 0 on DENIED), test/unit/web/admin.test.ts.
+
+## Lessons (slice 6a)
+- Call counts: scratch test writes `calls` from `world.lines` with `appendFileSync` (vitest hides console.log); run on base via `git checkout <base> -- src`, restore with `git reset -q; git checkout HEAD -- src`.
+- A timing test for a stale reply must wait past the second reply, or it passes on old code too.
+- Slice 6a review FAIL: every stored client string needs an upper bound (`PRINCIPAL_KEY_MAX`); a handler-thrown DENIED skipped the denied audit row (now `dispatch` records any DENIED after the policy check).
+- Path strings for non-admins: show only folders the caller can see (`visiblePath` in grants.ts).
+- Admins hold manage on private folders (ADR-0003 C); a review minor asking otherwise was reverted (675e145). Check accepted ADRs before following a fix request. Post-commit Drive loops are bounded (`PURGE_FILES_MAX`).
+- A negative test must fail for the reason under test: a missing group passed the length test on old code.
+
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
@@ -126,7 +135,8 @@
 ## Open items handed forward
 - Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; google.script.url/history and clipboard unverified in the real iframe.
 - Slice 4: Card Service calls unverified in Gmail; `setRequiredWidgets` not tried.
-- Slice 5: D24 subject rule built in 5c, event `subject` value unconfirmed until smoke Slice 5c step 4; `folder.rename` strips owner label; export must carry subject, import flattens line breaks (slice 6); `ft:*` warm-up in tick; spec 6 status line and Script Properties list need FAVORITES_REV/USAGE_REV (architect).
+- Slice 5: export must carry subject, import flattens line breaks (6b); `ft:*` warm-up in tick; spec 6 needs FAVORITES_REV/USAGE_REV (architect).
+- Slice 6a: spec 6 lacks `admin.folders`, `membership.status`; spec 5.1 lacks depth (FOLDER_DEPTH_MAX 5 assumed); 6b shows `job:triggers:lastError`.
 - Not verified against Google: Advanced Drive on drive.file, `alt: 'media'` return type, `getActiveUser` in triggers, triggerUid values, 5 MB multipart limit.
-- `membership.refresh` should clear `prof:*` (slice 6). Audit reader dedupe (slice 6). Caches `fav`, `use`, `ft` built in slice 5.
+- `membership.refresh` should clear `prof:*` (6b). Audit reader dedupe (6b).
 - Drift check behaviour against real Apps Script reformatting: unverified.

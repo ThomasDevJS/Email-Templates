@@ -20,6 +20,7 @@ import {
   oldestKeptMonth,
   runDaily,
 } from "../../../src/server/jobs/daily";
+import { lastErrorKey } from "../../../src/server/jobs/health";
 import { runTick } from "../../../src/server/jobs/tick";
 import {
   ensureTriggers,
@@ -431,6 +432,42 @@ describe("trigger reinstall", () => {
       ensureTriggers({ ...world.services, props: second }, world.props),
     ).toBe(false);
     expect(created()).toEqual(afterFirst);
+  });
+
+  it("creates the new set before it deletes the old one (spec Q23)", () => {
+    const old = world.scriptApp.triggers.map((t) => t.id);
+    const deleteTrigger = world.scriptApp.deleteTrigger.bind(world.scriptApp);
+    const countsAtDelete: number[] = [];
+    world.scriptApp.deleteTrigger = (trigger) => {
+      countsAtDelete.push(world.scriptApp.triggers.length);
+      deleteTrigger(trigger);
+    };
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    expect(ensureTriggers(world.services)).toBe(true);
+    expect(countsAtDelete[0]).toBe(6);
+    expect(world.scriptApp.triggers).toHaveLength(3);
+    expect(world.scriptApp.triggers.map((t) => t.id)).not.toContain(old[0]);
+  });
+
+  it("keeps the old triggers and records the job error when a create fails", () => {
+    const old = world.scriptApp.triggers.map((t) => t.id);
+    const newTrigger = world.scriptApp.newTrigger.bind(world.scriptApp);
+    world.scriptApp.newTrigger = (handler) =>
+      handler === "daily"
+        ? {
+            timeBased: () => {
+              throw new Error("Trigger quota");
+            },
+          }
+        : newTrigger(handler);
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    expect(() => ensureTriggers(world.services)).toThrow("Trigger quota");
+    expect(world.scriptApp.triggers.map((t) => t.id)).toEqual(old);
+    expect(world.props.getProperty(lastErrorKey("triggers"))).toContain(
+      "Error: Trigger quota",
+    );
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+    expect(world.lock.hasLock()).toBe(false);
   });
 
   it("tick reinstalls after a deploy changed TRIGGERS_VERSION", () => {

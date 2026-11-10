@@ -18,6 +18,18 @@ function describe(error: unknown): string {
   return `${name}: ${message}`.slice(0, ERROR_TEXT_MAX);
 }
 
+/** Writes `job:<name>:lastError` as "<time> <error name>: <message>", cut to 500 characters. */
+export function recordJobError(
+  services: Pick<Services, "props" | "nowMs">,
+  name: string,
+  error: unknown,
+): void {
+  services.props.setProperty(
+    lastErrorKey(name),
+    `${nowIso(services)} ${describe(error)}`,
+  );
+}
+
 /**
  * Runs one job and writes one log line. A failure records `lastError` and rethrows, so Apps Script also
  * sends its trigger failure email to the owner.
@@ -36,10 +48,7 @@ export function runJob<T>(services: Services, name: string, work: () => T): T {
     });
     return result;
   } catch (error: unknown) {
-    services.props.setProperty(
-      lastErrorKey(name),
-      `${nowIso(services)} ${describe(error)}`,
-    );
+    recordJobError(services, name, error);
     services.logger.error({
       ...base,
       result: "error",

@@ -6,8 +6,9 @@ import type {
   Level,
   PrincipalType,
 } from "../../shared/model/data";
+import { PRINCIPAL_KEY_MAX } from "../../shared/model/validate";
 import { inPrivateTree } from "../../shared/permissions/effective";
-import { isLevel } from "../../shared/permissions/levels";
+import { atLeast, isLevel } from "../../shared/permissions/levels";
 import { auditEvent, type EventSource } from "../audit/events";
 import { reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
@@ -33,14 +34,27 @@ export interface GrantView extends Grant {
   /** False for OU grants: `groupsapp_direct` cannot resolve org units (Q4). */
   readonly active: boolean;
   readonly inherited: boolean;
+  /** Path of the folder that holds the grant (`/Sales`), shown as the source of inherited access. */
+  readonly sourcePath: string;
 }
 
 function validation(message: string): AppError {
   return new AppError(ErrorCode.VALIDATION, message);
 }
 
-function view(grant: Grant, inherited: boolean): GrantView {
-  return { ...grant, active: grant.principalType !== "ou", inherited };
+/**
+ * Path of a grant's folder as the caller may read it: admins the full path, others only the folders they can
+ * see, from the top of the visible part down. "" when the folder itself is hidden (the UI says "a parent folder").
+ */
+function visiblePath(context: HandlerContext, folderId: string): string {
+  const { index, levelOf, subject } = context.access();
+  if (subject.isAdmin) return folderPath(index, folderId);
+  const names: string[] = [];
+  for (const folder of chainOf(index, folderId)) {
+    if (!atLeast(levelOf(folder.id), "use")) break;
+    names.unshift(folder.name);
+  }
+  return names.length === 0 ? "" : `/${names.join("/")}`;
 }
 
 /** Grants on the folder, then grants inherited from its ancestors. */
@@ -51,7 +65,12 @@ export function grantList(context: HandlerContext): { grants: GrantView[] } {
   const grants = chain.flatMap((id) =>
     index.grants
       .filter((grant) => grant.folderId === id)
-      .map((grant) => view(grant, id !== folderId)),
+      .map((grant) => ({
+        ...grant,
+        active: grant.principalType !== "ou",
+        inherited: id !== folderId,
+        sourcePath: visiblePath(context, id),
+      })),
   );
   return { grants };
 }
@@ -65,6 +84,10 @@ function principalType(value: string): PrincipalType {
 
 function principalKeyFor(type: PrincipalType, raw: string): string {
   const key = raw.trim().toLowerCase();
+  if (key.length > PRINCIPAL_KEY_MAX)
+    throw validation(
+      `Principal must be at most ${String(PRINCIPAL_KEY_MAX)} characters`,
+    );
   const isEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(key);
   if ((type === "group" || type === "user") && !isEmail)
     throw validation(`${type} needs an email address`);

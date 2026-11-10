@@ -1,14 +1,20 @@
 /**
  * Hash routes of the web app: `#/library`, `#/library?folder=<id>`, `#/edit/<id>`, `#/history/<id>`,
- * `#/new?folder=<id>`. The OVERLAY form `?view=editor&id=<id>` (ADR-0001) maps onto the same routes.
+ * `#/new?folder=<id>`, `#/trash`, `#/admin`, `#/admin/memberships`. The OVERLAY form `?view=editor&id=<id>`
+ * (ADR-0001) and `?view=admin` (spec section 2) map onto the same routes.
  */
+export type AdminTab = "folders" | "memberships";
+
 export type Route =
   | { readonly name: "library"; readonly folderId: string }
   | { readonly name: "edit"; readonly id: string }
   | { readonly name: "history"; readonly id: string }
-  | { readonly name: "new"; readonly folderId: string };
+  | { readonly name: "new"; readonly folderId: string }
+  | { readonly name: "trash" }
+  | { readonly name: "admin"; readonly tab: AdminTab };
 
 export const LIBRARY: Route = { name: "library", folderId: "" };
+export const ADMIN: Route = { name: "admin", tab: "folders" };
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -33,6 +39,9 @@ export function parseRoute(hash: string): Route {
     return { name: "new", folderId: queryParam(query, "folder") };
   if (section === "library")
     return { name: "library", folderId: queryParam(query, "folder") };
+  if (section === "trash") return { name: "trash" };
+  if (section === "admin")
+    return id === "memberships" ? { name: "admin", tab: "memberships" } : ADMIN;
   return LIBRARY;
 }
 
@@ -45,6 +54,10 @@ export function routeHash(route: Route): string {
         : `/library?folder=${route.folderId}`;
     case "new":
       return `/new?folder=${route.folderId}`;
+    case "trash":
+      return "/trash";
+    case "admin":
+      return route.tab === "folders" ? "/admin" : `/admin/${route.tab}`;
     default:
       return `/${route.name}/${route.id}`;
   }
@@ -54,6 +67,7 @@ export function routeHash(route: Route): string {
 export function overlayRoute(
   parameter: Readonly<Record<string, string>>,
 ): Route | null {
+  if (parameter["view"] === "admin") return ADMIN;
   const id = parameter["id"] ?? "";
   if (!ID.test(id)) return null;
   if (parameter["view"] === "editor") return { name: "edit", id };

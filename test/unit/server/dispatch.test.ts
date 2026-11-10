@@ -153,7 +153,7 @@ describe("dispatch: authorization before the handler", () => {
     expect(codeOf(() => run(USER, "membership.refresh"))).toBe(
       ErrorCode.DENIED,
     );
-    expect(run(OWNER, "membership.refresh")).toMatchObject({ groups: 0 });
+    expect(run(OWNER, "membership.refresh")).toMatchObject({ groups: [] });
     expect(deniedEvents().at(-1)).toMatchObject({
       targetType: "library",
       action: "membership.refresh",
@@ -220,13 +220,21 @@ const SPEC_OPS = [
   "backup.restore",
   "me",
 ];
-const EXTRA_OPS = ["ping", "profile.me", "template.getBody"];
+/** `admin.folders` and `membership.status` are slice 6a reads for the admin view (handoff 6a, spec 6 to follow). */
+const EXTRA_OPS = [
+  "ping",
+  "profile.me",
+  "template.getBody",
+  "admin.folders",
+  "membership.status",
+];
 const LIST_OPS = [
   "sidebar.home",
   "folder.list",
   "template.list",
   "search",
   "search.body",
+  "admin.folders",
 ];
 
 describe("policy table completeness (ADR-0003 Part C)", () => {
@@ -234,7 +242,7 @@ describe("policy table completeness (ADR-0003 Part C)", () => {
     expect(Object.keys(HANDLERS).sort()).toEqual(Object.keys(POLICY).sort());
   });
 
-  it("covers every op of spec section 6 and nothing else beyond the 4 extras", () => {
+  it("covers every op of spec section 6 and nothing else beyond the extras", () => {
     expect(Object.keys(POLICY).sort()).toEqual(
       [...SPEC_OPS, ...EXTRA_OPS].sort(),
     );
@@ -320,6 +328,8 @@ const SPEC_LEVELS: Readonly<Record<string, string>> = {
   "audit.query": "admin",
   "usage.report": "admin",
   "membership.refresh": "admin",
+  "membership.status": "admin",
+  "admin.folders": "manage",
   "config.get": "admin",
   "backup.list": "admin",
   "backup.restore": "admin",

@@ -1,5 +1,10 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
-import { loadIndex } from "../cache/indexCache";
+import {
+  adminFolders,
+  membershipRefresh,
+  membershipStatus,
+  trashPurge,
+} from "../handlers/admin";
 import {
   folderCreate,
   folderDelete,
@@ -24,12 +29,10 @@ import {
   templateUpdate,
   searchBody,
 } from "../handlers/templates";
-import { refreshSnapshot } from "../membership/snapshot";
-import type { Handler, HandlerContext, HandlerTable } from "./context";
+import type { Handler, HandlerTable } from "./context";
 
-/** Ops whose handlers arrive in slices 3 to 6. They keep a policy row, so dispatch still denies before this runs. */
+/** Ops whose handlers arrive in slice 6b. They keep a policy row, so dispatch still denies before this runs. */
 export const LATER_SLICE_OPS = [
-  "trash.purge",
   "export.folder",
   "export.library",
   "import",
@@ -48,20 +51,6 @@ const notImplemented =
       `${op} arrives in a later slice`,
     );
   };
-
-function membershipRefresh(context: HandlerContext): {
-  groups: number;
-  warnings: readonly string[];
-} {
-  const snapshot = refreshSnapshot(
-    context.services,
-    loadIndex(context.services),
-  );
-  return {
-    groups: Object.keys(snapshot.groups).length,
-    warnings: snapshot.warnings,
-  };
-}
 
 /** Op table. Every key needs a row in POLICY and the reverse (policy completeness test). */
 export const HANDLERS: HandlerTable = {
@@ -89,6 +78,9 @@ export const HANDLERS: HandlerTable = {
   "grant.add": grantAdd,
   "grant.remove": grantRemove,
   "membership.refresh": membershipRefresh,
+  "membership.status": membershipStatus,
+  "admin.folders": adminFolders,
+  "trash.purge": trashPurge,
   "sidebar.home": sidebarHome,
   "template.apply": templateApply,
   search,

@@ -39,7 +39,7 @@ export interface TimeTriggerBuilder {
   everyMinutes(n: number): TimeTriggerBuilder;
   everyDays(n: number): TimeTriggerBuilder;
   atHour(hour: number): TimeTriggerBuilder;
-  create(): unknown;
+  create(): { getUniqueId(): string };
 }
 
 /** Group lookups the `groupsapp_direct` resolver performs (ADR-0003 Part B). */

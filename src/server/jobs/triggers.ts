@@ -1,4 +1,5 @@
 import type { TriggerJob } from "../../shared/entryPoints";
+import { recordJobError } from "./health";
 import type {
   PropertyStore,
   Services,
@@ -23,18 +24,36 @@ export const SCHEDULES: Readonly<
   daily: (b) => b.everyDays(1).atHour(2),
 };
 
-/** Deletes every project trigger and creates the 3 jobs, so a rerun leaves the same set. */
+/** Health key (`job:triggers:lastError`) of a failed reinstall; the Config tab flags it (spec Q23). */
+export const TRIGGERS_JOB = "triggers";
+
+/**
+ * Creates the 3 jobs, then deletes the triggers that existed before, so a rerun leaves the same set (spec Q23).
+ * A failed create deletes the new ones it made and rethrows: the old set keeps running.
+ */
 export function installTriggers(app: TriggerApp): void {
-  for (const trigger of app.getProjectTriggers()) app.deleteTrigger(trigger);
-  for (const [handler, schedule] of Object.entries(SCHEDULES)) {
-    schedule(app.newTrigger(handler).timeBased()).create();
+  const old = app.getProjectTriggers();
+  const created: { getUniqueId(): string }[] = [];
+  try {
+    for (const [handler, schedule] of Object.entries(SCHEDULES))
+      created.push(schedule(app.newTrigger(handler).timeBased()).create());
+  } catch (error: unknown) {
+    for (const trigger of created) app.deleteTrigger(trigger);
+    throw error;
   }
+  for (const trigger of old) app.deleteTrigger(trigger);
 }
 
+/** Installs and records `TRIGGERS_VERSION`; a failure writes the job health error and leaves the version stale. */
 export function installAndRecord(
-  services: Pick<Services, "triggers" | "props">,
+  services: Pick<Services, "triggers" | "props" | "nowMs">,
 ): void {
-  installTriggers(services.triggers);
+  try {
+    installTriggers(services.triggers);
+  } catch (error: unknown) {
+    recordJobError(services, TRIGGERS_JOB, error);
+    throw error;
+  }
   services.props.setProperty(TRIGGERS_VERSION_KEY, TRIGGERS_VERSION);
 }
 
@@ -44,7 +63,7 @@ export function installAndRecord(
  * reinstall another execution just recorded.
  */
 export function ensureTriggers(
-  services: Pick<Services, "triggers" | "props" | "lock">,
+  services: Pick<Services, "triggers" | "props" | "lock" | "nowMs">,
   live: PropertyStore = services.props,
 ): boolean {
   const stale = (props: PropertyStore) =>
@@ -53,7 +72,11 @@ export function ensureTriggers(
     return false;
   try {
     if (!stale(live)) return false;
-    installAndRecord({ triggers: services.triggers, props: live });
+    installAndRecord({
+      triggers: services.triggers,
+      props: live,
+      nowMs: services.nowMs,
+    });
     return true;
   } finally {
     services.lock.releaseLock();

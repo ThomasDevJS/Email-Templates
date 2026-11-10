@@ -1,5 +1,5 @@
 // `npm run lighthouse`: builds the web app with the dev harness, serves it on 127.0.0.1 and runs the Lighthouse
-// accessibility audit on the library, editor and history views (spec section 8, target 90 or higher).
+// accessibility audit on the library, editor, history, admin and trash views (spec section 8, target 90 or higher).
 // Chrome: CHROME_PATH, else the preinstalled /opt/pw-browsers/chromium. No browser is downloaded.
 import { launch } from "chrome-launcher";
 import { existsSync } from "node:fs";
@@ -14,6 +14,9 @@ const VIEWS = [
   ["library", "?latency=0#/library"],
   ["editor", "?latency=0#/edit/T-QUOTE"],
   ["history", "?latency=0#/history/T-QUOTE"],
+  ["admin", "?latency=0#/admin"],
+  ["admin memberships", "?latency=0#/admin/memberships"],
+  ["trash", "?latency=0#/trash"],
 ];
 
 function chromePath() {

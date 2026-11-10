@@ -277,8 +277,8 @@ describe("refresh job and admin determination", () => {
       error: { code: "DENIED" },
     });
     expect(
-      world.ok<{ groups: number }>(OWNER, "membership.refresh").groups,
-    ).toBe(1);
+      world.ok<{ groups: unknown[] }>(OWNER, "membership.refresh").groups,
+    ).toHaveLength(1);
   });
 
   it("fails clearly with a stub resolver", () => {

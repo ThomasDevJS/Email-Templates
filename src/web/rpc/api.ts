@@ -1,4 +1,9 @@
-import type { Folder, Item } from "../../shared/model/data";
+import type {
+  Folder,
+  Item,
+  Level,
+  PrincipalType,
+} from "../../shared/model/data";
 import type { AccessLevel } from "../../shared/permissions/levels";
 import type { RpcClient } from "./client";
 
@@ -52,6 +57,48 @@ export interface SaveArgs {
   readonly html: string;
 }
 
+/**
+ * `grant.list` row: `inherited` grants sit on an ancestor, `sourcePath` names it as far as the caller sees it ("" when
+ * hidden). `active` is false for OU (D17).
+ */
+export interface GrantRow {
+  readonly id: string;
+  readonly folderId: string;
+  readonly principalType: PrincipalType;
+  readonly principalKey: string;
+  readonly level: Level;
+  readonly active: boolean;
+  readonly inherited: boolean;
+  readonly sourcePath: string;
+}
+
+export interface TrashRow extends ItemRow {
+  readonly folderLive: boolean;
+  readonly folderPath: string;
+}
+
+export interface GroupRow {
+  readonly group: string;
+  readonly members: number;
+  readonly childGroups: readonly string[];
+  readonly status: "ok" | "error";
+}
+
+export interface Memberships {
+  readonly resolver: string;
+  readonly nested: boolean;
+  readonly refreshedAt: string;
+  readonly groups: readonly GroupRow[];
+  readonly warnings: readonly string[];
+}
+
+export interface NewGrant {
+  readonly folderId: string;
+  readonly principalType: PrincipalType;
+  readonly principalKey: string;
+  readonly level: Level;
+}
+
 export interface Api {
   profile(): Promise<Profile>;
   folders(): Promise<{ folders: FolderRow[] }>;
@@ -73,6 +120,26 @@ export interface Api {
   duplicate(id: string): Promise<Item>;
   move(id: string, folderId: string, baseVersion: number): Promise<Item>;
   remove(id: string, baseVersion: number): Promise<Item>;
+  /** Trashed templates the caller may edit; `canPurge` when the caller is an admin. */
+  trash(): Promise<{ items: TrashRow[]; canPurge: boolean }>;
+  restoreFromTrash(id: string, folderId: string): Promise<Item>;
+  /** `itemsPending`: purged templates whose stored versions the daily job removes. */
+  purgeTrash(): Promise<{
+    purged: number;
+    filesTrashed: number;
+    itemsPending: number;
+  }>;
+  /** Admin view entry: DENIED for callers who manage no folder. */
+  adminFolders(): Promise<{ isAdmin: boolean; folders: FolderRow[] }>;
+  createFolder(parentId: string, name: string): Promise<Folder>;
+  renameFolder(folder: Folder, name: string): Promise<Folder>;
+  moveFolder(folder: Folder, parentId: string): Promise<Folder>;
+  deleteFolder(folder: Folder): Promise<Folder>;
+  grants(folderId: string): Promise<{ grants: GrantRow[] }>;
+  addGrant(grant: NewGrant): Promise<unknown>;
+  removeGrant(grantId: string): Promise<unknown>;
+  memberships(): Promise<Memberships>;
+  refreshMemberships(): Promise<Memberships>;
 }
 
 /** The casts trust the server's documented response shapes; the envelope itself is checked in client.ts. */
@@ -98,5 +165,33 @@ export function createApi(client: RpcClient): Api {
     move: (id, folderId, baseVersion) =>
       call("template.move", { id, folderId, baseVersion }),
     remove: (id, baseVersion) => call("template.delete", { id, baseVersion }),
+    trash: () => call("template.list", { trash: true }),
+    restoreFromTrash: (id, folderId) =>
+      call("template.restoreFromTrash", { id, folderId }),
+    purgeTrash: () => call("trash.purge"),
+    adminFolders: () => call("admin.folders"),
+    createFolder: (parentId, name) => call("folder.create", { parentId, name }),
+    renameFolder: (folder, name) =>
+      call("folder.rename", {
+        folderId: folder.id,
+        name,
+        baseVersion: folder.version,
+      }),
+    moveFolder: (folder, parentId) =>
+      call("folder.move", {
+        folderId: folder.id,
+        parentId,
+        baseVersion: folder.version,
+      }),
+    deleteFolder: (folder) =>
+      call("folder.delete", {
+        folderId: folder.id,
+        baseVersion: folder.version,
+      }),
+    grants: (folderId) => call("grant.list", { folderId }),
+    addGrant: (grant) => call("grant.add", grant),
+    removeGrant: (grantId) => call("grant.remove", { grantId }),
+    memberships: () => call("membership.status"),
+    refreshMemberships: () => call("membership.refresh"),
   };
 }

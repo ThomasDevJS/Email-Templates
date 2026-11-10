@@ -1,12 +1,12 @@
 import type { AuditEvent, IndexDoc } from "../../shared/model/data";
+import { TRASH_DAYS } from "../../shared/model/validate";
 import { auditEvent, type EventSource } from "../audit/events";
 import { rollAudit } from "../audit/roll";
 import { loadIndex } from "../cache/indexCache";
 import { nowIso, type Services } from "../services";
-import { mutateIndex } from "../storage/writer";
+import { mutateIndex, type Mutation } from "../storage/writer";
 
 /** Daily housekeeping (spec section 16, ADR-0002). Each step runs even if an earlier one failed. */
-export const TRASH_DAYS = 30;
 export const ORPHAN_AGE_MS = 60 * 60 * 1000;
 export const BACKUPS_KEPT = 14;
 export const AUDIT_MONTHS_KEPT = 24;
@@ -59,31 +59,72 @@ function purgeEvents(
   ];
 }
 
+export interface Purged {
+  readonly count: number;
+  readonly goneItems: readonly string[];
+}
+
+/** Body files one purge trashes after its commit; the daily orphan cleanup trashes the rest (no item owns them). */
+export const PURGE_FILES_MAX = 50;
+
+export interface PurgeReport {
+  /** Templates and folders removed from the index. */
+  readonly count: number;
+  readonly filesTrashed: number;
+  /** Purged templates whose body files are left to the daily orphan cleanup. */
+  readonly itemsPending: number;
+}
+
+function trashBodies(
+  services: Services,
+  itemIds: readonly string[],
+): Omit<PurgeReport, "count"> {
+  const store = services.store();
+  let filesTrashed = 0;
+  let itemsPending = 0;
+  for (const itemId of itemIds) {
+    const room = PURGE_FILES_MAX - filesTrashed;
+    if (room === 0) {
+      itemsPending += 1;
+      continue;
+    }
+    const bodies = store.listBodies(itemId);
+    for (const body of bodies.slice(0, room)) store.trash(body.fileId);
+    filesTrashed += Math.min(room, bodies.length);
+    if (bodies.length > room) itemsPending += 1;
+  }
+  return { filesTrashed, itemsPending };
+}
+
+/** Index writer for a purge: `mutateIndex` for the trigger, `commit` (with the in-lock re-check) for a request. */
+export type PurgeWrite = (mutation: Mutation<Purged>) => Purged;
+
 /**
- * Items and folders soft-deleted over 30 days ago leave the index in one committed write; only then do their body
+ * Items and folders soft-deleted before `cutoffMs` leave the index in one committed write; only then do their body
  * files go to the Drive trash. An item restored before the commit keeps its files; files left by a crash after the
- * commit belong to no item and the orphan cleanup trashes them.
+ * commit belong to no item and the orphan cleanup trashes them; so do files over PURGE_FILES_MAX.
  */
-export function purgeTrash(services: Services): number {
-  const cutoff = services.nowMs() - TRASH_DAYS * DAY_MS;
-  if (
-    purgeEvents(systemSource(services), loadIndex(services), cutoff).length ===
-    0
-  )
-    return 0;
-  const purged = mutateIndex(services, (current) => {
-    const events = purgeEvents(systemSource(services), current, cutoff);
+export function purgeDeleted(
+  services: Services,
+  cutoffMs: number,
+  source: EventSource,
+  write: PurgeWrite = (mutation) => mutateIndex(services, mutation),
+): PurgeReport {
+  if (purgeEvents(source, loadIndex(services), cutoffMs).length === 0)
+    return { count: 0, filesTrashed: 0, itemsPending: 0 };
+  const purged = write((current) => {
+    const events = purgeEvents(source, current, cutoffMs);
     const goneFolders = new Set(
       current.folders
-        .filter((f) => expired(f.deletedAt, cutoff))
+        .filter((f) => expired(f.deletedAt, cutoffMs))
         .map((f) => f.id),
     );
     const goneItems = current.items
-      .filter((item) => expired(item.deletedAt, cutoff))
+      .filter((item) => expired(item.deletedAt, cutoffMs))
       .map((item) => item.id);
     const doc = {
       ...current,
-      items: current.items.filter((item) => !expired(item.deletedAt, cutoff)),
+      items: current.items.filter((item) => !expired(item.deletedAt, cutoffMs)),
       folders: current.folders.filter((folder) => !goneFolders.has(folder.id)),
       grants: current.grants.filter(
         (grant) => !goneFolders.has(grant.folderId),
@@ -91,10 +132,16 @@ export function purgeTrash(services: Services): number {
     };
     return { doc, events, result: { count: events.length, goneItems } };
   });
-  const store = services.store();
-  for (const itemId of purged.goneItems)
-    for (const body of store.listBodies(itemId)) store.trash(body.fileId);
-  return purged.count;
+  return { count: purged.count, ...trashBodies(services, purged.goneItems) };
+}
+
+/** Daily step: everything soft-deleted over 30 days ago. */
+export function purgeTrash(services: Services): number {
+  return purgeDeleted(
+    services,
+    services.nowMs() - TRASH_DAYS * DAY_MS,
+    systemSource(services),
+  ).count;
 }
 
 /** Body files older than 1 h whose item is unknown or whose version is above the item's current version. */

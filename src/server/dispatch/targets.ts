@@ -53,3 +53,15 @@ export const templateCopy: TargetResolver = (args, index) => {
 export const grantFolder: TargetResolver = (args, index) => [
   findGrant(index, reqString(args, "grantId")).folderId,
 ];
+
+/**
+ * Restore from the trash: the original folder (ROOT, admin only, when it was purged) and the target folder, which
+ * is the original one unless `folderId` names another.
+ */
+export const restoreTargets: TargetResolver = (args, index) => {
+  const item = findItem(index, reqString(args, "id"));
+  const known = index.folders.some((folder) => folder.id === item.folderId);
+  const source = known ? item.folderId : ROOT;
+  const target = optString(args, "folderId");
+  return [source, target === "" ? source : findFolder(index, target).id];
+};
