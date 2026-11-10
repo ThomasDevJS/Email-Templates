@@ -56,10 +56,10 @@ export function rebuildIndexLocked(services: IndexServices): IndexDoc {
 }
 
 /**
- * Index for readers, without the script lock. A miss reads Drive and puts the `idx:<rev>:*` chunks: every build
- * of one `rev` holds the same text, so a late put is never wrong, only overwritten. `INDEX_REV` stays with writers
- * and `tick`; a reader sets it only when it is unset (first read after setup). A miss under a lagging `INDEX_REV`
- * serves the file and leaves the cache to `tick` (crash between save steps 6 and 7).
+ * Index for readers, without the script lock. A miss reads Drive and, when the file's `rev` is the published
+ * `INDEX_REV`, puts the `idx:<rev>:*` chunks: every build of one `rev` holds the same text, so a late put is never
+ * wrong, only overwritten. Readers never set `INDEX_REV`, so it never goes down; writers, `setup` and `tick` set it
+ * under the lock. Any other miss serves the file and leaves the cache to `tick`.
  */
 export function loadIndex(services: IndexServices): IndexDoc {
   const hit = cachedIndex(services);
@@ -68,11 +68,7 @@ export function loadIndex(services: IndexServices): IndexDoc {
     return hit;
   }
   const doc = services.store().readIndex();
-  const rev = services.props.getProperty(INDEX_REV_KEY);
-  if (rev === null) {
-    publishIndex(services, doc);
-    services.stats.cache = "rebuild";
-  } else if (rev === String(doc.rev)) {
+  if (services.props.getProperty(INDEX_REV_KEY) === String(doc.rev)) {
     putIndexChunks(services, doc);
     services.stats.cache = "rebuild";
   } else {

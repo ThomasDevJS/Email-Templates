@@ -18,6 +18,7 @@ import {
   CACHE_VALUE_LIMIT_BYTES,
   FakeCache,
 } from "../../fakes/cache";
+import { snapshotProps } from "../../../src/server/metrics";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
 describe("splitByBytes", () => {
@@ -105,11 +106,16 @@ describe("index cache", () => {
     expect(world.lock.nestedAcquisitions).toBe(0);
   });
 
-  it("rebuilds on a miss without the lock, then hits", () => {
+  it("finds the index setup published, then rebuilds a miss without the lock", () => {
+    expect(world.props.getProperty(INDEX_REV_KEY)).toBe("1");
+    loadIndex(world.services);
+    expect(world.services.stats.cache).toBe("hit");
+    world.cache.removeAll([`${INDEX_PREFIX}:meta`]);
     world.lock.holdElsewhere();
+    const locks = world.services.stats.calls.lock;
     const first = loadIndex(world.services);
     expect(world.services.stats.cache).toBe("rebuild");
-    expect(world.services.stats.calls.lock).toBe(0);
+    expect(world.services.stats.calls.lock).toBe(locks);
     expect(world.props.getProperty(INDEX_REV_KEY)).toBe(String(first.rev));
     expect(loadIndex(world.services)).toEqual(first);
     expect(world.services.stats.cache).toBe("hit");
@@ -170,7 +176,19 @@ describe("index cache", () => {
     expect(world.services.stats.cache).toBe("rebuild");
   });
 
+  it("never sets INDEX_REV, so a reader cannot lower it in a race", () => {
+    world.cache.removeAll([`${INDEX_PREFIX}:meta`]);
+    world.props.deleteProperty(INDEX_REV_KEY);
+    const reader = snapshotProps(world.props);
+    expect(reader.getProperty(INDEX_REV_KEY)).toBeNull();
+    world.props.setProperty(INDEX_REV_KEY, "5");
+    expect(loadIndex({ ...world.services, props: reader }).rev).toBe(1);
+    expect(world.props.getProperty(INDEX_REV_KEY)).toBe("5");
+    expect(readMeta(world.cache, INDEX_PREFIX)).toBeNull();
+  });
+
   it("survives a failed cache put: the next reader rebuilds", () => {
+    world.cache.removeAll([`${INDEX_PREFIX}:meta`]);
     const failing = {
       ...world.services,
       cache: {

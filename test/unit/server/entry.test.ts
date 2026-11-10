@@ -256,11 +256,10 @@ describe("web app and add-on entry points", () => {
   it("ops skip the trigger check and read Script Properties with one call", () => {
     world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
     webRpc("template.list", {});
-    expect(lastLog()).toMatchObject({ cache: "rebuild", calls: { props: 2 } });
-    webRpc("template.list", {});
     expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
     expect(lastLog()).toMatchObject({
       action: "template.list",
+      cache: "hit",
       calls: { props: 1, lock: 0, dir: 0 },
     });
     post(PING);

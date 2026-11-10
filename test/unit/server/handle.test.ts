@@ -145,6 +145,7 @@ describe("handleRpc", () => {
   });
 
   it("reports the cache state of the request in the log line", () => {
+    world.cache.removeAll(["idx:meta"]);
     world.call(OWNER, "template.list");
     expect(lastLog()).toMatchObject({
       action: "template.list",

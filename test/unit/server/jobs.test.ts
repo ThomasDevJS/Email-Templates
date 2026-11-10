@@ -223,7 +223,7 @@ describe("evt buffer and tick flush", () => {
 describe("tick cache upkeep", () => {
   it("rebuilds a missing index set, keeps a fresh one, re-puts sets older than 5 h", () => {
     expect(runTick(world.services)).toMatchObject({
-      indexCache: "rebuilt",
+      indexCache: "fresh",
       membersCache: "reput",
     });
     expect(runTick(world.services)).toMatchObject({
