@@ -44,16 +44,16 @@ Needs: the dev deployment after `npm run deploy -- dev`, and the second Migway a
 
 Needs: the dev deployment after `npm run deploy -- dev` (code only: reopen the sidebar), the "Smoke 3" folder and "Smoke 3 quote" template from slice 3, and the second account from slice 2 (no grant).
 
-1. Gmail web, compose, open Migway Templates. Within 3 s the home card shows "Folders" with "Smoke 3 (1)" and "My templates (n)", "Open library", and "Spike S4 (temporary, admins)". Close and reopen within 10 min: the card shows faster (User Cache hit, no `sidebar.home` line in Executions).
+1. Gmail web, compose, open Migway Templates. Within 3 s the home card shows "Folders" with "Smoke 3 (1)" and "My templates (n)", and "Open library". Close and reopen within 10 min: the card shows faster (User Cache hit, no `sidebar.home` line in Executions).
 2. Tap "Smoke 3": the folder card is titled "Smoke 3" and lists "Smoke 3 quote" with "1 field to fill" and its snippet. Tap the title: the preview shows plain text with "[Recipient first name]", "[Product]" and "[Sender name]", "Fields to fill: Product", Insert and "Edit in library".
 3. To: one Migway colleague. Tap Insert: the prompt card asks "Product *". Tap Insert with the field blank: "(!) Fill 1 field: Product" and the draft is unchanged.
 4. Enter `<b>A & B</b>`, a new line, `second line`; tap Insert. The body shows the colleague's first name, the text literally (no bold), on 2 lines, and your Directory name in bold. Stopwatch from tap to body change: under 2 s.
 5. In the library, create "Smoke 4 plain" in "Smoke 3" with body `Hello {{recipient.first_name|there}}` (no prompts). Back in Gmail, compose with no recipient and open the "Smoke 3" folder card (Open library cleared the cached view). Tap Insert on "Smoke 4 plain": "Hello there" appears at the cursor in one click.
 6. Preview "Smoke 3 quote", tap "Edit in library": the editor opens in an overlay on that template. Close it: the sidebar reloads to the home card.
 7. In the library, on the "Smoke 4 plain" row, "Actions", "Delete...", "Delete" (since slice 4b), while its folder card is open in another compose window. Tap its Insert: "This template was removed or moved." with Refresh; Refresh shows the home card without it.
-8. Second account: compose, open the add-on. The home card shows "No templates shared with you yet." and "Open library"; no spike section.
-9. Spike S4: run docs/spikes/slice-04-insert.md steps 1 to 6 (fixtures F1 to F9 on Gmail web), then steps 7 to 9 on Android and iOS. Fill in its result tables.
-10. Editor, Executions: one JSON line per `sidebar.home`, `template.apply` and `spike.s4` call, with `surface` `addon`; no recipient address, prompt value or body text. After the next `tick` (5 min), `usage.json` shows `applyCount` for "Smoke 3 quote" and the template in `recent` for your email.
+8. Second account: compose, open the add-on. The home card shows "No templates shared with you yet." and "Open library".
+9. (Removed in slice 5 with the spike S4 harness. Results: docs/spikes/slice-04-insert.md.)
+10. Editor, Executions: one JSON line per `sidebar.home` and `template.apply` call, with `surface` `addon`; no recipient address, prompt value or body text. After the next `tick` (5 min), `usage.json` shows `applyCount` for "Smoke 3 quote" and the template in `recent` for your email.
 
 ## Slice 4b
 
@@ -67,3 +67,17 @@ Needs: the dev deployment after `npm run deploy -- dev` and the "Smoke 3" folder
 6. Copy's menu, "Delete...": `Delete "Copy of Smoke 4b"? Deleted templates stay in the trash for 30 days.` "Cancel" keeps it; "Delete" removes it from the list with status `Deleted "Copy of Smoke 4b".`
 7. Editor, Executions: the `web.open` line and every `rpc` and `doPost` line carry a `requestId` in the format `XXXXXXXX-XXXXXX`; the `version.restore` line of step 2 has `targetId` = the template ID.
 8. Timing: every `rpc` and `doPost` line has `calls` (props, cache, drive, lock, dir) and `timing` (`startupMs` script load to handler start, `totalMs` script load to log line, `propsMs`, `cacheMs`, `driveReadMs`, `driveWriteMs`, `lockMs`, `dirMs`); add-on lines add `addonPreMs`, `addonTokenMs` and, from the second call of one callback, `prevFetchMs` and `prevTotalMs`. A warm `sidebar.home` or `template.apply` shows `"props":1` and `"drive":0`. Copy the add-on function durations (onComposeOpen, onOpenFolder, onInsert, onPromptInsert) next to these fields into the slice 4b timing table of the handoff.
+
+## Slice 5
+
+Needs: the dev deployment after `npm run deploy -- dev` (reopen the sidebar), the "Smoke 3" folder and "Smoke 3 quote" template, the second account from slice 2 (no grant), and one `tick` run after the deploy (5 min).
+
+1. Spike S5 (Q20, Q21). Library, "Smoke 3 quote", Subject `Quote for {{ask:Product}}`, Save. Gmail web: (a) new compose, type `old` in Subject, open the add-on, tap Insert on "Smoke 3 quote", fill "Product" with `Pen`, Insert: record whether the body changed and whether Subject reads exactly `Quote for Pen` (replaced, not appended). (b) Open any received message, Reply, Insert the same template: record body and subject the same way, and whether the thread still groups the reply after sending it to yourself. (c) If Gmail asks for a new permission or shows an error, stop: no further steps; report the text. Write the results into the slice 5 handoff.
+2. Preview "Smoke 3 quote": "Subject" with `Quote for [Product]`, "Replaces the draft subject.", Insert and "Insert body only". New compose with Subject `keep`, "Insert body only", fill "Product": the body changes, Subject stays `keep`.
+3. Insert again; on the prompt card turn "Replace the subject" off, fill "Product", Insert: Subject unchanged. Tap Insert with "Product" blank: "(!) Fill 1 field: Product", draft unchanged.
+4. Library editor of "Smoke 3 quote": Subject shows `n/200 (optional)`; put the cursor in Subject, "{{ Placeholder", "Sender name": `{{sender.name}}`appears at the cursor; "Preview as me" shows "Subject: " with your name. Type`{{sender.nmae}}` in Subject, Save: "Error: Subject: Unknown placeholder sender.nmae at character ...". Fix and save. "History": the version preview shows the "Subject:" line; restore an older version: its subject comes back.
+5. Library: star "Smoke 3 quote" with the mouse, then another row with Tab to its star cell and Enter: "Added ... to favorites.", star filled. "★ Favorites" shows only starred rows; press it again to see all.
+6. Library search: `/`, type `quote for`: "Smoke 3 quote" (subject match). Type a word that is only in a body: it appears under "Matches in text" within 1 s. `folder:smoke tag:smoke` filters. DevTools, Performance, User Timing: `library.list` under 50 ms, `library.body` under 1 s.
+7. Gmail, compose, open the add-on (Open library cleared the cached view): "Favorites" lists the starred templates with their folder path; "Recent" lists templates inserted in steps 1 to 3 after the next `tick`. Type `quote` in "Search templates" and leave the field: results replace Home; clear the field: Home returns.
+8. Second account: compose, open the add-on: no "Favorites" or "Recent" entries from your templates; search `quote` shows "No templates match quote. Try folder: or tag:.".
+9. Editor, Executions: `search`, `favorite.set` and `search.body` lines carry `action`; a warm `sidebar.home`, `search` and `template.apply` show `"props":1` and `"drive":0`. No subject text, body text or query text in any line. Script Properties: `FAVORITES_REV` and `USAGE_REV` are set.

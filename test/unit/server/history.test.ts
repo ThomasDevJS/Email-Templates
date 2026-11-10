@@ -71,6 +71,7 @@ describe("template.getBody (level use)", () => {
       ).toEqual({
         id: item.id,
         version: 3,
+        subject: "",
         html: "<p>plain</p>",
         placeholders: [],
         prompts: [],

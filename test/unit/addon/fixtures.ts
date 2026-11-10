@@ -12,6 +12,7 @@ export function template(
     id,
     folderId: "F1",
     title: `Template ${id}`,
+    subject: "",
     snippet: `Snippet ${id}`,
     version: 1,
     prompts: [],
@@ -22,7 +23,6 @@ export function template(
 
 export function view(fields: Partial<SidebarHome> = {}): SidebarHome {
   return {
-    isAdmin: false,
     folders: [
       { id: "F1", name: "Sales", parentId: "", count: 3 },
       { id: "MY", name: "My templates", parentId: "", count: 0 },

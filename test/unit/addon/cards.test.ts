@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { ErrorCode } from "../../../src/shared/errors/codes";
 import { ENTRY_POINTS } from "../../../src/shared/entryPoints";
 import { template, view } from "./fixtures";
-import { S4_FIXTURES } from "../../../src/shared/spike/s4Fixtures";
 import {
   PAGE_SIZE,
   clampPage,
@@ -10,7 +9,7 @@ import {
   folderCard,
   folderPath,
 } from "../../../src/addon/cards/folder";
-import { homeCard } from "../../../src/addon/cards/home";
+import { homeCard, searchCard } from "../../../src/addon/cards/home";
 import { previewCard } from "../../../src/addon/cards/preview";
 import { promptCard, tooManyFieldsCard } from "../../../src/addon/cards/prompt";
 import {
@@ -18,7 +17,6 @@ import {
   type CardSpec,
   type Widget,
 } from "../../../src/addon/cards/spec";
-import { spikeCard, timingLine } from "../../../src/addon/cards/spike";
 import {
   NOT_BEFORE,
   QUOTA_WAIT_MS,
@@ -60,16 +58,65 @@ describe("callbacks", () => {
 });
 
 describe("home card (wireframe 01)", () => {
-  it("lists top-level folders with counts and opens a folder card on tap", () => {
+  it("has Search, Favorites (empty hint), Folders with counts and Open library", () => {
     const card = homeCard(view());
     expect(card.title).toBe("Migway Templates");
-    expect(card.sections[0]).toMatchObject({ header: "Folders" });
-    expect(texts(card)).toEqual(["Sales (3)", "My templates (0)"]);
-    expect(widgets(card)[0]).toMatchObject({
+    expect(card.sections.map((s) => s.header)).toEqual([
+      undefined,
+      "Favorites",
+      "Folders",
+      undefined,
+    ]);
+    expect(widgets(card)[0]).toEqual({
+      kind: "input",
+      name: "q",
+      title: "Search templates",
+      value: "",
+      multiline: false,
+      hint: "folder:Sales  tag:pricing",
+      onChange: { fn: "onSearch" },
+    });
+    expect(texts(card)).toEqual([
+      "Star templates in the library to pin them here.",
+      "Sales (3)",
+      "My templates (0)",
+    ]);
+    expect(card.sections[2]?.widgets[0]).toMatchObject({
       onClick: { fn: "onOpenFolder", params: { folderId: "F1", page: "1" } },
     });
     expect(buttons(card).map((b) => b.text)).toEqual(["Open library"]);
     expectNoEmptySection(card);
+  });
+
+  it("lists Favorites and Recent in their order with the folder path and Insert; unknown IDs drop", () => {
+    const card = homeCard(
+      view({ favorites: ["T3", "GONE", "T1"], recent: ["T2"] }),
+    );
+    expect(card.sections.map((s) => s.header)).toEqual([
+      undefined,
+      "Favorites",
+      "Recent",
+      "Folders",
+      undefined,
+    ]);
+    expect(card.sections[1]?.widgets).toEqual([
+      expect.objectContaining({
+        text: "Template T3",
+        bottomLabel: "Sales / Quotes",
+      }),
+      expect.objectContaining({
+        text: "Template T1",
+        topLabel: "2 fields to fill",
+        bottomLabel: "Sales",
+      }),
+    ]);
+    expect(card.sections[2]?.widgets).toEqual([
+      expect.objectContaining({ text: "Template T2" }),
+    ]);
+    expect(buttons(card)[0]?.action).toEqual({
+      fn: "onInsert",
+      params: { id: "T3" },
+    });
   });
 
   it("shows the empty state of wireframe 07 A", () => {
@@ -96,13 +143,29 @@ describe("home card (wireframe 01)", () => {
     expect(texts(card)).not.toContain("My templates (0)");
     expect(buttons(card).map((b) => b.text)).toEqual(["Open library"]);
   });
+});
 
-  it("adds the temporary spike S4 entry for admins only", () => {
-    const label = (card: CardSpec) => buttons(card).map((b) => b.text);
-    expect(label(homeCard(view()))).not.toContain("Insert test fixtures");
-    const admin = homeCard(view({ isAdmin: true }));
-    expect(label(admin)).toContain("Insert test fixtures");
-    expect(buttons(admin).at(-1)?.action.fn).toBe("onSpikeCard");
+describe("search card (spec 4.4)", () => {
+  it("keeps the query in the input and lists results with their folder path", () => {
+    const v = view();
+    const card = searchCard(v, "quo", [v.templates[2] ?? template("X")]);
+    expect(widgets(card)[0]).toMatchObject({ kind: "input", value: "quo" });
+    expect(card.sections[1]).toMatchObject({
+      header: "Results",
+      widgets: [
+        expect.objectContaining({
+          text: "Template T3",
+          bottomLabel: "Sales / Quotes",
+        }),
+      ],
+    });
+    expect(buttons(card).map((b) => b.text)).toContain("Open library");
+  });
+
+  it("shows the no-results text of spec section 7", () => {
+    expect(texts(searchCard(view(), "zzz", []))).toEqual([
+      "No templates match zzz. Try folder: or tag:.",
+    ]);
   });
 });
 
@@ -195,7 +258,7 @@ describe("folder card (wireframe 01)", () => {
 describe("preview card (wireframe 01)", () => {
   it("shows text, fields to fill, Insert, and Edit only for edit or manage", () => {
     const t = template("T1", { prompts: ["Meeting date"] });
-    const card = previewCard(t, "Hi [Recipient first name]");
+    const card = previewCard(t, "Hi [Recipient first name]", "");
     expect(card.title).toBe("Template T1");
     expect(texts(card)).toEqual([
       "Hi [Recipient first name]",
@@ -204,15 +267,30 @@ describe("preview card (wireframe 01)", () => {
     expect(buttons(card).map((b) => b.text)).toEqual(["Insert"]);
     expect(buttons(card)[0]).toMatchObject({ filled: true });
     for (const level of ["edit", "manage"] as const) {
-      const editable = previewCard({ ...t, level }, "x");
+      const editable = previewCard({ ...t, level }, "x", "");
       expect(buttons(editable)[1]).toMatchObject({
         text: "Edit in library",
         action: { fn: "onOpenLink", params: { id: "T1" } },
       });
     }
-    expect(texts(previewCard(template("T2"), ""))).toEqual([
+    expect(texts(previewCard(template("T2"), "", ""))).toEqual([
       "(Empty template)",
     ]);
+  });
+
+  it("shows the subject, the replace note and Insert body only when the template has a subject", () => {
+    const card = previewCard(template("T1"), "Body", "Quote for [Product]");
+    expect(widgets(card)[0]).toEqual({
+      kind: "item",
+      topLabel: "Subject",
+      text: "Quote for [Product]",
+    });
+    expect(texts(card)).toContain("Replaces the draft subject.");
+    expect(buttons(card).map((b) => b.action)).toEqual([
+      { fn: "onInsert", params: { id: "T1" } },
+      { fn: "onInsert", params: { id: "T1", subject: "skip" } },
+    ]);
+    expect(buttons(card)[1]?.text).toBe("Insert body only");
   });
 });
 
@@ -227,6 +305,8 @@ describe("prompt card (wireframe 02)", () => {
       id: "T1",
       title: "Quote",
       version: 4,
+      subject: "",
+      replaceSubject: true,
       values: { "sender.name": "Ana" },
       fields,
       entered: ["12 Nov", ""],
@@ -260,6 +340,7 @@ describe("prompt card (wireframe 02)", () => {
           title: "Quote",
           version: "4",
           values: '{"sender.name":"Ana"}',
+          subject: "skip",
         },
       },
     });
@@ -274,6 +355,8 @@ describe("prompt card (wireframe 02)", () => {
       id: "T1",
       title: "Quote",
       version: 1,
+      subject: "",
+      replaceSubject: true,
       values: {},
       fields,
       entered: [],
@@ -281,6 +364,28 @@ describe("prompt card (wireframe 02)", () => {
       problem: "",
     });
     expect(widgets(card)).toHaveLength(2);
+  });
+
+  it("adds the Replace the subject switch with the subject preview when there is a subject", () => {
+    const card = promptCard({
+      id: "T1",
+      title: "Quote",
+      version: 1,
+      subject: "Quote for {{ask:Product}}",
+      replaceSubject: false,
+      values: {},
+      fields,
+      entered: [],
+      order: [0],
+      problem: "",
+    });
+    expect(widgets(card)[2]).toEqual({
+      kind: "item",
+      text: "Replace the subject",
+      bottomLabel: "Quote for [Product]",
+      toggle: { name: "subj", selected: false },
+    });
+    expect(card.footer?.primary.action.params).not.toHaveProperty("subject");
   });
 
   it("refuses more than 20 fields with a Back button", () => {
@@ -365,23 +470,5 @@ describe("state cards (wireframe 07, spec section 7)", () => {
     expect(waitSeconds(params, 1000 + QUOTA_WAIT_MS)).toBe(0);
     expect(waitSeconds({}, 5)).toBe(0);
     expect(waitSeconds({ [NOT_BEFORE]: "x" }, 5)).toBe(0);
-  });
-});
-
-describe("spike S4 card (TEMPORARY)", () => {
-  it("lists F1 to F9 with one Insert each", () => {
-    const card = spikeCard();
-    const inserts = buttons(card);
-    expect(inserts).toHaveLength(9);
-    expect(inserts.map((b) => b.action.params?.["fixture"])).toEqual([
-      ...S4_FIXTURES,
-    ]);
-    expect(inserts.every((b) => b.action.fn === "onSpikeInsert")).toBe(true);
-  });
-
-  it("formats the timing line", () => {
-    expect(timingLine("F6", 51200, 812, 300)).toBe(
-      "<p>[S4 F6: 51200 bytes, add-on callback 812 ms, server 300 ms]</p>",
-    );
   });
 });

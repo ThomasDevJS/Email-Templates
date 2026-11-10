@@ -4,8 +4,7 @@ import type { FolderRow, ItemRow } from "../../../src/web/rpc/api";
 import {
   buildTree,
   editableFolders,
-  filterItems,
-  fold,
+  searchItems,
   folderPath,
   moveTargets,
   rowActions,
@@ -207,28 +206,27 @@ describe("library model", () => {
     expect(rowActions({ ...quote, level: "use" }, FOLDERS)).toEqual([]);
   });
 
-  it("filters by title, folder path and tags, case and accent insensitive", () => {
+  it("searches title, subject, folder path and tags, ranked, case and accent insensitive", () => {
     const items = [
       item("1", "Price quote", "Q", ["pricing"]),
-      item("2", "Café welcome", "O"),
+      { ...item("2", "Café welcome", "O"), subject: "Your quote" },
       item("3", "Renewal", "M", ["Contract"]),
     ];
-    expect(fold("Éé")).toBe("ee");
-    expect(filterItems(items, FOLDERS, "").map((entry) => entry.id)).toEqual([
-      "1",
-      "2",
-      "3",
-    ]);
+    const ids = (query: string, recent: string[] = []) =>
+      searchItems(items, FOLDERS, query, recent).map((entry) => entry.id);
+    expect(ids("")).toEqual(["2", "1", "3"]);
+    expect(ids("cafe")).toEqual(["2"]);
+    expect(ids("quote")).toEqual(["1", "2"]);
+    expect(ids("sales quote")).toEqual(["1", "2"]);
+    expect(ids("tag:contract")).toEqual(["3"]);
+    expect(ids("nothing")).toEqual([]);
+  });
+
+  it("breaks equal scores by the caller's last use", () => {
+    const items = [item("1", "Note A", "Q"), item("2", "Note B", "Q")];
     expect(
-      filterItems(items, FOLDERS, "cafe").map((entry) => entry.id),
-    ).toEqual(["2"]);
-    expect(
-      filterItems(items, FOLDERS, "sales quote").map((entry) => entry.id),
-    ).toEqual(["1"]);
-    expect(
-      filterItems(items, FOLDERS, "contract").map((entry) => entry.id),
-    ).toEqual(["3"]);
-    expect(filterItems(items, FOLDERS, "nothing")).toEqual([]);
+      searchItems(items, FOLDERS, "note", ["2"]).map((entry) => entry.id),
+    ).toEqual(["2", "1"]);
   });
 });
 
@@ -325,7 +323,13 @@ describe("rpc client", () => {
       },
     };
     const api = createApi(createClient(runner, () => "id"));
-    const save = { title: "T", folderId: "F", tags: ["a"], html: "<p>x</p>" };
+    const save = {
+      title: "T",
+      subject: "S",
+      folderId: "F",
+      tags: ["a"],
+      html: "<p>x</p>",
+    };
     await Promise.all([
       api.profile(),
       api.folders(),
@@ -336,6 +340,9 @@ describe("rpc client", () => {
       api.versions("I"),
       api.version("I", 1),
       api.restore("I", 1, 2),
+      api.setFavorite("I", true),
+      api.setFavorite("I", false),
+      api.searchBody("q"),
     ]);
     expect(sent).toEqual([
       ["profile.me", {}],
@@ -347,6 +354,9 @@ describe("rpc client", () => {
       ["version.list", { id: "I" }],
       ["version.get", { id: "I", version: 1 }],
       ["version.restore", { id: "I", version: 1, baseVersion: 2 }],
+      ["favorite.set", { id: "I" }],
+      ["favorite.unset", { id: "I" }],
+      ["search.body", { query: "q" }],
     ]);
   });
 });

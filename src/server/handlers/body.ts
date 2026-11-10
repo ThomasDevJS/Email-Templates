@@ -12,20 +12,62 @@ import type { PropertyStore, Services } from "../services";
  * entry (90 KB) are not cached and come from Drive.
  */
 const bodyKey = (fileId: string): string => `bd:${fileId}`;
+/** Plain text of a body file for `search.body` (spec 4.4 `ft:*`), same rules as `bd:*`. */
+const textKey = (fileId: string): string => `ft:${fileId}`;
 
 type BodyServices = Pick<Services, "cache" | "store">;
+
+function putEntry(services: BodyServices, key: string, value: string): void {
+  if (utf8Length(value) > CHUNK_BYTES) return;
+  try {
+    services.cache.put(key, value, CACHE_TTL_S);
+  } catch {
+    // A failed put costs the next reader one Drive read.
+  }
+}
 
 export function cacheBody(
   services: BodyServices,
   fileId: string,
   html: string,
 ): void {
-  if (utf8Length(html) > CHUNK_BYTES) return;
-  try {
-    services.cache.put(bodyKey(fileId), html, CACHE_TTL_S);
-  } catch {
-    // A failed put costs the next reader one Drive read.
+  putEntry(services, bodyKey(fileId), html);
+}
+
+export function cacheText(
+  services: BodyServices,
+  fileId: string,
+  text: string,
+): void {
+  putEntry(services, textKey(fileId), text);
+}
+
+/**
+ * shortcut: at most 25 Drive reads per `search.body` call; the rest count as `skipped` and are cached by later
+ * calls. Upgrade: warm `ft:*` in `tick` if libraries grow past a few hundred templates.
+ */
+export const TEXT_MISS_BUDGET = 25;
+
+/** Plain text by body file ID: one `getAll` over `ft:*`, then Drive for up to 25 misses. */
+export function bodyTexts(
+  services: BodyServices,
+  items: readonly Item[],
+): { texts: Map<string, string>; skipped: number } {
+  const ids = items.map((item) => item.bodyFileId);
+  const found = ids.length === 0 ? {} : services.cache.getAll(ids.map(textKey));
+  const texts = new Map<string, string>();
+  const missing: string[] = [];
+  for (const id of ids) {
+    const text = found[textKey(id)];
+    if (text === undefined) missing.push(id);
+    else texts.set(id, text);
   }
+  for (const id of missing.slice(0, TEXT_MISS_BUDGET)) {
+    const { plainText } = services.store().readBody(id);
+    cacheText(services, id, plainText);
+    texts.set(id, plainText);
+  }
+  return { texts, skipped: Math.max(0, missing.length - TEXT_MISS_BUDGET) };
 }
 
 /** Stored HTML of the item's current version: one cache read, Drive on a miss. */
@@ -47,17 +89,28 @@ export function imgHosts(props: PropertyStore): string[] {
     .filter((host) => host !== "");
 }
 
-/** Sanitize and validate a body with this deployment's image host list. Throws VALIDATION with `details.problems`. */
-export function prepareFor(props: PropertyStore, html: string): PreparedBody {
-  return prepareBody(html, { imgHosts: imgHosts(props) });
+/**
+ * Sanitize and validate a body and subject with this deployment's image host list. Throws VALIDATION with
+ * `details.problems`.
+ */
+export function prepareFor(
+  props: PropertyStore,
+  html: string,
+  subject: string,
+): PreparedBody {
+  return prepareBody(html, { imgHosts: imgHosts(props) }, subject);
 }
 
-/** A stored body as clients read it: sanitized again (covers bodies stored before slice 3), names and prompts. */
+/**
+ * A stored body as clients read it: sanitized again (covers bodies stored before slice 3), names and prompts over
+ * subject and body.
+ */
 export function readableBody(
   props: PropertyStore,
   stored: string,
+  subject: string,
 ): { html: string; placeholders: string[]; prompts: string[] } {
   const html = sanitize(stored, { imgHosts: imgHosts(props) });
-  const { placeholders, prompts } = scanBody(html);
+  const { placeholders, prompts } = scanBody(html, [], subject);
   return { html, placeholders, prompts };
 }

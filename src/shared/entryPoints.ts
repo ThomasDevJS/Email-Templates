@@ -27,8 +27,7 @@ export const ENTRY_POINTS = {
   onRefresh: "addon",
   onBack: "addon",
   onOpenLink: "addon",
-  onSpikeCard: "addon",
-  onSpikeInsert: "addon",
+  onSearch: "addon",
 } as const satisfies Readonly<Record<string, EntrySurface>>;
 
 export type EntryName = keyof typeof ENTRY_POINTS;

@@ -17,6 +17,8 @@ export interface SidebarTemplate {
   readonly id: string;
   readonly folderId: string;
   readonly title: string;
+  /** Template subject with its tokens (spec 5.6); "" when the template sets none. */
+  readonly subject: string;
   /** First 80 characters of the plain-text snippet (wireframe 01). */
   readonly snippet: string;
   readonly version: number;
@@ -26,7 +28,6 @@ export interface SidebarTemplate {
 }
 
 export interface SidebarHome {
-  readonly isAdmin: boolean;
   /** Top-level visible folders with counts (AC 1). */
   readonly folders: readonly SidebarFolder[];
   /** Visible folders below the top level, for the folder card. */
@@ -52,6 +53,8 @@ export interface ApplyResult {
   readonly version: number;
   /** Sanitized body, or null when `knownVersion` equals `version` and the add-on holds it already. */
   readonly html: string | null;
+  /** Template subject (spec 5.6), null under the same rule as `html`. "" leaves the draft subject alone. */
+  readonly subject: string | null;
   readonly sender: Sender;
   /** Directory given name of the one internal To recipient; blank when unknown. */
   readonly recipientFirstName: string;

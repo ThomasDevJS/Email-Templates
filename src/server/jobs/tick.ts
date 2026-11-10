@@ -15,6 +15,12 @@ import {
   loadIndex,
   rebuildIndexLocked,
 } from "../cache/indexCache";
+import {
+  CACHED_SIDES,
+  SIDE_CACHE,
+  publishSide,
+  writeSideLocked,
+} from "../cache/sideCache";
 import { WRITE_LOCK_MS, withLock } from "../lock";
 import { MEMBERS_PREFIX, putMembersCache } from "../membership/snapshot";
 import type { Services } from "../services";
@@ -50,10 +56,12 @@ function flushBuffer(services: Services): { applies: number; denied: number } {
     const buffered = readBuffer(services.cache);
     const applied = applies(buffered.events);
     const denied = denials(buffered.events);
-    if (applied.length > 0) {
-      const store = services.store();
-      store.writeSide("usage", applyUsage(store.readSide("usage"), applied));
-    }
+    if (applied.length > 0)
+      writeSideLocked(
+        services,
+        "usage",
+        applyUsage(services.store().readSide("usage"), applied),
+      );
     if (denied.length > 0) {
       commitLocked(services, (current) => {
         const known = new Set(current.pendingAudit.map((event) => event.id));
@@ -104,6 +112,16 @@ function upkeepMembers(services: Services): TickResult["membersCache"] {
   return "reput";
 }
 
+/** Publishes `favorites.json` and `usage.json` whose rev property is unset (environments set up before slice 5). */
+function upkeepSides(services: Services): void {
+  for (const name of CACHED_SIDES) {
+    if (services.props.getProperty(SIDE_CACHE[name].revKey) !== null) continue;
+    withLock(services.lock, WRITE_LOCK_MS, () => {
+      publishSide(services, name, services.store().readSide(name));
+    });
+  }
+}
+
 function pendingBytes(services: Services): number {
   return utf8Length(JSON.stringify(loadIndex(services).pendingAudit));
 }
@@ -113,6 +131,7 @@ export function runTick(services: Services): TickResult {
   const flushed = flushBuffer(services);
   const indexCache = upkeepIndex(services);
   const membersCache = upkeepMembers(services);
+  upkeepSides(services);
   const rolled =
     pendingBytes(services) > EARLY_FLUSH_BYTES ? rollAudit(services) : 0;
   const triggers = ensureTriggers(services);

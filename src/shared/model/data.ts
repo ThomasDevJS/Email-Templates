@@ -95,6 +95,8 @@ export interface IndexDoc {
 export interface BodyFile {
   readonly itemId: string;
   readonly version: number;
+  /** Added 2026-11-10 (D21). Files written before read as "" (`withSubject`). */
+  readonly subject: string;
   readonly html: string;
   readonly plainText: string;
   readonly savedAt: string;
@@ -131,6 +133,28 @@ export interface UsageDoc {
   readonly rev: number;
   readonly items: Readonly<Record<string, UsageEntry>>;
   readonly recent: Readonly<Record<string, readonly string[]>>;
+}
+
+/** A stored record that may predate the subject field (spec 5.5): items and body files written before slice 5. */
+export type Unmigrated<T extends { readonly subject: string }> = Omit<
+  T,
+  "subject"
+> & { readonly subject?: string };
+
+/** Missing subject reads as "". No migration write. */
+export function withSubject<T extends { readonly subject: string }>(
+  record: Unmigrated<T>,
+): T {
+  return { ...record, subject: record.subject ?? "" } as T;
+}
+
+export type StoredIndex = Omit<IndexDoc, "items"> & {
+  readonly items: readonly Unmigrated<Item>[];
+};
+
+/** `index.json` as read from Drive or the cache: every item gets a subject. */
+export function readIndexDoc(doc: StoredIndex): IndexDoc {
+  return { ...doc, items: doc.items.map((item) => withSubject<Item>(item)) };
 }
 
 export function emptyIndex(nowIso: string): IndexDoc {

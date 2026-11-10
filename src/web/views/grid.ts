@@ -7,16 +7,35 @@ import { openMenu, type MenuItem } from "../ui/menu";
  * Template list (spec section 8): `role="grid"`, one tab stop on a cell. Arrow keys move between cells,
  * Home and End go to the row's first and last cell, Enter opens the editor. The row menu (wireframe 03) opens
  * with Enter on the Actions cell, Shift+F10 or the context menu key on any cell, or a click on Actions; Esc
- * closes it and focus returns to the cell. The favorite star is disabled until slice 5 adds `favorite.set`.
+ * closes it and focus returns to the cell. Enter or Space on the Favorite cell, or a click on the star, toggles
+ * the favorite (wireframe 03).
  */
 export interface GridActions {
   open(item: ItemRow): void;
   /** Menu entries the caller's level allows; empty hides the Actions button. */
   menu(item: ItemRow): MenuItem[];
+  isFavorite(item: ItemRow): boolean;
+  toggleFavorite(item: ItemRow): void;
 }
 
 const COLUMNS = ["Favorite", "Title", "Folder", "Updated", "By", "Actions"];
+const STAR_CELL = 0;
 const ACTIONS_CELL = COLUMNS.length - 1;
+
+/** Star button text and name: the name says what a press does (spec section 8). */
+function starButton(item: ItemRow, favorite: boolean): HTMLButtonElement {
+  return h(
+    "button",
+    {
+      type: "button",
+      class: "star",
+      tabindex: "-1",
+      "aria-pressed": String(favorite),
+      "aria-label": `${favorite ? "Remove from" : "Add to"} favorites: ${item.title}`,
+    },
+    favorite ? "★" : "☆",
+  );
+}
 
 /** Moves the grid's one tab stop to `cell` and focuses it. */
 export function focusCell(cell: HTMLTableCellElement): void {
@@ -98,24 +117,15 @@ function itemRow(
       },
     });
   };
+  const star = starButton(item, actions.isFavorite(item));
+  const toggle = () => {
+    actions.toggleFavorite(item);
+  };
+  star.addEventListener("click", toggle);
   const row = h(
     "tr",
     { role: "row" },
-    cell(
-      0,
-      h(
-        "button",
-        {
-          type: "button",
-          class: "star",
-          disabled: true,
-          tabindex: "-1",
-          "aria-label": `Add to favorites: ${item.title}`,
-          title: "Slice 5",
-        },
-        "☆",
-      ),
-    ),
+    cell(STAR_CELL, star),
     cell(1, item.title),
     cell(2, folderPath(folders, item.folderId)),
     cell(3, formatTime(item.updatedAt)),
@@ -132,6 +142,12 @@ function itemRow(
     if (opensMenu(event)) {
       event.preventDefault();
       showMenu(cell);
+    } else if (
+      cell.cellIndex === STAR_CELL &&
+      [" ", "Enter"].includes(event.key)
+    ) {
+      event.preventDefault();
+      toggle();
     } else if (event.key === "Enter") {
       event.preventDefault();
       if (cell.cellIndex === ACTIONS_CELL) showMenu(cell);
@@ -147,12 +163,13 @@ export function templateGrid(
   items: readonly ItemRow[],
   folders: readonly FolderRow[],
   actions: GridActions,
+  label = "Templates",
 ): HTMLTableElement {
   const table = h(
     "table",
     {
       role: "grid",
-      "aria-label": "Templates",
+      "aria-label": label,
       class: "grid",
       "aria-rowcount": items.length + 1,
     },

@@ -1,17 +1,23 @@
 import { atLeast } from "../../shared/permissions/levels";
-import { filterItems, folderPath, subtreeIds } from "../library/model";
+import { parseQuery } from "../../shared/search/match";
+import { folderPath, searchItems, subtreeIds } from "../library/model";
 import type { ItemRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
 import { skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
-import { focusCell, templateGrid } from "./grid";
+import { focusCell, templateGrid, type GridActions } from "./grid";
 import { rowMenu } from "./rowActions";
 import { createFolderTree } from "./tree";
 
 /**
- * Library (screen 3): folder tree, search over title, folder and tags, template grid, New template.
- * `/` focuses the search box. Empty folder and no-results states per spec section 7.
+ * Library (screen 3): folder tree, search over title, subject, folder and tags with `folder:` and `tag:`, the
+ * Favorites filter, template grid with stars, New template. Body text matches arrive from `search.body` after a
+ * pause in typing and show under "Matches in text". `/` focuses the search box. Empty folder and no-results
+ * states per spec section 7. `performance.measure` entries `library.list` and `library.body` time both steps
+ * (spec 12: under 1 s after the first load).
  */
+const BODY_SEARCH_DELAY_MS = 300;
+
 export function libraryView(
   app: AppContext,
   main: HTMLElement,
@@ -19,13 +25,24 @@ export function libraryView(
   loading: Promise<boolean>,
 ): View {
   let folderId = startFolderId;
+  let onlyFavorites = false;
+  let bodyTimer = 0;
+  /** Body matches for `bodyQuery`; dropped when the query changes. */
+  let bodyQuery = "";
+  let bodyIds: readonly string[] = [];
+  let bodySkipped = 0;
   const search = h("input", {
     type: "search",
     id: "search",
-    placeholder: "Search title, folder or tag",
+    placeholder: "Search title, subject, folder or tag",
     "aria-keyshortcuts": "/",
     autocomplete: "off",
   });
+  const favoritesFilter = h(
+    "button",
+    { type: "button", class: "filter", "aria-pressed": "false" },
+    "★ Favorites",
+  );
   const heading = h("h2", { id: "list-heading" }, "Templates");
   const actions = h("div", { class: "list-actions" });
   const status = h("p", {
@@ -55,9 +72,12 @@ export function libraryView(
     folderId === "" ? "All templates" : folderPath(app.folders(), folderId);
 
   const scoped = (): ItemRow[] => {
-    if (folderId === "") return [...app.items()];
-    const ids = subtreeIds(app.folders(), folderId);
-    return app.items().filter((item) => ids.has(item.folderId));
+    const ids = folderId === "" ? null : subtreeIds(app.folders(), folderId);
+    const favorites = app.favorites();
+    return app
+      .items()
+      .filter((item) => ids === null || ids.has(item.folderId))
+      .filter((item) => !onlyFavorites || favorites.has(item.id));
   };
 
   const canCreate = () => {
@@ -85,6 +105,12 @@ export function libraryView(
         { class: "empty", role: "status" },
         `No templates match "${query}". Try folder: or tag:.`,
       );
+    if (onlyFavorites)
+      return h(
+        "p",
+        { class: "empty", role: "status" },
+        `No favorites in ${folderName()}. Use the star in a row to add one.`,
+      );
     return h(
       "div",
       { class: "empty", role: "status" },
@@ -110,28 +136,114 @@ export function libraryView(
     focusAfter(focusId);
   };
 
-  const drawList = () => {
-    const query = search.value.trim();
-    const items = filterItems(scoped(), app.folders(), query).sort((a, b) =>
-      a.title.localeCompare(b.title),
-    );
-    heading.textContent = folderName();
-    replace(actions, canCreate() ? newButton() : null);
-    list.setAttribute("aria-busy", "false");
-    replace(
-      list,
-      items.length === 0
-        ? emptyState(query)
-        : templateGrid(items, app.folders(), {
-            open: (item) => {
-              app.go({ name: "edit", id: item.id });
-            },
-            menu: (item) => rowMenu(app, item, afterAction),
-          }),
+  const toggleFavorite = (item: ItemRow) => {
+    const favorite = !app.favorites().has(item.id);
+    app.setFavorite(item.id, favorite).then(
+      () => {
+        afterAction(
+          favorite
+            ? `Added "${item.title}" to favorites.`
+            : `Removed "${item.title}" from favorites.`,
+          item.id,
+        );
+        const row = [...list.querySelectorAll("tr")].find(
+          (candidate) => candidate.dataset["id"] === item.id,
+        );
+        if (row?.cells[0] !== undefined) focusCell(row.cells[0]);
+      },
+      (error: unknown) => {
+        status.textContent = app.fail(error)?.textContent ?? "";
+      },
     );
   };
 
-  search.addEventListener("input", drawList);
+  const gridActions: GridActions = {
+    open: (item) => {
+      app.go({ name: "edit", id: item.id });
+    },
+    menu: (item) => rowMenu(app, item, afterAction),
+    isFavorite: (item) => app.favorites().has(item.id),
+    toggleFavorite,
+  };
+
+  /** Templates in scope whose body matched and that the title search did not list, in server order. */
+  const bodyMatches = (shown: readonly ItemRow[]): ItemRow[] => {
+    if (bodyQuery !== search.value.trim()) return [];
+    const listed = new Set(shown.map((item) => item.id));
+    const byId = new Map(scoped().map((item) => [item.id, item]));
+    return bodyIds.flatMap((id) =>
+      listed.has(id) ? [] : (byId.get(id) ?? []),
+    );
+  };
+
+  const bodySection = (shown: readonly ItemRow[]): HTMLElement[] => {
+    const extra = bodyMatches(shown);
+    const note =
+      bodyQuery === search.value.trim() && bodySkipped > 0
+        ? h(
+            "p",
+            { class: "hint" },
+            `${String(bodySkipped)} templates were not searched yet. Search again to include them.`,
+          )
+        : null;
+    if (extra.length === 0) return note === null ? [] : [note];
+    return [
+      h("h3", { class: "matches-heading" }, "Matches in text"),
+      templateGrid(extra, app.folders(), gridActions, "Matches in text"),
+      ...(note === null ? [] : [note]),
+    ];
+  };
+
+  const drawList = () => {
+    const started = performance.now();
+    const query = search.value.trim();
+    const items = searchItems(scoped(), app.folders(), query, app.recent());
+    heading.textContent = folderName();
+    replace(actions, canCreate() ? newButton() : null);
+    list.setAttribute("aria-busy", "false");
+    const body = bodySection(items);
+    const grid =
+      items.length === 0
+        ? null
+        : templateGrid(items, app.folders(), gridActions);
+    replace(
+      list,
+      grid === null && body.length === 0 ? emptyState(query) : grid,
+      ...body,
+    );
+    performance.measure("library.list", { start: started });
+  };
+
+  /** `search.body` after a pause in typing, for queries with words (operators alone filter in the browser). */
+  const searchBodies = () => {
+    window.clearTimeout(bodyTimer);
+    const query = search.value.trim();
+    if (parseQuery(query).terms.length === 0) return;
+    bodyTimer = window.setTimeout(() => {
+      const started = performance.now();
+      app.api.searchBody(query).then(
+        (found) => {
+          if (query !== search.value.trim()) return;
+          bodyQuery = query;
+          bodyIds = found.ids;
+          bodySkipped = found.skipped;
+          drawList();
+          performance.measure("library.body", { start: started });
+        },
+        (error: unknown) => app.fail(error),
+      );
+    }, BODY_SEARCH_DELAY_MS);
+  };
+
+  search.addEventListener("input", () => {
+    drawList();
+    searchBodies();
+  });
+  favoritesFilter.addEventListener("click", () => {
+    onlyFavorites = !onlyFavorites;
+    favoritesFilter.setAttribute("aria-pressed", String(onlyFavorites));
+    drawList();
+  });
   const slash = (event: KeyboardEvent) => {
     const target = event.target as HTMLElement;
     const typing =
@@ -153,6 +265,7 @@ export function libraryView(
         { class: "search" },
         h("label", { for: "search" }, "Search templates"),
         search,
+        favoritesFilter,
       ),
       h(
         "nav",
@@ -190,6 +303,7 @@ export function libraryView(
   return {
     dispose: () => {
       document.removeEventListener("keydown", slash);
+      window.clearTimeout(bodyTimer);
     },
   };
 }

@@ -7,6 +7,12 @@ export interface AppContext {
   readonly profile: () => Profile | null;
   readonly folders: () => readonly FolderRow[];
   readonly items: () => readonly ItemRow[];
+  /** The caller's favorite template IDs. */
+  readonly favorites: () => ReadonlySet<string>;
+  /** The caller's recently used template IDs, last used first. */
+  readonly recent: () => readonly string[];
+  /** Stars or unstars a template on the server, then in the loaded list. */
+  setFavorite(id: string, favorite: boolean): Promise<void>;
   /** Reloads folders and templates from the server. */
   reload(): Promise<void>;
   go(route: Route): void;

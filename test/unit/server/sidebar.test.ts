@@ -5,11 +5,6 @@ import type {
   SidebarHome,
 } from "../../../src/shared/model/sidebar";
 import { readBuffer } from "../../../src/server/audit/buffer";
-import {
-  F8_ANSWERS,
-  S4_FIXTURES,
-  s4Fixture,
-} from "../../../src/shared/spike/s4Fixtures";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
@@ -91,7 +86,7 @@ describe("sidebar.home (spec 4.1 step 2, list op filtered by use)", () => {
       level: "use",
       version: 1,
     });
-    expect(view).toMatchObject({ isAdmin: false, favorites: [], recent: [] });
+    expect(view).toMatchObject({ favorites: [], recent: [] });
   });
 
   it("shows a granted subfolder at the top when its parent is hidden", () => {
@@ -132,7 +127,6 @@ describe("sidebar.home (spec 4.1 step 2, list op filtered by use)", () => {
       expect.objectContaining({ name: "My templates" }),
     ]);
     const ownerHome = home(OWNER);
-    expect(ownerHome.isAdmin).toBe(true);
     expect(ownerHome.folders.map((f) => f.name)).toEqual([
       "Sales",
       "HR",
@@ -179,6 +173,7 @@ describe("template.apply (spec 4.1 step 3)", () => {
         title: "Welcome",
         version: 1,
         html: "<p>Hi {{recipient.first_name}}, {{sender.name}}</p>",
+        subject: "",
         sender: {
           name: "Ana Lima",
           title: "Sales Lead",
@@ -254,6 +249,29 @@ describe("template.apply (spec 4.1 step 3)", () => {
     ).toBe("DENIED");
   });
 
+  it("followUp ignores recipientEmailIfInternal (Q24): no Directory lookup, blank first name", () => {
+    grant(sales.id, ANA, "use");
+    const calls = world.directory.calls.length;
+    expect(
+      apply(ANA, {
+        id: item.id,
+        knownVersion: 1,
+        recipientEmailIfInternal: BOB,
+        followUp: true,
+      }).recipientFirstName,
+    ).toBe("");
+    expect(
+      world.directory.calls.slice(calls).map((call) => call.email),
+    ).not.toContain(BOB);
+    expect(
+      apply(ANA, {
+        id: item.id,
+        knownVersion: 1,
+        recipientEmailIfInternal: BOB,
+      }).recipientFirstName,
+    ).toBe("Bob");
+  });
+
   it("never looks up an external or blank recipient", () => {
     grant(sales.id, ANA, "use");
     for (const recipientEmailIfInternal of [OUTSIDER, "", "  "]) {
@@ -291,56 +309,5 @@ describe("template.apply (spec 4.1 step 3)", () => {
     expect(
       errorOf(ANA, "template.apply", { id: item.id, knownVersion: 1 }, true),
     ).toMatchObject({ code: "NOT_FOUND" });
-  });
-});
-
-describe("spike.s4 (TEMPORARY, admin only)", () => {
-  it("denies non-admins on both surfaces, even with a grant", () => {
-    grant(sales.id, ANA, "manage");
-    expect(errorOf(ANA, "spike.s4", { fixture: "F1" }, true).code).toBe(
-      "DENIED",
-    );
-    expect(errorOf(ANA, "spike.s4", { fixture: "F1" }).code).toBe("DENIED");
-  });
-
-  it("returns every fixture to an admin on the add-on surface", () => {
-    for (const fixture of S4_FIXTURES) {
-      const result = world.ok<{ html: string; bytes: number }>(
-        OWNER,
-        "spike.s4",
-        { fixture },
-        "addon",
-      );
-      expect(result.html).toBe(s4Fixture(fixture, {}));
-    }
-    expect(errorOf(OWNER, "spike.s4", { fixture: "F10" }).code).toBe(
-      "VALIDATION",
-    );
-  });
-
-  it("sizes F6 and F7 at 50 KB and 200 KB", () => {
-    const bytes = (fixture: string) =>
-      world.ok<{ bytes: number }>(OWNER, "spike.s4", { fixture }).bytes;
-    expect(bytes("F6")).toBeGreaterThanOrEqual(50 * 1024);
-    expect(bytes("F6")).toBeLessThan(51 * 1024);
-    expect(bytes("F7")).toBeGreaterThanOrEqual(200 * 1024);
-    expect(bytes("F7")).toBeLessThan(201 * 1024);
-  });
-
-  it("fills F8 with sender values, the recipient first name and escaped prompt answers", () => {
-    world.directory.users.set(OWNER, { name: { fullName: "Owner One" } });
-    world.directory.users.set(BOB, { name: { givenName: "Bob" } });
-    const { html } = world.ok<{ html: string }>(OWNER, "spike.s4", {
-      fixture: "F8",
-      recipientEmailIfInternal: BOB,
-    });
-    expect(html).toContain("<p>Name: Owner One</p>");
-    expect(html).toContain("<p>Title: no title</p>");
-    expect(html).toContain("<p>Hi Bob,</p>");
-    expect(html).toContain(
-      "<strong>Q3 &lt;review&gt; &amp; &quot;plan&quot;</strong>",
-    );
-    expect(html).toContain("Line one<br>Line two");
-    expect(Object.keys(F8_ANSWERS)).toEqual(["topic", "notes"]);
   });
 });

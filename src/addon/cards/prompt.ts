@@ -1,6 +1,13 @@
+import { subjectPreview } from "../../shared/placeholders/preview";
 import type { PromptField } from "../../shared/placeholders/render";
 import { inputName } from "../prompts";
-import { action, type CardSpec, type Widget } from "./spec";
+import {
+  SKIP_SUBJECT,
+  SUBJECT_SWITCH,
+  action,
+  type CardSpec,
+  type Widget,
+} from "./spec";
 
 /**
  * Prompt card (wireframe 02). One input per field; `order` lists field indexes in display order and `problem`
@@ -11,6 +18,10 @@ export interface PromptState {
   readonly id: string;
   readonly title: string;
   readonly version: number;
+  /** Template subject; "" when it has none or the user chose "Insert body only" (no switch then). */
+  readonly subject: string;
+  /** State of the "Replace the subject" switch, on by default (wireframe 02). */
+  readonly replaceSubject: boolean;
   readonly values: Readonly<Record<string, string>>;
   readonly fields: readonly PromptField[];
   readonly entered: readonly string[];
@@ -32,11 +43,25 @@ function input(state: PromptState, index: number): Widget[] {
   ];
 }
 
+/** Wireframe 02: "Replace the subject" with the subject preview below, only when there is a subject. */
+function subjectSwitch(state: PromptState): Widget[] {
+  if (state.subject === "") return [];
+  return [
+    {
+      kind: "item",
+      text: "Replace the subject",
+      bottomLabel: subjectPreview(state.subject),
+      toggle: { name: SUBJECT_SWITCH, selected: state.replaceSubject },
+    },
+  ];
+}
+
 export function promptCard(state: PromptState): CardSpec {
   const problem: Widget[] =
     state.problem === ""
       ? []
       : [{ kind: "text", text: `(!) ${state.problem}` }];
+  const skip = state.subject === "" ? { subject: SKIP_SUBJECT } : {};
   return {
     name: `prompt-${state.id}`,
     title: state.title,
@@ -45,6 +70,7 @@ export function promptCard(state: PromptState): CardSpec {
         widgets: [
           { kind: "text", text: "Fill these fields to insert" },
           ...state.order.flatMap((index) => input(state, index)),
+          ...subjectSwitch(state),
           ...problem,
         ],
       },
@@ -59,6 +85,7 @@ export function promptCard(state: PromptState): CardSpec {
           title: state.title,
           version: String(state.version),
           values: JSON.stringify(state.values),
+          ...skip,
         }),
       },
       secondary: { text: "Cancel", action: action("onBack") },

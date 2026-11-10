@@ -43,14 +43,22 @@
   - Accepted: 9bbd262 bundle as JSON literal + (0, eval) (fuzzed 191k strings, round-trips); lock-free loadIndex; body cache bd:<bodyFileId> behind dispatch; requestTiming bounds 0..600000 ints.
   - Defect 7 iframe focus unverified; owner checks Tab into tree, Shift+F10 vs Chrome menu.
 
-## Check in slice 4 retry / slice 5
-- template.apply `followUp: true` (prompt card Insert) re-checks use, buffers no event; a followUp-only caller skips usage counts. Server still accepts recipientEmailIfInternal on follow-ups.
-- Slice 5: Recent counts cancelled prompt cards; search/favorites into homeSections; remove spike S4 harness after owner runs.
-- Import (slice 6) must call prepareBody.
-- Code.js parse cost unmeasured; slice 4b logs startupMs/totalMs, compare with execution duration.
-- Slice 5: UNKNOWN_OP reply quotes the op back to the caller (not logged). Spec 11 lacks calls/timing fields.
+- Slice 5 (2026-11-10): PASS (b534836). 46 files, 952 tests, lines 96.33% (addon 100, server 99.31, shared 100, web 95.5), Code.js 276.2 KB, index.html 284.2 KB, 10 scopes, Lighthouse 100x3.
+  - Subject: src/shared/placeholders/subject.ts, renderSubject (one pass, oneLine), insertReply (cards/spec.ts). Cards escape via markup(); history subject via withChips(escapeText()).
+  - Search: shared/search/match.ts (QUERY_MAX 200), sidebar `search` on snippet only, `search.body` ft:* + 25 Drive reads cap. Favorites/Recent: handlers/favorites.ts, key = server caller email, filtered by visible IDs; side caches server/cache/sideCache.ts with FAVORITES_REV, USAGE_REV (tick publishes when unset).
+  - Minors: spec 4.4 snippet wording; subject-only prompts asked with switch off; 2 Drive reads per home until first tick on pre-5 data; crash between writeSide and setProperty serves stale set; Q21 threadId boolean not in smoke step 1; spec 6 status line and 5.6 property list stale.
+  - Spike S5 unverified (owner smoke Slice 5 step 1).
+
+## Check in slice 6
+- Import must call prepareBody with subject; export must carry subject; import replaces line breaks and reports count (spec 5.6).
+- Q23 trigger reinstall order (create first, then delete). Trash view and template.restoreFromTrash.
+- Admin can duplicate others' private templates (D11, open since 4b).
+- UNKNOWN_OP reply quotes the op back (not logged). Spec 11 lacks calls/timing fields.
+- If S5 failed: Q20 fallback "Set subject" button; recheck one-response builder.
 
 ## Recurring lessons
+- Probe files: never use Python splitlines() on files with U+2028; it splits there. Use split("\n").
+- Side files under a rev property: check missing-property behaviour on old data and the writer order (file, then property).
 - Server props are a per-request snapshot since 4b (runtime.ts snapshotProps, triggers live). Any read-check-write across executions under a lock must read live.
 - Log fields from clients (requestId, op, timing): check format and length on the server, both surfaces.
 - ESLint probes without editing src/: pipe code to `npx eslint --stdin --stdin-filename <existing src file>` (new paths hit the projectService parse error).

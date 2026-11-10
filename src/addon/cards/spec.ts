@@ -13,12 +13,20 @@ export const CALLBACKS = [
   "onRefresh",
   "onBack",
   "onOpenLink",
-  "onSpikeCard",
-  "onSpikeInsert",
+  "onSearch",
 ] as const;
 export type Callback = (typeof CALLBACKS)[number];
 
 export type Params = Readonly<Record<string, string>>;
+
+/** Form value of a selected switch. */
+export const SWITCH_ON = "on";
+/** Prompt card switch "Replace the subject" (wireframe 02). */
+export const SUBJECT_SWITCH = "subj";
+/** Home card search input (wireframe 01). */
+export const SEARCH_INPUT = "q";
+/** Callback parameter `subject` of "Insert body only": the draft subject stays as it is. */
+export const SKIP_SUBJECT = "skip";
 
 export interface ActionSpec {
   readonly fn: Callback;
@@ -43,6 +51,8 @@ export type Widget =
       readonly bottomLabel?: string;
       readonly onClick?: ActionSpec;
       readonly button?: ButtonSpec;
+      /** A switch in place of the button; its form value is "on" while selected. */
+      readonly toggle?: { readonly name: string; readonly selected: boolean };
     }
   | { readonly kind: "buttons"; readonly buttons: readonly ButtonSpec[] }
   | {
@@ -51,6 +61,9 @@ export type Widget =
       readonly title: string;
       readonly value: string;
       readonly multiline: boolean;
+      readonly hint?: string;
+      /** Runs when the user changes the value (sidebar search). */
+      readonly onChange?: ActionSpec;
     };
 
 export interface SectionSpec {
@@ -79,8 +92,23 @@ export type Reply =
   | { readonly kind: "notify"; readonly text: string }
   /** Open a web app URL in an overlay; the add-on reloads when it closes. */
   | { readonly kind: "open"; readonly url: string }
-  /** `UpdateDraftActionResponse`, `IN_PLACE_INSERT`, `MUTABLE_HTML`. */
-  | { readonly kind: "insert"; readonly html: string };
+  /**
+   * One `UpdateDraftActionResponse`: the body action (`IN_PLACE_INSERT`, `MUTABLE_HTML`) always, the subject action
+   * only when `subject` is not null. Built by `insertReply`.
+   */
+  | {
+      readonly kind: "insert";
+      readonly html: string;
+      readonly subject: string | null;
+    };
+
+/**
+ * Spec 4.1 step 4 and 5.6: the rendered body, plus the rendered subject when it is not empty. An empty subject
+ * (none in the template, or the user opted out) sends no subject action, so the draft subject is never cleared.
+ */
+export function insertReply(html: string, subject: string): Reply {
+  return { kind: "insert", html, subject: subject === "" ? null : subject };
+}
 
 export const action = (fn: Callback, params?: Params): ActionSpec =>
   params === undefined ? { fn } : { fn, params };

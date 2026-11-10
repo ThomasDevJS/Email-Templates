@@ -111,6 +111,41 @@ describe("renderCard", () => {
     expect(argsOf("setPrimaryButton")).toEqual([]);
   });
 
+  it("renders an input hint and change action, and an item switch", () => {
+    renderCard({
+      name: "c3",
+      title: "T",
+      sections: [
+        {
+          widgets: [
+            {
+              kind: "input",
+              name: "q",
+              title: "Search",
+              value: "",
+              multiline: false,
+              hint: "folder:x",
+              onChange: { fn: "onSearch" },
+            },
+            {
+              kind: "item",
+              text: "Replace the subject",
+              toggle: { name: "subj", selected: true },
+            },
+          ],
+        },
+      ],
+    });
+    expect(argsOf("setHint")).toEqual(["folder:x"]);
+    expect(argsOf("setFunctionName")).toEqual(["onSearch"]);
+    expect(argsOf("setOnChangeAction")).toHaveLength(1);
+    expect(argsOf("setFieldName")).toEqual(["q", "subj"]);
+    expect(argsOf("setValue")).toEqual(["", "on"]);
+    expect(argsOf("setSelected")).toEqual([true]);
+    expect(argsOf("setControlType")).toEqual(["SWITCH"]);
+    expect(argsOf("setSwitchControl")).toHaveLength(1);
+  });
+
   it("renders a footer without a secondary button", () => {
     renderCard({
       ...CARD,
@@ -148,8 +183,24 @@ describe("renderReply", () => {
     expect(argsOf("setOnClose")).toEqual(["RELOAD_ADD_ON"]);
   });
 
+  it("insert with a subject adds UpdateDraftSubjectAction to the same response", () => {
+    renderReply({ kind: "insert", html: "<p>x</p>", subject: "Quote <b>" });
+    expect(calls.map((c) => c.method)).toEqual([
+      "newUpdateDraftBodyAction",
+      "addUpdateContent",
+      "setUpdateType",
+      "newUpdateDraftActionResponseBuilder",
+      "setUpdateDraftBodyAction",
+      "newUpdateDraftSubjectAction",
+      "addUpdateSubject",
+      "setUpdateDraftSubjectAction",
+      "build",
+    ]);
+    expect(argsOf("addUpdateSubject")).toEqual(["Quote <b>"]);
+  });
+
   it("insert builds an UpdateDraftActionResponse with IN_PLACE_INSERT and MUTABLE_HTML", () => {
-    renderReply({ kind: "insert", html: "<p>x</p>" });
+    renderReply({ kind: "insert", html: "<p>x</p>", subject: null });
     expect(calls.map((c) => c.method)).toEqual([
       "newUpdateDraftBodyAction",
       "addUpdateContent",

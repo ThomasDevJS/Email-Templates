@@ -1,6 +1,10 @@
 import { escapeAttr, escapeText, mapTextRuns } from "../../shared/html/escape";
 import { parseText } from "../../shared/placeholders/grammar";
-import { promptsFor, renderBody } from "../../shared/placeholders/render";
+import {
+  promptsFor,
+  renderBody,
+  renderSubject,
+} from "../../shared/placeholders/render";
 import type { Profile } from "../rpc/api";
 import { chipLabel, chipText, placeholderAttrs } from "../editor/schema";
 
@@ -25,6 +29,18 @@ export function previewAsMe(html: string, profile: Profile | null): string {
     promptsFor(html, values).map((field) => [field.key, `[${field.label}]`]),
   );
   return renderBody(html, { values, answers }).html;
+}
+
+/** Subject rendered the same way, as plain text (wireframe 04 "Preview as me subject"). */
+export function subjectAsMe(subject: string, profile: Profile | null): string {
+  const values = senderValues(profile);
+  const answers = Object.fromEntries(
+    promptsFor("", values, subject).map((field) => [
+      field.key,
+      `[${field.label}]`,
+    ]),
+  );
+  return renderSubject(subject, { values, answers }).text;
 }
 
 /** Body with every token shown as a read-only chip, for the history preview. */

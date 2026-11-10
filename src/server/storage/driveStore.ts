@@ -1,5 +1,11 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
-import type { BodyFile, IndexDoc } from "../../shared/model/data";
+import {
+  readIndexDoc,
+  withSubject,
+  type BodyFile,
+  type StoredIndex,
+  type Unmigrated,
+} from "../../shared/model/data";
 import { appendUnique } from "../audit/lines";
 import {
   FOLDER_MIME,
@@ -71,7 +77,9 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
     drive.createFolder(dateKey, ids.backupsId);
   return {
     readIndex: () =>
-      parseJson(drive.readText(ids.indexId), "index.json") as IndexDoc,
+      readIndexDoc(
+        parseJson(drive.readText(ids.indexId), "index.json") as StoredIndex,
+      ),
     readIndexRev: () =>
       Number(drive.getMeta(ids.indexId).appProperties["rev"] ?? "0"),
     writeIndex: (doc) => {
@@ -96,7 +104,10 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
           restoredFrom: String(body.restoredFrom),
         },
       }),
-    readBody: (fileId) => parseJson(drive.readText(fileId), "body") as BodyFile,
+    readBody: (fileId) =>
+      withSubject<BodyFile>(
+        parseJson(drive.readText(fileId), "body") as Unmigrated<BodyFile>,
+      ),
     listBodies: (itemId) =>
       drive
         .list(

@@ -314,6 +314,7 @@ describe("Drive store port", () => {
     const body = (version: number): BodyFile => ({
       itemId: "ITEM",
       version,
+      subject: "Hello",
       html: "<p>x</p>",
       plainText: "x",
       savedAt: NOW,
@@ -340,6 +341,19 @@ describe("Drive store port", () => {
         .sort(),
     ).toEqual([1, 2]);
     expect(store.listBodies()).toHaveLength(3);
+  });
+
+  it("reads body files and index items written before slice 5 with an empty subject, without writing", () => {
+    const old = { itemId: "ITEM", version: 1, html: "<p>x</p>" };
+    const fileId = store.createBody(old as unknown as BodyFile);
+    const index = store.readIndex();
+    const item = { id: "I1", title: "Old" };
+    store.writeIndex({ ...index, items: [item] } as unknown as typeof index);
+    const before = drive.calls.length;
+    expect(store.readBody(fileId).subject).toBe("");
+    expect(store.readIndex().items[0]?.subject).toBe("");
+    expect(drive.calls.slice(before)).not.toContain("update");
+    expect(drive.calls.slice(before)).not.toContain("create");
   });
 
   it("appends audit lines per month, skipping IDs already in the file", () => {

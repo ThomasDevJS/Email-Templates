@@ -120,11 +120,15 @@ describe("User Cache view and bodies", () => {
 
   it("caches bodies up to one entry and ignores malformed entries", () => {
     const cache = new FakeCache(() => 0);
-    writeBody(cache, "T1", { version: 2, html: "<p>x</p>" });
-    expect(readBody(cache, "T1")).toEqual({ version: 2, html: "<p>x</p>" });
-    writeBody(cache, "T2", { version: 1, html: "x".repeat(95_000) });
+    const body = { version: 2, html: "<p>x</p>", subject: "Hi" };
+    writeBody(cache, "T1", body);
+    expect(readBody(cache, "T1")).toEqual(body);
+    writeBody(cache, "T2", { ...body, html: "x".repeat(95_000) });
     expect(readBody(cache, "T2")).toBeNull();
     cache.put("body:T3", JSON.stringify({ version: "1" }), BODY_TTL_S);
     expect(readBody(cache, "T3")).toBeNull();
+    // Written before slice 5: no subject, so the next call fetches body and subject again.
+    cache.put("body:T4", JSON.stringify({ version: 1, html: "x" }), BODY_TTL_S);
+    expect(readBody(cache, "T4")).toBeNull();
   });
 });

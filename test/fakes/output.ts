@@ -148,6 +148,7 @@ export function createRecordingCardService(): {
       INSERT_AT_END: "INSERT_AT_END",
     },
     TextButtonStyle: { FILLED: "FILLED", TEXT: "TEXT" },
+    SwitchControlType: { SWITCH: "SWITCH", CHECK_BOX: "CHECK_BOX" },
   };
   return {
     service: Object.assign(Object.create(chain) as object, enums),

@@ -289,9 +289,17 @@ describe("web app and add-on entry points", () => {
       );
       return lastLog()["calls"];
     };
+    // Index, membership snapshot, favorites and usage: meta plus chunks each (spec 10, slice 5).
     expect(callsOf("sidebar.home", {})).toEqual({
       props: 1,
-      cache: 4,
+      cache: 8,
+      drive: 0,
+      lock: 0,
+      dir: 0,
+    });
+    expect(callsOf("search", { query: "t folder:s" })).toEqual({
+      props: 1,
+      cache: 6,
       drive: 0,
       lock: 0,
       dir: 0,

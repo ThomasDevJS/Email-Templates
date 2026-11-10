@@ -12,8 +12,7 @@ import {
   previewFlow,
   promptInsertFlow,
   refreshFlow,
-  spikeCardFlow,
-  spikeInsertFlow,
+  searchFlow,
   type Ports,
 } from "../../../src/addon/flows";
 import { readBody, readView } from "../../../src/addon/view";
@@ -113,7 +112,7 @@ const toBob: AddonEvent = { draftMetadata: { toRecipients: [BOB] } };
 describe("home (spec 4.1 steps 1 and 2)", () => {
   it("calls sidebar.home on a cache miss and reads the User Cache after that", () => {
     create("Welcome", "<p>Hi</p>");
-    expect(texts(homeFlow(ports()))).toEqual(["Sales (1)"]);
+    expect(texts(homeFlow(ports()))).toContain("Sales (1)");
     expect(homeFlow(ports()).title).toBe("Migway Templates");
     expect(sent.map((s) => s.op)).toEqual(["sidebar.home"]);
     expect(readView(cache)?.templates).toHaveLength(1);
@@ -157,7 +156,7 @@ describe("home (spec 4.1 steps 1 and 2)", () => {
     create("Late", "<p>x</p>");
     const reply = refreshFlow(ports());
     expect(reply.kind).toBe("root");
-    expect(texts(cardOf(reply))).toEqual(["Sales (1)"]);
+    expect(texts(cardOf(reply))).toContain("Sales (1)");
   });
 });
 
@@ -314,6 +313,128 @@ describe("insert flow (spec 4.1 steps 3 to 5)", () => {
   });
 });
 
+describe("search, favorites and recent (spec 4.4, wireframe 01)", () => {
+  it("search calls the server op and shows its results; an empty query shows Home again", () => {
+    create("Quote reply", "<p>x</p>");
+    create("Welcome", "<p>x</p>");
+    const results = cardOf(searchFlow(ports(), formEvent({ q: " quote " })));
+    expect(texts(results)).toEqual(["Quote reply"]);
+    expect(sent.map((s) => s.op)).toEqual(["sidebar.home", "search"]);
+    expect(sent[1]?.args).toEqual({ query: "quote" });
+    const home = searchFlow(ports(), formEvent({ q: "" }));
+    expect(home.kind).toBe("update");
+    expect(texts(cardOf(home))).toContain("Sales (2)");
+    expect(sent).toHaveLength(2);
+  });
+
+  it("search shows the error state when the server fails", () => {
+    homeFlow(ports());
+    const reply = searchFlow(ports("eve@other.example"), formEvent({ q: "x" }));
+    expect(reply.kind).toBe("push");
+    expect(cardOf(reply).footer).toBeUndefined();
+    expect(sent.map((s) => s.op)).toEqual(["sidebar.home", "search"]);
+  });
+
+  it("home lists the caller's favorites", () => {
+    const item = create("Welcome", "<p>x</p>");
+    world.ok(ANA, "favorite.set", { id: item.id });
+    const card = homeFlow(ports());
+    expect(card.sections[1]).toMatchObject({
+      header: "Favorites",
+      widgets: [expect.objectContaining({ text: "Welcome" })],
+    });
+  });
+});
+
+describe("subject (spec 5.6, wireframe 02)", () => {
+  function withSubject(subject: string, html: string): Item {
+    return world.ok<Item>(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "Quote",
+      subject,
+      html,
+    });
+  }
+
+  function insertOf(reply: Reply) {
+    if (reply.kind !== "insert")
+      throw new Error(`expected insert, got ${reply.kind}`);
+    return reply;
+  }
+
+  it("one-click Insert sets body and rendered subject; values stay plain text", () => {
+    world.directory.users.set(ANA, { name: { fullName: "Ana <Lima> & Co" } });
+    const item = withSubject("From {{sender.name}}", "<p>Hi</p>");
+    expect(insertOf(insertFlow(ports(), undefined, { id: item.id }))).toEqual({
+      kind: "insert",
+      html: "<p>Hi</p>",
+      subject: "From Ana <Lima> & Co",
+    });
+    expect(readBody(cache, item.id)?.subject).toBe("From {{sender.name}}");
+    expect(
+      insertOf(insertFlow(ports(), undefined, { id: item.id })).subject,
+    ).toBe("From Ana <Lima> & Co");
+  });
+
+  it("an empty subject sends no subject action", () => {
+    const item = create("Plain", "<p>Hi</p>");
+    expect(
+      insertOf(insertFlow(ports(), undefined, { id: item.id })).subject,
+    ).toBeNull();
+  });
+
+  it("Insert body only leaves the subject out and does not ask its prompts", () => {
+    const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
+    expect(
+      insertOf(
+        insertFlow(ports(), undefined, { id: item.id, subject: "skip" }),
+      ),
+    ).toEqual({ kind: "insert", html: "<p>Hi</p>", subject: null });
+  });
+
+  it("the preview card shows the subject with [Label] and Insert body only", () => {
+    const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
+    const card = cardOf(previewFlow(ports(), { id: item.id }));
+    expect(texts(card)).toContain("Quote for [Product]");
+    expect(readBody(cache, item.id)?.subject).toBe(item.subject);
+  });
+
+  it("asks a label shared by subject and body once and fills both; the switch decides the subject", () => {
+    const item = withSubject(
+      "Quote for {{ask:Product}}",
+      "<p>{{ask:product}} {{ask:Date}}</p>",
+    );
+    const card = cardOf(insertFlow(ports(), undefined, { id: item.id }));
+    expect(inputs(card).map((i) => i.title)).toEqual(["Product *", "Date *"]);
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({
+        text: "Replace the subject",
+        toggle: { name: "subj", selected: true },
+      }),
+    );
+    const params = card.footer?.primary.action.params ?? {};
+    const submit = (form: Record<string, string>) =>
+      insertOf(promptInsertFlow(ports(), formEvent(form), params));
+    expect(submit({ "p-1": "Pen\nred", "p-2": "Mon", subj: "on" })).toEqual({
+      kind: "insert",
+      html: "<p>Pen<br>red Mon</p>",
+      subject: "Quote for Pen red",
+    });
+    expect(submit({ "p-1": "Pen", "p-2": "Mon" }).subject).toBeNull();
+  });
+
+  it("a blocked prompt card Insert keeps the switch state", () => {
+    const item = withSubject("{{ask:Product}}", "<p>x</p>");
+    const params =
+      cardOf(insertFlow(ports(), undefined, { id: item.id })).footer?.primary
+        .action.params ?? {};
+    const card = cardOf(promptInsertFlow(ports(), formEvent({}), params));
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({ toggle: { name: "subj", selected: false } }),
+    );
+  });
+});
+
 describe("prompt card Insert (wireframe 02)", () => {
   let item: Item;
   const values = JSON.stringify({ "sender.name": "Ana Lima" });
@@ -347,7 +468,6 @@ describe("prompt card Insert (wireframe 02)", () => {
         args: {
           id: item.id,
           knownVersion: 1,
-          recipientEmailIfInternal: "",
           followUp: true,
         },
       },
@@ -444,7 +564,7 @@ describe("prompt card Insert (wireframe 02)", () => {
   });
 });
 
-describe("links and spike S4 (TEMPORARY)", () => {
+describe("links", () => {
   it("opens the library or the editor and drops the cached view", () => {
     homeFlow(ports());
     expect(openLinkFlow(ports(), {})).toEqual({ kind: "open", url: EXEC });
@@ -453,23 +573,5 @@ describe("links and spike S4 (TEMPORARY)", () => {
       url: `${EXEC}?view=editor&id=A%20B`,
     });
     expect(readView(cache)).toBeNull();
-  });
-
-  it("pushes the fixture card", () => {
-    expect(texts(cardOf(spikeCardFlow()))[1]).toContain("F1");
-  });
-
-  it("inserts a fixture with its timing line for admins", () => {
-    let now = 1000;
-    const timed: Ports = { ...ports(OWNER), nowMs: () => (now += 40) };
-    const html = htmlOf(spikeInsertFlow(timed, toBob, { fixture: "F9" }));
-    expect(html).toMatch(
-      /^<p>F9 inserted here\.<\/p><p>\[S4 F9: 24 bytes, add-on callback 40 ms, server \d+ ms\]<\/p>$/,
-    );
-  });
-
-  it("denies the fixtures to non-admins", () => {
-    const card = cardOf(spikeInsertFlow(ports(), undefined, { fixture: "F1" }));
-    expect(texts(card)[0]).toContain("You don't have access");
   });
 });

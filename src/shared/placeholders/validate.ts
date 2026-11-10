@@ -9,6 +9,7 @@ import {
   type Segment,
 } from "./grammar";
 import { PLACEHOLDER_NAMES, isKnownName } from "./registry";
+import { SUBJECT_MAX, controlIndex } from "./subject";
 
 /**
  * Save-time placeholder validation (ADR-0004 table). Runs on sanitized HTML. Offsets count characters of the
@@ -23,19 +24,27 @@ export type ProblemCode =
   | "PH_ATTR"
   | "PH_TOO_MANY"
   /** Editor only: a `\` typed right before a chip would turn the token into the `\{{` escape. */
-  | "PH_BACKSLASH";
+  | "PH_BACKSLASH"
+  /** Subject only (spec 5.6). */
+  | "SUBJ_TOO_LONG"
+  | "SUBJ_LINEBREAK";
+
+/** Problems and warnings in the subject carry `field: "subject"`; body ones carry no field. */
+export type Field = "subject";
 
 export interface Problem {
   readonly code: ProblemCode;
   readonly message: string;
-  /** Character offset in the body text, or null when the problem has no text position. */
+  /** Character offset in the body text (or the subject), or null when the problem has no text position. */
   readonly offset: number | null;
+  readonly field?: Field;
 }
 
 export interface Warning {
   readonly code: "PH_NO_FALLBACK";
   readonly message: string;
   readonly offset: number;
+  readonly field?: Field;
 }
 
 /** An attribute value that contains `{{`, reported by the sanitizer. */
@@ -186,10 +195,47 @@ function attrProblem(token: AttrToken): Problem {
   };
 }
 
-/** Parses every text node of sanitized HTML and applies the ADR-0004 rules. */
+/** Spec 5.6: length after trim and control characters. The caller passes the trimmed subject. */
+function subjectRules(subject: string): Problem[] {
+  const problems: Problem[] = [];
+  if (subject.length > SUBJECT_MAX)
+    problems.push({
+      code: "SUBJ_TOO_LONG",
+      message: `Subject must be ${String(SUBJECT_MAX)} characters or fewer`,
+      offset: SUBJECT_MAX,
+    });
+  const control = controlIndex(subject);
+  if (control !== -1)
+    problems.push({
+      code: "SUBJ_LINEBREAK",
+      message: `Subject must be one line (${at(control)})`,
+      offset: control,
+    });
+  return problems;
+}
+
+/** The subject as one text run. Names and prompts join the body's, so one label is asked once (spec 5.6). */
+function scanSubject(subject: string, into: Collector): void {
+  const own: Collector = { ...into, problems: [], warnings: [] };
+  for (const segment of parseText(subject)) visit(segment, own);
+  const field: Field = "subject";
+  into.problems.push(
+    ...[...subjectRules(subject), ...own.problems].map((p) => ({
+      ...p,
+      field,
+    })),
+  );
+  into.warnings.push(...own.warnings.map((w) => ({ ...w, field })));
+}
+
+/**
+ * Parses the subject, then every text node of sanitized HTML, and applies the ADR-0004 rules. Names and prompts
+ * are in order of first use, subject first; `PH_TOO_MANY` counts distinct prompts over both.
+ */
 export function scanBody(
   html: string,
   attrTokens: readonly AttrToken[] = [],
+  subject = "",
 ): Scan {
   const into: Collector = {
     names: new Set(),
@@ -197,6 +243,7 @@ export function scanBody(
     problems: [],
     warnings: [],
   };
+  scanSubject(subject, into);
   let base = 0;
   for (const run of textRuns(html)) {
     for (const segment of parseText(run.text, base)) visit(segment, into);

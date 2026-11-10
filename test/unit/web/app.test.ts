@@ -108,9 +108,87 @@ describe("library (screen 3)", () => {
         .querySelector('[role="tree"]')
         ?.querySelectorAll('[role="treeitem"]'),
     ).toHaveLength(5);
-    const star = main().querySelector<HTMLButtonElement>(".star");
-    expect(star?.disabled).toBe(true);
-    expect(star?.title).toBe("Slice 5");
+    const stars = [...main().querySelectorAll<HTMLButtonElement>(".star")];
+    expect(stars.map((star) => star.getAttribute("aria-pressed"))).toContain(
+      "true",
+    );
+    expect(stars.every((star) => !star.disabled)).toBe(true);
+  });
+
+  it("stars a template from the keyboard and filters by Favorites", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    const rowOf = (title: string) =>
+      [...main().querySelectorAll<HTMLTableRowElement>("tbody tr")].find(
+        (row) => row.cells[1]?.textContent === title,
+      ) as HTMLTableRowElement;
+    const starCell = rowOf("Welcome email").cells[0] as HTMLTableCellElement;
+    expect(starCell.querySelector("button")?.getAttribute("aria-label")).toBe(
+      "Add to favorites: Welcome email",
+    );
+    key(starCell, "Enter");
+    await until(() => {
+      expect(main().querySelector(".status")?.textContent).toBe(
+        'Added "Welcome email" to favorites.',
+      );
+    });
+    const star = rowOf("Welcome email").cells[0]?.querySelector("button");
+    expect(star?.getAttribute("aria-pressed")).toBe("true");
+    expect(star?.getAttribute("aria-label")).toBe(
+      "Remove from favorites: Welcome email",
+    );
+    expect(document.activeElement).toBe(rowOf("Welcome email").cells[0]);
+    const filter = button("★ Favorites");
+    filter.click();
+    expect(filter.getAttribute("aria-pressed")).toBe("true");
+    expect(
+      [...main().querySelectorAll("tbody tr")].map(
+        (row) => (row as HTMLTableRowElement).cells[1]?.textContent,
+      ),
+    ).toEqual(["Price quote 2026", "Welcome email"]);
+    (
+      rowOf("Price quote 2026").cells[0]?.querySelector("button") as HTMLElement
+    ).click();
+    await until(() => {
+      expect(main().querySelectorAll("tbody tr")).toHaveLength(1);
+    });
+    (
+      rowOf("Welcome email").cells[0]?.querySelector("button") as HTMLElement
+    ).click();
+    await until(() => {
+      expect(text()).toContain(
+        "No favorites in All templates. Use the star in a row to add one.",
+      );
+    });
+  });
+
+  it("finds subjects in the browser and body text through search.body", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    const search = document.getElementById("search") as HTMLInputElement;
+    search.value = "quote for";
+    search.dispatchEvent(new Event("input"));
+    expect(
+      [...main().querySelectorAll('tbody [role="row"]')].map(
+        (row) => row.children[1]?.textContent,
+      ),
+    ).toEqual(["Price quote 2026"]);
+    search.value = "interest";
+    search.dispatchEvent(new Event("input"));
+    await until(() => {
+      expect(main().querySelector(".matches-heading")?.textContent).toBe(
+        "Matches in text",
+      );
+    });
+    expect(
+      main().querySelector(
+        '[aria-label="Matches in text"] tbody tr td:nth-child(2)',
+      )?.textContent,
+    ).toBe("Price quote 2026");
   });
 
   it("focuses search with / and filters by title, folder and tag", async () => {
@@ -424,6 +502,58 @@ describe("editor (screen 4, flow 4.2)", () => {
     expect(main().querySelectorAll(".tag")).toHaveLength(2);
   });
 
+  it("edits the subject: counter, placeholder menu at the caret, preview and save", async () => {
+    await boot("/?latency=0#/edit/T-QUOTE");
+    await until(() => {
+      expect(main().querySelector(".ph")).not.toBeNull();
+    });
+    const subject = document.getElementById("subject") as HTMLInputElement;
+    expect(subject.value).toBe("Quote for {{ask:Product name}}");
+    expect(document.querySelector('label[for="subject"]')?.textContent).toBe(
+      "Subject",
+    );
+    expect(document.getElementById("subject-count")?.textContent).toBe(
+      "30/200 (optional)",
+    );
+    subject.focus();
+    subject.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    subject.setSelectionRange(0, 0);
+    button("{{ Placeholder").click();
+    const menu = document.querySelector('[role="menu"]') as HTMLElement;
+    const items = [...menu.querySelectorAll('[role="menuitem"]')];
+    (
+      items.find((item) => item.textContent === "Sender name") as HTMLElement
+    ).click();
+    expect(subject.value).toBe("{{sender.name}}Quote for {{ask:Product name}}");
+    expect(document.activeElement).toBe(subject);
+    await until(() => {
+      expect(main().querySelector(".preview-subject")?.textContent).toBe(
+        "Subject: Dev UserQuote for [Product name]",
+      );
+    });
+    subject.value = "Hi {{sender.nmae}}";
+    subject.dispatchEvent(new Event("input"));
+    button("Save").click();
+    await until(() => {
+      expect(main().querySelector(".problems")?.textContent).toContain(
+        "Error: Subject: Unknown placeholder sender.nmae",
+      );
+    });
+    subject.value = "Offer";
+    subject.dispatchEvent(new Event("input"));
+    button("Save").click();
+    await until(() => {
+      expect(main().querySelector(".version")?.textContent).toBe("Version 3");
+    });
+    expect(
+      (
+        (await harnessCall("template.get", { id: "T-QUOTE" })) as unknown as {
+          data: { item: { subject: string } };
+        }
+      ).data.item.subject,
+    ).toBe("Offer");
+  });
+
   it("lists validation problems from the server", async () => {
     await boot("/?latency=0#/edit/T-QUOTE");
     await until(() => {
@@ -603,6 +733,18 @@ describe("history (screen 5)", () => {
     expect(main().querySelector('[role="option"]')?.textContent).toContain(
       "restored from 1",
     );
+  });
+
+  it("shows the subject line of a version with chips", async () => {
+    await boot("/?latency=0#/history/T-QUOTE");
+    await until(() => {
+      expect(main().querySelector(".preview-subject")?.textContent).toBe(
+        "Subject: Quote for Ask: Product name",
+      );
+    });
+    expect(
+      main().querySelector(".preview-subject .ph")?.getAttribute("aria-label"),
+    ).toBe("Placeholder: ask: product name");
   });
 });
 

@@ -27,7 +27,6 @@ let cache: FakeCache;
 let now: number;
 
 const HOME: SidebarHome = {
-  isAdmin: false,
   folders: [{ id: "F1", name: "Sales", parentId: "", count: 1 }],
   subfolders: [],
   templates: [
@@ -35,6 +34,7 @@ const HOME: SidebarHome = {
       id: "T1",
       folderId: "F1",
       title: "Welcome",
+      subject: "",
       snippet: "Hi",
       version: 2,
       prompts: [],
@@ -206,7 +206,9 @@ describe("add-on entry points", () => {
     expect(ops).toEqual(["sidebar.home"]);
     expect(argsOf("setTitle")).toEqual([
       "Migway Templates",
+      "Search templates",
       "Migway Templates",
+      "Search templates",
     ]);
     expect(argsOf("setText")).toContain("Sales (1)");
     expect(argsOf("build")).toHaveLength(2);
@@ -219,6 +221,7 @@ describe("add-on entry points", () => {
         title: "Welcome",
         version: 2,
         html: "<p>Hi {{recipient.first_name|there}}</p>",
+        subject: "Welcome {{recipient.first_name|aboard}}",
         sender: { name: "", title: "", phone: "", department: "" },
         recipientFirstName: "",
       },
@@ -230,6 +233,8 @@ describe("add-on entry points", () => {
     ]);
     expect(argsOf("setUpdateType")).toEqual(["IN_PLACE_INSERT"]);
     expect(argsOf("setUpdateDraftBodyAction")).toHaveLength(1);
+    expect(argsOf("addUpdateSubject")).toEqual(["Welcome aboard"]);
+    expect(argsOf("setUpdateDraftSubjectAction")).toHaveLength(1);
   });
 
   it("a QUOTA Retry within 60 s shows a notification and calls nothing", () => {
@@ -244,7 +249,12 @@ describe("add-on entry points", () => {
     writeView(cache, HOME, now);
     serve({
       "sidebar.home": HOME,
-      "template.getBody": { id: "T1", version: 2, html: "<p>x</p>" },
+      "template.getBody": {
+        id: "T1",
+        version: 2,
+        html: "<p>x</p>",
+        subject: "",
+      },
     });
     addon.onBack();
     expect(argsOf("popCard")).toHaveLength(1);
@@ -253,8 +263,6 @@ describe("add-on entry points", () => {
     expect(argsOf("pushCard")).toHaveLength(2);
     addon.onRefresh();
     expect(argsOf("popToRoot")).toHaveLength(1);
-    addon.onSpikeCard();
-    expect(argsOf("pushCard")).toHaveLength(3);
   });
 
   it("the prompt card Insert re-checks with template.apply and renders the cached body", () => {
@@ -270,7 +278,7 @@ describe("add-on entry points", () => {
     });
     cache.put(
       "body:T1",
-      JSON.stringify({ version: 2, html: "<p>{{ask:X}}</p>" }),
+      JSON.stringify({ version: 2, html: "<p>{{ask:X}}</p>", subject: "" }),
     );
     addon.onPromptInsert({
       parameters: { id: "T1", version: "2", values: "{}" },
@@ -280,15 +288,6 @@ describe("add-on entry points", () => {
       "<p>filled</p>",
     );
     expect(ops).toEqual(["template.apply"]);
-  });
-
-  it("a spike fixture insert goes through spike.s4", () => {
-    const ops = serve({ "spike.s4": { html: "<p>F1</p>", bytes: 9 } });
-    addon.onSpikeInsert({ parameters: { fixture: "F1" } });
-    expect(ops).toEqual(["spike.s4"]);
-    expect(
-      String(calls.find((c) => c.method === "addUpdateContent")?.args[0]),
-    ).toMatch(/^<p>F1<\/p><p>\[S4 F1: 9 bytes/);
   });
 
   it("Open library and Edit open the web app in an overlay and drop the cached view", () => {

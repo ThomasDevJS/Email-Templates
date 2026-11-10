@@ -13,6 +13,7 @@ import {
   type LevelOf,
 } from "../../shared/permissions/effective";
 import { atLeast } from "../../shared/permissions/levels";
+import { isEmptyQuery, parseQuery, rank } from "../../shared/search/match";
 import { domainOf } from "../../shared/permissions/principals";
 import { bufferEvent } from "../audit/buffer";
 import { optBool, optString, reqInt, reqString } from "../dispatch/args";
@@ -21,7 +22,13 @@ import { lookupProfile } from "../directory/profile";
 import { DOMAIN_KEY } from "../guards";
 import { nowIso } from "../services";
 import { readStoredBody, readableBody } from "./body";
+import { callerLists, callerRecent } from "./favorites";
 import { liveItem } from "./indexOps";
+
+/** Wireframe 01: Favorites max 10, Recent max 5; spec 4.4: search top 20. */
+export const FAVORITES_SHOWN = 10;
+export const RECENT_SHOWN = 5;
+export const SEARCH_RESULTS = 20;
 
 /**
  * Sidebar ops (spec section 4.1). `sidebar.home` is a list op: dispatch lets every caller in and this handler
@@ -61,15 +68,13 @@ function toTemplate(item: Item, levelOf: LevelOf): SidebarTemplate {
     id: item.id,
     folderId: item.folderId,
     title: item.title,
+    subject: item.subject,
     snippet: item.snippet.slice(0, SIDEBAR_SNIPPET_CHARS),
     version: item.currentVersion,
     prompts: item.prompts,
     level: levelOf(item.folderId),
   };
 }
-
-const byTitle = (a: SidebarTemplate, b: SidebarTemplate): number =>
-  a.title.localeCompare(b.title);
 
 /** Shared folders first by sort order and name, the caller's private folder last (wireframe 01). */
 function folderOrder(
@@ -96,8 +101,9 @@ function subtreeCounts(
   return counts;
 }
 
-export function sidebarHome(context: HandlerContext): SidebarHome {
-  const { index, levelOf, subject } = context.access();
+/** Live templates in the caller's visible folders, by title, and each visible folder's nearest visible parent. */
+function visibleTemplates(context: HandlerContext) {
+  const { index, levelOf } = context.access();
   const visible = visibleFolders(index, levelOf, context.caller.email);
   const parentOf = new Map(
     [...visible.values()].map(({ folder }) => [
@@ -107,8 +113,13 @@ export function sidebarHome(context: HandlerContext): SidebarHome {
   );
   const templates = index.items
     .filter((item) => item.deletedAt === "" && visible.has(item.folderId))
-    .map((item) => toTemplate(item, levelOf))
-    .sort(byTitle);
+    .sort((a, b) => a.title.localeCompare(b.title));
+  return { visible, parentOf, templates, levelOf };
+}
+
+export function sidebarHome(context: HandlerContext): SidebarHome {
+  const { visible, parentOf, levelOf, ...found } = visibleTemplates(context);
+  const templates = found.templates.map((item) => toTemplate(item, levelOf));
   const counts = subtreeCounts(templates, parentOf);
   const folders: SidebarFolder[] = [...visible.values()]
     .map(({ folder, own }) => ({ ...folder, own }))
@@ -119,13 +130,66 @@ export function sidebarHome(context: HandlerContext): SidebarHome {
       parentId: parentOf.get(folder.id) ?? "",
       count: counts.get(folder.id) ?? 0,
     }));
+  const lists = callerLists(
+    context.services,
+    context.caller.email,
+    new Set(templates.map((template) => template.id)),
+  );
   return {
-    isAdmin: subject.isAdmin,
     folders: folders.filter((folder) => folder.parentId === ""),
     subfolders: folders.filter((folder) => folder.parentId !== ""),
     templates,
-    favorites: [],
-    recent: [],
+    favorites: lists.favorites.slice(0, FAVORITES_SHOWN),
+    recent: lists.recent.slice(0, RECENT_SHOWN),
+  };
+}
+
+/** "Sales / Quotes" from visible folders only, so a hidden ancestor's name never matches. */
+function visiblePath(
+  folderId: string,
+  visible: ReadonlyMap<string, { folder: Folder }>,
+  parentOf: ReadonlyMap<string, string>,
+): string {
+  const names: string[] = [];
+  for (let id = folderId; id !== "" && names.length < visible.size;) {
+    names.unshift(visible.get(id)?.folder.name ?? "");
+    id = parentOf.get(id) ?? "";
+  }
+  return names.join(" / ");
+}
+
+/**
+ * Sidebar search (spec 4.4): top 20 matches among the templates `sidebar.home` shows, ranked by `rank`. Body text
+ * here is the 140-character snippet from the index; full body text is `search.body` (web app).
+ * shortcut: snippet only, so no Drive or `ft:*` read; upgrade if users miss body matches in the sidebar.
+ */
+export function search(context: HandlerContext): {
+  results: SidebarTemplate[];
+} {
+  const query = parseQuery(optString(context.args, "query"));
+  if (isEmptyQuery(query)) return { results: [] };
+  const { visible, parentOf, templates, levelOf } = visibleTemplates(context);
+  const recent = callerRecent(
+    context.services,
+    context.caller.email,
+    new Set(templates.map((item) => item.id)),
+  );
+  const ranked = rank(
+    templates,
+    query,
+    (item) => ({
+      title: item.title,
+      subject: item.subject,
+      tags: item.tags,
+      folder: visiblePath(item.folderId, visible, parentOf),
+      body: item.snippet,
+    }),
+    recent,
+  );
+  return {
+    results: ranked
+      .slice(0, SEARCH_RESULTS)
+      .map((item) => toTemplate(item, levelOf)),
   };
 }
 
@@ -158,27 +222,31 @@ export function recipientFirstName(context: HandlerContext): string {
  * Apply (spec 4.1 step 3). Dispatch re-checked `use` on the item's folder. The body travels only when the
  * add-on's copy is stale. The apply event goes to the `evt:*` buffer (500 ms lock at most, spec section 10).
  * `followUp: true` is the prompt card's Insert: the same `use` check, no second event, because the Insert tap
- * that opened the card buffered one already. One user action, one event.
+ * that opened the card buffered one already. One user action, one event. It also skips the recipient lookup
+ * (Q24): the card carries the values of the first call, so a follow-up never serves as a free name lookup.
  */
 export function templateApply(context: HandlerContext): ApplyResult {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   const knownVersion = reqInt(context.args, "knownVersion");
-  const html =
-    knownVersion === item.currentVersion
-      ? null
-      : readableBody(
-          context.services.props,
-          readStoredBody(context.services, item),
-        ).html;
+  const followUp = optBool(context.args, "followUp");
+  const fresh = knownVersion !== item.currentVersion;
+  const html = fresh
+    ? readableBody(
+        context.services.props,
+        readStoredBody(context.services, item),
+        item.subject,
+      ).html
+    : null;
   const result: ApplyResult = {
     id: item.id,
     title: item.title,
     version: item.currentVersion,
     html,
+    subject: fresh ? item.subject : null,
     sender: senderOf(context),
-    recipientFirstName: recipientFirstName(context),
+    recipientFirstName: followUp ? "" : recipientFirstName(context),
   };
-  if (!optBool(context.args, "followUp"))
+  if (!followUp)
     bufferEvent(context.services.cache, context.services.lock, {
       kind: "apply",
       itemId: item.id,
