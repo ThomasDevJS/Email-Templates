@@ -4,6 +4,7 @@ import {
   toErrorBody,
   type ErrorBody,
 } from "../../shared/errors/codes";
+import { isId } from "../../shared/ids";
 import type { LogResult, Surface } from "../../shared/log/logger";
 import { parseRpcRequest, type RpcResponse } from "../../shared/model/protocol";
 import type { Services } from "../services";
@@ -54,6 +55,16 @@ function requestField(raw: unknown, key: "op" | "requestId"): string {
   return typeof value === "string" ? value : "";
 }
 
+/** Template ID (`id`), else folder ID (`folderId`) of the request, for the log's `targetId`. Well-formed IDs only. */
+function targetOf(raw: unknown): string {
+  if (typeof raw !== "object" || raw === null) return "";
+  const args = (raw as Record<string, unknown>)["args"];
+  if (typeof args !== "object" || args === null) return "";
+  const { id, folderId } = args as Record<string, unknown>;
+  if (isId(id)) return id;
+  return isId(folderId) ? folderId : "";
+}
+
 /**
  * Runs one request through dispatch and wraps the result in the response envelope.
  * Never throws: every failure becomes `{ ok: false, error }` and one log line. The log line has the closed
@@ -72,6 +83,7 @@ export function handleRpc(
     action: requestField(raw, "op"),
     requestId: requestField(raw, "requestId"),
     actor: caller.email,
+    targetId: targetOf(raw),
   };
   try {
     const data = runDispatch(caller, raw, surface, deps);

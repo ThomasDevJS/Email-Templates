@@ -131,6 +131,22 @@ describe("handleRpc", () => {
     });
   });
 
+  it("logs the template or folder ID as targetId, and only well-formed IDs", () => {
+    const id = "01JC8ABCDEFGHJKMNPQRSTVWXY";
+    const target = (args: unknown) => {
+      handleRpc({ email: OWNER }, { ...PING, args }, "webapp", {
+        services: world.services,
+      });
+      return lastLog()["targetId"];
+    };
+    expect(target({ id, folderId: "01JC7ABCDEFGHJKMNPQRSTVWXY" })).toBe(id);
+    expect(target({ folderId: id })).toBe(id);
+    expect(target({ id: "<p>body text</p>" })).toBe("");
+    expect(target("text")).toBe("");
+    handleRpc({ email: OWNER }, null, "webapp", { services: world.services });
+    expect(lastLog()["targetId"]).toBe("");
+  });
+
   it("reports the cache state of the request in the log line", () => {
     world.call(OWNER, "template.list");
     expect(lastLog()).toMatchObject({
