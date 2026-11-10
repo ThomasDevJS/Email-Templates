@@ -118,6 +118,7 @@
 - Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
 - Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire`. Lighthouse dark: Chrome `--force-dark-mode`.
 - The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
+- 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.

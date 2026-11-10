@@ -39,7 +39,7 @@ Branch `slice/08a-ui-shell` from `adeeefe`. Commits 6caa3ee (shell and screens),
 - Admin: tab row, tables, ok/denied tags; page title is still an h2 (its sub-heads are h3).
 
 ## Verified (how)
-From `rm -rf node_modules && npm ci` (559 packages): lint clean, typecheck clean, test:coverage 52 files and 1256 tests passed (lines 96.4%), build dev `Code.js 318.9 KB`, `index.html 340.0 KB` of 400 KB (was 316.5 KB), scopes:check 10 approved, format:check clean, lighthouse 100 on all 10 views plus library dark (11 runs). Screens checked with Playwright Chromium at 1440x900 and 390x844, light and dark; horizontal scroll 0 on every screen. Token contrast pairs computed per theme.
+From `rm -rf node_modules && npm ci` (559 packages): lint clean, typecheck clean, test:coverage 52 files and 1256 tests passed (lines 96.4%), build dev `Code.js 318.9 KB`, `index.html 340.0 KB` of 400 KB (was 316.5 KB), scopes:check 10 approved, format:check clean, lighthouse 100 on all 10 views plus library dark (11 runs). Screens checked with Playwright Chromium at 1440x900 and 390x844, light and dark; horizontal scroll 0 on library, trash, history and editor. Admin at 390 px scrolls sideways (275 px at retry 1), left for 8c. Token contrast pairs computed per theme.
 
 ## Screenshots (docs/design/screens/8a, 2x)
 library, library-dark, library-390, library-390-menu, trash, history, history-dark, editor, admin.
@@ -53,3 +53,15 @@ src/web/{app.ts,index.html,styles.css,dev-harness.ts}, src/web/ui/{icons.ts,pers
 
 ## Commands
 `npm ci && npm run lint && npm run typecheck && npm run test:coverage && npm run build -- --env dev && npm run scopes:check && npm run format:check && npm run lighthouse`. Screens: `npm run dev:web`, then `?latency=0&sample=freight#/library`.
+
+## Retry 1 (review docs/reviews/slice-08a.md, FAIL)
+Commits 20b891f, 3ce7670, 5623fe2 and the screenshot commit.
+- Must fix 1: the narrow panel is modal while open (`app.ts` `setPanel`). Tab and Shift+Tab wrap inside `#side` (`trapTab`, now exported from dialog.ts), `main` gets `inert` plus `aria-hidden`, Esc closes and focuses the menu button, a mousedown outside or a nav pick closes it, and growing past 860 px closes it (`matchMedia`). 6 tests in app.test.ts. Found on the way: the focus trap selector `[href]` matched SVG `<use href>`, so the last "focusable" was an icon; now `a[href]`. Checked in Chromium at 390 px: Tab from Admin goes to the menu button, an outside click closes.
+- Must fix 2: `--star` and `--star-fill` #a87400: 4.07 paper, 3.73 canvas, 3.45 select. `--star-off` #78838b: 3.88, 3.55, 3.29. Dark: star #e6a700 8.09, 7.38, 5.98; off #7f8b94 4.92, 4.50, 3.64. The pressed star differs by its fill.
+- Minor 3: owner label uses `--ink-2` on hovered rows (6.52).
+- Minor 4: history heading shows "Ben K."; the full address is the span's `title` and a visually hidden "(address)" in the heading's name.
+- Minor 6: new `--field-line` for input, select, textarea and button borders: light #7f8b93 (3.49 paper, 3.20 canvas), dark #7c8a94 (4.84, 4.42). `--line-strong` stays for rules and dividers. The fields look a little firmer than the mockup and still calm (editor.png, library.png).
+- New test/unit/web/contrast.test.ts: one table of 40 token pairs, both themes, 4.5:1 text and 3:1 icons, rings and borders; every token must be in the table or in `NOT_PAIRED` with a reason.
+- Not done, as agreed: minor 5 (admin at 390 px, 8c), minor 7 (disabled buttons).
+- Clean install: lint and typecheck clean, 53 files and 1265 tests passed (lines 96.41%), `index.html` 340.6 KB, scopes 10 approved, format clean, Lighthouse 100 on 11 runs.
+- Screenshots retaken; `library-390-menu.png` shows the open panel.
