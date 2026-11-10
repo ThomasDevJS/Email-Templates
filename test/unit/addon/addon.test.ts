@@ -27,9 +27,8 @@ let cache: FakeCache;
 let now: number;
 
 const HOME: SidebarHome = {
-  rev: 3,
   isAdmin: false,
-  folders: [{ id: "F1", name: "Sales", parentId: "", count: 1, own: false }],
+  folders: [{ id: "F1", name: "Sales", parentId: "", count: 1 }],
   subfolders: [],
   templates: [
     {
@@ -39,7 +38,6 @@ const HOME: SidebarHome = {
       snippet: "Hi",
       version: 2,
       prompts: [],
-      placeholders: [],
       level: "use",
     },
   ],

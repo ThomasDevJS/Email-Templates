@@ -64,7 +64,6 @@ function toTemplate(item: Item, levelOf: LevelOf): SidebarTemplate {
     snippet: item.snippet.slice(0, SIDEBAR_SNIPPET_CHARS),
     version: item.currentVersion,
     prompts: item.prompts,
-    placeholders: item.placeholders,
     level: levelOf(item.folderId),
   };
 }
@@ -119,10 +118,8 @@ export function sidebarHome(context: HandlerContext): SidebarHome {
       name: folder.name,
       parentId: parentOf.get(folder.id) ?? "",
       count: counts.get(folder.id) ?? 0,
-      own: folder.own,
     }));
   return {
-    rev: index.rev,
     isAdmin: subject.isAdmin,
     folders: folders.filter((folder) => folder.parentId === ""),
     subfolders: folders.filter((folder) => folder.parentId !== ""),

@@ -71,7 +71,7 @@ describe("sidebar.home (spec 4.1 step 2, list op filtered by use)", () => {
     grant(sales.id, ANA, "use");
     const view = home(ANA);
     expect(view.folders).toEqual([
-      { id: sales.id, name: "Sales", parentId: "", count: 2, own: false },
+      { id: sales.id, name: "Sales", parentId: "", count: 2 },
     ]);
     expect(view.subfolders).toEqual([
       {
@@ -79,7 +79,6 @@ describe("sidebar.home (spec 4.1 step 2, list op filtered by use)", () => {
         name: "Quotes",
         parentId: sales.id,
         count: 1,
-        own: false,
       },
     ]);
     expect(view.templates.map((t) => t.title)).toEqual([
@@ -89,7 +88,6 @@ describe("sidebar.home (spec 4.1 step 2, list op filtered by use)", () => {
     expect(view.templates[0]).toMatchObject({
       folderId: quotes.id,
       prompts: ["Meeting date"],
-      placeholders: [],
       level: "use",
       version: 1,
     });
@@ -131,14 +129,14 @@ describe("sidebar.home (spec 4.1 step 2, list op filtered by use)", () => {
     world.ok(OWNER, "folder.list");
     const anaHome = home(ANA);
     expect(anaHome.folders).toEqual([
-      expect.objectContaining({ name: "My templates", own: true }),
+      expect.objectContaining({ name: "My templates" }),
     ]);
     const ownerHome = home(OWNER);
     expect(ownerHome.isAdmin).toBe(true);
-    expect(ownerHome.folders.map((f) => [f.name, f.own])).toEqual([
-      ["Sales", false],
-      ["HR", false],
-      ["My templates", true],
+    expect(ownerHome.folders.map((f) => f.name)).toEqual([
+      "Sales",
+      "HR",
+      "My templates",
     ]);
   });
 

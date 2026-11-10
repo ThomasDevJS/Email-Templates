@@ -15,7 +15,6 @@ export function template(
     snippet: `Snippet ${id}`,
     version: 1,
     prompts: [],
-    placeholders: [],
     level: "use",
     ...fields,
   };
@@ -23,15 +22,12 @@ export function template(
 
 export function view(fields: Partial<SidebarHome> = {}): SidebarHome {
   return {
-    rev: 1,
     isAdmin: false,
     folders: [
-      { id: "F1", name: "Sales", parentId: "", count: 3, own: false },
-      { id: "MY", name: "My templates", parentId: "", count: 0, own: true },
+      { id: "F1", name: "Sales", parentId: "", count: 3 },
+      { id: "MY", name: "My templates", parentId: "", count: 0 },
     ],
-    subfolders: [
-      { id: "F2", name: "Quotes", parentId: "F1", count: 1, own: false },
-    ],
+    subfolders: [{ id: "F2", name: "Quotes", parentId: "F1", count: 1 }],
     templates: [
       template("T1", { prompts: ["Meeting date", "Product"] }),
       template("T2", { snippet: "" }),

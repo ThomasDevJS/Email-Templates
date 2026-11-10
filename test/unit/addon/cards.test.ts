@@ -84,6 +84,19 @@ describe("home card (wireframe 01)", () => {
     });
   });
 
+  it("shows the empty state when the only folder is the caller's empty private folder", () => {
+    const card = homeCard(
+      view({
+        folders: [{ id: "MY", name: "My templates", parentId: "", count: 0 }],
+        subfolders: [],
+        templates: [],
+      }),
+    );
+    expect(texts(card)[0]).toBe("No templates shared with you yet.");
+    expect(texts(card)).not.toContain("My templates (0)");
+    expect(buttons(card).map((b) => b.text)).toEqual(["Open library"]);
+  });
+
   it("adds the temporary spike S4 entry for admins only", () => {
     const label = (card: CardSpec) => buttons(card).map((b) => b.text);
     expect(label(homeCard(view()))).not.toContain("Insert test fixtures");
@@ -166,8 +179,8 @@ describe("folder card (wireframe 01)", () => {
     const cyclic = view({
       folders: [],
       subfolders: [
-        { id: "A", name: "A", parentId: "B", count: 0, own: false },
-        { id: "B", name: "B", parentId: "A", count: 0, own: false },
+        { id: "A", name: "A", parentId: "B", count: 0 },
+        { id: "B", name: "B", parentId: "A", count: 0 },
       ],
     });
     expect(folderPath(cyclic, "A")).toBe("B / A");

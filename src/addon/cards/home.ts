@@ -51,7 +51,8 @@ function spikeSection(): SectionSpec {
 }
 
 function homeSections(view: SidebarHome): SectionSpec[] {
-  const empty = view.folders.length === 0 && view.templates.length === 0;
+  // Spec section 7 "no visible templates": an empty private folder still counts as empty.
+  const empty = view.templates.length === 0;
   const sections: SectionSpec[] = empty
     ? [emptySection()]
     : [

@@ -11,8 +11,6 @@ export interface SidebarFolder {
   readonly parentId: string;
   /** Live templates the caller can use in this folder and its visible subfolders. */
   readonly count: number;
-  /** The caller's own private folder (D11). */
-  readonly own: boolean;
 }
 
 export interface SidebarTemplate {
@@ -24,13 +22,10 @@ export interface SidebarTemplate {
   readonly version: number;
   /** Normalized prompt labels; `n fields to fill` on the home and folder cards. */
   readonly prompts: readonly string[];
-  /** Variable names, so the add-on knows whether an Insert may need an implicit prompt. */
-  readonly placeholders: readonly string[];
   readonly level: AccessLevel;
 }
 
 export interface SidebarHome {
-  readonly rev: number;
   readonly isAdmin: boolean;
   /** Top-level visible folders with counts (AC 1). */
   readonly folders: readonly SidebarFolder[];
