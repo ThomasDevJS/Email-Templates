@@ -1,6 +1,6 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { BodyFile, IndexDoc, Item } from "../../shared/model/data";
-import { tagList, templateTitle } from "../../shared/model/validate";
+import { TITLE_MAX, tagList, templateTitle } from "../../shared/model/validate";
 import { atLeast, type AccessLevel } from "../../shared/permissions/levels";
 import type { PreparedBody } from "../../shared/body/prepare";
 import { auditEvent, type EventSource } from "../audit/events";
@@ -13,7 +13,7 @@ import {
 } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
-import { prepareFor, readableBody } from "./body";
+import { cacheBody, prepareFor, readStoredBody, readableBody } from "./body";
 import { commit } from "./commit";
 import {
   findItem,
@@ -80,10 +80,12 @@ export function templateGet(context: HandlerContext): {
   html: string;
 } {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
-  const body = context.services.store().readBody(item.bodyFileId);
   return {
     item,
-    html: readableBody(context.services.props, body.html).html,
+    html: readableBody(
+      context.services.props,
+      readStoredBody(context.services, item),
+    ).html,
   };
 }
 
@@ -99,11 +101,13 @@ export function templateGetBody(context: HandlerContext): {
   prompts: string[];
 } {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
-  const stored = context.services.store().readBody(item.bodyFileId);
   return {
     id: item.id,
     version: item.currentVersion,
-    ...readableBody(context.services.props, stored.html),
+    ...readableBody(
+      context.services.props,
+      readStoredBody(context.services, item),
+    ),
   };
 }
 
@@ -144,7 +148,9 @@ export function writeBody(
     restoredFrom,
     sha256,
   };
-  return { version, fileId: context.services.store().createBody(body), sha256 };
+  const fileId = context.services.store().createBody(body);
+  cacheBody(context.services, fileId, prepared.html);
+  return { version, fileId, sha256 };
 }
 
 /** Item fields that follow the body version (spec 5.3). */
@@ -164,6 +170,39 @@ export function templateCreate(context: HandlerContext): Item {
   const folderId = reqString(context.args, "folderId");
   const draft = readDraft(context);
   liveFolder(context.access().index, folderId);
+  return addTemplate(context, folderId, draft, "template.create");
+}
+
+/** "Copy of <title>", cut to the title limit. */
+export function copyTitle(title: string): string {
+  return `Copy of ${title}`.slice(0, TITLE_MAX).trim();
+}
+
+/**
+ * Copy of a live template as version 1 of a new template, in the same folder or in `folderId`. Dispatch checked
+ * edit on the source and the target folder (`templateCopy`). The body is prepared again, like a save.
+ */
+export function templateDuplicate(context: HandlerContext): Item {
+  const { index } = context.access();
+  const source = liveItem(index, reqString(context.args, "id"));
+  const folderId = optString(context.args, "folderId") || source.folderId;
+  liveFolder(index, folderId);
+  const stored = readStoredBody(context.services, source);
+  const draft: Draft = {
+    title: copyTitle(source.title),
+    tags: [...source.tags],
+    body: prepareFor(context.services.props, stored),
+  };
+  return addTemplate(context, folderId, draft, "template.duplicate");
+}
+
+/** Body file of version 1 outside the lock, then the index commit with the new item and its audit event. */
+function addTemplate(
+  context: HandlerContext,
+  folderId: string,
+  draft: Draft,
+  action: string,
+): Item {
   const id = context.services.newId();
   const body = writeBody(context, id, 1, draft.body);
   const source = eventSource(context, folderId);
@@ -190,7 +229,7 @@ export function templateCreate(context: HandlerContext): Item {
     const doc = { ...current, items: [...current.items, item] };
     return {
       doc,
-      events: [templateEvent(source, doc, "template.create", null, item, body)],
+      events: [templateEvent(source, doc, action, null, item, body)],
       result: item,
     };
   });

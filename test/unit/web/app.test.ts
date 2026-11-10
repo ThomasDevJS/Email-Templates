@@ -64,9 +64,8 @@ interface HarnessRun {
 
 /** One server op straight through the harness, as another tab or another user would send it. */
 function harnessCall(op: string, args: unknown): Promise<{ ok: boolean }> {
-  const run = (
-    window as unknown as { google: { script: { run: HarnessRun } } }
-  ).google.script.run;
+  const run = (window as unknown as { google: { script: { run: HarnessRun } } })
+    .google.script.run;
   return new Promise((resolve) => {
     run
       .withSuccessHandler((value) => {
@@ -214,10 +213,160 @@ describe("library (screen 3)", () => {
     expect(document.activeElement?.textContent).toBe("Price quote 2026");
     key(document.activeElement as Element, "End");
     key(document.activeElement as Element, "Enter");
+    const menu = document.querySelector('[role="menu"]') as HTMLElement;
+    expect(menu.getAttribute("aria-label")).toBe(
+      "Actions for Price quote 2026",
+    );
+    key(menu, "ArrowDown");
+    key(menu, "ArrowDown");
+    key(menu, "ArrowDown");
+    expect(document.activeElement?.textContent).toBe("History");
+    key(menu, "Enter");
     await until(() => {
       expect(text()).toContain("Price quote 2026 - History");
     });
     expect(window.location.hash).toBe("#/history/T-QUOTE");
+  });
+});
+
+describe("row menu (wireframe 03, smoke defect 6)", () => {
+  const rows = () => [...main().querySelectorAll("tbody tr")];
+  const titles = () => rows().map((row) => row.children[1]?.textContent);
+  const titleCell = (title: string) =>
+    rows()
+      .map((row) => row.children[1] as HTMLElement)
+      .find((cell) => cell.textContent === title) as HTMLElement;
+  const menuLabels = () =>
+    [...document.querySelectorAll('[role="menuitem"]')].map(
+      (item) => item.textContent,
+    );
+  const status = () => main().querySelector(".templates .status")?.textContent;
+
+  async function library(): Promise<void> {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(rows()).toHaveLength(4);
+    });
+  }
+
+  it("opens with Shift+F10, moves with arrows, and Esc returns focus to the cell", async () => {
+    await library();
+    const cell = titleCell("Discount approval");
+    cell.focus();
+    key(cell, "F10", { shiftKey: true });
+    expect(menuLabels()).toEqual([
+      "Edit",
+      "Duplicate",
+      "Move...",
+      "History",
+      "Delete...",
+    ]);
+    expect(document.activeElement?.textContent).toBe("Edit");
+    const menu = document.querySelector('[role="menu"]') as HTMLElement;
+    key(menu, "ArrowUp");
+    expect(document.activeElement?.textContent).toBe("Delete...");
+    key(menu, "Escape");
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(cell);
+    expect(cell.tabIndex).toBe(0);
+  });
+
+  it("shows no menu on a row where the caller holds only use", async () => {
+    await library();
+    const cell = titleCell("Ticket received");
+    expect(
+      cell.parentElement?.querySelector('[aria-haspopup="menu"]'),
+    ).toBeNull();
+    key(cell, "F10", { shiftKey: true });
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("duplicates and focuses the copy", async () => {
+    await library();
+    (
+      main().querySelector(
+        '[aria-label="Actions for Welcome email"]',
+      ) as HTMLButtonElement
+    ).click();
+    (
+      [...document.querySelectorAll('[role="menuitem"]')].find(
+        (item) => item.textContent === "Duplicate",
+      ) as HTMLElement
+    ).click();
+    await until(() => {
+      expect(status()).toBe('Duplicated as "Copy of Welcome email".');
+    });
+    expect(titles()).toContain("Copy of Welcome email");
+    expect(document.activeElement?.textContent).toBe("Copy of Welcome email");
+  });
+
+  it("moves only to folders with edit, after the dialog", async () => {
+    await library();
+    const cell = titleCell("Welcome email");
+    cell.focus();
+    key(cell, "ContextMenu");
+    key(document.querySelector('[role="menu"]') as Element, "ArrowDown");
+    key(document.querySelector('[role="menu"]') as Element, "ArrowDown");
+    key(document.querySelector('[role="menu"]') as Element, "Enter");
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    const select = dialog.querySelector("select") as HTMLSelectElement;
+    expect([...select.options].map((option) => option.text)).toEqual([
+      "HR",
+      "My templates",
+      "Sales",
+      "Sales / Quotes",
+    ]);
+    select.value = "F-EMPTY";
+    button("Move", dialog).click();
+    await until(() => {
+      expect(status()).toBe('Moved "Welcome email" to HR.');
+    });
+    expect(
+      titleCell("Welcome email").parentElement?.children[2]?.textContent,
+    ).toBe("HR");
+    expect(document.activeElement?.textContent).toBe("Welcome email");
+  });
+
+  it("deletes after confirmation, and Cancel keeps the template", async () => {
+    await library();
+    const cell = titleCell("Discount approval");
+    cell.focus();
+    const pickDelete = () => {
+      key(document.activeElement as Element, "F10", { shiftKey: true });
+      key(document.querySelector('[role="menu"]') as Element, "End");
+      key(document.querySelector('[role="menu"]') as Element, "Enter");
+      return document.querySelector('[role="dialog"]') as HTMLElement;
+    };
+    const first = pickDelete();
+    expect(first.textContent).toContain(
+      'Delete "Discount approval"? Deleted templates stay in the trash for 30 days.',
+    );
+    button("Cancel", first).click();
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+    expect(document.activeElement).toBe(cell);
+    button("Delete", pickDelete()).click();
+    await until(() => {
+      expect(status()).toBe('Deleted "Discount approval".');
+    });
+    expect(titles()).not.toContain("Discount approval");
+    expect(rows()).toHaveLength(3);
+  });
+
+  it("reports a server refusal in the status line", async () => {
+    await boot("/?latency=0&fail=DENIED&failOp=template.duplicate#/library");
+    await until(() => {
+      expect(rows()).toHaveLength(4);
+    });
+    const cell = titleCell("Welcome email");
+    cell.focus();
+    key(cell, "F10", { shiftKey: true });
+    key(document.querySelector('[role="menu"]') as Element, "ArrowDown");
+    key(document.querySelector('[role="menu"]') as Element, "Enter");
+    await until(() => {
+      expect(status()).toContain("You don't have access");
+    });
   });
 });
 

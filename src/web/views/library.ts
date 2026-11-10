@@ -4,7 +4,8 @@ import type { ItemRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
 import { skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
-import { templateGrid } from "./grid";
+import { focusCell, templateGrid } from "./grid";
+import { rowMenu } from "./rowActions";
 import { createFolderTree } from "./tree";
 
 /**
@@ -27,6 +28,11 @@ export function libraryView(
   });
   const heading = h("h2", { id: "list-heading" }, "Templates");
   const actions = h("div", { class: "list-actions" });
+  const status = h("p", {
+    class: "status",
+    role: "status",
+    "aria-live": "polite",
+  });
   const list = h(
     "div",
     {
@@ -87,6 +93,23 @@ export function libraryView(
     );
   };
 
+  /** After a row action: the row of `focusId`, else the grid's first cell, else the search box. */
+  const focusAfter = (focusId: string) => {
+    const row = [...list.querySelectorAll("tr")].find(
+      (candidate) => candidate.dataset["id"] === focusId,
+    );
+    const cell =
+      row?.cells[1] ?? list.querySelector<HTMLTableCellElement>("tbody td");
+    if (cell === null) search.focus();
+    else focusCell(cell);
+  };
+
+  const afterAction = (text: string, focusId: string) => {
+    status.textContent = text;
+    drawList();
+    focusAfter(focusId);
+  };
+
   const drawList = () => {
     const query = search.value.trim();
     const items = filterItems(scoped(), app.folders(), query).sort((a, b) =>
@@ -103,9 +126,7 @@ export function libraryView(
             open: (item) => {
               app.go({ name: "edit", id: item.id });
             },
-            history: (item) => {
-              app.go({ name: "history", id: item.id });
-            },
+            menu: (item) => rowMenu(app, item, afterAction),
           }),
     );
   };
@@ -144,6 +165,7 @@ export function libraryView(
         { class: "templates", "aria-labelledby": "list-heading" },
         h("div", { class: "list-header" }, heading, actions),
         list,
+        status,
       ),
     ),
   );

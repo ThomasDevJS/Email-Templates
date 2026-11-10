@@ -20,7 +20,7 @@ import type { HandlerContext } from "../dispatch/context";
 import { lookupProfile } from "../directory/profile";
 import { DOMAIN_KEY } from "../guards";
 import { nowIso } from "../services";
-import { readableBody } from "./body";
+import { readStoredBody, readableBody } from "./body";
 import { liveItem } from "./indexOps";
 
 /**
@@ -168,7 +168,7 @@ export function templateApply(context: HandlerContext): ApplyResult {
       ? null
       : readableBody(
           context.services.props,
-          context.services.store().readBody(item.bodyFileId).html,
+          readStoredBody(context.services, item),
         ).html;
   const result: ApplyResult = {
     id: item.id,

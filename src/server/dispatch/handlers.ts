@@ -15,6 +15,7 @@ import { spikeS4 } from "../handlers/spikeS4";
 import {
   templateCreate,
   templateDelete,
+  templateDuplicate,
   templateGet,
   templateGetBody,
   templateList,
@@ -31,7 +32,6 @@ export const LATER_SLICE_OPS = [
   "search.body",
   "favorite.set",
   "favorite.unset",
-  "template.duplicate",
   "trash.purge",
   "export.folder",
   "export.library",
@@ -83,6 +83,7 @@ export const HANDLERS: HandlerTable = {
   "template.update": templateUpdate,
   "template.move": templateMove,
   "template.delete": templateDelete,
+  "template.duplicate": templateDuplicate,
   "template.restoreFromTrash": templateRestoreFromTrash,
   "version.list": versionList,
   "version.get": versionGet,

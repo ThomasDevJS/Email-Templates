@@ -110,6 +110,29 @@ export function filterItems(
   });
 }
 
+export type RowAction = "edit" | "duplicate" | "move" | "history" | "delete";
+
+/** Folders other than the template's own where the caller holds edit: the targets the Move dialog offers. */
+export function moveTargets(
+  item: ItemRow,
+  folders: readonly FolderRow[],
+): { id: string; label: string }[] {
+  return editableFolders(folders).filter(
+    (option) => option.id !== item.folderId,
+  );
+}
+
+/** Row menu entries the caller's level allows (wireframe 03). The server checks every one again. */
+export function rowActions(
+  item: ItemRow,
+  folders: readonly FolderRow[],
+): RowAction[] {
+  if (!atLeast(item.level, "edit")) return [];
+  return moveTargets(item, folders).length > 0
+    ? ["edit", "duplicate", "move", "history", "delete"]
+    : ["edit", "duplicate", "history", "delete"];
+}
+
 /** Folders where the caller may save a template (level edit or more), as select options. */
 export function editableFolders(
   folders: readonly FolderRow[],

@@ -60,6 +60,9 @@ export interface Api {
   versions(id: string): Promise<VersionList>;
   version(id: string, version: number): Promise<VersionBody>;
   restore(id: string, version: number, baseVersion: number): Promise<Item>;
+  duplicate(id: string): Promise<Item>;
+  move(id: string, folderId: string, baseVersion: number): Promise<Item>;
+  remove(id: string, baseVersion: number): Promise<Item>;
 }
 
 /** The casts trust the server's documented response shapes; the envelope itself is checked in client.ts. */
@@ -78,5 +81,9 @@ export function createApi(client: RpcClient): Api {
     version: (id, version) => call("version.get", { id, version }),
     restore: (id, version, baseVersion) =>
       call("version.restore", { id, version, baseVersion }),
+    duplicate: (id) => call("template.duplicate", { id }),
+    move: (id, folderId, baseVersion) =>
+      call("template.move", { id, folderId, baseVersion }),
+    remove: (id, baseVersion) => call("template.delete", { id, baseVersion }),
   };
 }

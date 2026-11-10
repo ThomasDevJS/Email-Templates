@@ -1,18 +1,30 @@
 import { folderPath } from "../library/model";
 import type { FolderRow, ItemRow } from "../rpc/api";
 import { formatTime, h } from "../ui/dom";
+import { openMenu, type MenuItem } from "../ui/menu";
 
 /**
  * Template list (spec section 8): `role="grid"`, one tab stop on a cell. Arrow keys move between cells,
- * Home and End go to the row's first and last cell, Enter opens the editor (History in the last column).
- * The favorite star is disabled until slice 5 adds `favorite.set`.
+ * Home and End go to the row's first and last cell, Enter opens the editor. The row menu (wireframe 03) opens
+ * with Enter on the Actions cell, Shift+F10 or the context menu key on any cell, or a click on Actions; Esc
+ * closes it and focus returns to the cell. The favorite star is disabled until slice 5 adds `favorite.set`.
  */
 export interface GridActions {
   open(item: ItemRow): void;
-  history(item: ItemRow): void;
+  /** Menu entries the caller's level allows; empty hides the Actions button. */
+  menu(item: ItemRow): MenuItem[];
 }
 
-const COLUMNS = ["Favorite", "Title", "Folder", "Updated", "By", "History"];
+const COLUMNS = ["Favorite", "Title", "Folder", "Updated", "By", "Actions"];
+const ACTIONS_CELL = COLUMNS.length - 1;
+
+/** Moves the grid's one tab stop to `cell` and focuses it. */
+export function focusCell(cell: HTMLTableCellElement): void {
+  const table = cell.closest("table");
+  for (const other of table?.querySelectorAll("td") ?? []) other.tabIndex = -1;
+  cell.tabIndex = 0;
+  cell.focus();
+}
 
 function cellKeys(table: HTMLTableElement): void {
   table.addEventListener("keydown", (event) => {
@@ -41,13 +53,16 @@ function cellKeys(table: HTMLTableElement): void {
   });
 }
 
+const opensMenu = (event: KeyboardEvent): boolean =>
+  (event.key === "F10" && event.shiftKey) || event.key === "ContextMenu";
+
 function itemRow(
   item: ItemRow,
   folders: readonly FolderRow[],
   actions: GridActions,
   first: boolean,
 ): HTMLTableRowElement {
-  const cell = (index: number, ...children: (Node | string)[]) =>
+  const cell = (index: number, ...children: (Node | string | null)[]) =>
     h(
       "td",
       { role: "gridcell", tabindex: first && index === 1 ? "0" : "-1" },
@@ -55,6 +70,33 @@ function itemRow(
     );
   const open = () => {
     actions.open(item);
+  };
+  const entries = actions.menu(item);
+  const menuButton =
+    entries.length === 0
+      ? null
+      : h(
+          "button",
+          {
+            type: "button",
+            tabindex: "-1",
+            class: "link",
+            "aria-haspopup": "menu",
+            "aria-expanded": "false",
+            "aria-label": `Actions for ${item.title}`,
+          },
+          "Actions",
+        );
+  const showMenu = (returnTo: HTMLTableCellElement) => {
+    if (menuButton === null) return;
+    openMenu({
+      label: `Actions for ${item.title}`,
+      anchor: menuButton,
+      items: entries,
+      returnFocus: () => {
+        focusCell(returnTo);
+      },
+    });
   };
   const row = h(
     "tr",
@@ -78,29 +120,23 @@ function itemRow(
     cell(2, folderPath(folders, item.folderId)),
     cell(3, formatTime(item.updatedAt)),
     cell(4, item.updatedBy),
-    cell(
-      5,
-      h(
-        "button",
-        {
-          type: "button",
-          tabindex: "-1",
-          class: "link",
-          "aria-label": `History of ${item.title}`,
-          onclick: () => {
-            actions.history(item);
-          },
-        },
-        "History",
-      ),
-    ),
+    cell(ACTIONS_CELL, menuButton),
   );
+  row.dataset["id"] = item.id;
+  menuButton?.addEventListener("click", () => {
+    showMenu(row.cells[ACTIONS_CELL] as HTMLTableCellElement);
+  });
   row.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    if ((event.target as HTMLTableCellElement).cellIndex === 5)
-      actions.history(item);
-    else open();
+    const cell = (event.target as HTMLElement).closest("td");
+    if (cell === null) return;
+    if (opensMenu(event)) {
+      event.preventDefault();
+      showMenu(cell);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (cell.cellIndex === ACTIONS_CELL) showMenu(cell);
+      else open();
+    }
   });
   row.addEventListener("dblclick", open);
   row.cells[1]?.addEventListener("click", open);

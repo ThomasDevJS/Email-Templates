@@ -7,6 +7,8 @@ import {
   filterItems,
   fold,
   folderPath,
+  moveTargets,
+  rowActions,
   subtreeIds,
   visibleNodes,
 } from "../../../src/web/library/model";
@@ -181,6 +183,28 @@ describe("library model", () => {
       "Sales",
       "Sales / Quotes",
     ]);
+  });
+
+  it("offers row actions by level and move targets with edit only", () => {
+    const quote = item("1", "Price quote", "Q");
+    expect(moveTargets(quote, FOLDERS).map((option) => option.id)).toEqual([
+      "M",
+      "S",
+    ]);
+    expect(rowActions(quote, FOLDERS)).toEqual([
+      "edit",
+      "duplicate",
+      "move",
+      "history",
+      "delete",
+    ]);
+    expect(rowActions(quote, [FOLDERS[1] as FolderRow])).toEqual([
+      "edit",
+      "duplicate",
+      "history",
+      "delete",
+    ]);
+    expect(rowActions({ ...quote, level: "use" }, FOLDERS)).toEqual([]);
   });
 
   it("filters by title, folder path and tags, case and accent insensitive", () => {
