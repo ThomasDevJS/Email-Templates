@@ -8,7 +8,11 @@ import { optString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { DOMAIN_KEY } from "../guards";
 import { lastErrorKey, lastOkKey } from "../jobs/health";
-import { TRIGGERS_JOB } from "../jobs/triggers";
+import {
+  TRIGGERS_JOB,
+  TRIGGERS_VERSION,
+  TRIGGERS_VERSION_KEY,
+} from "../jobs/triggers";
 import { WRITE_LOCK_MS, withLock } from "../lock";
 import { ADMIN_GROUP_KEY, RESOLVER_KEY } from "../membership/snapshot";
 import { resolverId } from "../membership/resolver";
@@ -79,7 +83,7 @@ export interface ConfigView {
   readonly indexBytes: number;
   readonly indexWarnBytes: number;
   readonly jobs: JobRow[];
-  /** `job:triggers:lastError` of a failed reinstall (spec Q23), "" when none. */
+  /** `job:triggers:lastError` while the reinstall is still pending (spec Q23), else "". */
   readonly triggersError: string;
 }
 
@@ -97,7 +101,10 @@ export function configGet(context: HandlerContext): ConfigView {
     indexBytes: utf8Length(JSON.stringify(index)),
     indexWarnBytes: INDEX_WARN_BYTES,
     jobs: jobRows(services),
-    triggersError: prop(lastErrorKey(TRIGGERS_JOB)),
+    triggersError:
+      prop(TRIGGERS_VERSION_KEY) === TRIGGERS_VERSION
+        ? ""
+        : prop(lastErrorKey(TRIGGERS_JOB)),
   };
 }
 

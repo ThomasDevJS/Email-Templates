@@ -1,17 +1,20 @@
 import { ErrorCode } from "../../shared/errors/codes";
-import { LIBRARY, type AdminTab } from "../router";
+import { ADMIN_TABS, LIBRARY, type AdminTab } from "../router";
 import type { FolderRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
 import { skeletonRows, toRpcError } from "../ui/status";
+import { auditTab } from "./adminAudit";
+import { configTab } from "./adminConfig";
 import { foldersTab } from "./adminFolders";
+import { transferTab } from "./adminTransfer";
+import { usageTab } from "./adminUsage";
 import type { AppContext, View } from "./context";
 import { membershipsTab } from "./memberships";
 
 /**
  * Admin view (wireframe 06). `admin.folders` decides who enters: DENIED shows the banner and nothing else.
- * Admins get the tabs Folders and grants and Memberships; manage holders get Folders and grants for the folders
- * they manage. The slice 6b tabs are not shown yet. Tabs are an ARIA tablist: Left and Right move and activate,
- * Home and End jump.
+ * Admins get all 6 tabs; manage holders get Folders and grants and Export folder, both for the folders they
+ * manage. Tabs are an ARIA tablist: Left and Right move and activate, Home and End jump.
  */
 export interface AdminData {
   readonly isAdmin: boolean;
@@ -21,7 +24,35 @@ export interface AdminData {
 const TAB_LABELS: Readonly<Record<AdminTab, string>> = {
   folders: "Folders and grants",
   memberships: "Memberships",
+  audit: "Audit log",
+  usage: "Usage",
+  transfer: "Export and import",
+  config: "Config",
 };
+
+const MANAGER_TABS: readonly AdminTab[] = ["folders", "transfer"];
+
+function openTab(
+  name: AdminTab,
+  app: AppContext,
+  panel: HTMLElement,
+  data: AdminData,
+): View {
+  switch (name) {
+    case "folders":
+      return foldersTab(app, panel, data);
+    case "memberships":
+      return membershipsTab(app, panel);
+    case "audit":
+      return auditTab(app, panel);
+    case "usage":
+      return usageTab(app, panel);
+    case "transfer":
+      return transferTab(app, panel, data);
+    case "config":
+      return configTab(app, panel);
+  }
+}
 
 /** DENIED state (wireframe 07 B): the server sent no folder data. */
 function denied(app: AppContext): HTMLElement {
@@ -61,9 +92,7 @@ export function adminView(
   let current: View | null = null;
 
   const show = (data: AdminData, tab: AdminTab) => {
-    const tabs: AdminTab[] = data.isAdmin
-      ? ["folders", "memberships"]
-      : ["folders"];
+    const tabs = data.isAdmin ? ADMIN_TABS : MANAGER_TABS;
     let active = tabs.includes(tab) ? tab : "folders";
     const panel = h("div", {
       class: "tab-panel",
@@ -96,10 +125,7 @@ export function adminView(
       panel.setAttribute("aria-labelledby", `tab-${name}`);
       app.replaceRoute({ name: "admin", tab: name });
       current?.dispose();
-      current =
-        name === "folders"
-          ? foldersTab(app, panel, data)
-          : membershipsTab(app, panel);
+      current = openTab(name, app, panel, data);
     };
     const tablist = h(
       "div",

@@ -83,6 +83,77 @@ export function accessRows(grants: readonly GrantRow[]): AccessRow[] {
   }));
 }
 
+/** "Sales Quotes!" as "sales-quotes"; "folder" when nothing is left. */
+function slug(name: string): string {
+  const cut = name
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/, "");
+  return cut === "" ? "folder" : cut;
+}
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+/** `YYYY-MM-DD` of the browser's local day. */
+export function localDate(date: Date): string {
+  return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** `migway-templates-<scope>-<date>.json` (spec 4.5): scope "library" or the folder name. */
+export function exportFileName(
+  scope: { readonly kind: "library" | "folder"; readonly name: string },
+  now: Date,
+): string {
+  const name = scope.kind === "library" ? "library" : slug(scope.name);
+  return `migway-templates-${name}-${localDate(now)}.json`;
+}
+
+/**
+ * ISO instant of local midnight at the start of `day` (`YYYY-MM-DD` from a date input), or of the next day with
+ * `nextDay`, so "date to" includes the whole day. "" for an empty or bad value.
+ */
+export function localDayStart(day: string, nextDay = false): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (match === null) return "";
+  const [year, month, date] = match.slice(1).map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  return new Date(year, month - 1, date + (nextDay ? 1 : 0)).toISOString();
+}
+
+/** "850 KB" or "3.10 MB". */
+export function formatBytes(bytes: number): string {
+  return bytes < 1024 * 1024
+    ? `${String(Math.ceil(bytes / 1024))} KB`
+    : `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+export interface ImportCounts {
+  readonly dryRun: boolean;
+  readonly created: number;
+  readonly skipped: number;
+  readonly failed: number;
+  readonly foldersCreated: number;
+  readonly foldersReused: number;
+  readonly subjectsFlattened: number;
+}
+
+/** Report sentence of Validate ("would create") and Import (wireframe 06: "40 ok, 2 skipped, 1 failed"). */
+export function importSummary(report: ImportCounts): string {
+  const head = report.dryRun ? "Validate: would create" : "Imported:";
+  const flattened =
+    report.subjectsFlattened === 0
+      ? ""
+      : ` ${String(report.subjectsFlattened)} subjects had line breaks, replaced by a space.`;
+  return `${head} ${String(report.created)} templates, ${String(report.skipped)} skipped, ${String(report.failed)} failed. Folders: ${String(report.foldersCreated)} new, ${String(report.foldersReused)} existing.${flattened}`;
+}
+
 /** What the principal field asks for, per type. */
 export function principalHint(type: PrincipalType): string {
   switch (type) {

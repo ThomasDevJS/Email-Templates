@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   accessRows,
   daysLeft,
   displayPath,
+  exportFileName,
   folderMoveTargets,
   folderNameProblem,
+  formatBytes,
+  importSummary,
+  localDayStart,
   principalHint,
 } from "../../../src/web/admin/model";
 import type { FolderRow, GrantRow } from "../../../src/web/rpc/api";
@@ -117,5 +121,54 @@ describe("admin model", () => {
     expect(principalHint("ou")).toContain("inactive");
     expect(displayPath("/Sales/Quotes")).toBe("Sales / Quotes");
     expect(displayPath("/")).toBe("");
+  });
+});
+
+describe("export, import and config helpers (slice 6b)", () => {
+  it("names the download after the scope and the local date", () => {
+    const now = new Date(2026, 10, 9, 23, 30);
+    expect(exportFileName({ kind: "library", name: "" }, now)).toBe(
+      "migway-templates-library-2026-11-09.json",
+    );
+    expect(
+      exportFileName({ kind: "folder", name: "Sales / Quotes!" }, now),
+    ).toBe("migway-templates-sales-quotes-2026-11-09.json");
+    expect(exportFileName({ kind: "folder", name: "Été" }, now)).toBe(
+      "migway-templates-ete-2026-11-09.json",
+    );
+    expect(exportFileName({ kind: "folder", name: "!!" }, now)).toBe(
+      "migway-templates-folder-2026-11-09.json",
+    );
+  });
+
+  it("turns a date input into the local midnight instant", () => {
+    vi.stubEnv("TZ", "Europe/Berlin");
+    expect(localDayStart("2026-11-09")).toBe("2026-11-08T23:00:00.000Z");
+    expect(localDayStart("2026-11-09", true)).toBe("2026-11-09T23:00:00.000Z");
+    expect(localDayStart("")).toBe("");
+    expect(localDayStart("9.11.2026")).toBe("");
+    vi.unstubAllEnvs();
+  });
+
+  it("formats sizes and import reports", () => {
+    expect(formatBytes(870400)).toBe("850 KB");
+    expect(formatBytes(3 * 1024 * 1024)).toBe("3.00 MB");
+    const counts = {
+      dryRun: true,
+      created: 40,
+      skipped: 2,
+      failed: 1,
+      foldersCreated: 3,
+      foldersReused: 0,
+      subjectsFlattened: 0,
+    };
+    expect(importSummary(counts)).toBe(
+      "Validate: would create 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing.",
+    );
+    expect(
+      importSummary({ ...counts, dryRun: false, subjectsFlattened: 2 }),
+    ).toBe(
+      "Imported: 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing. 2 subjects had line breaks, replaced by a space.",
+    );
   });
 });

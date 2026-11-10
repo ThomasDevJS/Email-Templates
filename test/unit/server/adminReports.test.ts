@@ -11,10 +11,7 @@ import type {
   Item,
 } from "../../../src/shared/model/data";
 import { readBuffer } from "../../../src/server/audit/buffer";
-import {
-  AUDIT_PAGE_SIZE,
-  parseLines,
-} from "../../../src/server/audit/query";
+import { AUDIT_PAGE_SIZE, parseLines } from "../../../src/server/audit/query";
 import { INDEX_REV_KEY } from "../../../src/server/cache/indexCache";
 import type { AuditQueryResult } from "../../../src/server/handlers/audit";
 import {
@@ -34,7 +31,7 @@ import { ADMIN_GROUP_KEY } from "../../../src/server/membership/snapshot";
 import {
   IMPORT_ITEMS_MAX,
   IMPORT_MAX_BYTES,
-} from "../../../src/server/transfer/format";
+} from "../../../src/shared/model/validate";
 import type { Surface } from "../../../src/shared/log/logger";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
@@ -606,6 +603,44 @@ describe("import", () => {
     ).toEqual(["D", "Loop", "Loop2"]);
   });
 
+  it("fails bad folder and template records with a reason, children of failed folders too", () => {
+    const target = folder("Imports");
+    const report = world.ok<ImportReport>(OWNER, "import", {
+      folderId: target.id,
+      file: importFile({
+        folders: [
+          { id: "L", parentId: "", name: "x".repeat(81) },
+          { id: "K", parentId: "L", name: "Kid" },
+          { name: "No id" },
+          7,
+        ],
+        items: [
+          { meta: { title: "In kid", folderId: "K" }, html: "<p>k</p>" },
+          { meta: { title: "Bad tags", tags: [1] }, html: "<p>t</p>" },
+          { meta: { title: "No html" } },
+        ],
+      }),
+    });
+    expect(report.lines.map((l) => [l.name, l.reason])).toEqual([
+      ["No id", "Folder needs an id and a name"],
+      ["#4", "Not a folder record"],
+      ["x".repeat(81), "Folder name must be 1 to 80 characters"],
+      ["Kid", "Its parent folder was not imported"],
+      ["In kid", "Its folder was not imported"],
+      ["Bad tags", "Template needs a title and text tags"],
+      ["No html", "Template needs meta and html"],
+    ]);
+    expect(
+      errorOf(OWNER, "import", {
+        folderId: target.id,
+        file: importFile({ folders: {} }),
+      }),
+    ).toBe("folders must be a list");
+    expect(errorOf(OWNER, "import", { folderId: target.id, file: "[]" })).toBe(
+      "The file is not a Migway export",
+    );
+  });
+
   it("enforces the schema version, size and count limits before anything is read", () => {
     const target = folder("Imports");
     const run = (file: string) =>
@@ -686,6 +721,15 @@ describe("config.get", () => {
     expect(text).not.toContain("do-not-show");
     expect(text).not.toContain("STORE");
     expect(text).not.toContain(OWNER);
+  });
+
+  it("shows the trigger reinstall error only while the reinstall is pending", () => {
+    world.props.setProperty(lastErrorKey("triggers"), "x Trigger quota");
+    expect(world.ok<ConfigView>(OWNER, "config.get").triggersError).toBe("");
+    world.props.setProperty("TRIGGERS_VERSION", "0");
+    expect(world.ok<ConfigView>(OWNER, "config.get").triggersError).toBe(
+      "x Trigger quota",
+    );
   });
 
   it("flags a job late only after 2 intervals", () => {

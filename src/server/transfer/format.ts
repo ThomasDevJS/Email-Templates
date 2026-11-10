@@ -1,5 +1,9 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Level, PrincipalType } from "../../shared/model/data";
+import {
+  IMPORT_ITEMS_MAX,
+  IMPORT_MAX_BYTES,
+} from "../../shared/model/validate";
 import { utf8Length } from "../../shared/text";
 
 /**
@@ -8,9 +12,7 @@ import { utf8Length } from "../../shared/text";
  * an import can rebuild the tree; an import gives every record a new ID.
  */
 export const EXPORT_SCHEMA_VERSION = 1;
-/** Upload limits, enforced on the server before parsing. */
-export const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
-export const IMPORT_ITEMS_MAX = 200;
+/** Upload limits (bytes and templates in shared/model/validate.ts), enforced on the server before parsing. */
 export const IMPORT_FOLDERS_MAX = 100;
 
 export interface ExportFolder {

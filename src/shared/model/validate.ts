@@ -13,6 +13,9 @@ export const TITLE_MAX = 120;
 export const TAGS_MAX = 10;
 export const TAG_MAX = 30;
 export const BODY_MAX_BYTES = 100 * 1024;
+/** Import upload limit (spec 4.5), checked in the browser and enforced on the server. */
+export const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+export const IMPORT_ITEMS_MAX = 200;
 
 function fail(message: string): never {
   throw new AppError(ErrorCode.VALIDATION, message);
