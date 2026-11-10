@@ -71,13 +71,7 @@
 - `loadIndex` is lock-free; `maintain` runs in `doGet` only. Body cache `bd:<bodyFileId>` in handlers/body.ts (`readStoredBody`, `cacheBody`).
 - Web: views/rowActions.ts (row menu), grid "Actions" column, `AppContext.pushRoute`, library selects folders in place, `openDialog({ returnFocus })`.
 
-## Lessons (slice 4b)
-- Verify "fails on old code" by `git diff src > patch; git checkout src; run; git apply patch`.
-- Call counts: a scratch vitest file with Proxy counters on the fake globals, run on base and head; delete before commit.
-- Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
 
-## Lessons (slice 4b retry 1)
-- `handleRpc` enforces `REQUEST_ID_PATTERN`; tests send `TESTREQ0-000001`. Every client string in a log line needs a server format check. Snapshots break read-check-write; re-read live in the lock.
 ## Lessons (slices 4b to 6b, merged)
 - Old-code check: `git checkout <base> -- src`, run, `git reset -q; git checkout HEAD -- src` (base-only files: `git rm -f`).
 - Call counts: scratch test with Proxy counters or `appendFileSync` of `world.lines`; delete before commit.
@@ -93,8 +87,6 @@
 - Web: `searchItems` (library/model.ts), `AppContext.favorites/recent/setFavorite`, grid star + `GridActions.isFavorite/toggleFavorite`, `subjectPickerItems` (picker.ts).
 
 ## Lessons (slice 5)
-- Worktree guard rejects bash heredocs with python edits; use scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>` blocks) written with the Write tool. Empty replacement needs `===\n>>>`.
-- `git checkout <base> -- src` adds base-only files to the index; remove them with `git rm -f` afterwards.
 - New side-file reads need a published rev property, else readers never cache (warm counter test catches it).
 
 ## Code map (after slice 5b)
@@ -104,7 +96,6 @@
 
 ## Lessons (slice 5b)
 - Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
-- Prettier renumbers markdown lists; a non-list sentence keeps old step references honest.
 - jsdom: `vi.stubEnv("TZ", ...)` changes Date local time at runtime.
 
 ## Code map (after slice 6a)
@@ -122,8 +113,6 @@
 - Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
 ## Lessons kept from 5b to 6b
-- jsdom: `vi.stubEnv("TZ", ...)` changes Date and Intl local time at runtime. Dialog actions close in a microtask.
-- Data read back from Drive needs a shape check before a write; multi-file writes write sides first, index last.
 - `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines.
 - A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
 
@@ -138,7 +127,13 @@
 - TEMPORARY: src/addon/spikeS6.ts (pure builders, flows gated on env `dev`), `onS6Card`/`onS6Apply`, Reply kind `s6`, `s6Response` in render.ts, home `s6Sections`. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-09-s6.md.
 - `UpdateDraftActionResponse` cannot update the card or notify; harness results go into the draft body.
 - Env-gated card tests: `vi.hoisted` mutable `BUILD_INFO` mock in its own file. Adding to `CALLBACKS` auto-covers the guard test.
-- Scratchpad ed.py with `sub(path, old, new)` asserts is the reliable multi-edit path.
+
+
+## Slice 8c (admin UI, 2026-11-10)
+- `views/adminTable.ts` (`adminTable`, `tableRow` with `data-label`, `noteRow`, `toneTag`); `admin/actions.ts` (`actionWords`, `resultTag`, `purgeText`). Tint tokens `--ok-bg`, `--warn-bg`, `--red-bg`.
+- Admin h1 then tab h2s (Lighthouse heading order). Admin tables stack under 860 px via `td[data-label]::before`.
+- Worktree guard refuses `cmd && python3 - <<EOF`; scratchpad `ed8c.py` (@@@/<<</===/>>>) run alone works. Screens: scratchpad `shoot8c.cjs`, dev server on a fixed port, rebuild by restart.
+- Count harness calls in jsdom: wrap `window.google.script.run` (host reads `script.run` per call).
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
