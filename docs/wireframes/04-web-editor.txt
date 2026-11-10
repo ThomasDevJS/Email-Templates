@@ -50,3 +50,46 @@ Subject field (D21, spec 5.6):
   server still rejects line breaks with SUBJ_LINEBREAK.
   Problems name the field: "Subject: Unknown placeholder sender.nmae at char 3."
   Empty subject = the draft subject is not touched on Insert.
+
+Recipients (D26). Slice 9: three fields under Subject in the current form. Slice 8b: moved into the
+Details panel of design direction A (docs/design/design-system.md, right panel 340 px). Proposed until
+the owner approves.
+
+Slice 9 placement (current editor):
+| Subject [ Driver leaving: {{ask:Driver name}} ]  31/200   (optional)                |
+| To  [ payroll@migway.com x ] [______________________ ]                              |
+| Cc  [ safety@migway.com x ] [_______________________ ]                              |
+| Bcc [ records@partner.com  outside migway.com x ] [__ ]                             |
+|     Added to the draft when someone inserts this template. Users see every          |
+|     address before it is added.                                                     |
+
+Slice 8b, Details panel (right panel, inputs 30 px):
++--------------------------------------+
+| Details                              |  panel heading, 13 px
+| Folder   [ HR / Drivers        v ]   |
+| Tags     [ leaving x ] [+ tag]       |
+|                                      |
+| To                                   |  label above input
+| [ payroll@migway.com x ][________ ]  |  chip per address, tag style (radius 10, --select)
+| Cc                                   |
+| [ safety@migway.com x ][_________ ]  |
+| Bcc                                  |
+| [ records@partner.com x ]            |
+|   outside migway.com                 |  12 px --ink-3 marker under the chip; --warn icon
+| Hidden from the other recipients of  |  Bcc help, 12 px --ink-3
+| the email.                           |
+| Added to the draft when someone      |  group help, 12 px --ink-3
+| inserts this template. Users see     |
+| every address before it is added.    |
++--------------------------------------+
+
+Rules
+- Input splits on comma, semicolon, space and line break; each address becomes a chip on blur or Enter.
+  Backspace in an empty input selects the last chip; Delete removes it. Chip remove button aria-label
+  "Remove safety@migway.com from Cc".
+- Client checks with the shared validateRecipients for inline hints; the server result is authoritative.
+- Outside marker: domain part differs from the caller's domain (from `me`). With `me.recipientsExternal`
+  = deny the chip has the error style (--red border) and the RCPT_EXTERNAL text under the field.
+- Errors under the field and in Problems, texts of spec 7.1, for example
+  "Cc, address 2 is not an email address. Use the form name@company.com."
+- Preview as me shows a "To / Cc / Bcc" line above the rendered subject.

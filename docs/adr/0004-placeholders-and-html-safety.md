@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5")
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Proposed, see ADR-0006)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -258,6 +258,15 @@ Decision: option 3. Mechanism:
 Verified: smoke "Slice 5c" on dev-848206f, 4 of 4. Empty subject set; typed subject kept; "Insert with subject" replaced it; reply subject kept and the reply stayed in its conversation; `hasSubject` true in the log with a filled subject.
 
 Consequences: no new op, no new scope. Users who want the template subject on a reply or a typed draft press "Insert with subject"; the quick start (slice 7) states it. Open: Q25 (spec 15), prompts used only in the subject are asked while the switch is off.
+
+## Amendment 2026-11-10: template recipients (D26)
+
+Status: Proposed until the owner approves. Mechanism, options and platform facts: ADR-0006.
+
+- Placeholders: the grammar of this ADR does not apply to To, Cc and Bcc. Recipient fields hold literal addresses; a `{` fails `RCPT_FORMAT` (ADR-0006 section 3).
+- Apply semantics 7: the one `UpdateDraftActionResponse` also carries one recipient action per field with new addresses (ADR-0006 section 4), after spike S6.
+- "Insert body only" (D24) now means body only: no subject action and no recipient action.
+- `recipient.first_name` (Apply semantics 2) still reads the draft's To before the insert; template To addresses do not feed it.
 
 ## Consequences
 

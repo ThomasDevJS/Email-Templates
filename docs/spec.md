@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves.
 Date: 2026-11-09, amended 2026-11-10
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D24), docs/research/*.md, ADR-0001 to ADR-0005.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D26), docs/research/*.md, ADR-0001 to ADR-0006.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -20,14 +20,15 @@ Gmail compose sidebar (add-on code, runs as the user)
     Search results (paged)
     Template preview
       Prompt card (only if prompts or unresolved values)
-        Apply -> draft body updated; template subject set when the draft subject is empty (D21, D24)
+        Apply -> draft body updated; template subject set when the draft subject is empty (D21, D24);
+                 template To, Cc, Bcc added (D26, section 5.7)
     Open library / Edit -> web app in OVERLAY
 
 Web app (same project, /exec, runs as the owner)
   Library  (default view)
     Folder tree | template list | search | favorites filter | trash
   Editor   (?view=editor&id=...)
-    Title, subject, folder, tags, body, placeholder menu, preview as me, save
+    Title, subject, To, Cc, Bcc, folder, tags, body, placeholder menu, preview as me, save
   History  (?view=history&id=...)
     Version list, preview, restore
   Admin    (?view=admin, admins and manage holders)
@@ -71,16 +72,17 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 1. User opens compose, opens the add-on. Compose trigger reads the add-on User Cache `view:*`; on miss it calls server op `sidebar.home`.
 2. Server returns Favorites (max 10), Recent (max 5, from `usage`), top-level folders the caller can `use`, and the caller's filtered list for caching.
-3. User taps Insert on a template. The callback calls server op `template.apply` with `{ id, knownVersion, recipientEmailIfInternal }`. The server re-checks `use`, returns body and subject (if version changed), sender profile, internal recipient first name, and buffers the apply event.
-4. No prompts and no unresolved values: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the subject rule of section 5.6 (D24) says so, `UpdateDraftSubjectAction`. One click. Verified on Gmail web: spike S5 on dev-32a446c, smoke "Slice 5c" on dev-848206f.
-5. Otherwise the add-on pushes the prompt card. Its Insert calls `template.apply` again with `followUp: true`. The server re-checks `use` on that call and buffers no second apply event, so one Insert tap counts once. A grant removed while the card is open gives DENIED and leaves the draft unchanged. Then the callback validates every field, renders body and subject, inserts. Blank fields keep the card with an error.
-6. Usage counts the first Insert tap. A cancelled prompt card still counts in `applyCount` and Recent (accepted, Q14: usage is analytics).
+3. User taps Insert on a template. The callback calls server op `template.apply` with `{ id, knownVersion, recipientEmailIfInternal }`. The server re-checks `use`, returns body and subject (if version changed), `to`, `cc`, `bcc` and `blocked` (every call, section 5.7), sender profile, internal recipient first name, and buffers the apply event.
+4. A template with any To, Cc or Bcc address never inserts in one click from a list: the row button reads "Review" and opens the preview card, or the prompt card when the template has prompts (section 5.7, D26). Its Insert is the confirmation.
+5. No prompts, no unresolved values and no recipients: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the subject rule of section 5.6 (D24) says so, `UpdateDraftSubjectAction`. One click. Verified on Gmail web: spike S5 on dev-32a446c, smoke "Slice 5c" on dev-848206f. Recipient actions (one per field with new addresses) join the same response after spike S6 (section 14.1).
+6. Otherwise the add-on pushes the prompt card. Its Insert calls `template.apply` again with `followUp: true`. The server re-checks `use` on that call and buffers no second apply event, so one Insert tap counts once. A grant removed while the card is open gives DENIED and leaves the draft unchanged. Then the callback validates every field, renders body and subject, inserts. Blank fields keep the card with an error. Recipient lists that changed since the card showed them keep the card with an error (section 5.7).
+7. Usage counts the first Insert tap. A cancelled prompt card still counts in `applyCount` and Recent (accepted, Q14: usage is analytics).
 
 ### 4.2 Flow: edit and restore (DoD 2)
 
 1. Editor opens from the library or from the sidebar Edit button (OVERLAY, RELOAD_ADD_ON).
-2. Save sends `{ id, baseVersion, title, subject, folderId, tags, html }`. Server sanitizes, validates placeholders and the subject (section 5.6), writes the version (ADR-0002 write sequence). Conflict shows a dialog: "Changed by <name> at <time>. Open their version / Copy my text / Cancel." No silent overwrite.
-3. History lists versions with their subject. Restore creates version N+1 from subject and body of version K and writes an audit row.
+2. Save sends `{ id, baseVersion, title, subject, to, cc, bcc, folderId, tags, html }`. `to`, `cc`, `bcc` are string arrays. Server sanitizes, validates placeholders, the subject (section 5.6) and the recipients (section 5.7), writes the version (ADR-0002 write sequence). Conflict shows a dialog: "Changed by <name> at <time>. Open their version / Copy my text / Cancel." No silent overwrite.
+3. History lists versions with their subject and recipients. Restore creates version N+1 from subject, recipients and body of version K, validates them (section 5.7) and writes an audit row.
 
 ### 4.3 Flow: grant access (DoD 3)
 
@@ -92,19 +94,20 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 - Sidebar: search input with `onChangeAction`. Server op `search` returns the top 20 visible matches. Operators `folder:<name>` and `tag:<name>`. Empty query shows Home, with no server call. The sidebar matches title, subject, tags, folder path and the 140-character `snippet` of the index item. It never reads full body text (amended 2026-11-10, slice 5 review minor 1).
 - Web app: title, subject, folder path and tag filtering runs in the browser on the loaded index. Full body text is searched in the web app only: server op `search.body` runs 300 ms after the last keystroke, reads Script Cache entries `ft:<bodyFileId>` with one `getAll`, and makes at most 25 Drive reads per call for misses. The rest are reported as `skipped` ("N templates were not searched yet."). Results not already listed show under "Matches in text". While the call runs the list shows "Searching text...". Sort: relevance, then the caller's Recent position, then title.
+- Recipients (D26, slice 9): the web app browser filter also matches template To, Cc and Bcc addresses, weight 1, on the local part prefix or the full address prefix; a domain alone matches nothing. The sidebar `search` op does not match addresses (section 5.7).
 - Matching: case-insensitive, accent-insensitive token prefix match on title (weight 3), subject (2, D21), tags (2), folder (2), body text (1: the snippet in the sidebar, the full text in `search.body`). Every term must match. Query cut at 200 characters. Both ops filter to the caller's visible templates before ranking. Fuzzy tolerance: one typo for terms of 5 or more characters, at half weight.
 
 ### 4.5 Flow: export and import
 
 Amended 2026-11-10 (errata run 3) to match slice 6b. File format and mechanism: ADR-0002 Amendment 2026-11-10 (errata run 3).
 
-- File: JSON, `schemaVersion` 1: header (`exportedAt`, `exportedBy`, `scope`), `folders` (`id, parentId, name`), `grants` (`folderId, principalType, principalKey, level`), `items` (`meta: { id, folderId, title, subject, tags }`, `html`). Live templates, current version only. No history, favorites, usage, audit or `createdBy`.
+- File: JSON, `schemaVersion` 1: header (`exportedAt`, `exportedBy`, `scope`), `folders` (`id, parentId, name`), `grants` (`folderId, principalType, principalKey, level`), `items` (`meta: { id, folderId, title, subject, to, cc, bcc, tags }`, `html`; `to`, `cc`, `bcc` added 2026-11-10, D26, absent = `[]`). Live templates, current version only. No history, favorites, usage, audit or `createdBy`.
 - Export folder (manage): the folder and its live subtree, grants on those folders only. Export library (admin): every shared folder; private folders and their templates are left out (D11), label "Whole library (shared folders)".
 - Paging: each call returns at most 20 templates, so it reads at most 20 bodies from Drive. Pages use an offset. The browser joins them into `migway-templates-<scope>-<date>.json` (`library` or the folder name, local date).
 - Import (admin): choose a file and a target folder, then Validate, then Import. Validate writes nothing. Limits checked on the server before any write: 5 MB, 200 templates, 100 folders, `schemaVersion` exactly 1, no duplicate folder `id`.
 - Target: a shared folder. A folder in a private tree answers VALIDATION "Templates cannot be imported into a private folder. Pick a shared folder."
 - Import creates shared folders only and reuses a folder whose name a live sibling has. It creates no grants: the file's grants are information for the admin. Templates get new IDs. A template whose title already exists in its destination folder is skipped, so a second import adds nothing.
-- Bodies pass the sanitizer and placeholder checks; subjects follow section 5.6. A failure answers "Nothing was imported: <what>. Run the import again."
+- Bodies pass the sanitizer and placeholder checks; subjects follow section 5.6; recipients follow section 5.7 (bad addresses dropped and reported, too many refuses the file). A failure answers "Nothing was imported: <what>. Run the import again."
 - Report: templates created, skipped, failed; folders created and reused; subjects flattened; one line per skipped or failed record.
 - Import is not an owner-change path: section 16, Owner handover.
 
@@ -152,6 +155,7 @@ A grant to a principal that already holds one on the folder updates its level (b
 | title | string, 1 to 120 chars | |
 | subject | string, 0 to 200 chars | applied to the draft in v1 (D21, section 5.6). Empty = the draft subject is not touched |
 | tags | string array, max 10, each 1 to 30 chars | |
+| to, cc, bcc | string arrays, max 10 each, 20 together, each address max 254 chars | added to the draft on Insert (D26, section 5.7). Absent = `[]` |
 | status | `published` or `draft` | always `published` in v1 |
 | currentVersion | integer | |
 | bodyFileId | string | Drive file of the current version |
@@ -189,7 +193,7 @@ Reserved file `push_log.json` (created in v2): records `id, itemId, userEmail, s
 | `favorites.json` | `{ rev, byUser: { email: [itemId] } }` |
 | `usage.json` | `{ rev, items: { itemId: { applyCount, lastUsedAt, days } }, recent: { email: [itemId, max 20] } }`. `days` (slice 6b): `{ "YYYY-MM-DD": count }` per UTC day, kept to the 30 days that end on the latest apply; absent in older entries, read as 0 |
 | `members.json` | `{ refreshedAt, resolver, groups: { groupEmail: { members[], childGroups[], status } } }` |
-| `bodies/<itemId>.v<version>.json` | `{ itemId, version, subject, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. `subject` added 2026-11-10 (D21); a file without it reads as `""`. Drive `appProperties`: `itemId, version, savedBy, restoredFrom`. Version history = one `files.list` by `itemId` |
+| `bodies/<itemId>.v<version>.json` | `{ itemId, version, subject, to, cc, bcc, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. `subject` added 2026-11-10 (D21); a file without it reads as `""`. `to`, `cc`, `bcc` added 2026-11-10 (D26); a file without them reads as `[]`. Drive `appProperties`: `itemId, version, savedBy, restoredFrom`. Version history = one `files.list` by `itemId` |
 | `audit/YYYY-MM.jsonl` | one ADR-0003 Part D event per line, append-only |
 | `backups/YYYY-MM-DD/` | copies of `index.json`, `favorites.json`, `usage.json`, 14 kept. Restore: section 16 |
 
@@ -208,7 +212,7 @@ Mechanism and options in ADR-0004, Amendment 2026-11-10 (subject).
   |---|---|---|
   | One-click Insert (lists), preview Insert | sets it | keeps it |
   | Preview "Insert with subject" (shown when the draft has a subject) | sets it | replaces it |
-  | Preview "Insert body only" (shown when the draft subject is empty) | keeps it | keeps it |
+  | Preview "Insert body only" (shown when the draft subject is empty; D26: also when Insert adds an address, and it adds none, section 5.7) | keeps it | keeps it |
   | Prompt card switch "Replace the subject" | starts on, user decides | starts off, user decides |
 
   An empty rendered subject sends no subject action, so the draft subject is never cleared. Verified in smoke "Slice 5c" on dev-848206f, 4 of 4 (wireframe 02).
@@ -216,7 +220,42 @@ Mechanism and options in ADR-0004, Amendment 2026-11-10 (subject).
 - Search: subject weight 2 (section 4.4).
 - Logs: the subject is template content. It is never logged, like the body.
 
-Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` (published revisions of `favorites.json` and `usage.json`, ADR-0002 Amendment 2026-11-10), `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property.
+Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` (published revisions of `favorites.json` and `usage.json`, ADR-0002 Amendment 2026-11-10), `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `RECIPIENTS_EXTERNAL` (`allow` default, `deny`; section 5.7), `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property.
+
+### 5.7 Template recipients (D26, added 2026-11-10)
+
+Mechanism and options in ADR-0006. Proposed until the owner approves.
+
+- Fields: `to`, `cc`, `bcc` on the item and in each version file, string arrays, default `[]`. Max 10 per field, 20 together, 254 characters per address (Q33). A record without them reads as `[]`; the shape check refuses a present non-array.
+- Normalization at every write: trim, lower case, duplicates inside one field dropped silently. Order kept.
+- Syntax: plain `local@domain`, `^[a-z0-9._%+'-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$` after lower casing, no `..`, no label starting or ending with `-`. No display names, no Unicode domains, no placeholders (Q34).
+- Outside addresses: allowed by default (D26 update). Outside = domain part differs from Script Property `DOMAIN` (exact, case-insensitive; subdomains are outside; secondary domains Q36). Script Property `RECIPIENTS_EXTERNAL`: `allow` (default, also when unset) or `deny`. The owner sets it in the script editor; the Config tab shows it read only. An in-app admin switch is a v1.1 item (Q32).
+- Save validation (server, every write: create, update, duplicate, restore, import; not move). Codes carry `field` (`to`, `cc`, `bcc`) and `position` (1-based). Texts in section 7.1: `RCPT_FORMAT`, `RCPT_TOO_LONG`, `RCPT_TOO_MANY`, `RCPT_DUPLICATE` (one address in two fields), `RCPT_EXTERNAL` (`deny` only). No existence check (Q38).
+- `deny` and stored outside addresses: templates keep them. `template.apply` and `template.getBody` return the inside addresses in `to`, `cc`, `bcc` and the outside ones in `blocked`; the add-on adds only the returned lists and the cards list the blocked ones as not added. The editor marks them at load; the next save, a restore of such a version and a duplicate answer `RCPT_EXTERNAL`.
+- Import: `RCPT_FORMAT`, `RCPT_TOO_LONG` and (`deny`) `RCPT_EXTERNAL` drop the address and import the template; an address in two fields keeps the first of To, Cc, Bcc; `RCPT_TOO_MANY` refuses the file ("Nothing was imported: ..."). The report gives per template the count of dropped addresses and the reason.
+- Who sets them: `edit` on the folder, like body and subject. Private folders allowed (Q37). `use` holders see them on the cards and in the library and cannot change them.
+- Apply. `template.apply` returns `to`, `cc`, `bcc`, `blocked` on every call (outside the `knownVersion` rule), filtered by the current switch. The add-on never caches them and never puts them in card parameters. One pure function `recipientActions(template, draft, choice)` decides:
+
+  | Draft state | Template To | Template Cc, Bcc |
+  |---|---|---|
+  | draft To empty (new message, forward) | added | added |
+  | draft To filled (reply, typed To) | not added, listed as "Not added" | added |
+  | address already in any draft field (lower case, part inside `<...>`) | skipped | skipped |
+  | address in `blocked` | never added | never added |
+
+  | Insert path | Recipients |
+  |---|---|
+  | List row of a template with recipients | no insert; "Review" opens the preview card (or the prompt card when prompts exist) |
+  | Preview Insert, "Insert with subject" | added by the table above |
+  | Preview "Insert body only" (shown when plain Insert would set the subject or add an address) | none; no subject either |
+  | Prompt card switch "Add recipients" (id `rcpt`) | starts on; off adds none |
+
+  A field with nothing new sends no action. Recipient actions go in the same `UpdateDraftActionResponse` as body and subject; their content (new addresses only, or the draft list plus new) follows spike S6 (section 14.1).
+- Disclosure. Every address is shown on a card before it reaches the draft. The cards list each address on its own line with its field. Outside addresses carry "outside <caller domain>"; Bcc lines carry "hidden from other recipients". Not-added addresses carry their reason. The card carries `rh`, the first 16 hex characters of a SHA-256 over the lists it showed; at Insert, a different hash of the `template.apply` lists leaves the draft unchanged and re-renders the card with the change message. Gmail's own outside-recipient warning is not relied on.
+- Sidebar lists carry counts only: item field `rc: [to, cc, bcc]`. Row bottom label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only).
+- History: each version shows a recipients line. Restore copies and validates. Duplicate copies and validates. Export `meta` carries them.
+- Search: web app library only, weight 1, a term matches the local part prefix or the full address prefix; the domain alone matches nothing. Sidebar `search` unchanged (Q39).
+- Audit: `template.*` events carry the item in `before` and `after`, so recipient changes show as a diff. Logs never carry an address (section 11).
 
 ## 6. Server operations
 
@@ -242,6 +281,8 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 
 `spike.s4` and its policy row were removed in slice 5.
 
+Arguments and results for recipients (D26, slice 9, section 5.7): `template.create` and `template.update` take `to`, `cc`, `bcc` (string arrays). `template.duplicate` and `version.restore` copy them and validate. `import` reads them from `meta`. `template.get`, `template.list` (web app) and `export.*` return them. `template.apply` and `template.getBody` return `to`, `cc`, `bcc` (inside addresses only when `RECIPIENTS_EXTERNAL=deny`) and `blocked` on every call. `sidebar.home`, `search` and the sidebar lists return `rc: [to, cc, bcc]` counts and no address. `me` returns `recipientsExternal` (`allow` or `deny`) for the editor; `config.get` shows it. No new op and no new policy row.
+
 Status 2026-11-10 (build f6b567f, slices 6a and 6b merged): every op in this table has a handler. `LATER_SLICE_OPS` and the "not implemented" answer are removed. `template.getBody` (slice 3) returns the readable body without an apply event; the add-on uses it on a body cache miss. `template.apply` takes `followUp: true` on the prompt card Insert (section 4.1 step 5). `template.duplicate` (slice 4b): title "Copy of ...", cut to 120, tags, subject and the current body become version 1; edit on source and target. `search`, `search.body`, `favorite.set`, `favorite.unset` (slice 5). `admin.folders`, `membership.status`, `trash.purge`, the Trash view of `template.restoreFromTrash` (slice 6a). `export.*`, `import`, `audit.query`, `usage.report`, `config.get`, `backup.list`, `backup.restore` (slice 6b). Admin rows re-read the membership snapshot inside the lock before a write (dispatch `recheck`).
 
 ## 7. Error, empty and loading states
@@ -257,9 +298,37 @@ Error codes and UI (wireframe 07). Guard order: blank caller gives AUTH_NO_USER 
 | CONFLICT | baseVersion stale | n/a | Conflict dialog (4.2) | after choice |
 | BUSY | lock not acquired in 10 s | "Busy, try again." + Retry | Toast + Retry | yes |
 | QUOTA | Apps Script quota or simultaneous executions | "Service is busy. Try again in a minute." | Toast | yes, after 60 s |
-| VALIDATION | placeholder, subject, size or request ID errors | n/a | Inline list under editor with positions | after fix |
+| VALIDATION | placeholder, subject, recipient, size or request ID errors | n/a | Inline list under editor with positions | after fix |
 | PROMPTS_MISSING | blank prompt at apply | Prompt card with fields marked | n/a | after fill |
 | TIMEOUT, SERVER | network or unhandled | "Something went wrong. Retry." + request ID | Banner + request ID | yes |
+
+### 7.1 Recipient texts (D26, added 2026-11-10)
+
+Save errors (editor field error and Problems list; `field` and `position` from the code):
+
+| Code | Text |
+|---|---|
+| `RCPT_FORMAT` | "Cc, address 2 is not an email address. Use the form name@company.com." |
+| `RCPT_TOO_LONG` | "To, address 1 is longer than 254 characters." |
+| `RCPT_TOO_MANY` | "Cc holds 11 addresses. Use at most 10 per field." or "To, Cc and Bcc hold 21 addresses together. Use at most 20." |
+| `RCPT_DUPLICATE` | "safety@migway.com is in both To and Cc. Keep it in one field." |
+| `RCPT_EXTERNAL` | "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save." |
+
+Sidebar (wireframe 02):
+- List row of a template with recipients: bottom label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only); button "Review", screen reader text "Review <title>".
+- Preview card, section "Recipients": one line per address, "To payroll@migway.com", "Cc safety@migway.com", "Bcc records@partner.com". Markers after the address: "outside migway.com", "hidden from other recipients" (Bcc).
+- Not added: "Not added: <address>. The draft already has a To recipient." / "Not added: <address>. It is already in the draft." / "Not added: <address>. Outside migway.com, turned off by your admin."
+- Line above the buttons: "Adds 2 recipients." (count of addresses Insert adds).
+- Prompt card switch: label "Add recipients", bottom label "Cc safety@migway.com, Bcc records@partner.com (outside migway.com)".
+- Changed lists at Insert: "The recipients of this template changed. Check them and press Insert again."
+
+Editor (wireframe 04, Details panel):
+- Labels "To", "Cc", "Bcc". One input each; addresses separated by commas, semicolons, spaces or line breaks; shown as one chip per address after blur.
+- Help under the three fields: "Added to the draft when someone inserts this template. Users see every address before it is added."
+- Chip marker on an outside address: "outside migway.com". Under `deny` the chip has the error style and the `RCPT_EXTERNAL` text.
+- Bcc help: "Hidden from the other recipients of the email."
+
+Config tab row: "Outside recipients: allowed" or "Outside recipients: migway.com only", with "Set by the owner in Script Properties (RECIPIENTS_EXTERNAL)."
 
 Empty states:
 
@@ -296,8 +365,8 @@ Default list, 10 scopes (final after spike S2 (a), 2026-11-09):
 | Scope | Class | Consent text | Used by | Reason |
 |---|---|---|---|---|
 | gmail.addons.execute | Non-sensitive, add-on scope | "Run as a Gmail add-on" | add-on | Required at runtime by Gmail for the compose trigger. Verified 2026-11-09 on the dev deployment: without it Gmail raises "Required permissions: gmail.addons.execute". R4 S42 (release note of 2019) is wrong in practice |
-| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft; set the draft subject (D21, D24). Google's compose guide names no extra scope for `UpdateDraftSubjectAction` [A14]. Spike S5 on dev-32a446c: body and subject actions in one response, no new scope (Q20 closed) |
-| gmail.addons.current.message.metadata | Sensitive [R4 S8] | "View your email message metadata when the add-on is running" | add-on | Read To recipients for `recipient.first_name` (D10) |
+| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft; set the draft subject (D21, D24); add To, Cc and Bcc (D26). Google's pages name no scope for the recipient actions [A14, A15, A25 to A27]; spike S6 checks for a prompt. A new scope stops D26 until the owner approves. Google's compose guide names no extra scope for `UpdateDraftSubjectAction` [A14]. Spike S5 on dev-32a446c: body and subject actions in one response, no new scope (Q20 closed) |
+| gmail.addons.current.message.metadata | Sensitive [R4 S8] | "View your email message metadata when the add-on is running" | add-on | Read To recipients for `recipient.first_name` (D10); read To, Cc, Bcc and subject of the draft for D24 and D26 |
 | script.external_request | Unclassified [R4 S7] | not published | add-on | Call the project's own `/exec` with UrlFetchApp |
 | drive.file | Non-sensitive [R4 S57] | "See, edit, create, and delete only the specific Google Drive files you use with this app" | web app, triggers; also in the add-on token | Storage files the app creates (ADR-0002); the `/exec` front door needs a Drive scope in the bearer token [A1] |
 | script.projects.readonly | Sensitive (Apps Script API) | "View Google Apps Script projects" | add-on | Spike S2 (a) result 2026-11-09: the web app front door resolves the script project through the caller token. `drive.file` alone and `drive.file` plus `drive.metadata.readonly` gave HTTP 404; with this scope Ping returned ok in 35 ms. Alternative accepted scopes per third-party notes: `drive`, `drive.readonly` (both restricted) |
@@ -366,6 +435,8 @@ Field added 2026-11-10 (slices 5b and 5c), add-on calls only:
 | `draft` | `{ fields, to, cc, bcc, hasSubject }`. `fields`: the compose event field names present, each from the fixed list `messageId`, `threadId`, `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients`, `subject`, in that order. A field counts as present when its value is not undefined, null or "". `to`, `cc`, `bcc`: recipient counts, integers 0 to 1,000. `hasSubject`: boolean, true when the draft subject has a non-space character. The server requires exactly these 5 keys; any other key, name, repeated name, count or a non-boolean `hasSubject` answers VALIDATION "Draft fields must come from the fixed list", and the rejected value is not logged |
 
 Example: `"draft":{"fields":["draftMetadata","toRecipients","subject"],"to":1,"cc":0,"bcc":0,"hasSubject":true}`.
+
+Recipients (D26, added 2026-11-10): no log line carries a template address, a draft address, a domain of either or the `blocked` list. The `draft` object keeps its 5 keys: draft counts before the insert. The apply line gains no field: the server writes it before the add-on computes the recipient actions. Import report lines name the template and the count of dropped addresses only. Audit events are not log lines: `template.*` events keep the whole item in `before` and `after`, recipients included (admin-only audit tab).
 
 Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`). `actor` and `targetId` are in every line. No line holds a recipient address, subject text, body text, prompt value or token: `draft` carries names, counts and one boolean only. Never log template bodies, subjects, prompt values, recipient addresses or tokens. `calls` and `timing` hold numbers only. Errors add `errorName` and the first 3 stack frames. Logs appear in the Apps Script executions view on the default GCP project and in Cloud Logging on the standard project (2.5b).
 
@@ -452,6 +523,7 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | ADR-0004 placeholder parser and sanitizer | 3; insert spike in 4; spike S4 closed 2026-11-10 on Gmail web (D22), allowlist unchanged, cap 100 KB; harness removal in 5 |
 | ADR-0005 repo, CI, deploy, rollback | 1; rollback exercise before slice 7 ends |
 | Docs: README, admin install, quick start, runbook | 7 |
+| 5.7 Template recipients (D26), spike S6 | 9 (after 8a); editor fields restyled into the Details panel in 8b |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -518,6 +590,19 @@ Added 2026-11-10 (slices 6a, 6b; accepted for v1, each with a v1.1 fix in sectio
 | Restore undo keeps the first error | src/server/handlers/config.ts | v1.1 |
 | Plural in the purge refusal; owner label in the Usage tab | src/server, src/web | v1.1 |
 
+### 13.6 Slice 9: template recipients (D26, added 2026-11-10)
+
+Order: slice 8a (shell, library, trash, history), then slice 9, then 8b (editor redesign). Slice 9 puts the three fields under Subject in the current editor form; 8b moves them into the Details panel of design direction A (wireframe 04).
+
+1. First task, about 20 min on the dev deployment: spike S6 (section 14.1) with a temporary harness card. The result fixes the content of the recipient actions before the rest is built. Harness removed in the same slice.
+2. Shared `validateRecipients` (syntax, limits, duplicates, `RECIPIENTS_EXTERNAL`), codes of section 7.1, fixtures for each code and for normalization.
+3. Item and version file fields, shape check accepting absence, write paths: create, update, duplicate, restore, import (drop and report), export.
+4. `template.apply` and `template.getBody`: `to`, `cc`, `bcc`, `blocked` on every call; `rc` counts in sidebar lists; `me` and `config.get` report the switch.
+5. Add-on: `recipientActions` (one place, truth tables of section 5.7, unit tests), "Review" rows, preview card section, "Insert body only" as body only, prompt card switch `rcpt`, `rh` hash check, never `setSendStatus`.
+6. Editor fields under Subject with chips and the outside marker; History recipients line; library browser search on addresses.
+7. Quick start and editor guide: one paragraph each (what users see, "Insert body only", the To rule in replies).
+8. Smoke "Slice 9": new draft, reply, forward, address already present, outside address with `allow` and `deny`, changed recipients under an open card.
+
 ## 14. Spikes
 
 | ID | Slice | Question | Pass condition |
@@ -526,6 +611,34 @@ Added 2026-11-10 (slices 6a, 6b; accepted for v1, each with a v1.1 fix in sectio
 | S2b | 2 | UrlFetch round trip to `/exec`, add-on start time, Drive read and write of 0.85 MB and 8.4 MB files, `domain_public` fields | p95 recorded in ADR-0002; 0.85 MB read and write each under 2 s (Q17) |
 | S4 | 4, first task | Draft insert on Gmail web (ADR-0004 table) | Resolved 2026-11-10: F1 to F9 inserted on Gmail web, 204,837 bytes (F7) included. Allowlist unchanged, cap 100 KB. Android and iOS runs dropped by the owner (D22). Harness removed in slice 5 |
 | S5 | 5, first task | Body and subject actions in one `UpdateDraftActionResponse` on Gmail web; subject replaced, not appended; reply drafts (Q20, Q21) | Resolved 2026-11-10 on dev-32a446c: body and subject in one response, no new scope (Q20 closed). A replaced reply subject started a new thread; the event carries no `threadId` or `messageId` (dev-4a233d4). Rule D24 (section 5.6) keeps any filled subject; smoke "Slice 5c" on dev-848206f: the reply stayed in its conversation (Q21 closed) |
+| S6 | 9, first task | Body, subject, To, Cc and Bcc actions in one `UpdateDraftActionResponse` on Gmail web; add or replace; new draft, typed recipients, reply, forward; address already present; permission prompt | Open. Pass: all 5 actions apply from one response, no permission prompt, no draft address lost. Steps and fallbacks in section 14.1 |
+
+### 14.1 Spike S6: recipient actions (D26)
+
+Setup: dev build with a harness card "Spike S6" on the home card. Template "S6" with subject "S6 test", To `s6-to@migway.com`, Cc `s6-cc@migway.com`, Bcc `s6-bcc@migway.com` (use three real test addresses of the domain; nothing is sent). Two harness buttons: "New only" sends each recipient action with the template addresses only; "Draft plus new" sends the draft list from the event plus the template addresses. The harness card shows the event's recipient strings on screen (to check the format, for example `Name <address>`); it logs counts only. One Gmail session, about 20 min; discard every draft.
+
+| Step | Draft | Button | Record |
+|---|---|---|---|
+| 1 | New, empty | New only | body, subject, To, Cc, Bcc set (y/n each); Bcc line opens (y/n); callback ms |
+| 2 | New, To `a@` and Cc `b@` typed | New only | `a@`, `b@` still there (add) or gone (replace) |
+| 3 | Same as 2 | Draft plus new | all 5 addresses present once (y/n); duplicates of `a@`, `b@` (y/n) |
+| 4 | New, Cc `s6-cc@` typed | New only, raw: send `s6-cc@` again | one chip or two |
+| 5 | Reply to a received message | the button that kept addresses in step 2 or 3 | To kept, Cc and Bcc added, subject kept, reply stays in its conversation |
+| 6 | Forward of a message | same | To added (forward has empty To) |
+| 7 | New, empty, from an account with no earlier consent run, or after `Remove access` and re-authorizing | New only | any permission or consent prompt; the scope list it names |
+| 8 | The event strings of steps 2 and 5 | none | format of each string as shown on the harness card |
+
+Decision table:
+
+| Result | Build |
+|---|---|
+| Add semantics (step 2 keeps `a@`, `b@`) | Actions carry the new addresses only; the skip rule prevents duplicates |
+| Replace semantics, step 3 keeps every address, event strings exact | Actions carry the draft list as received plus the new addresses |
+| Replace semantics and any address lost or altered in step 3 or 5 | Recipient actions only for fields empty in the draft; for a filled field the card lists "Add by hand: <address>" |
+| Recipient actions do not combine with body and subject (build throws or Gmail ignores them) | Fallback F1: Insert sends body and subject; the preview card gets a second button "Add recipients" whose callback sends only the recipient actions in its own response; if those do not combine either, one button per field |
+| Actions ignored in a reply (step 5) | Card lists "Add by hand: <address>" when the draft's To is filled; owner informed |
+| Any permission prompt (step 7) | Stop D26 work. Report the scope to the owner. No manifest change without approval |
+| Two chips in step 4 | Skip rule stays (it is built anyway); no change |
 
 ## 15. Open questions for the owner
 
@@ -561,6 +674,14 @@ Added 2026-11-10 (slices 6a, 6b; accepted for v1, each with a v1.1 fix in sectio
 | Q28 | Run tests V1 to V4 (section 16) on dev with the pilot's second account | Yes, in the 2.5b dry run, about 30 min. If V1 and V3 pass, the same-project transfer (option C) replaces B2 and needs no code |
 | Q29 | Owner change: move all body versions or current versions only | All versions while under 20,000 files (D20 keeps all versions); above that, current versions only and the old data folder kept read-only |
 | Q30 | Dev to prod pilot data (2.5b step 5): import loses private templates and grants | The interim runbook (admin-only "Handover" folder) unless B2 exists by 2.5b |
+| Q32 (D26) | Admin switch for outside recipients: in-app admin setting in v1, or v1.1 | v1.1. v1 uses Script Property `RECIPIENTS_EXTERNAL` (`allow` default, `deny`), set by the owner, shown read only in the Config tab: 0 extra calls, about 1 h of build. The in-app setting needs an op, a policy row, an audit event and tests (about half a day) and is audited (ADR-0006 section 2) |
+| Q33 (D26) | Recipient limits | 10 per field, 20 together, 254 characters per address. Gmail's own limits are far above; templates route to a few role addresses |
+| Q34 (D26) | Placeholders in recipient fields | None in v1. A placeholder resolves after the server's validation, so syntax and `deny` would no longer be enforced server-side; `{{ask:...}}` equals typing in Gmail |
+| Q35 (D26) | Template To in a reply or a draft with a typed To | Not added; the card lists it as "Not added". No override button in v1 (the preview card would need up to 4 Insert buttons). Revisit if users ask |
+| Q36 (D26) | Secondary domains and domain aliases count as inside? | Only `DOMAIN` is inside in v1. If Migway uses more domains (D7 facts), add a comma list property `RECIPIENT_DOMAINS` defaulting to `DOMAIN`; no Directory domain scope |
+| Q37 (D26) | Recipients in private folders (D11) | Allowed. The owner of the folder could type the same addresses; the same validation and switch apply |
+| Q38 (D26) | Check that an address exists | No. `safety@` is probably a group; a check needs Directory group reads per address; a wrong internal address bounces back to the sender |
+| Q39 (D26) | Search by address | Web app library only, local part or full address prefix, weight 1, the caller's visible templates. Sidebar search unchanged |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance
@@ -636,4 +757,5 @@ Triggers belong to the account that created them (`getProjectTriggers()` returns
 - [A13] https://developers.google.com/workspace/add-ons/concepts/event-objects, read 2026-11-10 and re-read 2026-11-10 (errata run 2). The page documents 6 Gmail fields: `accessToken`, `bccRecipients`, `ccRecipients`, `messageId`, `threadId`, `toRecipients`; it names no `subject` field and no `draftMetadata` object. `commonEventObject.platform` WEB, IOS, ANDROID. Correction 2026-11-10: the page is incomplete for compose events. Owner smoke runs on Gmail web logged the field names `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients`, `subject` and never `threadId` or `messageId` (smoke "Slice 5b", dev-4a233d4). Smoke "Slice 5c" (dev-848206f) showed `subject` holds the draft subject: `hasSubject` was true with a filled subject, and typed and reply subjects were kept. The earlier note "no subject field" was wrong for the live event.
 - [A14] https://developers.google.com/workspace/add-ons/gmail/extending-compose-ui (compose actions return `UpdateDraftActionResponse`; subject example `setUpdateDraftSubjectAction(CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject))`; one action per example; scopes "required for compose actions" not listed; no mobile note), read 2026-11-10.
 - [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder (setters for body, subject, To, Cc, Bcc on one builder, each returns the builder for chaining; no statement on combining; no scope listed) and https://developers.google.com/apps-script/reference/card-service/update-draft-subject-action (`addUpdateSubject(subject)`: "Updates the subject line of an email draft"), read 2026-11-10.
+- [A25] https://developers.google.com/apps-script/reference/card-service/update-draft-to-recipients-action, [A26] .../update-draft-cc-recipients-action, [A27] .../update-draft-bcc-recipients-action (`addUpdate<Field>Recipients(String[])`, "the ... recipients to insert to the email draft"; add or replace, scope and limits not stated), [A28] https://developers.google.com/apps-script/reference/add-ons-response-service/update-draft-action-response-builder (same setters plus `setSendStatus`), read 2026-11-10. Details in ADR-0006.
 - [A16] https://developers.google.com/workspace/gmail/api/auth/scopes (`gmail.addons.current.action.compose` "Manage drafts and send emails when you interact with the Google Workspace add-on", non-sensitive), read 2026-11-10.

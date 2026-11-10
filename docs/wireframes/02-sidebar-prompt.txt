@@ -16,7 +16,7 @@ Preview card (tap on a title in Home, Folder or Search):
 | Fields to fill: Product name,        |
 |   Meeting date                       |
 | Sets the draft subject.              |  template subject not empty, draft subject empty
-| [Insert]  [Insert body only]         |  second button only when the template subject is not empty
+| [Insert]  [Insert body only]         |  second button only when the template subject is not empty [D26: also when Insert adds an address; then it skips recipients too]
 | [Edit in library]                    |  only if level >= edit
 +--------------------------------------+
 
@@ -62,3 +62,65 @@ Rules
 - "Insert with subject" opens the prompt card (if any) with the switch on. "Insert body only" shows no switch.
 - A template changed under the open prompt card resets the switch to its default.
 - Cancel pops back to the previous card. Values are not stored.
+
+Recipients (D26, slice 9; spec 5.7, 7.1; ADR-0006). Proposed until the owner approves.
+
+List row (Home, Folder, Search, Favorites, Recent) of a template with recipients:
+| Driver leaving                       |  DecoratedText
+| Adds Cc 1, Bcc 1          [Review]   |  bottom label: counts per field with addresses; "Review" opens the preview
+                                          card (or the prompt card when the template has prompts). No one-click insert.
+
+Preview card, template with recipients (new draft, To empty, subject empty):
++--------------------------------------+
+| < Driver leaving                     |
+|--------------------------------------|
+| Subject                              |
+| Driver leaving: [Driver name]        |
+|--------------------------------------|
+| Recipients                           |  section header
+| To   payroll@migway.com              |  one DecoratedText per address, top label = field
+| Cc   safety@migway.com               |
+| Bcc  records@partner.com             |
+|      outside migway.com              |  marker: domain differs from the caller's
+|      hidden from other recipients    |  marker on every Bcc line
+|--------------------------------------|
+| Plain-text preview ...               |
+|--------------------------------------|
+| Sets the draft subject.              |
+| Adds 3 recipients.                   |
+| [Insert]  [Insert body only]         |  "Insert body only": no subject, no recipients
+| [Edit in library]                    |
++--------------------------------------+
+
+Same template in a reply (To and subject filled), with RECIPIENTS_EXTERNAL=deny:
+| Recipients                           |
+| Cc   safety@migway.com               |
+| Not added: payroll@migway.com.       |
+|   The draft already has a To         |
+|   recipient.                         |
+| Not added: records@partner.com.      |
+|   Outside migway.com, turned off by  |  server returned it in `blocked`
+|   your admin.                        |
+|--------------------------------------|
+| The draft already has a subject.     |
+| It is kept.                          |
+| Adds 1 recipient.                    |
+| [Insert] [Insert with subject]       |
+| [Insert body only]                   |  shown because Insert would add an address
+
+Prompt card, template with recipients:
+| Replace the subject          [on ]   |  unchanged (D24)
+| Add recipients               [on ]   |  SwitchControl id rcpt, starts on; off = no recipient action
+| Cc safety@migway.com, Bcc            |  bottom label lists every address that Insert adds,
+|   records@partner.com (outside       |  with markers
+|   migway.com)                        |
+
+Rules
+- The Insert callback calls template.apply; it returns to, cc, bcc and blocked on every call. Addresses are
+  never in card parameters or the User Cache. The card carries rh (16 hex of SHA-256 over the shown lists).
+  A different hash at Insert: no draft change, card re-rendered with
+  "The recipients of this template changed. Check them and press Insert again."
+- Per field: skip addresses already in any draft field; To only when the draft's To is empty; Cc and Bcc
+  always; a field with nothing new sends no action. Content of each action (new only, or draft list plus new)
+  is set by spike S6.
+- One UpdateDraftActionResponse: body, subject (D24), then To, Cc, Bcc actions. Never setSendStatus.
