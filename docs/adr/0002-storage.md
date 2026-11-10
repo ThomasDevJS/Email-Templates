@@ -1,6 +1,6 @@
 # ADR-0002: Storage, caching and concurrency
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches) (Amendment 2026-11-10, errata run 3: export, import and backups as built, Proposed) (Amendment 2026-11-10: owner handover, Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches) (Amendment 2026-11-10, errata run 3: export, import and backups as built, Proposed) (Amendment 2026-11-10: owner handover, Proposed) (Amendment 2026-11-10: admin settings in `index.json`, D29, Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -317,6 +317,15 @@ Interim, until B2 ships or V1 passes (runbook, no code):
 - Easier: a staff change no longer silently drops private templates and grants. D, when chosen, removes the event.
 - Harder: B2 adds 3 ops and a resumable job. The old owner account must stay active during the move.
 - Revisit: after V1 to V4 run; when 2.5b picks the prod owner (Q26).
+
+## Amendment 2026-11-10: admin settings in `index.json` (D29)
+
+Status: Proposed until the owner approves. Mechanism and options in ADR-0008.
+
+- `index.json` gains an optional `settings` object: `{ personalTemplates: { value, updatedAt, updatedBy }, recipientsExternal: { ... } }`. Absent = defaults (`off`, `allow`). The shape check refuses a stored value outside its list.
+- Only `config.set` writes it, through the normal commit: the change and its `pendingAudit` event in one write, `INDEX_REV` raised.
+- `backup.restore` keeps the live `settings`, as it keeps the live `pendingAudit`. Export and import carry no settings. `setup()` writes none.
+- Script Property `RECIPIENTS_EXTERNAL` is retired from slice 11 on.
 
 ## Consequences
 

@@ -21,7 +21,7 @@ Slice 4 (Favorites, Recent, search in 5). Width about 300 px. Widgets per card u
 |  > Sales (24)                        |  DecoratedText, onClick -> folder card
 |  > Support (41)                      |
 |  > HR (7)                            |
-|  > My templates (3)                  |  private folder (D11)
+|  > My templates (3)                  |  private folder (D11); while personal templates are off (D29) only if it already exists
 |--------------------------------------|
 | [Open library]                       |  OpenLink OVERLAY, RELOAD_ADD_ON
 +--------------------------------------+

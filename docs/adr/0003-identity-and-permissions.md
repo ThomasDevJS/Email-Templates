@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -114,7 +114,7 @@ Grant: `(folderId, principal, level)`, level `use` < `edit` < `manage`. Effectiv
 
 Roles map to levels: user = holds `use` only; manager-editor = holds `edit` or `manage` on some folder; admin = global. New folders get no grants, so only admins and `manage` holders of the parent see them (ux-notes.md section 2).
 
-Private folder (D11): created on first use for every caller, `kind=private`, `ownerEmail=<caller>`. Owner has `edit` on it. Grants on private folders are rejected in v1. Admins see it.
+Private folder (D11): created on first use for every caller, `kind=private`, `ownerEmail=<caller>`. Owner has `edit` on it. Grants on private folders are rejected in v1. Admins see it. [D29: created only while the personal templates setting is on; while off the private tree resolves to `use` for owner and admins. Amendment 2026-11-10, D29.]
 
 Role matrix (level needed on the target folder; "A" = admin only):
 
@@ -136,6 +136,7 @@ Role matrix (level needed on the target folder; "A" = admin only):
 | Export library, import | no | no | no | yes |
 | View audit log, usage report | no | no | no | yes |
 | Refresh memberships, view config | no | no | no | yes |
+| Change settings (`config.set`, D29) | no | no | no | yes |
 | Private folder of self | edit | edit | edit | yes |
 
 Enforcement mechanism:
@@ -205,6 +206,17 @@ Log lines of admin ops (closed field list of spec 11, no new field):
 | `backup.restore` | `""` | the backup date |
 
 Audit events of these ops: `grant.add` and `grant.remove` with before and after; one `import` event per created folder and template (after = record and body reference); `backup.restore` with before `{ rev, items }` and after `{ date, rev, items }`; `trash.purge` one event per purged template and folder. Exports write no audit event in v1 [6b built no export event; the security event list in ADR-0002 names export, so this is a gap: spec 13.5].
+
+## Amendment 2026-11-10 (D29): personal templates switch, `config.set`
+
+Status: Proposed until the owner approves. Mechanism and options in ADR-0008.
+
+- `levelResolver(subject, index)` reads `index.settings.personalTemplates`. While `off`, a folder in a private tree resolves to `use` for its owner and for admins and `none` for everyone else; this check runs before the admin rule. While `on`, Part C stands (owner `edit`, admins `manage`).
+- Every level check uses this function: dispatch before the handler, `commit` through `recheck` on the fresh index, and `folder.list`. A write racing a settings change is therefore judged on the new value inside the lock.
+- `folder.list` creates the caller's private folder only while `on`.
+- Role matrix row "Private folder of self" while off: `use` for every role; admin `use` on other users' private folders.
+- New op `config.set` (admin, web), policy action `admin.ops`, in-lock admin re-check. Audit event `targetType: config`, `targetId` the setting name, before and after `{ name, value }`. Log line `targetId: ""`, no value.
+- A DENIED with a private target while off carries "Personal templates are turned off by your admin." and writes one denied row as any DENIED.
 
 ## Consequences
 

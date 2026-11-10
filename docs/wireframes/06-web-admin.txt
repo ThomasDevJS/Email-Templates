@@ -66,7 +66,49 @@ Tab: Export and import
           Table "Skipped and failed records": name, outcome, reason
           ("A template with this title is already in this folder").
 
-Tab: Config (read only)
+Tab: Config
+Amended 2026-11-10 (D29, ADR-0008, slice 11): a Settings section on top, admins only; the rest stays read only.
+The tab is admin only (manage holders never see it); config.get and config.set answer DENIED to anyone else.
+
+  Settings
+  +--------------------------------------------------------------------------------+
+  | Personal templates                                                  (legend)   |
+  | Users can create their own templates in My templates. When off, users keep and |
+  | can insert the personal templates they have, but cannot create, change or      |
+  | delete them.                                                                   |
+  |   ( ) On    (o) Off                                         (radio group)      |
+  |   Default, never changed.         or  Last change: ana on Nov 10, 2:05 PM.     |
+  |   [Save]   (disabled while the choice equals the current value)                |
+  |--------------------------------------------------------------------------------|
+  | Outside recipients                                                             |
+  | Templates can add addresses outside migway.com to To, Cc and Bcc. When off,    |
+  | saving such an address fails and Insert skips it.                              |
+  |   (o) Allowed    ( ) migway.com only                                           |
+  |   Last change: ben on Nov 9, 4:10 PM.                                          |
+  |   [Save]                                                                       |
+  +--------------------------------------------------------------------------------+
+  Status under the setting: "Saving..." then "Saved. Personal templates are off for every user from their next action."
+  Conflict (another admin changed it): "ana changed this setting on Nov 10, 2:05 PM. The page now shows the current
+  value." The radio group reloads with the current value; nothing was written.
+
+  Confirm dialog, only when Save takes something away (On -> Off, Allowed -> migway.com only); Cancel has focus:
+  +--------------------------------------------------------------------------------+
+  | Turn off personal templates?                                                   |
+  | Users can no longer create, change or delete templates in My templates. Their  |
+  | existing personal templates stay and can still be inserted. Nothing is         |
+  | deleted. Turning it on again restores everything.                              |
+  |                                                  [Turn off]  [Cancel]          |
+  +--------------------------------------------------------------------------------+
+  +--------------------------------------------------------------------------------+
+  | Allow only migway.com recipients?                                              |
+  | Templates keep their outside addresses, but Insert no longer adds them and     |
+  | saving a template with one fails until the address is removed.                 |
+  |                                       [Allow only migway.com]  [Cancel]        |
+  +--------------------------------------------------------------------------------+
+  Off -> On and migway.com only -> Allowed save with no dialog.
+  Each change writes one audit event (config.set, before and after); the Audit log tab shows it.
+
+  Environment (read only)
   Domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_REV, app version, index size (0.85 MB, warn at 3 MB).
   Jobs                 Schedule    Last OK            Status
   tick                 5 min       2026-11-09 14:05   ok

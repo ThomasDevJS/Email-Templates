@@ -1,6 +1,6 @@
 # ADR-0006: Template recipients (To, Cc, Bcc)
 
-Status: Proposed (2026-11-10). Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism.
+Status: Proposed (2026-11-10). Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting.
 Date: 2026-11-10
 Deciders: owner (thomas@migway.com), architect
 
@@ -61,7 +61,7 @@ Switch that restricts recipients to the domain. Options:
 1. (a) Script Property `RECIPIENTS_EXTERNAL`, `allow` (default, also when unset) or `deny`. The owner sets it in the script editor; the Config tab shows it read only. Cost: one key in the existing Properties read (0 extra calls), one Config row, about 1 h of build. Risk: the change is not in the audit log; only the owner and script editors can make it (script editors can already read and write every property, ADR-0003 pitfall).
 2. (b) Admin-only setting in the Config tab: new op `config.setRecipientsExternal` (admin), a policy row, an audit event with before and after, a form control, role matrix and policy tests. Cost: about half a day of build and review; every admin can change it without the owner; the change is audited.
 
-Decision: (a) for v1, (b) as a v1.1 item (Q32). No reason against (a) found: admins in v1 cannot change other Script Properties either (`ADMIN_GROUP`, `IMG_HOSTS` are owner-set), and an unset key keeps the owner's default `allow`.
+Decision: (a) for v1, (b) as a v1.1 item (Q32). [Superseded 2026-11-10 by D29: the switch is the admin setting `recipientsExternal` in `index.json`, changed with `config.set`; see Amendment 2026-11-10 (D29) and ADR-0008.] No reason against (a) found: admins in v1 cannot change other Script Properties either (`ADMIN_GROUP`, `IMG_HOSTS` are owner-set), and an unset key keeps the owner's default `allow`.
 
 With `deny`:
 - A write that stores an outside address answers VALIDATION `RCPT_EXTERNAL`.
@@ -143,6 +143,14 @@ Decision: option 2. One extra click on recipient templates only. A Bcc or outsid
 - Duplicate copies them and validates.
 - Export `meta` gains `to`, `cc`, `bcc`; import follows section 2 above.
 - Search options: (1) no address search; (2) web app library only, in the browser filter; (3) sidebar and web app. Decision: (2), weight 1, matching a term against the local part prefix or the full address prefix; a domain alone (`migway`) matches nothing. Reason: the person who needs "which templates Cc safety" is the editor or admin in the library; the sidebar search and its server op stay unchanged. Who sees results: the caller's visible templates only, as for every search.
+
+## Amendment 2026-11-10 (D29): in-app switch
+
+Status: Proposed until the owner approves. D29 asks for two admin switches, so Q32 closes with option (b) in v1, built as the generic settings of ADR-0008.
+
+- The value lives in `index.json` `settings.recipientsExternal` (`allow` default, `deny`), changed by an admin with `config.set`, audited with before and after.
+- Script Property `RECIPIENTS_EXTERNAL` is retired. Slice 9 builds its reader on the property; slice 11 points every reader at the setting: `validateRecipients` on create, update, duplicate, version restore and import; `blocked` in `template.apply` and `template.getBody`; `me`; `config.get`.
+- Behavior under `deny` is unchanged (section 2 above). Turning `allow` to `deny` asks for a confirmation in the Config tab (spec 7.3).
 
 ## Consequences
 

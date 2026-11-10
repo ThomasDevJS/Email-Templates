@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves.
 Date: 2026-11-09, amended 2026-11-10
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D27), docs/research/*.md, ADR-0001 to ADR-0007.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D29), docs/research/*.md, ADR-0001 to ADR-0008.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -38,12 +38,14 @@ Web app (same project, /exec, runs as the owner)
   History  (?view=history&id=...)
     Version list, preview, restore
   Admin    (?view=admin, admins and manage holders)
-    Folders and grants | Memberships | Audit log | Usage | Export and import | Config (read only)
+    Folders and grants | Memberships | Audit log | Usage | Export and import | Config (Settings: 2 admin switches; environment read only)
 ```
 
 Two entry points (D27, ADR-0007). The compose toolbar changes the draft being written (`UpdateDraftActionResponse`, insert at the cursor). The side panel cannot reach that draft: it creates a new draft or a reply with compose actions (`ComposeActionResponse`), which Gmail opens in a compose window. `entryOf(event)` decides the entry (`compose`, `message`, `inbox`) in one place.
 
 Private folders (D18, amended 2026-11-10). The library shows admins every private folder. The sidebar does not: `sidebar.home` filters other users' private folders out for admins too, in the handler (`visibleFolders`). The filter grants nothing and hides nothing an admin can reach in the library.
+
+Personal templates switch (D29, ADR-0008, added 2026-11-10). Admins turn personal templates on or off in Admin > Config > Settings; default off. While off, no private folder is created and existing private folders are read and insert only, for their owner and for admins (section 5.8).
 
 Navigation in the web app is a left rail: Library, Admin (visible to admins and manage holders only). The URL query `view` restores state on reload.
 
@@ -147,12 +149,14 @@ JSON files in one private Drive folder (ADR-0002). `index.json` holds the `folde
 | id | string | |
 | parentId | string or empty | empty = top level |
 | name | string, 1 to 80 chars | unique among siblings |
-| kind | `shared` or `private` | private = D11 |
+| kind | `shared` or `private` | private = D11. Created only while the personal templates setting is `on` (D29, section 5.8) |
 | ownerEmail | email or empty | private folders only |
 | sortOrder | integer | |
 | createdAt, createdBy, updatedAt, updatedBy | | |
 | deletedAt, deletedBy | | soft delete, folder must be empty |
 | version | integer | optimistic lock |
+
+Private folders and the switch (D29, added 2026-11-10). `folder.list` creates the caller's private folder ("My templates") on first use only while `settings.personalTemplates` is `on`. While `off`, a folder in a private tree resolves to `use` for its owner and for admins, `none` for everyone else (`levelResolver`, ADR-0008 section 3). Nothing is deleted or moved when the switch changes.
 
 Depth (slice 6a): at most 5 levels, top level included (`FOLDER_DEPTH_MAX`). A create or move that makes a sixth level answers VALIDATION. A move checks the target chain plus the height of the moved subtree. A move to the top level is not depth-checked; it cannot deepen. A move into itself or a subfolder answers VALIDATION.
 
@@ -214,7 +218,7 @@ Reserved file `push_log.json` (created in v2): records `id, itemId, userEmail, s
 
 | File | Content |
 |---|---|
-| `index.json` | `{ schemaVersion, rev, updatedAt, folders[], grants[], items[], pendingAudit[] }`. 0.85 MB at 1,000 items, 8.4 MB at 10,000 (ADR-0002) |
+| `index.json` | `{ schemaVersion, rev, updatedAt, folders[], grants[], items[], pendingAudit[], settings }`. 0.85 MB at 1,000 items, 8.4 MB at 10,000 (ADR-0002). `settings` (D29, optional): section 5.8 |
 | `favorites.json` | `{ rev, byUser: { email: [itemId] } }` |
 | `usage.json` | `{ rev, items: { itemId: { applyCount, lastUsedAt, days } }, recent: { email: [itemId, max 20] } }`. `days` (slice 6b): `{ "YYYY-MM-DD": count }` per UTC day, kept to the 30 days that end on the latest apply; absent in older entries, read as 0 |
 | `members.json` | `{ refreshedAt, resolver, groups: { groupEmail: { members[], childGroups[], status } } }` |
@@ -245,7 +249,7 @@ Mechanism and options in ADR-0004, Amendment 2026-11-10 (subject).
 - Search: subject weight 2 (section 4.4).
 - Logs: the subject is template content. It is never logged, like the body.
 
-Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` (published revisions of `favorites.json` and `usage.json`, ADR-0002 Amendment 2026-11-10), `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `RECIPIENTS_EXTERNAL` (`allow` default, `deny`; section 5.7), `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property.
+Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` (published revisions of `favorites.json` and `usage.json`, ADR-0002 Amendment 2026-11-10), `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property. `RECIPIENTS_EXTERNAL` left this list on 2026-11-10 (D29): the switch is the admin setting `recipientsExternal` in `index.json` (section 5.8); slice 11 stops reading the property (Q50).
 
 ### 5.7 Template recipients (D26, added 2026-11-10)
 
@@ -254,7 +258,7 @@ Mechanism and options in ADR-0006. Proposed until the owner approves.
 - Fields: `to`, `cc`, `bcc` on the item and in each version file, string arrays, default `[]`. Max 10 per field, 20 together, 254 characters per address (Q33). A record without them reads as `[]`; the shape check refuses a present non-array.
 - Normalization at every write: trim, lower case, duplicates inside one field dropped silently. Order kept.
 - Syntax: plain `local@domain`, `^[a-z0-9._%+'-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$` after lower casing, no `..`, no label starting or ending with `-`. No display names, no Unicode domains, no placeholders (Q34).
-- Outside addresses: allowed by default (D26 update). Outside = domain part differs from Script Property `DOMAIN` (exact, case-insensitive; subdomains are outside; secondary domains Q36). Script Property `RECIPIENTS_EXTERNAL`: `allow` (default, also when unset) or `deny`. The owner sets it in the script editor; the Config tab shows it read only. An in-app admin switch is a v1.1 item (Q32).
+- Outside addresses: allowed by default (D26 update). Outside = domain part differs from Script Property `DOMAIN` (exact, case-insensitive; subdomains are outside; secondary domains Q36). Admin setting `recipientsExternal`: `allow` (default, also when absent) or `deny`, set by an admin in Config > Settings (D29, section 5.8; amended 2026-11-10, replaces Script Property `RECIPIENTS_EXTERNAL` from slice 11 on). Slice 9 builds the property reader; slice 11 points it at the setting.
 - Save validation (server, every write: create, update, duplicate, restore, import; not move). Codes carry `field` (`to`, `cc`, `bcc`) and `position` (1-based). Texts in section 7.1: `RCPT_FORMAT`, `RCPT_TOO_LONG`, `RCPT_TOO_MANY`, `RCPT_DUPLICATE` (one address in two fields), `RCPT_EXTERNAL` (`deny` only). No existence check (Q38).
 - `deny` and stored outside addresses: templates keep them. `template.apply` and `template.getBody` return the inside addresses in `to`, `cc`, `bcc` and the outside ones in `blocked`; the add-on adds only the returned lists and the cards list the blocked ones as not added. The editor marks them at load; the next save, a restore of such a version and a duplicate answer `RCPT_EXTERNAL`.
 - Import: `RCPT_FORMAT`, `RCPT_TOO_LONG` and (`deny`) `RCPT_EXTERNAL` drop the address and import the template; an address in two fields keeps the first of To, Cc, Bcc; `RCPT_TOO_MANY` refuses the file ("Nothing was imported: ..."). The report gives per template the count of dropped addresses and the reason.
@@ -282,6 +286,52 @@ Mechanism and options in ADR-0006. Proposed until the owner approves.
 - Search: web app library only, weight 1, a term matches the local part prefix or the full address prefix; the domain alone matches nothing. Sidebar `search` unchanged (Q39).
 - Audit: `template.*` events carry the item in `before` and `after`, so recipient changes show as a diff. Logs never carry an address (section 11).
 
+### 5.8 Admin settings (D29, added 2026-11-10)
+
+Mechanism and options in ADR-0008. Proposed until the owner approves.
+
+- Storage: optional object `settings` in `index.json`, `{ <name>: { value, updatedAt, updatedBy } }`. Absent object or entry = the default, with `updatedAt` and `updatedBy` `""`. Changed only by `config.set` through `commit`, so the change and its audit event are one write and `INDEX_REV` rises. The shape check refuses a stored value outside its list.
+- Fixed list (one table in src/shared):
+
+  | Name | Values | Default | Effect |
+  |---|---|---|---|
+  | `personalTemplates` | `on`, `off` | `off` | `off`: no private folder is created; private trees resolve to `use` for owner and admins (section 5.1) |
+  | `recipientsExternal` | `allow`, `deny` | `allow` | `deny`: section 5.7, ADR-0006 |
+
+- Delay: the server follows a change from the next request on; writes already running re-check in the lock on the fresh index. Web app controls follow on the next library load. The sidebar view cache can show old lists for up to 10 min; inserting stays allowed under `off`, so the cache exposes nothing the server refuses.
+- Two admins: `config.set` carries `from`; a different current value answers CONFLICT, the same new value answers ok with `changed: false` and writes nothing.
+- `setup()` writes no settings. `backup.restore` keeps the live `settings`. Export and import carry none.
+
+Enforcement points of `personalTemplates` = `off`. One rule in `levelResolver` covers every level check, before the handler and in the in-lock re-check (`commit`). The implementer touches each row below and adds a role matrix test for it; rows marked "test only" need no code beyond the rule.
+
+| Op (section 6) | Today | While off | Change |
+|---|---|---|---|
+| `folder.list` | creates the caller's private folder (`ensurePrivateFolder`) | creates none; lists an existing private folder at `use` | skip `ensurePrivateFolder` when off |
+| `sidebar.home` | own private folder listed | listed when it exists, at `use`; returns `personalTemplates` for the empty card | add the field |
+| `template.list`, `search`, `search.body` | own private templates included | included (`use`) | test only |
+| `template.get`, `template.getBody`, `template.apply` | `use` | allowed | test only |
+| `favorite.set`, `favorite.unset`; Recent | `use` | allowed; favorites and Recent into a private folder keep working | test only |
+| `template.create` | `edit` on folder | DENIED for a private target | rule; DENIED text |
+| `template.update` | `edit` | DENIED | rule |
+| `template.duplicate` | `edit` on source and target | DENIED when either is private | rule |
+| `template.delete` | `edit` | DENIED in a private folder | rule |
+| `template.restoreFromTrash` | `edit` on original and target | DENIED when either is private | rule |
+| `template.move` | `edit` on source and target | DENIED when either is private | rule |
+| `version.list`, `version.get`, `version.restore` | `edit` | DENIED in a private folder | rule |
+| `folder.create` (sub), `folder.rename`, `folder.move`, `folder.delete` | `manage` (admins only on private; delete already VALIDATION) | DENIED on a private folder | rule |
+| `grant.list`, `grant.add`, `grant.remove` | VALIDATION on private | unchanged | none |
+| `export.folder` | `manage` | DENIED on a private folder | rule |
+| `export.library` | skips private folders | unchanged | none |
+| `import` | VALIDATION for a private target | unchanged | none |
+| `admin.folders` | admins get every live folder | unchanged; private folders show no forms | none |
+| `trash.purge`, `daily` purge | admin; 30 days | unchanged, private trash included | none |
+| `me` | | returns `personalTemplates`, `recipientsExternal` | add fields |
+| `config.get`, `config.set` | | settings read and write (section 6) | new |
+
+Client points: library "New template" (shown only where the caller holds `edit`; slice 8b folder choice lists `edit` folders only, so private folders drop out while off; no folder left = no button); row menu actions by level (already); editor Save on a private template answers DENIED with the off text; Trash view lists only editable folders (private trash drops out while off); add-on home empty card text by `personalTemplates` (section 7); library empty texts (section 7).
+
+Enforcement points of `recipientsExternal` (move from the property to the setting, slice 11): `validateRecipients` policy input on `template.create`, `template.update`, `template.duplicate`, `version.restore`, `import`; `blocked` in `template.apply` and `template.getBody`; `me`; `config.get`.
+
 ## 6. Server operations
 
 All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
@@ -302,11 +352,18 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | grant.list, grant.add, grant.remove | manage | web |
 | export.folder | manage | web |
 | export.library, import, audit.query, usage.report, membership.status, membership.refresh, config.get, backup.list, backup.restore | admin | web |
+| config.set | admin, in-lock admin re-check; `{ name, value, from }` against the fixed list of section 5.8 (D29, ADR-0008) | web |
 | me | none beyond a valid caller | both |
 
 `spike.s4` and its policy row were removed in slice 5.
 
-Arguments and results for recipients (D26, slice 9, section 5.7): `template.create` and `template.update` take `to`, `cc`, `bcc` (string arrays). `template.duplicate` and `version.restore` copy them and validate. `import` reads them from `meta`. `template.get`, `template.list` (web app) and `export.*` return them. `template.apply` and `template.getBody` return `to`, `cc`, `bcc` (inside addresses only when `RECIPIENTS_EXTERNAL=deny`) and `blocked` on every call. `sidebar.home`, `search` and the sidebar lists return `rc: [to, cc, bcc]` counts and no address. `me` returns `recipientsExternal` (`allow` or `deny`) for the editor; `config.get` shows it. No new op and no new policy row.
+Arguments and results for recipients (D26, slice 9, section 5.7): `template.create` and `template.update` take `to`, `cc`, `bcc` (string arrays). `template.duplicate` and `version.restore` copy them and validate. `import` reads them from `meta`. `template.get`, `template.list` (web app) and `export.*` return them. `template.apply` and `template.getBody` return `to`, `cc`, `bcc` (inside addresses only when `RECIPIENTS_EXTERNAL=deny`) and `blocked` on every call. `sidebar.home`, `search` and the sidebar lists return `rc: [to, cc, bcc]` counts and no address. `me` returns `recipientsExternal` (`allow` or `deny`) for the editor; `config.get` shows it. No new op and no new policy row. [From slice 11 the value comes from `settings.recipientsExternal`, section 5.8.]
+
+Arguments and results for settings (D29, slice 11, section 5.8, ADR-0008 section 2):
+- `config.set { name, value, from }`. `name` in the fixed list; `value` and `from` in that setting's values; any other or extra arg answers VALIDATION (section 7.3 texts). Result `{ name, value, updatedAt, updatedBy, changed }`. Current value different from `from`: CONFLICT with the current entry. Same as `value`: `changed: false`, no write, no audit event.
+- `config.get` adds `settings`: per name `{ value, updatedAt, updatedBy }`.
+- `me` adds `personalTemplates` (`on`, `off`). `sidebar.home` adds `personalTemplates`.
+- While `personalTemplates` is `off`, a DENIED whose target sits in a private tree carries the text "Personal templates are turned off by your admin."
 
 Status 2026-11-10 (build f6b567f, slices 6a and 6b merged): every op in this table has a handler. `LATER_SLICE_OPS` and the "not implemented" answer are removed. `template.getBody` (slice 3) returns the readable body without an apply event; the add-on uses it on a body cache miss. `template.apply` takes `followUp: true` on the prompt card Insert (section 4.1 step 5). `template.duplicate` (slice 4b): title "Copy of ...", cut to 120, tags, subject and the current body become version 1; edit on source and target. `search`, `search.body`, `favorite.set`, `favorite.unset` (slice 5). `admin.folders`, `membership.status`, `trash.purge`, the Trash view of `template.restoreFromTrash` (slice 6a). `export.*`, `import`, `audit.query`, `usage.report`, `config.get`, `backup.list`, `backup.restore` (slice 6b). Admin rows re-read the membership snapshot inside the lock before a write (dispatch `recheck`).
 
@@ -318,7 +375,7 @@ Error codes and UI (wireframe 07). Guard order: blank caller gives AUTH_NO_USER 
 |---|---|---|---|---|
 | NOT_CONFIGURED | Script Property `DOMAIN` unset: `setup()` has not run | "Migway Templates is not set up yet. Ask the owner to finish setup." | Same, full page | no |
 | AUTH_NO_USER | blank or non-domain active user | "Cannot identify your Migway account. Sign out of other Google accounts or use a separate Chrome profile." | Same, full page | no |
-| DENIED | no level on target | "You don't have access to this template. Ask a folder manager." | Inline banner, item removed from list | no |
+| DENIED | no level on target | "You don't have access to this template. Ask a folder manager." While personal templates are off and the target is in a private folder: "Personal templates are turned off by your admin." (D29) | Inline banner, item removed from list; same off text | no |
 | NOT_FOUND | deleted or moved | "This template was removed or moved." + Refresh | Banner + link to library | no |
 | CONFLICT | baseVersion stale | n/a | Conflict dialog (4.2) | after choice |
 | BUSY | lock not acquired in 10 s | "Busy, try again." + Retry | Toast + Retry | yes |
@@ -353,7 +410,7 @@ Editor (wireframe 04, Details panel):
 - Chip marker on an outside address: "outside migway.com". Under `deny` the chip has the error style and the `RCPT_EXTERNAL` text.
 - Bcc help: "Hidden from the other recipients of the email."
 
-Config tab row: "Outside recipients: allowed" or "Outside recipients: migway.com only", with "Set by the owner in Script Properties (RECIPIENTS_EXTERNAL)."
+Config tab: [Amended 2026-11-10, D29: the read-only row "Set by the owner in Script Properties (RECIPIENTS_EXTERNAL)" is replaced by the "Outside recipients" setting of section 7.3.]
 
 ### 7.2 Side-panel texts (D27, added 2026-11-10)
 
@@ -378,7 +435,10 @@ Notifications (compose-action callbacks): "Fill 1 field: <label>" (blank prompt)
 
 Empty states:
 
-- Sidebar, no visible templates: "No templates shared with you yet. Your private folder is ready: open the library to create one." Button: Open library.
+- Sidebar, no visible templates, personal templates `on`: "No templates shared with you yet. Your private folder is ready: open the library to create one." Button: Open library.
+- Sidebar, no visible templates, personal templates `off` (D29): "No templates shared with you yet. Ask your admin for access to a folder." No button.
+- Library, no folder visible (personal templates `off`, no grant): "No templates shared with you yet. Ask your admin for access to a folder." No button.
+- Library, the caller's own private folder while `off`: "Personal templates are turned off by your admin. You can still insert these templates." Shown above the list; no New template button.
 - Sidebar, no favorites: "Star templates in the library to pin them here."
 - Library, empty folder: "No templates in <folder>." Button: New template (edit level only).
 - Library, no search results: "No templates match <query>. Try folder: or tag:."
@@ -389,6 +449,23 @@ Loading states:
 
 - Sidebar: Card Service shows Gmail's own spinner until the card returns. The server keeps it under the 3 s budget. No partial cards.
 - Web app: skeleton rows for the list (8 rows), skeleton blocks for editor and history, `aria-busy="true"` on the region. Save button shows "Saving..." and is disabled; status text in a live region: "Saved as version 7".
+
+### 7.3 Settings texts (D29, added 2026-11-10)
+
+Config tab, section "Settings" (wireframe 06). Admins only.
+
+| Place | Personal templates | Outside recipients |
+|---|---|---|
+| Legend | "Personal templates" | "Outside recipients" |
+| Explanation | "Users can create their own templates in My templates. When off, users keep and can insert the personal templates they have, but cannot create, change or delete them." | "Templates can add addresses outside migway.com to To, Cc and Bcc. When off, saving such an address fails and Insert skips it." |
+| Radio labels | "On", "Off" | "Allowed", "migway.com only" |
+| Last change | "Last change: <name part> on <local time>." or "Default, never changed." | same |
+| Save | "Save", busy "Saving...", status "Saved. Personal templates are off for every user from their next action." (or "on") | "Saved. Outside recipients are allowed." / "Saved. Only migway.com recipients are allowed." |
+| Confirm dialog (only for `on` to `off`, `allow` to `deny`; Cancel has focus) | Title "Turn off personal templates?" Body "Users can no longer create, change or delete templates in My templates. Their existing personal templates stay and can still be inserted. Nothing is deleted. Turning it on again restores everything." Buttons "Turn off", "Cancel" | Title "Allow only migway.com recipients?" Body "Templates keep their outside addresses, but Insert no longer adds them and saving a template with one fails until the address is removed." Buttons "Allow only migway.com", "Cancel" |
+| Conflict | "<name part> changed this setting on <local time>. The page now shows the current value." | same |
+| Validation (server) | "Setting <name> does not exist." / "Setting personalTemplates takes on or off." | "Setting recipientsExternal takes allow or deny." |
+
+The domain in the texts is Script Property `DOMAIN`.
 
 ## 8. Accessibility
 
@@ -499,6 +576,7 @@ Mechanism: ADR-0003 Amendment 2026-11-10 (errata run 3).
 - Usage: `usage.json` entries carry `days`, apply counts per UTC day, kept 30 days (section 5.5). `usage.report` shows applies in the 30 UTC days ending today.
 - Log lines keep the closed field list above. `grant.add`: `targetId` = folder ID; `grant.remove`: `""`. No line carries a principal key. `import`: `targetId` = target folder; `export.folder`: folder ID; `export.library`: `""`; `backup.restore`: `""`, the date is not logged. No line carries a title, subject or body of an import file.
 - Audit events: `grant.*` with before and after; one `import` event per created folder and template; `backup.restore` with before `{ rev, items }` and after `{ date, rev, items }`; `trash.purge` one event per purged template and folder; `audit.dropped`. Export writes no audit event in v1 (section 13.5).
+- `config.set` (D29, ADR-0008): one audit event per change, `targetType: config`, `targetId` the setting name, `before: { name, value }`, `after: { name, value }`, in the same commit as the change. No event when nothing changed. Log line: `action: config.set`, `targetId: ""`, result `ok`, `conflict`, `denied` or `error`; the value is not logged. A non-admin call writes one denied row; VALIDATION writes none.
 
 ## 12. Measurable targets (BRIEF 9)
 
@@ -575,6 +653,7 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | Docs: README, admin install, quick start, runbook | 7 |
 | 5.7 Template recipients (D26), spike S6 | 9 (after 8a); editor fields restyled into the Details panel in 8b |
 | 4.1a Side-panel insert (D27), 7.2, spike S7 | Gmail panel pass, after slice 9 (section 13.7) |
+| 5.8 Admin settings (D29), 7.3 | 11, after slices 8c and 9 are merged (section 13.8) |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -669,6 +748,19 @@ After slice 9: the panel insert reuses `recipientActions`, the `rh` check and th
 9. Smoke "Gmail panel": the S7 cases on the built code, plus prompts, a template with recipients, a DENIED template, and a compose-toolbar Insert (regression).
 
 Until this pass ships, the defect stays: panel Insert buttons do nothing. Interim fix if the pass is delayed: in the panel, rows show no Insert and the card shows the footer hint (about 1 h).
+
+### 13.8 Slice 11: admin settings (D29, added 2026-11-10)
+
+After slices 8c (admin redesign) and 9 (recipients) are merged: 11 reuses the 8c Config tab and replaces the `RECIPIENTS_EXTERNAL` reader of 9. No spike: no new scope, no new Google API.
+
+1. Shared: the fixed settings list (names, values, defaults), `readIndexDoc` defaults, shape check entry, fixtures for absent, valid and bad values.
+2. Server op `config.set` (section 6): policy row (admin, web), argument checks, `from` conflict, no-op on the same value, audit event and log line (section 11.1); `config.get`, `me`, `sidebar.home` fields.
+3. Personal templates rule in `levelResolver` (before the admin rule); `folder.list` skips the private folder creation while off; the DENIED text. Role matrix tests: every row of the section 5.8 table, for owner, admin and another user, with the switch on and off; the in-lock re-check refuses a write that started before a change.
+4. Recipients: every reader of `RECIPIENTS_EXTERNAL` reads `settings.recipientsExternal`; the property leaves `config.get`.
+5. `backup.restore` keeps the live `settings`.
+6. Config tab: Settings section (wireframe 06, texts 7.3), radio groups, Save, confirm dialog, conflict reload, last change line. Library and add-on texts of section 7. Lighthouse accessibility 100 on the Config tab.
+7. Guides: admin guide (what each setting does, the default, the confirm, who sees it); quick start (one paragraph: personal templates may be off; what a user still can do); editor guide (no change unless the off text needs a line).
+8. Smoke "Slice 11" on dev: the deploy reads as `off` and `allow`; owner turns personal templates on and off with a second admin tab open (conflict); a pilot user with a private folder inserts while off and cannot save; a new user gets no private folder while off and gets one after on; `deny` then `allow` with an outside address; the audit tab shows each change.
 
 ## 14. Spikes
 
@@ -772,7 +864,7 @@ Decision table:
 | Q28 | Run tests V1 to V4 (section 16) on dev with the pilot's second account | Yes, in the 2.5b dry run, about 30 min. If V1 and V3 pass, the same-project transfer (option C) replaces B2 and needs no code |
 | Q29 | Owner change: move all body versions or current versions only | All versions while under 20,000 files (D20 keeps all versions); above that, current versions only and the old data folder kept read-only |
 | Q30 | Dev to prod pilot data (2.5b step 5): import loses private templates and grants | The interim runbook (admin-only "Handover" folder) unless B2 exists by 2.5b |
-| Q32 (D26) | Admin switch for outside recipients: in-app admin setting in v1, or v1.1 | v1.1. v1 uses Script Property `RECIPIENTS_EXTERNAL` (`allow` default, `deny`), set by the owner, shown read only in the Config tab: 0 extra calls, about 1 h of build. The in-app setting needs an op, a policy row, an audit event and tests (about half a day) and is audited (ADR-0006 section 2) |
+| Q32 (D26) | Admin switch for outside recipients: in-app admin setting in v1, or v1.1 | Closed 2026-11-10 by D29: in-app in v1 with the personal templates switch (ADR-0008, slice 11). Earlier recommendation: v1.1. v1 uses Script Property `RECIPIENTS_EXTERNAL` (`allow` default, `deny`), set by the owner, shown read only in the Config tab: 0 extra calls, about 1 h of build. The in-app setting needs an op, a policy row, an audit event and tests (about half a day) and is audited (ADR-0006 section 2) |
 | Q33 (D26) | Recipient limits | 10 per field, 20 together, 254 characters per address. Gmail's own limits are far above; templates route to a few role addresses |
 | Q34 (D26) | Placeholders in recipient fields | None in v1. A placeholder resolves after the server's validation, so syntax and `deny` would no longer be enforced server-side; `{{ask:...}}` equals typing in Gmail |
 | Q35 (D26) | Template To in a reply or a draft with a typed To | Not added; the card lists it as "Not added". No override button in v1 (the preview card would need up to 4 Insert buttons). Revisit if users ask |
@@ -787,11 +879,19 @@ Decision table:
 | Q44 (D27) | If S7 shows `createDraft` needs `https://mail.google.com/` | Do not add it: full mailbox access, banned by the build. Ship the hint only; a copy page in the web app (option c) is a v1.1 item if the owner wants it |
 | Q45 (D27) | Reply all if `options.cc` replaces Gmail's copied Cc | Pass the merged list (original To and Cc minus the user, plus template Cc), read with the metadata scope; addresses never logged |
 | Q46 (D27) | Forward from the side panel | Not in v1. `ComposedEmailType` has no forward type [A31]; forward from Gmail and use the toolbar |
+| Q47 (D29) | Dev reads as `off` after the slice 11 deploy (no settings stored), so the owner and pilot users lose personal creation on dev | Accept. The owner turns it on in Config > Settings if the pilot needs it; prod starts `off` as D29 says |
+| Q48 (D29) | While off, owners cannot delete or move their own personal templates, and admins drop to `use` on private folders (one level rule) | Accept. An admin who must clean up or promote a personal template turns the switch on, does the work, turns it off; both changes are audited. The alternative (admins keep `manage`, 7 per-op target checks) costs more code and tests |
+| Q49 (D29) | A third setting now (candidates: `IMG_HOSTS`, `LOG_LEVEL`, admin group) | No. `IMG_HOSTS` and `ADMIN_GROUP` are security config and stay owner-set in Script Properties; `LOG_LEVEL` is for the owner. A new setting is one row in the fixed list when asked |
+| Q50 (D29) | `RECIPIENTS_EXTERNAL` set on dev before slice 11 is ignored afterwards | No fallback code. The slice 11 smoke checks the dev property; the owner deletes it and sets the value in Config > Settings if it was `deny` |
+| Q51 (D29) | "Off" hides existing personal templates entirely (option 1) instead of read and insert (option 2) | Option 2. The owner's words name creation; hiding loses users their own texts and breaks favorites and Recent silently. Flip is one value in the rule (`none` for `use`) if the owner wants it |
+| Q52 (D29) | Users are told that admins can turn personal templates off | Yes, one sentence in the quick start next to the D18 disclosure |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance
 
 Target (BRIEF 1 Operations): the only recurring human task is deploying a new version. Details in ADR-0003 Part B (triggers) and ADR-0005 (Maintenance).
+
+Settings (D29, section 5.8): `setup()` writes none. A fresh install reads the defaults: personal templates `off`, outside recipients `allow`. A second `setup()` run never resets an admin's choice.
 
 Triggers. All time-driven, owned by and running as the owner. `setup()` installs them idempotently; the owner runs it once per environment after the first deploy. The trigger version check (amended 2026-11-10, slice 4b) runs in `doGet` and at the end of every `tick`; `rpc` and `doPost` skip it. It reads `TRIGGERS_VERSION` live inside the script lock and reinstalls when it differs, so after a deploy the triggers update on the first web app page load or within 5 min through `tick`, whichever comes first. Limit: a release that renames or removes the `tick` handler needs one web app page load.
 
@@ -824,6 +924,7 @@ Template, folder and grant changes and backup restores happen in the web app, do
 - The server reads the 3 copies (`index.json`, `favorites.json`, `usage.json`) and runs the shared shape check before the lock. A missing, unparsable or damaged copy answers VALIDATION "This backup cannot be read: <file> ..."; live files stay untouched.
 - Under the lock: admin re-check; refusal when the backup holds templates emptied from the trash since that date ("<n> templates of the <date> backup were emptied from the trash after that date and would not open. Pick a newer backup."). The automatic purge needs 30 days in the trash and backups go back 14, so only a manual "Empty trash now" can cause it.
 - Writes `favorites.json`, then `usage.json`, then `index.json` last as the commit point (`rev = current + 1`, current `pendingAudit` kept). A failure before or during the index write puts the side files back. One `backup.restore` audit event.
+- The live `settings` object is kept, like `pendingAudit` (D29, ADR-0008).
 - The same shape check runs on every Drive read of the live files. A damaged live file answers INTERNAL "<file> is damaged: <problem>" on every op that loads it.
 
 ### 16.2 Recovery from a damaged live file (runbook input, slice 7)

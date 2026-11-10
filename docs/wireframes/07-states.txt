@@ -1,7 +1,7 @@
 Screen 7: States (empty, no permission, loading, error, trash)
 Slices 3 (web), 4 (sidebar), 6 (admin). Error codes in docs/spec.md section 7.
 
-A. Sidebar, no templates visible
+A. Sidebar, no templates visible (personal templates on)
 +--------------------------------------+
 | [M] Migway Templates                 |
 |--------------------------------------|
@@ -9,6 +9,18 @@ A. Sidebar, no templates visible
 | Your private folder is ready.        |
 | [Open library]                       |
 +--------------------------------------+
+
+A2. Sidebar, no templates visible, personal templates off (D29, added 2026-11-10)
++--------------------------------------+
+| [M] Migway Templates                 |
+|--------------------------------------|
+| No templates shared with you yet.    |
+| Ask your admin for access to a       |
+| folder.                              |
++--------------------------------------+
+Library with no visible folder: the same sentence, no button.
+Library, own My templates while off: line above the list "Personal templates are turned off by your admin.
+You can still insert these templates." No New template button; row menus show no Edit, Move, Duplicate or Delete.
 
 B. Sidebar, no permission (DENIED)
 +--------------------------------------+
