@@ -2,12 +2,11 @@
 
 ## Environment facts (2026-11-09)
 - Worktrees may start at an old commit. Reset to the orchestrator branch `claude/gracious-franklin-3n8zbq` first (task prompt gives the command).
-- Bash hook rejects commands whose text contains "git" outside plain git commands (for example `.gitkeep`, `.github`, `gitleaks`). `git rm path/.gitkeep` as a plain git command works.
+- Bash hook rejects commands with "git" outside plain git commands (`.gitkeep`, `.github`, `gitleaks`).
 - Worktree guard rejects some heredocs and multi-command scripts it cannot verify (cat > file heredoc, `git` plus python in one command, backslash-heavy python). `python3 - <<'EOF'` edits alone usually pass; new files go through the Write tool; fall back to the Edit tool.
-- The Write tool may turn `\u0300` escapes into literal characters; use `\p{M}` with the `u` flag instead.
+- Write tool may turn `\u0300` into a literal; use `\p{M}` with `u`.
 - Chromium for browser checks: /opt/pw-browsers/chromium. puppeteer-core and chrome-launcher arrive with lighthouse (dev dep). Scratch scripts that import repo code must live inside the worktree (delete before commit).
-- Downloading and running external binaries is denied by the permission classifier. Release checksums can be read with curl.
-- Node 22.23.4, npm 10.9.9 in the sandbox. clasp login impossible here.
+- No external binaries (permission classifier). Node 22.23.4, npm 10.9.9; clasp login impossible here.
 
 ## Lessons
 - Always prove the lock file with `rm -rf node_modules && npm ci` before reporting. Slice 1 failed review on that.
@@ -19,13 +18,11 @@
 
 ## Toolchain decisions (slice 1)
 - typescript 6.0.3 (typescript-eslint 8.72.2 peer `<6.1.0`). eslint 10.14.0 `defineConfig`. vitest 5.1.0. @types/node 22.20.5 pinned for vitest's peer range.
-- Pure build helpers in `scripts/lib/*.mjs`; impure in `scripts/tools.mjs`.
-- Prettier defaults; `.prettierignore` skips docs except docs/ops.
+- Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
 - Build constants `__APP_ENV__`, `__EXEC_URL__`, `__GIT_SHA__`. Stubs `function name(...args) { return App.name(...args); }`.
 
 ## clasp 3.4.1 facts
-- Global `--json`, `-P <dir>`. create-version, list-versions, list-deployments, create-deployment `-i -V -d`, update-deployment, show-authorized-user.
-- `.clasp.json` `rootDir` relative to its own directory. `push --force` overwrites the manifest.
+- Global `--json`, `-P <dir>`; `.clasp.json` `rootDir` relative to itself; `push --force` overwrites the manifest.
 
 ## Code map (after slice 2)
 - `src/shared/permissions/`: principals.ts, effective.ts (`levelResolver`, `PRIVATE_OWNER_LEVEL`), levels.ts, matrix.ts (`ROLE_MATRIX` 17 rows, `checkNeed`, `ROOT`, `ANY_CALLER`).
@@ -52,7 +49,7 @@
 - PM parse collapses trailing whitespace; `<p>Hi </p>` becomes `Hi`.
 - htmlparser2 implied closes regroup tags after unwrapping, so one pass is not idempotent; loop until stable.
 - `<base target="_top">` in HtmlService sends `#` links to the top window; handle nav in script.
-- Lighthouse `label-content-name-mismatch`: aria-label must contain the visible text.
+- Lighthouse `label-content-name-mismatch`: aria-label must contain the visible text. Scrollable `pre` needs `tabindex=0`.
 
 ## Code map (after slice 4)
 - `src/addon/`: entry.ts (12 callbacks, `respond` = guard, QUOTA `notBefore` wait, flow, render), flows.ts (`Ports` = call, User Cache, nowMs, userEmail, execUrl; home, folder, preview, insert, promptInsert, openLink, spike flows), view.ts (`view:*` chunks 600 s, `body:<id>`), event.ts (params, formInputs, `internalRecipient`), prompts.ts (p-n names, 20 fields, 500 chars).
@@ -84,10 +81,8 @@
 - The worktree guard rejects `python3 - <<EOF` combined with other commands; write the .py to the scratchpad and run it alone.
 - Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
 
-## Slice 4b retry 1 (review FAIL: request ID not enforced)
-- `handleRpc` enforces `REQUEST_ID_PATTERN`; tests send `TESTREQ0-000001`. Log `action` only for policy ops.
-- Lesson: every client string that reaches a log line needs a server-side format check.
-- Lesson: per-execution property snapshots break read-check-write; re-read live inside the lock.
+## Slice 4b retry 1
+- `handleRpc` enforces `REQUEST_ID_PATTERN`; tests send `TESTREQ0-000001`. Every client string in a log line needs a server format check. Snapshots break read-check-write; re-read live in the lock.
 
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
@@ -127,6 +122,17 @@
 - Admins hold manage on private folders (ADR-0003 C); a review minor asking otherwise was reverted (675e145). Check accepted ADRs before following a fix request. Post-commit Drive loops are bounded (`PURGE_FILES_MAX`).
 - A negative test must fail for the reason under test: a missing group passed the length test on old code.
 
+## Code map (after slice 6b)
+- Server: handlers/audit.ts (`audit.query`, `aud:<month>` cache keyed `<fileId>.<size>`), audit/query.ts (pure filter, page 50), handlers/config.ts (`config.get`, `jobStatus`, `backup.list`, `backup.restore` via `withLock` + `commitLocked` + `context.recheck`), handlers/transfer.ts (export pages of 20, import Validate/Import), transfer/format.ts (parse, limits), transfer/plan.ts (pure placement). `usageReport` in admin.ts. StorePort `readBackup`, `readText`, `listAuditFiles` sized. Buffer `BUFFER_MAX` 200 + `evt:dropped` -> `audit.dropped`. `LATER_SLICE_OPS` gone. `IMPORT_MAX_BYTES`, `IMPORT_ITEMS_MAX` in shared/model/validate.ts.
+- Web: router `ADMIN_TABS` (6), admin.ts `openTab`, views/adminAudit, adminUsage, adminTransfer, adminConfig; dialog `variant: "drawer"`; admin/model.ts `exportFileName`, `localDayStart`, `formatBytes`, `importSummary`. Harness ops for all 8.
+- Tests: test/unit/server/adminReports.test.ts, test/unit/web/adminReports.test.ts.
+
+## Lessons (slice 6b)
+- The worktree guard refuses `cat >> file <<EOF` plus other commands; use python or Edit.
+- Dialog actions close in a microtask: focus-return asserts need `until`.
+- First admin call after `setupWorld` reads `members.json` from Drive (cold `gm:*`); warm before asserting `drive` 0.
+- Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
+
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
@@ -135,8 +141,9 @@
 ## Open items handed forward
 - Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; google.script.url/history and clipboard unverified in the real iframe.
 - Slice 4: Card Service calls unverified in Gmail; `setRequiredWidgets` not tried.
-- Slice 5: export must carry subject, import flattens line breaks (6b); `ft:*` warm-up in tick; spec 6 needs FAVORITES_REV/USAGE_REV (architect).
-- Slice 6a: spec 6 lacks `admin.folders`, `membership.status`; spec 5.1 lacks depth (FOLDER_DEPTH_MAX 5 assumed); 6b shows `job:triggers:lastError`.
+- Slice 5: `ft:*` warm-up in tick; spec 6 needs FAVORITES_REV/USAGE_REV (architect).
+- Slice 6a: spec 6 lacks `admin.folders`, `membership.status`; spec 5.1 lacks depth (FOLDER_DEPTH_MAX 5 assumed).
+- Slice 6b: spec 5.5 `usage.json` `days`; private folders left out of `export.library`; import skips grants; 5 MB `google.script.run` arg unverified; restore orphans newer body versions.
 - Not verified against Google: Advanced Drive on drive.file, `alt: 'media'` return type, `getActiveUser` in triggers, triggerUid values, 5 MB multipart limit.
-- `membership.refresh` should clear `prof:*` (6b). Audit reader dedupe (6b).
+- `membership.refresh` should clear `prof:*` (still open after 6b).
 - Drift check behaviour against real Apps Script reformatting: unverified.
