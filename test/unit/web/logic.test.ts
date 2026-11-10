@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { formatTime } from "../../../src/web/ui/dom";
 import { ErrorCode } from "../../../src/shared/errors/codes";
 import type { FolderRow, ItemRow } from "../../../src/web/rpc/api";
 import {
@@ -392,6 +393,17 @@ describe("error presentation (spec section 7)", () => {
     expect(of(ErrorCode.NOT_IMPLEMENTED)).toBe(
       "This action arrives in a later release.",
     );
+    vi.stubEnv("TZ", "America/New_York");
+    expect(
+      messageOf(
+        new RpcError(ErrorCode.CONFLICT, "Changed by x", "r", false, {
+          updatedBy: "bob@example.com",
+          updatedAt: "2026-11-10T15:14:00.000Z",
+        }),
+      ),
+    ).toBe("Changed by bob@example.com at 2026-11-10 10:14.");
+    vi.unstubAllEnvs();
+    expect(of(ErrorCode.CONFLICT, "Changed by x")).toBe("Changed by x");
     expect(of(ErrorCode.VALIDATION, "Title must be 1 to 120 characters")).toBe(
       "Title must be 1 to 120 characters",
     );
@@ -428,5 +440,26 @@ describe("previews", () => {
     expect(withChips("<p>a {{sender.name}} \\{{ {{x.y}}</p>")).toBe(
       '<p>a <span class="ph" role="img" aria-label="Placeholder: sender name">Sender name</span> {{ <span class="ph" role="img" aria-label="Placeholder: x.y">x.y</span></p>',
     );
+  });
+});
+
+describe("formatTime (local time, smoke 5b item 3)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("shows the browser's time zone, not UTC", () => {
+    vi.stubEnv("TZ", "America/New_York");
+    expect(formatTime("2026-11-10T15:14:00.000Z")).toBe("2026-11-10 10:14");
+    expect(formatTime("2026-01-01T03:05:00.000Z")).toBe("2025-12-31 22:05");
+    vi.stubEnv("TZ", "Asia/Kolkata");
+    expect(formatTime("2026-11-10T15:14:00.000Z")).toBe("2026-11-10 20:44");
+    vi.stubEnv("TZ", "UTC");
+    expect(formatTime("2026-11-10T15:14:00.000Z")).toBe("2026-11-10 15:14");
+  });
+
+  it("gives an empty text for a blank or bad time", () => {
+    expect(formatTime("")).toBe("");
+    expect(formatTime("not a time")).toBe("");
   });
 });

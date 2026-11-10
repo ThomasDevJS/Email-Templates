@@ -1,6 +1,6 @@
 import { ErrorCode } from "../../shared/errors/codes";
 import { RpcError } from "../rpc/client";
-import { h, replace } from "./dom";
+import { formatTime, h, replace } from "./dom";
 
 /**
  * Error, empty and loading states (spec section 7, wireframe 07). Toasts for retryable errors (BUSY, QUOTA,
@@ -26,6 +26,15 @@ export function presentationOf(code: ErrorCode): Presentation {
   }
 }
 
+/** The server's CONFLICT names a UTC time; the details let the browser show it in local time. */
+function conflictText(error: RpcError): string {
+  const by = error.details?.["updatedBy"];
+  const at = error.details?.["updatedAt"];
+  return typeof by === "string" && typeof at === "string"
+    ? `Changed by ${by} at ${formatTime(at)}.`
+    : error.message;
+}
+
 /** User-facing text per code (spec section 7). */
 export function messageOf(error: RpcError): string {
   switch (error.code) {
@@ -39,6 +48,8 @@ export function messageOf(error: RpcError): string {
       return "Service is busy. Try again in a minute.";
     case ErrorCode.NOT_IMPLEMENTED:
       return "This action arrives in a later release.";
+    case ErrorCode.CONFLICT:
+      return conflictText(error);
     default:
       return presentationOf(error.code) === "toast"
         ? "Something went wrong. Retry."
