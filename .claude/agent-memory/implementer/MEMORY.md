@@ -93,6 +93,19 @@
 - Lesson: a per-execution property snapshot breaks any read-check-write across executions; re-read live inside the lock.
 - Old-code check of earlier commits: `git checkout <testCommit> -- test; git checkout <oldCommit> -- src; run; git checkout HEAD -- src test`.
 
+## Code map (after slice 5)
+- Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
+- Old data: `readIndexDoc`, `withSubject`, `Unmigrated<T>` in shared/model/data.ts (driveStore read + `cachedIndex`).
+- Add-on: `insertReply(html, subject)` pure builder (spec.ts); `SKIP_SUBJECT`, `SUBJECT_SWITCH`, `SWITCH_ON`, `SEARCH_INPUT` in spec.ts; Widget item `toggle`, input `hint`/`onChange`; `searchFlow`, `onSearch`; `folderItem`/`templateItem` live in cards/folder.ts.
+- Search: shared/search/match.ts (`parseQuery`, `score`, `rank`, `fold`). Server `search` in handlers/sidebar.ts (`visibleTemplates`, `visiblePath`), `searchBody` in templates.ts, `ft:<bodyFileId>` + `bodyTexts` (25 misses) in body.ts.
+- Favorites/Recent: handlers/favorites.ts (`callerLists`, `callerRecent`, `favoriteSet/Unset` under lock); cache/sideCache.ts (`FAVORITES_REV`, `USAGE_REV`, `readSideCached`, `publishSide`, `writeSideLocked`); setup and tick publish.
+- Web: `searchItems` (library/model.ts), `AppContext.favorites/recent/setFavorite`, grid star + `GridActions.isFavorite/toggleFavorite`, `subjectPickerItems` (picker.ts).
+
+## Lessons (slice 5)
+- Worktree guard rejects bash heredocs with python edits; use scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>` blocks) written with the Write tool. Empty replacement needs `===\n>>>`.
+- `git checkout <base> -- src` adds base-only files to the index; remove them with `git rm -f` afterwards.
+- New side-file reads need a published rev property, else readers never cache (warm counter test catches it).
+
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
@@ -100,7 +113,8 @@
 
 ## Open items handed forward
 - Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; google.script.url/history and clipboard unverified in the real iframe.
-- Slice 4: spike S4 harness to remove after owner results (handoff lists files); ADR-0004 allowlist and cap wait for results; Card Service calls unverified in Gmail; `setRequiredWidgets` not tried; slice 5 adds search, favorites, recent in `homeSections`.
+- Slice 4: Card Service calls unverified in Gmail; `setRequiredWidgets` not tried.
+- Slice 5: spike S5 unverified (smoke Slice 5 step 1); Q21 reply subject; export must carry subject, import flattens line breaks (slice 6); `ft:*` warm-up in tick; spec 6 status line and Script Properties list need FAVORITES_REV/USAGE_REV (architect).
 - Not verified against Google: Advanced Drive on drive.file, `alt: 'media'` return type, `getActiveUser` in triggers, triggerUid values, 5 MB multipart limit.
-- `membership.refresh` should clear `prof:*` (slice 6). Audit reader dedupe (slice 6). Caches `fav`, `use`, `ft` (slice 5).
+- `membership.refresh` should clear `prof:*` (slice 6). Audit reader dedupe (slice 6). Caches `fav`, `use`, `ft` built in slice 5.
 - Drift check behaviour against real Apps Script reformatting: unverified.
