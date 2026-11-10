@@ -1,7 +1,8 @@
 /**
  * Dev harness (`npm run dev:web`, `scripts/lighthouse.mjs`): a fake `google.script` with an in-memory server, so
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
- * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code.
+ * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
+ * `?admin=0` makes the caller a manage holder instead of an admin in the admin view.
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
@@ -163,6 +164,124 @@ store(
   "<p>We received your ticket and will reply within one business day.</p>",
 );
 
+store(
+  "T-OLD",
+  "F-QUOTES",
+  "Old price list",
+  ["pricing"],
+  "<p>Prices of last year.</p>",
+);
+items.set("T-OLD", {
+  ...(items.get("T-OLD") as Item),
+  deletedAt: "2026-11-01T10:00:00.000Z",
+  deletedBy: "ben@example.com",
+});
+
+interface DevGrant {
+  readonly id: string;
+  readonly folderId: string;
+  readonly principalType: string;
+  readonly principalKey: string;
+  readonly level: string;
+}
+
+const grants: DevGrant[] = [
+  {
+    id: "G-1",
+    folderId: "F-SALES",
+    principalType: "group",
+    principalKey: "sales@example.com",
+    level: "edit",
+  },
+  {
+    id: "G-2",
+    folderId: "F-QUOTES",
+    principalType: "ou",
+    principalKey: "/field",
+    level: "use",
+  },
+];
+
+const MEMBERSHIPS = {
+  resolver: "groupsapp_direct",
+  nested: false,
+  refreshedAt: NOW,
+  groups: [
+    { group: "admins@example.com", members: 3, childGroups: [], status: "ok" },
+    {
+      group: "sales@example.com",
+      members: 28,
+      childGroups: ["emea-sales@example.com"],
+      status: "ok",
+    },
+  ],
+  warnings: [],
+};
+
+function isAdmin(): boolean {
+  return new URLSearchParams(window.location.search).get("admin") !== "0";
+}
+
+function liveFolders(): typeof folders {
+  return folders.filter((entry) => entry.deletedAt === "");
+}
+
+function devFolder(id: string): (typeof folders)[number] {
+  const found = liveFolders().find((entry) => entry.id === id);
+  if (found === undefined)
+    throw new AppError(
+      ErrorCode.NOT_FOUND,
+      "This folder was removed or moved.",
+    );
+  return found;
+}
+
+/** The folder and its ancestors, nearest first. */
+function chainOf(id: string): (typeof folders)[number][] {
+  const chain: (typeof folders)[number][] = [];
+  let next = id;
+  for (;;) {
+    const parent = folders.find((f) => f.id === next);
+    if (parent === undefined) return chain;
+    chain.push(parent);
+    next = parent.parentId;
+  }
+}
+
+function pathOf(id: string): string {
+  return `/${chainOf(id)
+    .map((entry) => entry.name)
+    .reverse()
+    .join("/")}`;
+}
+
+/** Replaces a folder after a version check, like the server's `changeFolder`. */
+function changeFolder(
+  args: Record<string, unknown>,
+  fields: Partial<(typeof folders)[number]>,
+) {
+  const found = devFolder(str(args, "folderId"));
+  if (found.version !== num(args, "baseVersion"))
+    throw new AppError(ErrorCode.CONFLICT, "Changed", {
+      currentVersion: found.version,
+      updatedBy: found.updatedBy,
+      updatedAt: found.updatedAt,
+    });
+  const next = { ...found, ...fields, version: found.version + 1 };
+  folders.splice(folders.indexOf(found), 1, next);
+  return next;
+}
+
+function folderName(args: Record<string, unknown>): string {
+  const name = str(args, "name").trim();
+  if (name === "" || name.length > 80)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "Folder name must be 1 to 80 characters",
+    );
+  return name;
+}
+
 function str(args: Record<string, unknown>, key: string): string {
   const value = args[key];
   return typeof value === "string" ? value : "";
@@ -246,14 +365,20 @@ const OPS: Readonly<Record<string, Op>> = {
     department: "Sales",
     phone: "+1 555 0100",
   }),
-  "folder.list": () => ({ folders }),
-  "template.list": () => ({
+  "folder.list": () => ({ folders: liveFolders() }),
+  "template.list": (args) => ({
     items: [...items.values()]
-      .filter((entry) => entry.deletedAt === "")
+      .filter((entry) => (entry.deletedAt !== "") === (args["trash"] === true))
       .filter((entry) => levelOf(entry.folderId) !== "none")
-      .map((entry) => ({ ...entry, level: levelOf(entry.folderId) })),
+      .map((entry) => ({
+        ...entry,
+        level: levelOf(entry.folderId),
+        folderLive: liveFolders().some((f) => f.id === entry.folderId),
+        folderPath: pathOf(entry.folderId),
+      })),
     favorites: [...favorites],
     recent: ["T-DISCOUNT"],
+    canPurge: isAdmin(),
   }),
   "favorite.set": (args) => {
     favorites.add(live(str(args, "id")).id);
@@ -339,6 +464,101 @@ const OPS: Readonly<Record<string, Op>> = {
     needLevel(found.folderId, "edit");
     checkBase(found, num(args, "baseVersion"));
     return change(found, { deletedAt: NOW, deletedBy: ME });
+  },
+  "admin.folders": () => ({
+    isAdmin: isAdmin(),
+    folders: liveFolders()
+      .filter((entry) => isAdmin() || entry.level === "manage")
+      .map((entry) => ({ ...entry, level: "manage" })),
+  }),
+  "folder.create": (args) => {
+    seq += 1;
+    const created = {
+      ...folder(
+        `F-${String(seq)}`,
+        folderName(args),
+        str(args, "parentId"),
+        "manage",
+      ),
+    };
+    folders.push(created);
+    return created;
+  },
+  "folder.rename": (args) => changeFolder(args, { name: folderName(args) }),
+  "folder.move": (args) =>
+    changeFolder(args, { parentId: str(args, "parentId") }),
+  "folder.delete": (args) => {
+    const id = str(args, "folderId");
+    const busy =
+      folders.some((entry) => entry.parentId === id) ||
+      [...items.values()].some(
+        (entry) => entry.folderId === id && entry.deletedAt === "",
+      );
+    if (busy)
+      throw new AppError(
+        ErrorCode.VALIDATION,
+        "Only an empty folder can be deleted",
+      );
+    return changeFolder(args, { deletedAt: NOW, deletedBy: ME });
+  },
+  "grant.list": (args) => {
+    const id = str(args, "folderId");
+    return {
+      grants: chainOf(id).flatMap(({ id: folderId }) =>
+        grants
+          .filter((entry) => entry.folderId === folderId)
+          .map((entry) => ({
+            ...entry,
+            active: entry.principalType !== "ou",
+            inherited: folderId !== id,
+            sourcePath: pathOf(folderId),
+          })),
+      ),
+    };
+  },
+  "grant.add": (args) => {
+    const key = str(args, "principalKey").trim().toLowerCase();
+    if (str(args, "principalType") === "group" && key.startsWith("missing"))
+      throw new AppError(
+        ErrorCode.VALIDATION,
+        `Group ${key} was not found or its members are not visible`,
+      );
+    seq += 1;
+    const added = {
+      id: `G-${String(seq)}`,
+      folderId: devFolder(str(args, "folderId")).id,
+      principalType: str(args, "principalType"),
+      principalKey: key,
+      level: str(args, "level"),
+    };
+    grants.push(added);
+    return added;
+  },
+  "grant.remove": (args) => {
+    const index = grants.findIndex(
+      (entry) => entry.id === str(args, "grantId"),
+    );
+    if (index < 0)
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        "This grant was removed or moved.",
+      );
+    grants.splice(index, 1);
+    return { removed: str(args, "grantId") };
+  },
+  "membership.status": () => MEMBERSHIPS,
+  "membership.refresh": () => ({ ...MEMBERSHIPS, refreshedAt: NOW }),
+  "template.restoreFromTrash": (args) => {
+    const found = item(str(args, "id"));
+    const folderId = str(args, "folderId") || found.folderId;
+    devFolder(folderId);
+    needLevel(folderId, "edit");
+    return change(found, { folderId, deletedAt: "", deletedBy: "" });
+  },
+  "trash.purge": () => {
+    const gone = [...items.values()].filter((entry) => entry.deletedAt !== "");
+    for (const entry of gone) items.delete(entry.id);
+    return { purged: gone.length };
   },
   "version.list": (args) => {
     const found = item(str(args, "id"));

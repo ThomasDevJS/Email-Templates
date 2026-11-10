@@ -115,6 +115,10 @@ describe("router", () => {
     ["#/library?other=1", { name: "library", folderId: "" }],
     ["#/nowhere", LIBRARY],
     ["", LIBRARY],
+    ["#/trash", { name: "trash" }],
+    ["#/admin", { name: "admin", tab: "folders" }],
+    ["#/admin/memberships", { name: "admin", tab: "memberships" }],
+    ["#/admin/audit", { name: "admin", tab: "folders" }],
   ])("parses %j", (hash, route) => {
     expect(parseRoute(hash)).toEqual(route);
   });
@@ -126,6 +130,9 @@ describe("router", () => {
       { name: "edit", id: "A" },
       { name: "history", id: "B" },
       { name: "new", folderId: "Q" },
+      { name: "trash" },
+      { name: "admin", tab: "folders" },
+      { name: "admin", tab: "memberships" },
     ] as const)
       expect(parseRoute(routeHash(route))).toEqual(route);
   });
@@ -139,7 +146,11 @@ describe("router", () => {
       name: "history",
       id: "01ABC",
     });
-    expect(overlayRoute({ view: "admin", id: "01ABC" })).toBeNull();
+    expect(overlayRoute({ view: "admin" })).toEqual({
+      name: "admin",
+      tab: "folders",
+    });
+    expect(overlayRoute({ view: "trash", id: "01ABC" })).toBeNull();
     expect(overlayRoute({ view: "editor" })).toBeNull();
     expect(
       startRoute({ hash: "", parameter: { view: "editor", id: "X1" } }),

@@ -17,6 +17,7 @@ import { createFolderTree } from "./tree";
  * (spec 12: under 1 s after the first load).
  */
 const BODY_SEARCH_DELAY_MS = 300;
+const SEARCHING = "Searching text...";
 
 export function libraryView(
   app: AppContext,
@@ -184,9 +185,11 @@ export function libraryView(
     );
   };
 
+  const searching = () =>
+    bodyPending !== "" && bodyPending === search.value.trim();
+
   const bodySection = (shown: readonly ItemRow[]): HTMLElement[] => {
-    if (bodyPending !== "" && bodyPending === search.value.trim())
-      return [h("p", { class: "hint" }, "Searching text...")];
+    if (searching()) return [h("p", { class: "hint" }, SEARCHING)];
     const extra = bodyMatches(shown);
     const note =
       bodyQuery === search.value.trim() && bodySkipped > 0
@@ -210,7 +213,10 @@ export function libraryView(
     const items = searchItems(scoped(), app.folders(), query, app.recent());
     heading.textContent = folderName();
     replace(actions, canCreate() ? newButton() : null);
-    list.setAttribute("aria-busy", "false");
+    // The status region announces the text search; the list stays busy until its reply (slice 5b minors 3, 4).
+    list.setAttribute("aria-busy", String(searching()));
+    if (searching()) status.textContent = SEARCHING;
+    else if (status.textContent === SEARCHING) status.textContent = "";
     const body = bodySection(items);
     const grid =
       items.length === 0
@@ -243,7 +249,8 @@ export function libraryView(
           performance.measure("library.body", { start: started });
         },
         (error: unknown) => {
-          if (query === bodyPending) bodyPending = "";
+          if (query !== search.value.trim()) return;
+          bodyPending = "";
           drawList();
           app.fail(error);
         },
@@ -290,6 +297,17 @@ export function libraryView(
         { class: "folders", "aria-label": "Folders" },
         h("h2", { class: "sr-only" }, "Folders"),
         tree.element,
+        h(
+          "button",
+          {
+            type: "button",
+            class: "link trash-link",
+            onclick: () => {
+              app.go({ name: "trash" });
+            },
+          },
+          "Trash",
+        ),
       ),
       h(
         "section",

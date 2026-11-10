@@ -199,9 +199,11 @@ describe("role matrix of the slice 6a ops", () => {
         { trash: true },
         f.surface,
       );
-      const count = response.ok
-        ? (response.data as { items: unknown[] }).items.length
-        : -1;
+      const data = response.ok
+        ? (response.data as { items: unknown[]; canPurge: boolean })
+        : { items: [], canPurge: false };
+      const count = response.ok ? data.items.length : -1;
+      expect(data.canPurge).toBe(role === "admin" || role === "addon");
       expect([role, count]).toEqual([
         role,
         { none: 0, use: 0, edit: 1, manage: 1, admin: 1, addon: 1 }[role],

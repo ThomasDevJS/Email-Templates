@@ -5,7 +5,7 @@ import { h, replace } from "../ui/dom";
 /**
  * Folder tree (spec section 8): `role="tree"`, one tab stop. Up and Down move, Right expands or enters,
  * Left collapses or goes to the parent, Home and End jump, Enter or Space opens the folder.
- * The first row, "All templates", has the empty folder ID.
+ * The first row, `rootLabel` ("All templates" in the library), has the empty folder ID.
  */
 export interface FolderTree {
   readonly element: HTMLElement;
@@ -23,11 +23,12 @@ interface Row {
 function rowsOf(
   roots: readonly TreeNode[],
   expanded: ReadonlySet<string>,
+  rootLabel: string,
 ): Row[] {
   return [
     {
       id: "",
-      name: "All templates",
+      name: rootLabel,
       depth: 1,
       parentId: "",
       hasChildren: false,
@@ -44,6 +45,7 @@ function rowsOf(
 
 export function createFolderTree(
   onOpen: (folderId: string) => void,
+  rootLabel = "All templates",
 ): FolderTree {
   const list = h("ul", {
     role: "tree",
@@ -56,7 +58,7 @@ export function createFolderTree(
   let focused = "";
 
   const draw = (focus: boolean) => {
-    const rows = rowsOf(roots, expanded);
+    const rows = rowsOf(roots, expanded, rootLabel);
     if (!rows.some((row) => row.id === focused)) focused = selected;
     replace(list, ...rows.map((row) => item(row)));
     if (focus) list.querySelector<HTMLElement>('[tabindex="0"]')?.focus();
@@ -137,7 +139,7 @@ export function createFolderTree(
   };
 
   list.addEventListener("keydown", (event) => {
-    const rows = rowsOf(roots, expanded);
+    const rows = rowsOf(roots, expanded, rootLabel);
     const index = rows.findIndex((row) => row.id === focused);
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();

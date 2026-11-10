@@ -105,11 +105,12 @@ function trashed(context: HandlerContext, folderId: string): TrashView[] {
 
 /**
  * The library list (`trash: true` for the trash) with the caller's Favorites and Recent among the listed items
- * (web app star, filter and "last used" sort, spec 4.4).
+ * (web app star, filter and "last used" sort, spec 4.4). `canPurge`: the caller is an admin (Trash "Empty now").
  */
 export function templateList(context: HandlerContext): {
   items: ItemView[];
   rev: number;
+  canPurge: boolean;
 } & CallerLists {
   const folderId = optString(context.args, "folderId");
   const items = optBool(context.args, "trash")
@@ -120,7 +121,8 @@ export function templateList(context: HandlerContext): {
     context.caller.email,
     new Set(items.map((item) => item.id)),
   );
-  return { items, rev: context.access().index.rev, ...lists };
+  const { index, subject } = context.access();
+  return { items, rev: index.rev, canPurge: subject.isAdmin, ...lists };
 }
 
 /**
