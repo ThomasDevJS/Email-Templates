@@ -29,7 +29,7 @@ type Response =
   | GoogleAppsScript.Card_Service.UpdateDraftActionResponse;
 type Params = Readonly<Record<string, string>>;
 
-/** Every server call of this execution carries the event's Q21 diagnostics (names and counts only). */
+/** Every server call of this execution carries the event's draft diagnostics (names, counts, `hasSubject`). */
 function ports(event: AddonEvent | undefined): Ports {
   const draft = draftInfo(event);
   return {

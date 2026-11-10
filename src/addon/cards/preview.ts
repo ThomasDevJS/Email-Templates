@@ -19,7 +19,7 @@ function bodyOnlyButton(template: SidebarTemplate): ButtonSpec {
   };
 }
 
-/** "Insert with subject" (Q21): the opt-in in a reply, where a plain Insert keeps the draft subject. */
+/** "Insert with subject" (D24): the override when the draft has a subject, which a plain Insert keeps. */
 function withSubjectButton(template: SidebarTemplate): ButtonSpec {
   return {
     text: "Insert with subject",
@@ -31,14 +31,14 @@ function withSubjectButton(template: SidebarTemplate): ButtonSpec {
 /**
  * Preview card (wireframes 01, 02): the subject with placeholders as [Label] when the template has one, plain text
  * of the body, the explicit prompts as "Fields to fill", Insert ("Insert body only" next to it when there is a
- * subject), and "Edit in library" only when the caller holds edit or manage on the folder. In a reply (`reply`
- * from `isReplyDraft`) Insert keeps the subject and "Insert with subject" is the opt-in.
+ * subject), and "Edit in library" only when the caller holds edit or manage on the folder. When the draft has a
+ * subject (`draftHasSubject`) Insert keeps it and "Insert with subject" overrides.
  */
 export function previewCard(
   template: SidebarTemplate,
   text: string,
   subject: string,
-  reply: boolean,
+  draftHasSubject: boolean,
 ): CardSpec {
   const hasSubject = subject !== "";
   const subjectWidgets: Widget[] = hasSubject
@@ -65,12 +65,16 @@ export function previewCard(
   const insert: ButtonSpec[] = [
     { ...insertButton(template), filled: true },
     ...(hasSubject
-      ? [reply ? withSubjectButton(template) : bodyOnlyButton(template)]
+      ? [
+          draftHasSubject
+            ? withSubjectButton(template)
+            : bodyOnlyButton(template),
+        ]
       : []),
   ];
-  const note = reply
-    ? "The subject is kept in replies."
-    : "Replaces the draft subject.";
+  const note = draftHasSubject
+    ? "The draft already has a subject. It is kept."
+    : "Sets the draft subject.";
   return {
     name: `preview-${template.id}`,
     title: template.title,

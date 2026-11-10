@@ -290,7 +290,7 @@ describe("preview card (wireframe 01)", () => {
       topLabel: "Subject",
       text: "Quote for [Product]",
     });
-    expect(texts(card)).toContain("Replaces the draft subject.");
+    expect(texts(card)).toContain("Sets the draft subject.");
     expect(buttons(card).map((b) => b.action)).toEqual([
       { fn: "onInsert", params: { id: "T1" } },
       { fn: "onInsert", params: { id: "T1", subject: "skip" } },
@@ -298,9 +298,11 @@ describe("preview card (wireframe 01)", () => {
     expect(buttons(card)[1]?.text).toBe("Insert body only");
   });
 
-  it("in a reply: keeps the subject note and offers Insert with subject (Q21)", () => {
+  it("with a draft subject: says it is kept and offers Insert with subject (D24)", () => {
     const card = previewCard(template("T1"), "Body", "Quote", true);
-    expect(texts(card)).toContain("The subject is kept in replies.");
+    expect(texts(card)).toContain(
+      "The draft already has a subject. It is kept.",
+    );
     expect(buttons(card).map((b) => [b.text, b.action.params])).toEqual([
       ["Insert", { id: "T1" }],
       ["Insert with subject", { id: "T1", subject: "use" }],

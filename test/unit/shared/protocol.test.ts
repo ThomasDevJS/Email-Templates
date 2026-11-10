@@ -80,8 +80,14 @@ describe("parseRpcResponse", () => {
   });
 });
 
-describe("requestDraft (Q21 diagnostics)", () => {
-  const draft = { fields: ["threadId", "messageId"], to: 1, cc: 0, bcc: 0 };
+describe("requestDraft (draft diagnostics)", () => {
+  const draft = {
+    fields: ["threadId", "messageId"],
+    to: 1,
+    cc: 0,
+    bcc: 0,
+    hasSubject: true,
+  };
 
   it("accepts names from the fixed list and returns them in list order", () => {
     expect(requestDraft({ draft })).toEqual({
@@ -89,6 +95,7 @@ describe("requestDraft (Q21 diagnostics)", () => {
       to: 1,
       cc: 0,
       bcc: 0,
+      hasSubject: true,
     });
     expect(requestDraft({})).toBeUndefined();
     expect(requestDraft("x")).toBeUndefined();
@@ -104,7 +111,9 @@ describe("requestDraft (Q21 diagnostics)", () => {
     ["a count over 1000", { ...draft, bcc: 1001 }],
     ["a text count", { ...draft, to: "1" }],
     ["an extra key", { ...draft, subject: "Hello" }],
-    ["a missing key", { fields: [], to: 0, cc: 0 }],
+    ["a missing key", { fields: [], to: 0, cc: 0, bcc: 0 }],
+    ["a text hasSubject", { ...draft, hasSubject: "Re: Price" }],
+    ["a numeric hasSubject", { ...draft, hasSubject: 1 }],
     ["a list", []],
     ["null", null],
   ])("rejects %s", (_label, value) => {

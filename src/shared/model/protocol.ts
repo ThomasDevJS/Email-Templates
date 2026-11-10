@@ -29,12 +29,13 @@ export type DraftField = (typeof DRAFT_FIELDS)[number];
 /** Largest recipient count the server accepts; the add-on caps its counts at this value. */
 export const DRAFT_COUNT_MAX = 1000;
 
-/** Present event fields, in `DRAFT_FIELDS` order, and the To, Cc and Bcc counts. */
+/** Present event fields, in `DRAFT_FIELDS` order, the To, Cc and Bcc counts, and whether the draft has a subject. */
 export interface DraftInfo {
   readonly fields: readonly DraftField[];
   readonly to: number;
   readonly cc: number;
   readonly bcc: number;
+  readonly hasSubject: boolean;
 }
 
 function isDraftCount(value: unknown): value is number {
@@ -52,17 +53,18 @@ function isDraftField(value: unknown): value is DraftField {
 
 /**
  * The request's draft diagnostics: `undefined` when the request has none, `null` when they break the contract
- * (a name outside `DRAFT_FIELDS`, a repeated name, another key, or a count that is not a whole number from 0 to
- * 1,000). The server answers `null` with VALIDATION and logs nothing from it.
+ * (a name outside `DRAFT_FIELDS`, a repeated name, another key, a count that is not a whole number from 0 to
+ * 1,000, or a `hasSubject` that is not a boolean). The server answers `null` with VALIDATION and logs nothing from it.
  */
 export function requestDraft(raw: unknown): DraftInfo | null | undefined {
   const draft = isRecord(raw) ? raw["draft"] : undefined;
   if (draft === undefined) return undefined;
   if (!isRecord(draft)) return null;
-  const { fields, to, cc, bcc } = draft;
+  const { fields, to, cc, bcc, hasSubject } = draft;
   const keys = Object.keys(draft).sort().join(",");
   if (
-    keys !== "bcc,cc,fields,to" ||
+    keys !== "bcc,cc,fields,hasSubject,to" ||
+    typeof hasSubject !== "boolean" ||
     !Array.isArray(fields) ||
     !fields.every(isDraftField) ||
     new Set(fields).size !== fields.length ||
@@ -76,6 +78,7 @@ export function requestDraft(raw: unknown): DraftInfo | null | undefined {
     to,
     cc,
     bcc,
+    hasSubject,
   };
 }
 

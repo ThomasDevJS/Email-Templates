@@ -23,9 +23,25 @@ export interface AddonEvent {
     readonly toRecipients?: readonly string[];
     readonly [field: string]: unknown;
   };
-  /** Gmail fields of the event (`messageId`, `threadId`, recipients); read only by `draftInfo`. */
+  /** Gmail fields of the event (recipients, subject); read by `draftInfo` and `draftHasSubject`. */
   readonly gmail?: Readonly<Record<string, unknown>>;
-  readonly messageMetadata?: Readonly<Record<string, unknown>>;
+}
+
+function sourcesOf(event: AddonEvent | undefined) {
+  return [event?.gmail, event?.draftMetadata].filter(
+    (source) => source !== undefined,
+  );
+}
+
+/**
+ * D24, the only place that decides it: the draft has a subject when the event's `subject` is a string with a
+ * non-space character. A missing or non-string value counts as no subject (the behavior of build 32a446c).
+ */
+export function draftHasSubject(event: AddonEvent | undefined): boolean {
+  return sourcesOf(event).some((source) => {
+    const subject = source["subject"];
+    return typeof subject === "string" && subject.trim() !== "";
+  });
 }
 
 function presentValue(value: unknown): boolean {
@@ -33,15 +49,11 @@ function presentValue(value: unknown): boolean {
 }
 
 /**
- * Q21 diagnostics: which `DRAFT_FIELDS` the event carries in `gmail`, `draftMetadata` or `messageMetadata`, and
- * the To, Cc and Bcc counts. Names and numbers only: no value leaves the add-on.
+ * Draft diagnostics: which `DRAFT_FIELDS` the event carries in `gmail` or `draftMetadata`, the To, Cc and Bcc
+ * counts, and `hasSubject` (D24). Names, numbers and one boolean: no value leaves the add-on.
  */
 export function draftInfo(event: AddonEvent | undefined): DraftInfo {
-  const sources = [
-    event?.gmail,
-    event?.draftMetadata,
-    event?.messageMetadata,
-  ].filter((source) => source !== undefined);
+  const sources = sourcesOf(event);
   const has = (name: DraftField) =>
     name === "draftMetadata"
       ? event?.draftMetadata !== undefined
@@ -62,16 +74,8 @@ export function draftInfo(event: AddonEvent | undefined): DraftInfo {
     to: count("toRecipients"),
     cc: count("ccRecipients"),
     bcc: count("bccRecipients"),
+    hasSubject: draftHasSubject(event),
   };
-}
-
-/**
- * Q21 rule, the only place that decides it: the draft is a reply when the event names a thread or a message.
- * Cards and flows read this result. The smoke run's `draft` log fields confirm or replace the rule.
- */
-export function isReplyDraft(event: AddonEvent | undefined): boolean {
-  const { fields } = draftInfo(event);
-  return fields.includes("threadId") || fields.includes("messageId");
 }
 
 export function paramsOf(

@@ -107,11 +107,13 @@
 - New side-file reads need a published rev property, else readers never cache (warm counter test catches it).
 
 ## Code map (after slice 5b)
-- Q21: `DRAFT_FIELDS`, `requestDraft` (protocol.ts); `draftInfo`, `isReplyDraft` (addon/event.ts); `replacesSubject`, `WITH_SUBJECT` (cards/spec.ts). `ports(event)` sends `draft` on every call; server logs `draft` only when valid, else VALIDATION.
+- D24 (slice 5c): `DRAFT_FIELDS`, `requestDraft` with `hasSubject` (protocol.ts); `draftInfo`, `draftHasSubject` (addon/event.ts); truth table `replacesSubject`, `WITH_SUBJECT` (cards/spec.ts). Gmail compose events carry no threadId/messageId. `ports(event)` sends `draft` on every call; server logs `draft` only when valid, else VALIDATION.
 - `folderLabel` in folders.ts: `folder.list` renames other users' private folders "My templates (owner)".
 - Web: `formatTime` local; `conflictText` in status.ts; `DialogAction.autofocus`; rowMenu takes `{ busy, done }`; library `bodyPending`.
 
 ## Lessons (slice 5b)
+- Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
+- Prettier renumbers markdown lists; a non-list sentence keeps old step references honest.
 - `cat > file` with no input hangs the shell; `python3 /dev/stdin <<'EOF'` works for edits, alone in one command.
 - jsdom: `vi.stubEnv("TZ", ...)` changes Date local time at runtime.
 - Old-code check of the whole slice: `git checkout <base> -- src`, run, `git checkout HEAD -- src`.
@@ -124,7 +126,7 @@
 ## Open items handed forward
 - Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; google.script.url/history and clipboard unverified in the real iframe.
 - Slice 4: Card Service calls unverified in Gmail; `setRequiredWidgets` not tried.
-- Slice 5: Q21 rule built in 5b, unconfirmed until smoke Slice 5b step 5; export must carry subject, import flattens line breaks (slice 6); `ft:*` warm-up in tick; spec 6 status line and Script Properties list need FAVORITES_REV/USAGE_REV (architect).
+- Slice 5: D24 subject rule built in 5c, event `subject` value unconfirmed until smoke Slice 5c step 4; `folder.rename` strips owner label; export must carry subject, import flattens line breaks (slice 6); `ft:*` warm-up in tick; spec 6 status line and Script Properties list need FAVORITES_REV/USAGE_REV (architect).
 - Not verified against Google: Advanced Drive on drive.file, `alt: 'media'` return type, `getActiveUser` in triggers, triggerUid values, 5 MB multipart limit.
 - `membership.refresh` should clear `prof:*` (slice 6). Audit reader dedupe (slice 6). Caches `fav`, `use`, `ft` built in slice 5.
 - Drift check behaviour against real Apps Script reformatting: unverified.

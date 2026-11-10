@@ -38,7 +38,7 @@ import {
 import {
   formValue,
   internalRecipient,
-  isReplyDraft,
+  draftHasSubject,
   type AddonEvent,
 } from "./event";
 import {
@@ -193,7 +193,7 @@ export function previewFlow(
       template,
       previewText(html),
       subjectPreview(subject),
-      isReplyDraft(event),
+      draftHasSubject(event),
     ),
   };
 }
@@ -279,7 +279,7 @@ export function insertFlow(
     version: result.version,
     html: body.html,
     subject: skip ? "" : body.subject,
-    replaceSubject: replacesSubject(choice, isReplyDraft(event)),
+    replaceSubject: replacesSubject(choice, draftHasSubject(event)),
     values: variableValues(result.sender, result.recipientFirstName),
   });
 }
@@ -355,8 +355,8 @@ export function promptInsertFlow(
       title: params["title"] ?? "",
       version: body.data.version,
       subject,
-      // A changed template shows the switch at its default; in a reply that default is off (Q21).
-      replaceSubject: replaceSubject || (changed && !isReplyDraft(event)),
+      // A changed template shows the switch at its default: off when the draft has a subject (D24).
+      replaceSubject: replaceSubject || (changed && !draftHasSubject(event)),
       values,
       fields,
       entered,

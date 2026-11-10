@@ -54,12 +54,17 @@
   - Owner label: folderLabel in server/handlers/folders.ts (folder.list only; sidebar filters others' privates).
   - Minors: smoke 5b step 9 needs 2 versions; admin folder.rename stores labelled name (no UI yet); stale search.body error toasts; "Searching text..." not announced; spec 5.6/11 and wireframe 02 lack reply rule and `draft` field.
 
+- Slice 5c (2026-11-10): PASS (1611869). 1001 tests, lines 96.41, Code.js 280.3 KB, 10 scopes, Lighthouse 100x3. New tests on old src: 21 fail.
+  - D24: draftHasSubject (addon/event.ts) reads gmail.subject and draftMetadata.subject; replacesSubject(choice, draftHasSubject). Gmail compose event has no threadId/messageId.
+  - DraftInfo.hasSubject boolean, requestDraft requires 5 keys. folder.rename strips " (owner)" on private folders; only admins can rename private folders (owner gets DENIED).
+  - Minor: strip also hits admin's own folder.
+
 ## Check in slice 6
 - Import must call prepareBody with subject; export must carry subject; import replaces line breaks and reports count (spec 5.6).
 - Q23 trigger reinstall order (create first, then delete). Trash view and template.restoreFromTrash.
 - Admin can duplicate others' private templates (D11, open since 4b).
 - UNKNOWN_OP reply quotes the op back (not logged). Spec 11 lacks calls/timing fields.
-- Smoke 5b step 5 result: reply rule (threadId/messageId) confirmed or replaced.
+- Smoke 5c step 4: hasSubject true on typed and reply drafts (event subject value confirmed).
 - Admin UI rename must start from the stored name, not folder.list `name`.
 
 ## Recurring lessons

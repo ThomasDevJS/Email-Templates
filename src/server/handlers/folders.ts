@@ -187,7 +187,13 @@ function changeFolder(
 export function folderRename(context: HandlerContext): Folder {
   const name = folderName(reqString(context.args, "name"));
   return changeFolder(context, "folder.rename", (folder, current) => {
-    const renamed = { ...folder, name };
+    // `folder.list` shows another user's private folder with " (owner)"; that label is never stored.
+    const label = ` (${folder.ownerEmail.toLowerCase()})`;
+    const stored =
+      folder.kind === "private" && name.toLowerCase().endsWith(label)
+        ? name.slice(0, -label.length).trim()
+        : name;
+    const renamed = { ...folder, name: stored };
     uniqueSiblingName(current.folders, renamed);
     return renamed;
   });
