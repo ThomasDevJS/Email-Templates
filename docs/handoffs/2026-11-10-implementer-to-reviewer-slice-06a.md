@@ -103,4 +103,6 @@ Bounds of the other 6a string args: folder `name` has `FOLDER_NAME_MAX`. `princi
 
 Results from a clean install: npm ci 559 packages, 16 advisories (unchanged). lint 0, typecheck 0. 49 files, 1131 tests. Lines 96.56, statements 95.63, branches 89.10, functions 94.19. Code.js 286.9 KB, index.html 301.5 KB. 10 scopes. Format clean. Lighthouse 100 on 6 views.
 
+Minor 3 was reverted (675e145, `git revert` of 5c5ce65) because ADR-0003 Part C gives admins `manage` on every folder, private ones included; the reviewer's minor 3 is answered by the ADR. Tests in admin.test.ts now pin it: an admin may restore, move and duplicate into another user's private folder and update a template there; Bob (edit on Sales, not owner, not admin) gets DENIED for restore, move, duplicate, create and update there, and his `folder.list` (the source of the web Move and Restore pickers) never lists that folder; the owner keeps `edit` and gets DENIED for a subfolder.
+
 Left for later: review minor 4 (a failed delete of an old trigger leaves 6 triggers until the next run), minor 5 (spec rows for `admin.folders`, `membership.status`, depth, status line), minor 6 (web error-branch coverage). The web Move and Restore pickers still list other users' private folders for admins; the server refuses them with "Only its owner can put templates into a private folder".

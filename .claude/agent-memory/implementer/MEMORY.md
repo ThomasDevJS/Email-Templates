@@ -124,7 +124,7 @@
 - A timing test for a stale reply must wait past the second reply, or it passes on old code too.
 - Slice 6a review FAIL: every stored client string needs an upper bound (`PRINCIPAL_KEY_MAX`); a handler-thrown DENIED skipped the denied audit row (now `dispatch` records any DENIED after the policy check).
 - Path strings for non-admins: show only folders the caller can see (`visiblePath` in grants.ts).
-- D11 holds for admins on writes: `targetFolder` in templates.ts. Post-commit Drive loops are bounded (`PURGE_FILES_MAX`).
+- Admins hold manage on private folders (ADR-0003 C); a review minor asking otherwise was reverted (675e145). Check accepted ADRs before following a fix request. Post-commit Drive loops are bounded (`PURGE_FILES_MAX`).
 - A negative test must fail for the reason under test: a missing group passed the length test on old code.
 
 ## Conventions

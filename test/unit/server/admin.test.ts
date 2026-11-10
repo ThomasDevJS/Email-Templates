@@ -588,6 +588,107 @@ describe("trash", () => {
     });
   });
 
+  describe("another user's private folder (ADR-0003 Part C: admin = manage everywhere)", () => {
+    function setup() {
+      const anas = world
+        .ok<{ folders: Folder[] }>(ANA, "folder.list")
+        .folders.find((entry) => entry.kind === "private") as Folder;
+      const sales = folder("Sales");
+      grant(sales.id, BOB, "edit");
+      const shared = template(sales.id);
+      const own = world.ok<Item>(ANA, "template.create", {
+        folderId: anas.id,
+        title: "Mine",
+        html: "",
+      });
+      return { anas, sales, shared, own };
+    }
+
+    it("lets an admin restore, move, duplicate into it and update a template there", () => {
+      const { anas, shared, own } = setup();
+      world.ok(OWNER, "template.delete", { id: shared.id });
+      expect(
+        world.ok<Item>(OWNER, "template.restoreFromTrash", {
+          id: shared.id,
+          folderId: anas.id,
+        }).folderId,
+      ).toBe(anas.id);
+      const other = template(folder("HR").id);
+      expect(
+        world.ok<Item>(OWNER, "template.move", {
+          id: other.id,
+          folderId: anas.id,
+        }).folderId,
+      ).toBe(anas.id);
+      expect(
+        world.ok<Item>(OWNER, "template.duplicate", {
+          id: other.id,
+          folderId: anas.id,
+        }).folderId,
+      ).toBe(anas.id);
+      expect(
+        world.ok<Item>(OWNER, "template.update", {
+          id: own.id,
+          baseVersion: 1,
+          title: "Edited by admin",
+          html: "<p>x</p>",
+        }).title,
+      ).toBe("Edited by admin");
+    });
+
+    it("answers DENIED to a caller who is neither the owner nor an admin", () => {
+      const { anas, shared, own } = setup();
+      world.ok(BOB, "template.delete", { id: shared.id });
+      const into = { folderId: anas.id };
+      expect(
+        codeOf(BOB, "template.restoreFromTrash", { id: shared.id, ...into }),
+      ).toBe("DENIED");
+      world.ok(BOB, "template.restoreFromTrash", { id: shared.id });
+      expect(codeOf(BOB, "template.move", { id: shared.id, ...into })).toBe(
+        "DENIED",
+      );
+      expect(
+        codeOf(BOB, "template.duplicate", { id: shared.id, ...into }),
+      ).toBe("DENIED");
+      expect(
+        codeOf(BOB, "template.create", { ...into, title: "X", html: "" }),
+      ).toBe("DENIED");
+      expect(
+        codeOf(BOB, "template.update", {
+          id: own.id,
+          baseVersion: 1,
+          title: "Bob",
+          html: "",
+        }),
+      ).toBe("DENIED");
+      expect(
+        world
+          .ok<{ folders: Folder[] }>(BOB, "folder.list")
+          .folders.map((entry) => entry.id),
+      ).not.toContain(anas.id);
+    });
+
+    it("keeps edit for the owner, and nothing above it", () => {
+      const { anas, own } = setup();
+      expect(
+        world.ok<Item>(ANA, "template.update", {
+          id: own.id,
+          baseVersion: 1,
+          title: "Mine 2",
+          html: "",
+        }).title,
+      ).toBe("Mine 2");
+      expect(
+        world
+          .ok<{ folders: (Folder & { level: string })[] }>(ANA, "folder.list")
+          .folders.find((entry) => entry.id === anas.id)?.level,
+      ).toBe("edit");
+      expect(
+        codeOf(ANA, "folder.create", { parentId: anas.id, name: "Sub" }),
+      ).toBe("DENIED");
+    });
+  });
+
   it("purges every trashed template now, with audit events by the admin", () => {
     const sales = folder("Sales");
     const kept = template(sales.id, "Kept");
