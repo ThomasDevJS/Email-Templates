@@ -30,9 +30,13 @@ export function inlineHtml(template, parts) {
   }
   const problems = scriptInlineProblems(parts.script);
   if (problems.length > 0) throw new Error(problems.join(" "));
+  // HtmlService rewrites inline scripts on the server. After template literals it loses track of strings and
+  // deletes `//` to the end of the line, also inside "https://" (seen on dev-43f10de). The bundle therefore ships
+  // as one string literal with no `//` or `/*` in it; the sandbox frame sets no policy against eval.
+  const literal = JSON.stringify(parts.script).replace(/\/(?=[/*])/g, "/\\");
   // Function replacers keep `$` sequences in the bundle literal.
   return template
-    .replace(SCRIPT_MARKER, () => parts.script)
+    .replace(SCRIPT_MARKER, () => `(0, eval)(${literal});`)
     .replace(STYLES_MARKER, () => parts.styles);
 }
 

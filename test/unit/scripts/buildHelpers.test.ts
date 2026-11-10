@@ -28,8 +28,17 @@ describe("inlineHtml", () => {
 
   it("replaces both markers and keeps $ sequences literal", () => {
     expect(inlineHtml(template, { script: "a('$&')", styles: "b{}" })).toBe(
-      "<style>b{}</style><script>a('$&')</script>",
+      `<style>b{}</style><script>(0, eval)("a('$&')");</script>`,
     );
+  });
+
+  it("ships the script as one string literal without // or /* (HtmlService would cut them)", () => {
+    const script = 'x = ["https://a", /\\//, "/*", `"`, "///"];';
+    const page = inlineHtml(template, { script, styles: "" });
+    const inline = page.slice(page.indexOf("<script>") + 8, -9);
+    expect(inline).not.toMatch(/\/[/*]/);
+    const literal = inline.slice("(0, eval)(".length, -2);
+    expect((0, eval)(literal)).toBe(script);
   });
 
   it("requires each marker exactly once", () => {
