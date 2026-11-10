@@ -1,5 +1,7 @@
 # Review: slice 7 (documentation for v1)
 
+Final verdict: PASS (retry 1, d74ad53). Both must-fix items and claims 1 to 8 are fixed. First review below: FAIL (d1e2ca7).
+
 Verdict: FAIL. Two must-fix items, both in the documents: the runbook tells a person to hand over the owner account password, and the quick start privacy section leaves out that every insert is logged with the user's address. Everything else is accurate or a minor.
 
 Branch `slice/07-docs` at 039392e, base fb97d9a, 6 commits. No change in src/, scripts/, appsscript.json, package files (`git diff --stat fb97d9a..HEAD -- src scripts appsscript.json package.json package-lock.json` is empty).
@@ -72,3 +74,31 @@ Mismatches (minor unless marked):
 ## Result
 
 FAIL. Fix must-fix 1 and 2. Minors 1 to 4 are one-line document edits and should go in the same retry; 5 to 9 can wait. Spec 7, 8, 12 and ADR-0004 errata go to the architect.
+
+## Retry 1 (d74ad53)
+
+Verdict: PASS. Diff `git diff d1e2ca7..slice/07-docs`, 4 commits (1513ef4, 39ea1f8, dae2422, d74ad53), docs only.
+
+Commands: `npm run lint` exit 0; `npm run typecheck` exit 0; `npm run test` 52 files, 1244 tests passed; `npm run format:check` "All matched files use Prettier code style!".
+
+| Item | Result | Evidence |
+|---|---|---|
+| Must fix 1 | fixed | runbook.md:21-23 admin resets password and 2SV, new holder enrolls own factor, nobody passes a password or code; admin-guide.md:215 same. Search of the 4 documents and README for password, 2-step, code, sign in as: no remaining advice to share a credential |
+| Must fix 2 | fixed | user-quick-start.md:57-59. Log line carries `actor`, `targetId`, `ts` (logger.ts; handle.ts:93 targetId = template ID). Recent keeps 20 per email (usage.ts:4, 56). `template.apply` sends `id`, `knownVersion`, `recipientEmailIfInternal` only (flows.ts:267-271); body and typed values are rendered in the add-on; the buffered event holds itemId, actor, ts (buffer.ts) |
+| Claim 1 | fixed | quick start:44 "up to about 15 minutes" |
+| Claim 2 | fixed | quick start:35 forward "Not yet verified in Gmail" |
+| Claim 3 | fixed | editor-guide.md:18 adds "By" |
+| Claim 4 | fixed | runbook.md:95. Web app: status.ts:77-86 disables Retry for 60 s. Gmail panel: entry.ts:53-58 answers "Service is busy. Try again in N s." |
+| Claim 5 | fixed | editor-guide.md:68 states width 600 on every image |
+| Claim 6 | fixed | admin-guide.md:245 drive.file in the add-on token |
+| Claim 7 | fixed | 844 words; D18 section, subject rule, known limits kept; "More options" added |
+| Claim 8 | fixed | admin-guide.md steps 7 to 8 follow deploy.md steps 5, 6, 7; 16 steps, all not yet exercised |
+| Claim 9 | open | link test checks paths, not anchors; left for later |
+
+New minors (no retry needed):
+
+1. runbook.md:21-23. After an admin reset the new holder needs the temporary password from the admin; step 3 forbids passing it. Add: the admin sets "change password at next sign-in" and gives the temporary password in person, or the new holder sits with the admin.
+2. user-quick-start.md:26. "When a value is unknown, the panel asks you for it." A template fallback is used first; the panel asks only with no fallback (editor-guide.md:86 is correct).
+3. user-quick-start.md:59. An internal recipient's address is cached up to 6 h in Script Cache as the key of their directory profile (directory/profile.ts:60). It is not logged or written to Drive.
+
+Product defect carried: src/web/views/editor.ts:236 sets width 600 on every image against the dialog hint. Architect errata: spec 7, 8, 12 and ADR-0004 line 98.
