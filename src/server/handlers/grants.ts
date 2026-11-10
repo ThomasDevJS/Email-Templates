@@ -6,6 +6,7 @@ import type {
   Level,
   PrincipalType,
 } from "../../shared/model/data";
+import { PRINCIPAL_KEY_MAX } from "../../shared/model/validate";
 import { inPrivateTree } from "../../shared/permissions/effective";
 import { isLevel } from "../../shared/permissions/levels";
 import { auditEvent, type EventSource } from "../audit/events";
@@ -72,6 +73,10 @@ function principalType(value: string): PrincipalType {
 
 function principalKeyFor(type: PrincipalType, raw: string): string {
   const key = raw.trim().toLowerCase();
+  if (key.length > PRINCIPAL_KEY_MAX)
+    throw validation(
+      `Principal must be at most ${String(PRINCIPAL_KEY_MAX)} characters`,
+    );
   const isEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(key);
   if ((type === "group" || type === "user") && !isEmail)
     throw validation(`${type} needs an email address`);

@@ -3,6 +3,8 @@ import type { Folder } from "./data";
 
 /** Field rules of spec section 5 and the ADR-0004 body size cap. Every failure is a VALIDATION error. */
 export const FOLDER_NAME_MAX = 80;
+/** Grant principal key (email, domain or OU path): 254, the email address limit, fits all 4 types. */
+export const PRINCIPAL_KEY_MAX = 254;
 /** Folder levels counted from the top (top level = 1). Slice 6a assumption: spec 5.1 names no number yet. */
 export const FOLDER_DEPTH_MAX = 5;
 /** Days a soft-deleted template stays in the trash before the daily purge (spec section 16). */

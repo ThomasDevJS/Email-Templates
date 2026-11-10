@@ -9,7 +9,10 @@ import type {
   IndexDoc,
   Item,
 } from "../../../src/shared/model/data";
-import { FOLDER_DEPTH_MAX } from "../../../src/shared/model/validate";
+import {
+  FOLDER_DEPTH_MAX,
+  PRINCIPAL_KEY_MAX,
+} from "../../../src/shared/model/validate";
 import { handleRpc } from "../../../src/server/dispatch/handle";
 import { WRITE_LOCK_MS } from "../../../src/server/lock";
 import { ADMIN_EMAILS_KEY } from "../../../src/server/membership/snapshot";
@@ -392,6 +395,37 @@ describe("grants", () => {
       after: { principalKey: "sales@example.com" },
     });
     expect(codeOf(ANA, "template.list")).toBe("ok");
+  });
+
+  it.each([
+    ["group", `${"a".repeat(250)}@example.com`],
+    ["user", `${"a".repeat(250)}@example.com`],
+    ["domain", `${"a".repeat(250)}.example.com`],
+    ["ou", `/${"a".repeat(254)}`],
+  ])(
+    "refuses a %s principal key over PRINCIPAL_KEY_MAX and stores nothing",
+    (principalType, principalKey) => {
+      const sales = folder("Sales");
+      grant(sales.id, ANA, "manage");
+      expect(principalKey.length).toBeGreaterThan(PRINCIPAL_KEY_MAX);
+      const response = world.call(ANA, "grant.add", {
+        folderId: sales.id,
+        principalType,
+        principalKey,
+        level: "use",
+      });
+      expect(response).toMatchObject({
+        ok: false,
+        error: { code: "VALIDATION" },
+      });
+      expect(fileIndex().grants).toHaveLength(1);
+    },
+  );
+
+  it("accepts a key of exactly PRINCIPAL_KEY_MAX characters", () => {
+    const sales = folder("Sales");
+    const key = `/${"a".repeat(PRINCIPAL_KEY_MAX - 1)}`;
+    expect(grant(sales.id, key, "use", "ou").principalKey).toBe(key);
   });
 
   it("answers NOT_FOUND when the grant was removed by someone else", () => {

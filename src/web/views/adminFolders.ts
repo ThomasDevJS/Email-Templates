@@ -1,5 +1,8 @@
 import type { Level, PrincipalType } from "../../shared/model/data";
-import { FOLDER_NAME_MAX } from "../../shared/model/validate";
+import {
+  FOLDER_NAME_MAX,
+  PRINCIPAL_KEY_MAX,
+} from "../../shared/model/validate";
 import {
   accessRows,
   folderMoveTargets,
@@ -324,6 +327,7 @@ export function foldersTab(
       type: "text",
       id: keyId,
       autocomplete: "off",
+      maxlength: PRINCIPAL_KEY_MAX,
       "aria-describedby": `${keyId}-hint`,
     });
     const level = selectOf(

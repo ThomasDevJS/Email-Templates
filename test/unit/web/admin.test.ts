@@ -235,6 +235,7 @@ describe("folders and grants", () => {
     expect(form.querySelector(`label[for="${input.id}"]`)?.textContent).toBe(
       "Principal",
     );
+    expect(input.maxLength).toBe(254);
     input.value = "pat@example.com";
     form.dispatchEvent(new Event("submit"));
     expect(status()).toContain("Adding grant...");
