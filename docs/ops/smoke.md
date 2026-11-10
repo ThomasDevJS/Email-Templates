@@ -134,6 +134,20 @@ Needs: the dev deployment of this build, the owner account (admin) and the secon
 9. Dev data only. Restore from backup, pick the newest date: the dialog names the date and has Cancel focused. Confirm: "Restored the backup of <date>." This overwrites `index.json`, `favorites.json` and `usage.json` with the copies of that night, so `Smoke 6b` and everything made after the backup leave the library. Audit log: a `backup.restore` row with your address.
 10. Apps Script editor, Executions: the `import`, `export.folder` and `backup.restore` lines carry `action`, `actor`, `targetId` (the folder ID for import and export, empty for the restore), result, timing and calls; no title, subject, body or file content.
 
+## Slice 9
+
+Needs: the dev deployment of this build (reopen the add-on). The web editor has no recipient fields until slice 8b, so the orchestrator sets them through the server before the run (handoff 2026-11-10 implementer to reviewer, slice 9): template "Smoke 9 recipients" in a shared folder, Subject `Smoke 9`, body `Hello`, To `s9-to@migway.com`, Cc `s9-cc@migway.com` and `s9-outside@example.com`, Bcc `s9-bcc@migway.com`; template "Smoke 9 plain" with body `Plain` and no recipients. Script Property `RECIPIENTS_EXTERNAL` unset. Nothing is sent: discard every draft. The compose card is modal: type addresses until each one is a chip, click into the draft body, then open the add-on from the draft's toolbar.
+
+1. New draft, empty. Open the folder: the row "Smoke 9 recipients" says "Adds To 1, Cc 2, Bcc 1" and has "Review", not Insert. Review: the "Recipients" section lists To `s9-to`, Cc `s9-cc`, Cc `s9-outside@example.com` with "outside migway.com", Bcc `s9-bcc` with "hidden from other recipients"; then "Sets the draft subject." and "Adds 4 recipients."; buttons Insert and "Insert body only". Insert: body `Hello`, Subject `Smoke 9`, all 4 addresses in their fields, the Bcc line open.
+2. New draft, To `a@migway.com` and Cc `b@migway.com` typed as chips. Review: "Not added: s9-to@migway.com. The draft already has a To recipient." and "Adds 3 recipients.". Insert: To holds only `a@`; Cc holds `b@`, `s9-cc@`, `s9-outside@`; Bcc holds `s9-bcc@`. No address lost.
+3. Reply to a received message, then Review: the To line is "Not added", "The draft already has a subject. It is kept.", buttons Insert, "Insert with subject", "Insert body only". Insert: To and Subject kept, Cc and Bcc added, the draft stays in its conversation. Forward of a message: Insert fills To with `s9-to@`.
+4. New draft, Cc `s9-cc@migway.com` typed as a chip. Review: "Not added: s9-cc@migway.com. It is already in the draft." Insert: one `s9-cc` chip.
+5. Changed recipients under an open card: new draft, Review, keep the card open. In the script editor set Script Property `RECIPIENTS_EXTERNAL` to `deny`. Tap Insert: the draft does not change and the card shows "(!) The recipients of this template changed. Check them and press Insert again." with "Not added: s9-outside@example.com. Outside migway.com, turned off by your admin." Insert again: every address but `s9-outside@` is added.
+6. `deny` on the list: tap "Open library" and close it (this drops the cached list), open the folder: the row says "Adds To 1, Cc 1, Bcc 1". Then delete the `RECIPIENTS_EXTERNAL` property (back to allowed).
+7. "Insert body only": new draft, Review, "Insert body only": body `Hello` only; Subject, To, Cc and Bcc stay empty.
+8. Regression: new draft, row "Smoke 9 plain" shows Insert and no "Adds" line. One tap inserts `Plain` at the cursor.
+9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `draft` with counts and `hasSubject` only. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
+
 ## Spike S7
 
 Open the add-on from Gmail's right side panel for this test, never from a draft's toolbar.
