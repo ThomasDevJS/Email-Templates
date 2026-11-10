@@ -78,6 +78,11 @@
 
 ## Lessons (slice 4b retry 1)
 - `handleRpc` enforces `REQUEST_ID_PATTERN`; tests send `TESTREQ0-000001`. Every client string in a log line needs a server format check. Snapshots break read-check-write; re-read live in the lock.
+## Lessons (slices 4b to 6b, merged)
+- Old-code check: `git checkout <base> -- src`, run, `git reset -q; git checkout HEAD -- src` (base-only files: `git rm -f`).
+- Call counts: scratch test with Proxy counters or `appendFileSync` of `world.lines`; delete before commit.
+- `handleRpc` enforces `REQUEST_ID_PATTERN` (tests send `TESTREQ0-000001`); every client string in a log needs a server format check and an upper bound.
+- Prettier may reformat after other edits; run `prettier --write` before every commit.
 
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
@@ -107,14 +112,6 @@
 - Web: router `trash`, `admin` (tab folders|memberships), `?view=admin`; views/admin.ts (tablist), adminFolders.ts, memberships.ts, trash.ts; admin/model.ts (pure); tree `rootLabel`; rail Admin link from `manage` levels; harness `?admin=0`, grants, memberships, trash ops.
 - Tests: test/unit/server/admin.test.ts (6-role matrix with `calls.drive` 0 on DENIED), test/unit/web/admin.test.ts.
 
-## Lessons (slice 6a)
-- Call counts: scratch test writes `calls` from `world.lines` with `appendFileSync` (vitest hides console.log); run on base via `git checkout <base> -- src`, restore with `git reset -q; git checkout HEAD -- src`.
-- A timing test for a stale reply must wait past the second reply, or it passes on old code too.
-- Slice 6a review FAIL: every stored client string needs an upper bound (`PRINCIPAL_KEY_MAX`); a handler-thrown DENIED skipped the denied audit row (now `dispatch` records any DENIED after the policy check).
-- Path strings for non-admins: show only folders the caller can see (`visiblePath` in grants.ts).
-- Admins hold manage on private folders (ADR-0003 C); a review minor asking otherwise was reverted (675e145). Check accepted ADRs before following a fix request. Post-commit Drive loops are bounded (`PURGE_FILES_MAX`).
-- A negative test must fail for the reason under test: a missing group passed the length test on old code.
-
 ## Code map (after slice 6b)
 - Server: handlers/audit.ts (`audit.query`, `aud:<month>` cache keyed `<fileId>.<size>`), audit/query.ts (pure filter, page 50), handlers/config.ts (`config.get`, `jobStatus`, `backup.list`, `backup.restore` via `withLock` + `commitLocked` + `context.recheck`), handlers/transfer.ts (export pages of 20, import Validate/Import), transfer/format.ts (parse, limits), transfer/plan.ts (pure placement). `usageReport` in admin.ts. StorePort `readBackup`, `readText`, `listAuditFiles` sized. Buffer `BUFFER_MAX` 200 + `evt:dropped` -> `audit.dropped`. `LATER_SLICE_OPS` gone. `IMPORT_MAX_BYTES`, `IMPORT_ITEMS_MAX` in shared/model/validate.ts.
 - Web: router `ADMIN_TABS` (6), admin.ts `openTab`, views/adminAudit, adminUsage, adminTransfer, adminConfig; dialog `variant: "drawer"`; admin/model.ts `exportFileName`, `localDayStart`, `formatBytes`, `importSummary`. Harness ops for all 8.
@@ -124,7 +121,18 @@
 - Dialog actions close in a microtask (focus asserts need `until`). First admin call after `setupWorld` reads `members.json` (cold `gm:*`).
 - Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
+## Lessons kept from 5b to 6b
+- jsdom: `vi.stubEnv("TZ", ...)` changes Date and Intl local time at runtime. Dialog actions close in a microtask.
+- Data read back from Drive needs a shape check before a write; multi-file writes write sides first, index last.
 - `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines.
+- A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
+
+## Slice 8a (UI shell, 2026-11-10)
+- Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
+- Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
+- Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire`. Lighthouse dark: Chrome `--force-dark-mode`.
+- The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
+- 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
 ## Slice 9 task 1 (spike S6 harness, 2026-11-10)
 - TEMPORARY: src/addon/spikeS6.ts (pure builders, flows gated on env `dev`), `onS6Card`/`onS6Apply`, Reply kind `s6`, `s6Response` in render.ts, home `s6Sections`. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-09-s6.md.

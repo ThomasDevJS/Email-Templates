@@ -7,6 +7,8 @@ import { h } from "./dom";
 export interface MenuItem {
   readonly label: string;
   readonly checked?: boolean;
+  /** Shown in red after a divider (Delete). */
+  readonly destructive?: boolean;
   readonly run: () => void;
 }
 
@@ -51,7 +53,8 @@ export function openMenu(options: MenuOptions): HTMLElement {
         "aria-checked":
           item.checked === undefined ? undefined : String(item.checked),
         tabindex: "-1",
-        class: "menu-item",
+        class:
+          item.destructive === true ? "menu-item destructive" : "menu-item",
         onclick: () => {
           close(true);
           item.run();
@@ -63,7 +66,11 @@ export function openMenu(options: MenuOptions): HTMLElement {
   const menu = h(
     "div",
     { class: "menu", role: "menu", "aria-label": options.label },
-    ...buttons,
+    ...buttons.flatMap((button, i) =>
+      options.items[i]?.destructive === true && i > 0
+        ? [h("div", { role: "separator", class: "menu-divider" }), button]
+        : [button],
+    ),
   );
   const outside = (event: Event) => {
     if (!menu.contains(event.target as Node) && event.target !== options.anchor)
@@ -84,9 +91,17 @@ export function openMenu(options: MenuOptions): HTMLElement {
     }
   });
   const rect = options.anchor.getBoundingClientRect();
-  menu.style.left = `${String(Math.round(rect.left + window.scrollX))}px`;
   menu.style.top = `${String(Math.round(rect.bottom + window.scrollY + 4))}px`;
   document.body.append(menu);
+  // A menu at the right edge (the row menu) opens leftwards, so it never overflows the page.
+  const left = Math.max(
+    0,
+    Math.min(
+      rect.left,
+      document.documentElement.clientWidth - menu.offsetWidth - 8,
+    ),
+  );
+  menu.style.left = `${String(Math.round(left + window.scrollX))}px`;
   options.anchor.setAttribute("aria-expanded", "true");
   document.addEventListener("mousedown", outside, true);
   openMenuClose = () => {

@@ -190,7 +190,7 @@ describe("tablist and memberships", () => {
     expect(text()).toContain(
       "Resolver: groupsapp_direct (direct members only)",
     );
-    expect(text()).toContain("Last refresh: 2026-11-");
+    expect(text()).toMatch(/Last refresh: Nov \d+, \d+:\d\d [AP]M\./);
     const refresh = button("Refresh now");
     refresh.click();
     expect(status()).toContain("Refreshing memberships...");
@@ -309,8 +309,8 @@ describe("folders and grants", () => {
     (document.querySelector("[data-nav=library]") as HTMLElement).click();
     await until(() => {
       expect(
-        [...main().querySelectorAll('[role="treeitem"]')].map((item) =>
-          item.textContent.replace(/^[▸▾]/, ""),
+        [...document.querySelectorAll('#side [role="treeitem"]')].map(
+          (item) => item.textContent,
         ),
       ).toContain("Legal");
     });
@@ -386,16 +386,23 @@ describe("trash", () => {
       expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
     });
     vi.useRealTimers();
+    // Title without the snippet line; the author's full address is the avatar's tooltip.
     const cells = [...main().querySelectorAll(".trash-table tbody td")].map(
-      (cell) => cell.textContent,
+      (cell) =>
+        cell.querySelector(".row-title")?.textContent ??
+        cell.querySelector(".who")?.getAttribute("title") ??
+        cell.textContent,
     );
     expect(cells.slice(0, 5)).toEqual([
       "Old price list",
       "Sales / Quotes",
-      expect.stringMatching(/^2026-11-01 \d\d:00$/) as unknown as string,
+      expect.stringMatching(/^Nov 1, \d+:00 [AP]M$/) as unknown as string,
       "ben@example.com",
       "21",
     ]);
+    expect(
+      main().querySelector(".trash-table tbody .row-sub")?.textContent,
+    ).toBe("Prices of last year.");
     button("Restore").click();
     expect(status()).toContain('Restoring "Old price list"...');
     await until(() => {

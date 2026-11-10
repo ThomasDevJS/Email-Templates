@@ -181,7 +181,7 @@ describe("usage tab", () => {
     await until(() => {
       expect(
         main().querySelector(".admin-table tbody tr")?.textContent,
-      ).toContain("Price quote 2026Sales / Quotes1122026-11-");
+      ).toMatch(/^Price quote 2026Sales \/ Quotes112Nov \d+, \d+:\d\d [AP]M$/);
     });
     expect(
       [...main().querySelectorAll(".admin-table th")].map((t) => t.textContent),

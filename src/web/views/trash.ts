@@ -2,11 +2,13 @@ import { TRASH_DAYS } from "../../shared/model/validate";
 import { daysLeft, displayPath } from "../admin/model";
 import { editableFolders, folderPath } from "../library/model";
 import type { TrashRow } from "../rpc/api";
-import { LIBRARY } from "../router";
+
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace, uid } from "../ui/dom";
+import { person } from "../ui/person";
 import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
+import { pathBlock, titleBlock } from "./grid";
 
 /**
  * Trash (wireframe 07 H): soft-deleted templates the caller may edit, with deleted time and days left. Restore
@@ -18,7 +20,8 @@ export function trashView(
   main: HTMLElement,
   loading: Promise<boolean>,
 ): View {
-  const heading = h("h2", { id: "trash-heading", tabindex: "-1" }, "Trash");
+  const heading = h("h1", { id: "trash-heading", tabindex: "-1" }, "Trash");
+  const count = h("span", { class: "count" });
   const actions = h("div", { class: "list-actions" });
   const status = h("p", {
     class: "status",
@@ -125,7 +128,7 @@ export function trashView(
       actions: [
         {
           label: "Empty trash",
-          primary: true,
+          destructive: true,
           run: () => {
             status.textContent = "Emptying the trash...";
             app.api
@@ -161,9 +164,10 @@ export function trashView(
         h(
           "tr",
           {},
-          ...["Title", "Folder", "Deleted", "By", "Days left", "Actions"].map(
-            (label) => h("th", { scope: "col" }, label),
+          ...["Template", "Folder", "Deleted", "By", "Days left"].map((label) =>
+            h("th", { scope: "col" }, label),
           ),
+          h("th", { scope: "col" }, h("span", { class: "sr-only" }, "Actions")),
         ),
       ),
       h(
@@ -173,14 +177,14 @@ export function trashView(
           h(
             "tr",
             {},
-            h("td", {}, row.title),
-            h("td", {}, displayPath(row.folderPath)),
+            h("td", {}, titleBlock(row)),
+            h("td", {}, pathBlock(displayPath(row.folderPath))),
             h("td", {}, formatTime(row.deletedAt)),
-            h("td", {}, row.deletedBy),
+            h("td", {}, person(row.deletedBy)),
             h("td", {}, String(daysLeft(row.deletedAt, Date.now()))),
             h(
               "td",
-              {},
+              { class: "act" },
               h(
                 "button",
                 {
@@ -201,14 +205,11 @@ export function trashView(
 
   const draw = (canPurge: boolean) => {
     list.setAttribute("aria-busy", "false");
+    count.textContent = String(rows.length);
     replace(
       actions,
       canPurge && rows.length > 0
-        ? h(
-            "button",
-            { type: "button", class: "danger", onclick: purge },
-            "Empty trash now...",
-          )
+        ? h("button", { type: "button", onclick: purge }, "Empty trash now...")
         : null,
     );
     replace(
@@ -247,23 +248,19 @@ export function trashView(
     main,
     h(
       "section",
-      { class: "trash", "aria-labelledby": "trash-heading" },
-      h("div", { class: "list-header" }, heading, actions),
+      { class: "page trash", "aria-labelledby": "trash-heading" },
       h(
-        "p",
-        { class: "hint" },
-        `Deleted templates stay ${String(TRASH_DAYS)} days, then are removed.`,
+        "div",
+        { class: "page-head" },
+        heading,
+        count,
+        h("span", { class: "grow" }),
+        actions,
       ),
       h(
-        "button",
-        {
-          type: "button",
-          class: "link",
-          onclick: () => {
-            app.go(LIBRARY);
-          },
-        },
-        "Back to the library",
+        "p",
+        { class: "page-note" },
+        `Deleted templates stay ${String(TRASH_DAYS)} days, then are removed.`,
       ),
       list,
       status,

@@ -3,30 +3,53 @@ import { parseQuery } from "../../shared/search/match";
 import { folderPath, searchItems, subtreeIds } from "../library/model";
 import type { ItemRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
+import { icon } from "../ui/icons";
 import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { focusCell, templateGrid, type GridActions } from "./grid";
 import { rowMenu } from "./rowActions";
-import { createFolderTree } from "./tree";
 
 /**
- * Library (screen 3): folder tree, search over title, subject, folder and tags with `folder:` and `tag:`, the
- * Favorites filter, template grid with stars, New template. Body text matches arrive from `search.body` after a
- * pause in typing and show under "Matches in text". `/` focuses the search box. Empty folder and no-results
- * states per spec section 7. `performance.measure` entries `library.list` and `library.body` time both steps
- * (spec 12: under 1 s after the first load).
+ * Library (screen 3): the folder, all templates or the favorites chosen in the sidebar; search over title, subject,
+ * folder and tags with `folder:` and `tag:`; template grid with stars; New template. Body text matches arrive from
+ * `search.body` after a pause in typing and show under "Matches in text". `/` focuses the search box. Empty folder
+ * and no-results states per spec section 7. `performance.measure` entries `library.list` and `library.body` time
+ * both steps (spec 12: under 1 s after the first load).
  */
 const BODY_SEARCH_DELAY_MS = 300;
 const SEARCHING = "Searching text...";
 
+export interface LibraryScope {
+  readonly folderId: string;
+  readonly favorites: boolean;
+}
+
+/** "Press / to search, Enter to open, Shift F10 for row actions." with the keys as `kbd`. */
+function keyHint(): HTMLElement {
+  const key = (name: string) => h("kbd", {}, name);
+  return h(
+    "p",
+    { class: "hint key-hint" },
+    "Press ",
+    key("/"),
+    " to search, ",
+    key("Enter"),
+    " to open, ",
+    key("Shift"),
+    " ",
+    key("F10"),
+    " for row actions.",
+  );
+}
+
 export function libraryView(
   app: AppContext,
   main: HTMLElement,
-  startFolderId: string,
+  start: LibraryScope,
   loading: Promise<boolean>,
 ): View {
-  let folderId = startFolderId;
-  let onlyFavorites = false;
+  let folderId = start.folderId;
+  let onlyFavorites = start.favorites;
   let bodyTimer = 0;
   /** Body matches for `bodyQuery`; dropped when the query changes. */
   let bodyQuery = "";
@@ -37,16 +60,12 @@ export function libraryView(
   const search = h("input", {
     type: "search",
     id: "search",
-    placeholder: "Search title, subject, folder or tag",
+    placeholder: "Search templates",
     "aria-keyshortcuts": "/",
     autocomplete: "off",
   });
-  const favoritesFilter = h(
-    "button",
-    { type: "button", class: "filter", "aria-pressed": "false" },
-    "★ Favorites",
-  );
-  const heading = h("h2", { id: "list-heading" }, "Templates");
+  const heading = h("h1", { id: "list-heading" }, "Templates");
+  const count = h("span", { class: "count" });
   const actions = h("div", { class: "list-actions" });
   const status = h("p", {
     class: "status",
@@ -63,16 +82,13 @@ export function libraryView(
     },
     ...skeletonRows(),
   );
-  /** Selects a folder in place, so focus stays in the tree (smoke defect 7). */
-  const tree = createFolderTree((id) => {
-    folderId = id;
-    app.pushRoute({ name: "library", folderId: id });
-    tree.render(app.folders(), id);
-    drawList();
-  });
 
-  const folderName = () =>
-    folderId === "" ? "All templates" : folderPath(app.folders(), folderId);
+  const folderName = () => {
+    if (onlyFavorites) return "Favorites";
+    return folderId === ""
+      ? "All templates"
+      : folderPath(app.folders(), folderId);
+  };
 
   const scoped = (): ItemRow[] => {
     const ids = folderId === "" ? null : subtreeIds(app.folders(), folderId);
@@ -85,7 +101,9 @@ export function libraryView(
 
   const canCreate = () => {
     const folder = app.folders().find((candidate) => candidate.id === folderId);
-    return folder !== undefined && atLeast(folder.level, "edit");
+    return (
+      !onlyFavorites && folder !== undefined && atLeast(folder.level, "edit")
+    );
   };
 
   const newButton = () =>
@@ -98,7 +116,8 @@ export function libraryView(
           app.go({ name: "new", folderId });
         },
       },
-      "+ New template",
+      icon("plus"),
+      "New template",
     );
 
   const emptyState = (query: string) => {
@@ -112,7 +131,7 @@ export function libraryView(
       return h(
         "p",
         { class: "empty", role: "status" },
-        `No favorites in ${folderName()}. Use the star in a row to add one.`,
+        "No favorites yet. Use the star in a row to add one.",
       );
     return h(
       "div",
@@ -201,7 +220,7 @@ export function libraryView(
         : null;
     if (extra.length === 0) return note === null ? [] : [note];
     return [
-      h("h3", { class: "matches-heading" }, "Matches in text"),
+      h("h2", { class: "matches-heading" }, "Matches in text"),
       templateGrid(extra, app.folders(), gridActions, "Matches in text"),
       ...(note === null ? [] : [note]),
     ];
@@ -212,6 +231,7 @@ export function libraryView(
     const query = search.value.trim();
     const items = searchItems(scoped(), app.folders(), query, app.recent());
     heading.textContent = folderName();
+    count.textContent = String(items.length);
     replace(actions, canCreate() ? newButton() : null);
     // The status region announces the text search; the list stays busy until its reply (slice 5b minors 3, 4).
     list.setAttribute("aria-busy", String(searching()));
@@ -226,6 +246,7 @@ export function libraryView(
       list,
       grid === null && body.length === 0 ? emptyState(query) : grid,
       ...body,
+      grid === null ? null : keyHint(),
     );
     performance.measure("library.list", { start: started });
   };
@@ -262,11 +283,6 @@ export function libraryView(
     searchBodies();
     drawList();
   });
-  favoritesFilter.addEventListener("click", () => {
-    onlyFavorites = !onlyFavorites;
-    favoritesFilter.setAttribute("aria-pressed", String(onlyFavorites));
-    drawList();
-  });
   /** The key may target the document itself when nothing in the page has focus (smoke 5b item 8). */
   const slash = (event: KeyboardEvent) => {
     const target = event.target;
@@ -283,44 +299,32 @@ export function libraryView(
   replace(
     main,
     h(
-      "div",
-      { class: "library" },
+      "section",
+      { class: "page templates", "aria-labelledby": "list-heading" },
       h(
         "div",
-        { class: "search" },
-        h("label", { for: "search" }, "Search templates"),
-        search,
-        favoritesFilter,
-      ),
-      h(
-        "nav",
-        { class: "folders", "aria-label": "Folders" },
-        h("h2", { class: "sr-only" }, "Folders"),
-        tree.element,
+        { class: "page-head" },
+        heading,
+        count,
+        h("span", { class: "grow" }),
         h(
-          "button",
-          {
-            type: "button",
-            class: "link trash-link",
-            onclick: () => {
-              app.go({ name: "trash" });
-            },
-          },
-          "Trash",
+          "div",
+          { class: "search-field" },
+          icon("search"),
+          h("label", { for: "search", class: "sr-only" }, "Search templates"),
+          search,
+          h("kbd", { "aria-hidden": "true" }, "/"),
         ),
+        actions,
       ),
-      h(
-        "section",
-        { class: "templates", "aria-labelledby": "list-heading" },
-        h("div", { class: "list-header" }, heading, actions),
-        list,
-        status,
-      ),
+      list,
+      status,
     ),
   );
 
+  let ready = false;
   void loading.then((ok) => {
-    tree.render(app.folders(), folderId);
+    ready = ok;
     if (ok) {
       drawList();
       return;
@@ -340,6 +344,11 @@ export function libraryView(
     dispose: () => {
       document.removeEventListener("keydown", slash);
       window.clearTimeout(bodyTimer);
+    },
+    scope: (nextFolder, favorites) => {
+      folderId = nextFolder;
+      onlyFavorites = favorites;
+      if (ready) drawList();
     },
   };
 }

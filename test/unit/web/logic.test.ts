@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatTime } from "../../../src/web/ui/dom";
 import { ErrorCode } from "../../../src/shared/errors/codes";
 import type { FolderRow, ItemRow } from "../../../src/web/rpc/api";
+import { initials, shortName } from "../../../src/web/ui/person";
 import {
   buildTree,
+  folderCounts,
   editableFolders,
   searchItems,
   folderPath,
@@ -185,6 +187,27 @@ describe("library model", () => {
     expect(
       visibleNodes(roots, new Set(["S"])).map((node) => node.depth),
     ).toEqual([1, 1, 2, 2, 1]);
+  });
+
+  it("counts templates per folder with its subfolders, from the loaded index", () => {
+    const counts = folderCounts(FOLDERS, [
+      item("1", "a", "Q"),
+      item("2", "b", "Q"),
+      item("3", "c", "S"),
+      item("4", "d", "O"),
+      item("5", "e", "X"),
+      item("6", "f", "GONE"),
+    ]);
+    expect(Object.fromEntries(counts)).toEqual({ S: 4, Q: 2, O: 1, X: 1 });
+    expect(counts.has("HIDDEN")).toBe(false);
+    expect(folderCounts(FOLDERS, []).size).toBe(0);
+  });
+
+  it("stops at a parent loop instead of counting forever", () => {
+    const loop = [folder("A", "A", "B"), folder("B", "B", "A")];
+    expect(
+      Object.fromEntries(folderCounts(loop, [item("1", "a", "A")])),
+    ).toEqual({ A: 1, B: 1 });
   });
 
   it("names paths, subtrees and editable folders", () => {
@@ -407,6 +430,10 @@ describe("error presentation (spec section 7)", () => {
       "This action arrives in a later release.",
     );
     vi.stubEnv("TZ", "America/New_York");
+    vi.useFakeTimers({
+      now: Date.parse("2026-11-10T12:00:00Z"),
+      toFake: ["Date"],
+    });
     expect(
       messageOf(
         new RpcError(ErrorCode.CONFLICT, "Changed by x", "r", false, {
@@ -414,7 +441,8 @@ describe("error presentation (spec section 7)", () => {
           updatedAt: "2026-11-10T15:14:00.000Z",
         }),
       ),
-    ).toBe("Changed by bob@example.com at 2026-11-10 10:14.");
+    ).toBe("Changed by bob@example.com at Nov 10, 10:14 AM.");
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     expect(of(ErrorCode.CONFLICT, "Changed by x")).toBe("Changed by x");
     expect(of(ErrorCode.VALIDATION, "Title must be 1 to 120 characters")).toBe(
@@ -449,10 +477,30 @@ describe("previews", () => {
     ).toBe("<p>Ana &lt;A&gt;, [Your title], [Date], there</p>");
   });
 
+  it("gives prompts the ask look in history", () => {
+    expect(withChips("<p>{{ask:Load number}}</p>")).toBe(
+      '<p><span class="ph ask" role="img" aria-label="Placeholder: ask: load number">Ask: Load number</span></p>',
+    );
+  });
+
   it("shows tokens as chips in history", () => {
     expect(withChips("<p>a {{sender.name}} \\{{ {{x.y}}</p>")).toBe(
       '<p>a <span class="ph" role="img" aria-label="Placeholder: sender name">Sender name</span> {{ <span class="ph" role="img" aria-label="Placeholder: x.y">x.y</span></p>',
     );
+  });
+});
+
+describe("people (design system avatars)", () => {
+  it("shows the name part of an address and its initials", () => {
+    expect(shortName("ben.kowalski@example.com")).toBe("Ben K.");
+    expect(initials("ben.kowalski@example.com")).toBe("BK");
+    expect(shortName("ana_maria-lopez@example.com")).toBe("Ana M.");
+    expect(initials("ana_maria-lopez@example.com")).toBe("AM");
+    expect(shortName("ben@example.com")).toBe("Ben");
+    expect(initials("ben@example.com")).toBe("B");
+    expect(shortName("")).toBe("");
+    expect(initials("")).toBe("");
+    expect(shortName(".x@example.com")).toBe("X");
   });
 });
 
@@ -461,14 +509,36 @@ describe("formatTime (local time, smoke 5b item 3)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("shows the browser's time zone, not UTC", () => {
+  const now = new Date("2026-11-10T12:00:00.000Z");
+
+  it("shows the browser's time zone, not UTC, as Nov 9, 2:05 PM", () => {
     vi.stubEnv("TZ", "America/New_York");
-    expect(formatTime("2026-11-10T15:14:00.000Z")).toBe("2026-11-10 10:14");
-    expect(formatTime("2026-01-01T03:05:00.000Z")).toBe("2025-12-31 22:05");
+    expect(formatTime("2026-11-10T15:14:00.000Z", "date", now)).toBe(
+      "Nov 10, 10:14 AM",
+    );
     vi.stubEnv("TZ", "Asia/Kolkata");
-    expect(formatTime("2026-11-10T15:14:00.000Z")).toBe("2026-11-10 20:44");
+    expect(formatTime("2026-11-10T15:14:00.000Z", "date", now)).toBe(
+      "Nov 10, 8:44 PM",
+    );
     vi.stubEnv("TZ", "UTC");
-    expect(formatTime("2026-11-10T15:14:00.000Z")).toBe("2026-11-10 15:14");
+    expect(formatTime("2026-11-09T14:05:00.000Z", "date", now)).toBe(
+      "Nov 9, 2:05 PM",
+    );
+  });
+
+  it("adds the year only for another year, in the local zone", () => {
+    vi.stubEnv("TZ", "America/New_York");
+    expect(formatTime("2026-01-01T03:05:00.000Z", "date", now)).toBe(
+      "Dec 31, 2025, 10:05 PM",
+    );
+    expect(formatTime("2026-01-01T06:05:00.000Z", "date", now)).toBe(
+      "Jan 1, 1:05 AM",
+    );
+  });
+
+  it("gives the time alone for status lines", () => {
+    vi.stubEnv("TZ", "UTC");
+    expect(formatTime("2026-11-10T15:14:00.000Z", "time")).toBe("3:14 PM");
   });
 
   it("gives an empty text for a blank or bad time", () => {

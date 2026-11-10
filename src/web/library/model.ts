@@ -85,6 +85,29 @@ export function subtreeIds(
   return ids;
 }
 
+/** Templates per folder, its subfolders included, for the sidebar counts. */
+export function folderCounts(
+  folders: readonly FolderRow[],
+  items: readonly ItemRow[],
+): Map<string, number> {
+  const parentOf = new Map(
+    folders.map((folder) => [folder.id, folder.parentId]),
+  );
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const seen = new Set<string>();
+    for (
+      let id: string | undefined = item.folderId;
+      id !== undefined && id !== "" && !seen.has(id);
+      id = parentOf.get(id)
+    ) {
+      seen.add(id);
+      if (parentOf.has(id)) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
 /**
  * Browser search on the loaded index (spec 4.4): title, subject, folder path and tags with `folder:` and `tag:`,
  * by relevance, then the caller's last use (`recent`), then title. No query: every item by title. Body text

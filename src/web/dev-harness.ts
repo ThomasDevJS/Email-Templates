@@ -2,7 +2,8 @@
  * Dev harness (`npm run dev:web`, `scripts/lighthouse.mjs`): a fake `google.script` with an in-memory server, so
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
  * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
- * `?admin=0` makes the caller a manage holder instead of an admin in the admin view.
+ * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
+ * freight templates with invented names for screenshots (the tests use the default sample).
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
@@ -22,6 +23,8 @@ interface Version {
 
 const ME = "dev.user@example.com";
 const NOW = "2026-11-09T14:03:00.000Z";
+const FREIGHT =
+  new URLSearchParams(window.location.search).get("sample") === "freight";
 
 function folder(
   id: string,
@@ -48,18 +51,30 @@ function folder(
   };
 }
 
-const folders = [
-  folder("F-SALES", "Sales", "", "manage"),
-  folder("F-QUOTES", "Quotes", "F-SALES", "manage"),
-  folder("F-ONBOARD", "Onboarding", "F-SALES", "manage"),
-  folder("F-SUPPORT", "Support", "", "use"),
-  folder("F-EMPTY", "HR", "", "edit"),
-  folder("F-MINE", "My templates", "", "edit", "private"),
-];
+const folders = FREIGHT
+  ? [
+      folder("F-DISPATCH", "Dispatch", "", "manage"),
+      folder("F-RATES", "Rate confirmations", "F-DISPATCH", "manage"),
+      folder("F-DELAYS", "Delays and updates", "F-DISPATCH", "manage"),
+      folder("F-CARRIER", "Carrier relations", "", "manage"),
+      folder("F-BILLING", "Billing", "", "edit"),
+      folder("F-EMPTY", "HR", "", "edit"),
+      folder("F-MINE", "My templates", "", "edit", "private"),
+    ].map((entry, sortOrder) => ({ ...entry, sortOrder }))
+  : [
+      folder("F-SALES", "Sales", "", "manage"),
+      folder("F-QUOTES", "Quotes", "F-SALES", "manage"),
+      folder("F-ONBOARD", "Onboarding", "F-SALES", "manage"),
+      folder("F-SUPPORT", "Support", "", "use"),
+      folder("F-EMPTY", "HR", "", "edit"),
+      folder("F-MINE", "My templates", "", "edit", "private"),
+    ];
 
 const items = new Map<string, Item>();
 const versions = new Map<string, Version[]>();
-const favorites = new Set<string>(["T-QUOTE"]);
+const favorites = new Set<string>(
+  FREIGHT ? ["T-RATECON", "T-POD"] : ["T-QUOTE"],
+);
 let seq = 100;
 
 function levelOf(folderId: string): AccessLevel {
@@ -125,57 +140,227 @@ function store(
   return item;
 }
 
-store(
-  "T-QUOTE",
-  "F-QUOTES",
-  "Price quote 2026",
-  ["pricing", "quotes"],
-  "<p>Hi {{recipient.first_name|there}},</p><p>Thanks for your interest in {{ask:Product name}}.</p>",
-);
-store(
-  "T-QUOTE",
-  "F-QUOTES",
-  "Price quote 2026",
-  ["pricing", "quotes"],
-  '<p>Hi {{recipient.first_name|there}},</p><p>Thanks for your interest in {{ask:Product name}}. Our quote for {{ask:Meeting date}} is below.</p><table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse"><tbody><tr><th>Item</th><th>Price</th></tr><tr><td>Plan</td><td>10</td></tr></tbody></table><p><strong>{{sender.name}}</strong><br>{{sender.title}}</p>',
-  "ben@example.com",
-  0,
-  "Quote for {{ask:Product name}}",
-);
-store(
-  "T-DISCOUNT",
-  "F-QUOTES",
-  "Discount approval",
-  ["pricing"],
-  "<p>Your discount of {{ask:Discount}} is approved.</p><p>{{sender.name}}</p>",
-);
-store(
-  "T-WELCOME",
-  "F-ONBOARD",
-  "Welcome email",
-  ["intro"],
-  "<h2>Welcome!</h2><p>We are glad to have you, {{recipient.first_name|there}}.</p><ul><li>Read the guide</li><li>Book a call</li></ul>",
-);
-store(
-  "T-SUPPORT",
-  "F-SUPPORT",
-  "Ticket received",
-  ["support"],
-  "<p>We received your ticket and will reply within one business day.</p>",
-);
+/** Moves the last version of `id` to `at` by `by`, so the sample shows a spread of times and authors. */
+function dated(id: string, at: string, by: string): void {
+  const list = versions.get(id) ?? [];
+  const last = list.pop();
+  if (last !== undefined) list.push({ ...last, savedAt: at, savedBy: by });
+  const found = items.get(id);
+  if (found !== undefined)
+    items.set(id, { ...found, updatedAt: at, updatedBy: by });
+}
 
-store(
-  "T-OLD",
-  "F-QUOTES",
-  "Old price list",
-  ["pricing"],
-  "<p>Prices of last year.</p>",
-);
-items.set("T-OLD", {
-  ...(items.get("T-OLD") as Item),
-  deletedAt: "2026-11-01T10:00:00.000Z",
-  deletedBy: "ben@example.com",
-});
+const BEN = "ben.kowalski@example.com";
+const ANA = "ana.moreno@example.com";
+const TOM = "thomas.olsen@example.com";
+const SIGN = "<p><strong>{{sender.name}}</strong><br>{{sender.title}}</p>";
+
+/** Freight sample: [id, folder, title, tags, subject, body, author, time]. */
+const FREIGHT_TEMPLATES: readonly (readonly [
+  string,
+  string,
+  string,
+  string[],
+  string,
+  string,
+  string,
+  string,
+])[] = [
+  [
+    "T-DELAY",
+    "F-DELAYS",
+    "Delivery delay notice",
+    ["customer"],
+    "Update on your delivery {{ask:Load number}}",
+    `<p>Hi {{recipient.first_name|there}},</p><p>Load {{ask:Load number}} is running late. The new delivery estimate is {{ask:New delivery time}}.</p><p>We will send another update when the truck leaves {{ask:Current location}}.</p>${SIGN}`,
+    TOM,
+    "2026-11-09T11:40:00.000Z",
+  ],
+  [
+    "T-POD",
+    "F-BILLING",
+    "Proof of delivery request",
+    ["pod", "carrier"],
+    "POD needed for load {{ask:Load number}}",
+    `<p>Hi {{recipient.first_name|there}},</p><p>Please send the signed proof of delivery for load {{ask:Load number}} so we can release payment.</p>${SIGN}`,
+    ANA,
+    "2026-11-08T16:12:00.000Z",
+  ],
+  [
+    "T-ONBOARD",
+    "F-CARRIER",
+    "Carrier onboarding welcome",
+    ["onboarding"],
+    "Welcome to the Migway carrier network",
+    `<p>Hi {{recipient.first_name|there}},</p><p>Welcome aboard. Your carrier profile is active, and our dispatch desk will send your first offers this week.</p><ul><li>Insurance certificate on file</li><li>W-9 received</li></ul>${SIGN}`,
+    BEN,
+    "2026-11-07T09:30:00.000Z",
+  ],
+  [
+    "T-INVOICE",
+    "F-BILLING",
+    "Invoice follow-up",
+    ["invoice"],
+    "Invoice {{ask:Invoice number}} is past due",
+    `<p>Hi {{recipient.first_name|there}},</p><p>Invoice {{ask:Invoice number}} for {{ask:Amount}} was due on {{ask:Due date}}. Please let us know when payment is scheduled.</p>${SIGN}`,
+    ANA,
+    "2026-11-06T15:55:00.000Z",
+  ],
+  [
+    "T-PICKUP",
+    "F-DELAYS",
+    "Pickup appointment confirmed",
+    ["customer", "pickup"],
+    "Pickup confirmed for {{ask:Pickup date}}",
+    `<p>Hi {{recipient.first_name|there}},</p><p>Your pickup is booked for {{ask:Pickup date}} between {{ask:Time window}}.</p>${SIGN}`,
+    TOM,
+    "2026-11-05T10:18:00.000Z",
+  ],
+  [
+    "T-DETENTION",
+    "F-BILLING",
+    "Detention charge notice",
+    ["detention"],
+    "Detention at {{ask:Facility}} on {{ask:Date}}",
+    `<p>Hi {{recipient.first_name|there}},</p><p>Our driver waited {{ask:Hours}} hours at {{ask:Facility}}. Detention is billed at the agreed hourly rate.</p>${SIGN}`,
+    ANA,
+    "2026-11-04T13:02:00.000Z",
+  ],
+  [
+    "T-CHECKCALL",
+    "F-DISPATCH",
+    "Driver check call reminder",
+    ["driver"],
+    "Check call due for load {{ask:Load number}}",
+    `<p>Hi {{recipient.first_name|there}},</p><p>Please call dispatch with your location and ETA for load {{ask:Load number}}.</p>${SIGN}`,
+    TOM,
+    "2026-11-03T08:45:00.000Z",
+  ],
+  [
+    "T-BOOKED",
+    "F-MINE",
+    "Quick reply: load booked",
+    [],
+    "",
+    "<p>Thanks, the load is booked. Confirmation follows within the hour.</p>",
+    ME,
+    "2025-12-18T17:20:00.000Z",
+  ],
+];
+
+function seedFreight(): void {
+  const rate = (restoredFrom: number) =>
+    `<p>Hi {{recipient.first_name|there}},</p><p>Thank you for covering load {{ask:Load number}}. Please confirm the rate below for pickup on {{ask:Pickup date}}.</p><table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse"><tbody><tr><th>Lane</th><th>Equipment</th><th>Rate</th></tr><tr><td>{{ask:Lane}}</td><td>53' dry van</td><td>{{ask:Rate}}</td></tr></tbody></table><p>Reply to this email to accept${restoredFrom > 0 ? "" : " by end of day"}. Our dispatch desk answers at {{sender.phone}}.</p>${SIGN}`;
+  const history: readonly [string, string, number][] = [
+    [TOM, "2026-11-06T10:12:00.000Z", 0],
+    [ANA, "2026-11-08T09:47:00.000Z", 0],
+    [TOM, "2026-11-08T17:31:00.000Z", 0],
+    [BEN, "2026-11-09T14:05:00.000Z", 2],
+  ];
+  for (const [by, at, from] of history) {
+    store(
+      "T-RATECON",
+      "F-RATES",
+      "Rate confirmation",
+      ["rates", "carrier"],
+      rate(from),
+      by,
+      from,
+      "Rate confirmation for load {{ask:Load number}}",
+    );
+    dated("T-RATECON", at, by);
+  }
+  for (const [
+    id,
+    folderId,
+    title,
+    tags,
+    subject,
+    html,
+    by,
+    at,
+  ] of FREIGHT_TEMPLATES) {
+    store(id, folderId, title, tags, html, by, 0, subject);
+    dated(id, at, by);
+  }
+  const trashed: readonly [string, string, string, string, string][] = [
+    [
+      "T-FUEL",
+      "F-BILLING",
+      "Fuel surcharge table 2025",
+      ANA,
+      "2026-11-01T10:00:00.000Z",
+    ],
+    [
+      "T-WEEKEND",
+      "F-DISPATCH",
+      "Weekend dispatch contacts",
+      TOM,
+      "2026-11-06T18:20:00.000Z",
+    ],
+  ];
+  for (const [id, folderId, title, by, at] of trashed) {
+    store(id, folderId, title, [], "<p>Retired.</p>", by);
+    items.set(id, { ...(items.get(id) as Item), deletedAt: at, deletedBy: by });
+  }
+}
+
+function seedDefault(): void {
+  store(
+    "T-QUOTE",
+    "F-QUOTES",
+    "Price quote 2026",
+    ["pricing", "quotes"],
+    "<p>Hi {{recipient.first_name|there}},</p><p>Thanks for your interest in {{ask:Product name}}.</p>",
+  );
+  store(
+    "T-QUOTE",
+    "F-QUOTES",
+    "Price quote 2026",
+    ["pricing", "quotes"],
+    '<p>Hi {{recipient.first_name|there}},</p><p>Thanks for your interest in {{ask:Product name}}. Our quote for {{ask:Meeting date}} is below.</p><table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse"><tbody><tr><th>Item</th><th>Price</th></tr><tr><td>Plan</td><td>10</td></tr></tbody></table><p><strong>{{sender.name}}</strong><br>{{sender.title}}</p>',
+    "ben@example.com",
+    0,
+    "Quote for {{ask:Product name}}",
+  );
+  store(
+    "T-DISCOUNT",
+    "F-QUOTES",
+    "Discount approval",
+    ["pricing"],
+    "<p>Your discount of {{ask:Discount}} is approved.</p><p>{{sender.name}}</p>",
+  );
+  store(
+    "T-WELCOME",
+    "F-ONBOARD",
+    "Welcome email",
+    ["intro"],
+    "<h2>Welcome!</h2><p>We are glad to have you, {{recipient.first_name|there}}.</p><ul><li>Read the guide</li><li>Book a call</li></ul>",
+  );
+  store(
+    "T-SUPPORT",
+    "F-SUPPORT",
+    "Ticket received",
+    ["support"],
+    "<p>We received your ticket and will reply within one business day.</p>",
+  );
+
+  store(
+    "T-OLD",
+    "F-QUOTES",
+    "Old price list",
+    ["pricing"],
+    "<p>Prices of last year.</p>",
+  );
+  items.set("T-OLD", {
+    ...(items.get("T-OLD") as Item),
+    deletedAt: "2026-11-01T10:00:00.000Z",
+    deletedBy: "ben@example.com",
+  });
+}
+
+if (FREIGHT) seedFreight();
+else seedDefault();
 
 interface DevGrant {
   readonly id: string;
@@ -518,7 +703,7 @@ const OPS: Readonly<Record<string, Op>> = {
         folderPath: pathOf(entry.folderId),
       })),
     favorites: [...favorites],
-    recent: ["T-DISCOUNT"],
+    recent: [FREIGHT ? "T-RATECON" : "T-DISCOUNT"],
     canPurge: isAdmin(),
   }),
   "favorite.set": (args) => {

@@ -7,6 +7,8 @@ import { h, uid } from "./dom";
 export interface DialogAction {
   readonly label: string;
   readonly primary?: boolean;
+  /** Red: the action destroys data (Delete, Empty trash). */
+  readonly destructive?: boolean;
   /** Gets the focus when the dialog opens; default: the first focusable element. */
   readonly autofocus?: boolean;
   /** Return false to keep the dialog open (for example on a validation message). */
@@ -30,14 +32,16 @@ export interface OpenDialog {
   close(): void;
 }
 
+// `a[href]`, not `[href]`: an icon's SVG `<use href>` is not focusable.
 const FOCUSABLE =
-  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])';
+  'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex="-1"])';
 
 function focusables(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
 }
 
-function trapTab(root: HTMLElement, event: KeyboardEvent): void {
+/** Keeps Tab and Shift+Tab inside `root`, wrapping at both ends (dialogs and the narrow-screen panel). */
+export function trapTab(root: HTMLElement, event: KeyboardEvent): void {
   const items = focusables(root);
   const first = items[0];
   const last = items[items.length - 1];
@@ -61,7 +65,12 @@ export function openDialog(options: DialogOptions): OpenDialog {
       "button",
       {
         type: "button",
-        class: action.primary === true ? "primary" : "",
+        class:
+          action.destructive === true
+            ? "destructive"
+            : action.primary === true
+              ? "primary"
+              : "",
         onclick: () => {
           void Promise.resolve(action.run()).then((keep) => {
             if (keep !== false) close();

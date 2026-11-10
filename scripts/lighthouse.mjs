@@ -1,6 +1,7 @@
 // `npm run lighthouse`: builds the web app with the dev harness, serves it on 127.0.0.1 and runs the Lighthouse
-// accessibility audit on the library, editor, history, the 6 admin tabs and trash views (spec section 8, target 90 or higher).
-// Chrome: CHROME_PATH, else the preinstalled /opt/pw-browsers/chromium. No browser is downloaded.
+// accessibility audit on the library, editor, history, the 6 admin tabs and trash views, plus the library in the
+// dark theme (spec section 8; the design system requires 100). Chrome: CHROME_PATH, else the preinstalled
+// /opt/pw-browsers/chromium. No browser is downloaded.
 import { launch } from "chrome-launcher";
 import { existsSync } from "node:fs";
 import lighthouse from "lighthouse";
@@ -8,7 +9,7 @@ import { localPage } from "./lib/html.mjs";
 import { fail } from "./tools.mjs";
 import { DEV_PAGE_VALUES, servePage, webPage } from "./web.mjs";
 
-const MIN_SCORE = 90;
+const MIN_SCORE = 100;
 const DEFAULT_CHROME = "/opt/pw-browsers/chromium";
 const VIEWS = [
   ["library", "?latency=0#/library"],
@@ -22,6 +23,8 @@ const VIEWS = [
   ["admin config", "?latency=0#/admin/config"],
   ["trash", "?latency=0#/trash"],
 ];
+/** Chrome's `--force-dark-mode` makes `prefers-color-scheme: dark` match. */
+const DARK_VIEWS = [["library dark", "?latency=0#/library"]];
 
 function chromePath() {
   const path = process.env.CHROME_PATH ?? DEFAULT_CHROME;
@@ -43,18 +46,22 @@ async function audit(url, port) {
   return { score: Math.round((category?.score ?? 0) * 100), failing };
 }
 
-async function main() {
-  const html = localPage(await webPage({ harness: true }), DEV_PAGE_VALUES);
-  const server = await servePage(html, 0);
+/** Audits `views` in one Chrome started with `extraFlags`; returns the views under the minimum score. */
+async function auditAll(serverUrl, views, extraFlags) {
   const chrome = await launch({
     chromePath: chromePath(),
-    chromeFlags: ["--headless=new", "--no-sandbox", "--disable-gpu"],
+    chromeFlags: [
+      "--headless=new",
+      "--no-sandbox",
+      "--disable-gpu",
+      ...extraFlags,
+    ],
   });
   const low = [];
   try {
-    for (const [name, path] of VIEWS) {
+    for (const [name, path] of views) {
       const { score, failing } = await audit(
-        `${server.url}${path}`,
+        `${serverUrl}${path}`,
         chrome.port,
       );
       const note =
@@ -64,6 +71,20 @@ async function main() {
     }
   } finally {
     await chrome.kill();
+  }
+  return low;
+}
+
+async function main() {
+  const html = localPage(await webPage({ harness: true }), DEV_PAGE_VALUES);
+  const server = await servePage(html, 0);
+  const low = [];
+  try {
+    low.push(...(await auditAll(server.url, VIEWS, [])));
+    low.push(
+      ...(await auditAll(server.url, DARK_VIEWS, ["--force-dark-mode"])),
+    );
+  } finally {
     await server.close();
   }
   if (low.length > 0) fail(`Under ${String(MIN_SCORE)}: ${low.join(", ")}`);

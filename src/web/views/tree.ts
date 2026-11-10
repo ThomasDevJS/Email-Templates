@@ -1,15 +1,21 @@
 import { buildTree, visibleNodes, type TreeNode } from "../library/model";
 import type { FolderRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
+import { icon } from "../ui/icons";
 
 /**
  * Folder tree (spec section 8): `role="tree"`, one tab stop. Up and Down move, Right expands or enters,
  * Left collapses or goes to the parent, Home and End jump, Enter or Space opens the folder.
- * The first row, `rootLabel` ("All templates" in the library), has the empty folder ID.
+ * The first row, `rootLabel` ("All folders" in the admin view), has the empty folder ID; the sidebar tree has none.
+ * `counts` shows a template count per folder as CSS content, so a row's text stays the folder name.
  */
 export interface FolderTree {
   readonly element: HTMLElement;
-  render(folders: readonly FolderRow[], selected: string): void;
+  render(
+    folders: readonly FolderRow[],
+    selected: string,
+    counts?: ReadonlyMap<string, number>,
+  ): void;
 }
 
 interface Row {
@@ -18,34 +24,48 @@ interface Row {
   readonly depth: number;
   readonly parentId: string;
   readonly hasChildren: boolean;
+  readonly owner: string;
+}
+
+/** Another user's private folder arrives from `folder.list` as "My templates (ann@example.com)". */
+function nameAndOwner(folder: FolderRow): [string, string] {
+  const match = / \([^()]+\)$/.exec(folder.name);
+  return folder.kind === "private" && match !== null
+    ? [folder.name.slice(0, match.index), match[0]]
+    : [folder.name, ""];
 }
 
 function rowsOf(
   roots: readonly TreeNode[],
   expanded: ReadonlySet<string>,
-  rootLabel: string,
+  rootLabel: string | null,
 ): Row[] {
-  return [
-    {
-      id: "",
-      name: rootLabel,
-      depth: 1,
-      parentId: "",
-      hasChildren: false,
-    },
-    ...visibleNodes(roots, expanded).map((node) => ({
+  const folderRows = visibleNodes(roots, expanded).map((node) => {
+    const [name, owner] = nameAndOwner(node.folder);
+    return {
       id: node.folder.id,
-      name: node.folder.name,
+      name,
       depth: node.depth,
       parentId: node.depth === 1 ? "" : node.folder.parentId,
       hasChildren: node.children.length > 0,
-    })),
-  ];
+      owner,
+    };
+  });
+  if (rootLabel === null) return folderRows;
+  const root = {
+    id: "",
+    name: rootLabel,
+    depth: 1,
+    parentId: "",
+    hasChildren: false,
+    owner: "",
+  };
+  return [root, ...folderRows];
 }
 
 export function createFolderTree(
   onOpen: (folderId: string) => void,
-  rootLabel = "All templates",
+  rootLabel: string | null,
 ): FolderTree {
   const list = h("ul", {
     role: "tree",
@@ -56,10 +76,14 @@ export function createFolderTree(
   let roots: TreeNode[] = [];
   let selected = "";
   let focused = "";
+  let counts: ReadonlyMap<string, number> = new Map();
 
   const draw = (focus: boolean) => {
     const rows = rowsOf(roots, expanded, rootLabel);
-    if (!rows.some((row) => row.id === focused)) focused = selected;
+    const shown = (id: string) => rows.some((row) => row.id === id);
+    // With no root row nothing may be selected; the first folder then holds the tree's one tab stop.
+    if (!shown(focused))
+      focused = shown(selected) ? selected : (rows[0]?.id ?? "");
     replace(list, ...rows.map((row) => item(row)));
     if (focus) list.querySelector<HTMLElement>('[tabindex="0"]')?.focus();
   };
@@ -76,7 +100,8 @@ export function createFolderTree(
           : undefined,
         tabindex: row.id === focused ? "0" : "-1",
         class: "tree-item",
-        style: `padding-left: ${String(row.depth * 12)}px`,
+        "data-count": counts.get(row.id),
+        style: `padding-left: ${String(row.depth * 16 - 8)}px`,
         onclick: () => {
           li.focus();
           focused = row.id;
@@ -84,14 +109,11 @@ export function createFolderTree(
           onOpen(row.id);
         },
       },
-      row.hasChildren
-        ? h(
-            "span",
-            { class: "twisty", "aria-hidden": "true" },
-            expanded.has(row.id) ? "▾" : "▸",
-          )
-        : null,
+      icon(
+        row.hasChildren ? (expanded.has(row.id) ? "down" : "chev") : "folder",
+      ),
       row.name,
+      row.owner === "" ? null : h("span", { class: "owner" }, row.owner),
     );
     li.dataset["id"] = row.id;
     return li;
@@ -155,10 +177,11 @@ export function createFolderTree(
 
   return {
     element: list,
-    render: (folders, folderId) => {
+    render: (folders, folderId, folderCounts = new Map<string, number>()) => {
       roots = buildTree(folders);
       selected = folderId;
       focused = folderId;
+      counts = folderCounts;
       for (const id of ancestorsOf(folders, folderId)) expanded.add(id);
       // Redrawing replaces the rows; a tree that had focus keeps it on the selected row.
       draw(list.contains(document.activeElement));

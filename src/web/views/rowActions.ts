@@ -106,7 +106,7 @@ function askDelete(app: AppContext, item: ItemRow, report: Report): void {
     actions: [
       {
         label: "Delete",
-        primary: true,
+        destructive: true,
         run: () => {
           void act(
             app,
@@ -171,6 +171,7 @@ export function rowMenu(
     },
     delete: {
       label: "Delete...",
+      destructive: true,
       run: () => {
         askDelete(app, item, report);
       },
