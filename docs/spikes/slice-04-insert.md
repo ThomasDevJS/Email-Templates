@@ -47,17 +47,19 @@ Inserted: y or n. Kept: what survived, or the properties lost. Times in ms.
 
 ### Gmail web (Chrome)
 
+Run 2026-11-10 by the Claude Chrome extension, builds 43f10de (F1 to F9) and 9bbd262 (F9 repeat). F9 selection: replaced the selected word.
+
 | Fixture | Inserted | Kept / lost | Callback ms | Stopwatch ms | Recipient view (sent) |
 | ------- | -------- | ----------- | ----------- | ------------ | --------------------- |
-| F1 | | | | | |
-| F2 | | | | | |
-| F3 | | | | | |
-| F4 | | | | | |
-| F5 | | | | | |
-| F6 | | | | | |
-| F7 | | | | | |
-| F8 | | | | | |
-| F9 mid-line | | | | | |
+| F1 | y | bold, italic, underline, link kept; link not clicked | 1739 (server 227) | not measured | not sent |
+| F2 | y | every visible property kept; line-height not visible on one line | 2285 (239) | not measured | same as draft |
+| F3 | y | lists, nested item, start=5 type=a, blockquote kept | 1952 (344) | not measured | same as draft |
+| F4 | y | table, borders, padding, widths kept | 1826 (178) | not measured | same as draft |
+| F5 | y | image shows, about 600 px wide | 2125 (276) | not measured | same as draft |
+| F6 | y | 51208 bytes | 1940 (138) | not measured | not sent |
+| F7 | y | 204837 bytes | 1285 (56) | not measured | not sent |
+| F8 | y | name from Directory; title, phone, department, first name used fallbacks (external recipient); prompt text literal, 2 lines kept | 2910 (1015) | not measured | same as draft |
+| F9 mid-line | y | landed at the top of the body in 3 runs; cursor placement by the extension unverified, repeat by hand | 1996, 1692, 2093 (345, 55, 158) | not measured | not sent |
 | F9 selection | | | | | |
 
 ### Gmail Android
