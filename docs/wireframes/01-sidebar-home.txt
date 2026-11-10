@@ -45,3 +45,81 @@ Behavior
 - Insert on a template with no prompts and all values resolved: apply in one click. Sets the body, and the subject when the template has one (D21).
 - Insert on a template with prompts: push screen 2.
 - Edit in library: clears add-on cache, opens /exec?view=editor&id=... in OVERLAY, sidebar reloads on close.
+
+Side-panel variant (D27, ADR-0007, spec 4.1a and 7.2; Gmail panel pass, after slice 9)
+Opened from Gmail's right side panel. Same cards and data as above; only the
+line under the header, the row button, the preview buttons and the footer hint differ.
+Entry decided once by entryOf(event): compose | message | inbox.
+
+No message open (entry inbox, homepage trigger):
++--------------------------------------+
+| [M] Migway Templates                 |  CardHeader
+| Start a new email from a template.   |  TextParagraph
+|--------------------------------------|
+| Search templates                     |  same TextInput as compose
+| [ ____________________________ ]     |
+|--------------------------------------|
+| FAVORITES                            |
+|  Welcome email         [New email]   |  compose action, STANDALONE_DRAFT
+|    Sales / Onboarding                |
+|  Price quote 2026      [New email]   |  prompts: opens the prompt card
+|    Sales / Quotes   2 fields to fill |
+|  Driver leaving           [Review]   |  recipients: preview card first (D26)
+|    HR   Adds Cc 1                    |
+|--------------------------------------|
+| RECENT / FOLDERS                     |  same as compose
+|--------------------------------------|
+| Writing an email? Open Migway        |  footer hint, TextParagraph
+| Templates from the toolbar at the    |
+| bottom of the draft to insert at     |
+| the cursor.                          |
+| [Open library]                       |
++--------------------------------------+
+
+Message open (entry message, contextual trigger unconditional):
++--------------------------------------+
+| [M] Migway Templates                 |
+| Reply to this email with a template, |
+| or start a new one.                  |
+|--------------------------------------|
+| Search templates  ...                |
+|--------------------------------------|
+| FAVORITES                            |
+|  Welcome email             [Reply]   |  compose action, REPLY_AS_DRAFT
+|    Sales / Onboarding                |
+|  Driver leaving           [Review]   |
+|    HR   Adds Cc 1                    |
+|  ...                                 |
+|--------------------------------------|
+| (footer hint, Open library)          |
++--------------------------------------+
+
+Preview card, side panel, message open:
++--------------------------------------+
+| < Driver leaving                     |
+|--------------------------------------|
+| Subject                              |
+| Driver leaving: [Name]               |
+| The reply keeps its subject, so it   |  only in Reply / Reply all
+| stays in the conversation.           |
+|--------------------------------------|
+| Recipients                           |
+| Cc safety@migway.com                 |
+| Not added: payroll@migway.com. The   |  template To, reply has a To (D26)
+| reply already has a To recipient.    |
+|--------------------------------------|
+| Plain-text preview, max 600 chars    |
+|--------------------------------------|
+| Your Gmail signature is not added.   |  dropped if spike S7 shows Gmail adds it
+| Use the signature button in the      |
+| draft.                               |
+| [Reply]  [Reply all]  [New email]    |  each a compose action; New email sets subject and To
+| [Edit in library]                    |  only if level >= edit
++--------------------------------------+
+
+Behavior (side panel)
+- Every button creates a draft that Gmail opens in a compose window; nothing changes a draft already open.
+- One click when the template has no prompts and no recipients; otherwise the preview or prompt card first.
+- Prompt card footer: [Create email] or [Create reply]; a blank field shows "Fill 1 field: <label>" and creates nothing.
+- Errors: notification with the spec 7 text, no draft.
+- If spike S7 fails: no action buttons; the footer hint moves to the top of the card.

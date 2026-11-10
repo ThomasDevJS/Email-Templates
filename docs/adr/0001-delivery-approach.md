@@ -43,7 +43,7 @@ Option 1 with topology 1a: add-on sidebar plus web app in one Apps Script projec
 Mechanism:
 
 - One project, two entry points. The manifest declares `addOns.gmail.composeTrigger` and `webapp { executeAs: USER_DEPLOYING, access: DOMAIN }`. One versioned deployment per environment serves both entry points (ADR-0005).
-- Sidebar (add-on code, runs as the user). Compose trigger returns a home card: search `TextInput`, Favorites, Recent, folder list. Pages hold 20 templates (about 40 widgets with buttons), under the 100-widget cap [R4 S9]. Each item has an Insert button. A template without prompts applies in one click. A template with prompts pushes a prompt card (ADR-0004). Apply returns `UpdateDraftActionResponse` with `UpdateDraftBodyAction`, `IN_PLACE_INSERT`, `MUTABLE_HTML` [R4 S4, S5b]. Previews use `TextParagraph` with the 8 allowed tags, plain text excerpt of at most 600 characters.
+- Sidebar (add-on code, runs as the user). [Side panel (homepage trigger) inserts through compose actions: see Amendment 2026-11-10 (D27).] Compose trigger returns a home card: search `TextInput`, Favorites, Recent, folder list. Pages hold 20 templates (about 40 widgets with buttons), under the 100-widget cap [R4 S9]. Each item has an Insert button. A template without prompts applies in one click. A template with prompts pushes a prompt card (ADR-0004). Apply returns `UpdateDraftActionResponse` with `UpdateDraftBodyAction`, `IN_PLACE_INSERT`, `MUTABLE_HTML` [R4 S4, S5b]. Previews use `TextParagraph` with the 8 allowed tags, plain text excerpt of at most 600 characters.
 - Every sidebar callback stays under 5 s by design (budget 3 s load, 2 s apply, ADR-0002), far below the 30 s cap. Long work (cache rebuild, export, housekeeping) runs only in web app calls or triggers (6 min cap).
 - Data path. Add-on code never reads storage, Script Cache or Script Properties (ADR-0003 Part A). It calls the same project's `/exec` URL with `UrlFetchApp` and the user's OAuth token. The `/exec` URL is a build-time constant per environment (ADR-0005). The web app code identifies the caller and checks permissions (ADR-0003).
 - Editing (web app, runs as the owner). `doGet` serves one HTML shell (HtmlService, `IFRAME` sandbox). The shell loads data async through `google.script.run` [R4 S48]. The editor library is bundled into the HTML file at build time, so the page loads no third-party CDN (BRIEF 11). Links use `target="_blank"` [R4 S46]. No more than 4 parallel `google.script.run` calls, below the 10-call cap and Firefox's 6 [R4 S49].
@@ -63,6 +63,10 @@ Pilot editors. Test deployments need editor access to the project [R4 S13], so t
 ## Amendment 2026-11-10: acceptance client (D22)
 
 Owner decision D22 (2026-11-10): Gmail web on Chrome is the only acceptance client for v1. Spike S4 closed on the Gmail web results (ADR-0004 amendment). The add-on still runs on Gmail Android and iOS; that use is best effort and untested (BRIEF A7). No open item waits on a mobile run.
+
+## Amendment 2026-11-10: side-panel insert (D27)
+
+Status: Proposed. Owner decision D27 (2026-11-10): the Gmail side panel must insert templates like the compose toolbar. Gmail ignores `UpdateDraftActionResponse` from the side panel (owner's spike S6 runs). Mechanism in ADR-0007: the side panel creates a new draft (`STANDALONE_DRAFT`) or a reply (`REPLY_AS_DRAFT`) with compose actions and `ComposeActionResponse`; a new `unconditional` contextual trigger gives the panel the open message ID; no new scope, checked by spike S7 (spec 14.2). The add-on now has three entry functions: `onComposeOpen`, `onHomepage`, `onMessageOpen`.
 
 ## Consequences
 

@@ -1,10 +1,10 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-10, D26 run (template recipients, ADR-0006, commit 2579b6b). Before: errata run 3 (6a/6b as built, owner handover). Repo is the source of truth; this file is a cache.
+Last run: 2026-11-10, D27 run (side-panel insert, ADR-0007, spike S7). Before: D26 run (ADR-0006, 2579b6b), errata run 3 (6a/6b as built, owner handover). Repo is the source of truth; this file is a cache.
 
 ## Files I own
-- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). 0006 template recipients (Proposed 2026-11-10). Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
-- docs/spec.md (sections 1-16; 4.5 export/import as built; 5.1 depth 5; 5.2 key max 254; 5.6 subject D24; 11 `draft`; 11.1 admin audit/log rules; 12.1 measured; 13.3 6a/6b done; 13.4 known limits; 13.5 slice 7 and v1.1 items; 5.7 recipients; 7.1 recipient texts; 13.6 slice 9; 14.1 spike S6; Q1-Q39; 16.1 restore, 16.2 damaged-file recovery, 16.3 owner handover)
+- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). 0006 template recipients (Proposed 2026-11-10). 0007 side-panel insert (Proposed 2026-11-10). Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
+- docs/spec.md (sections 1-16; 4.5 export/import as built; 5.1 depth 5; 5.2 key max 254; 5.6 subject D24; 11 `draft`; 11.1 admin audit/log rules; 12.1 measured; 13.3 6a/6b done; 13.4 known limits; 13.5 slice 7 and v1.1 items; 5.7 recipients; 7.1 recipient texts; 13.6 slice 9; 14.1 spike S6; 4.1a panel flow; 7.2 panel texts; 13.7 Gmail panel pass; 14.2 spike S7; Q1-Q46; 16.1 restore, 16.2 damaged-file recovery, 16.3 owner handover)
 - docs/wireframes/01-07 (02 preview and prompt cards; 06 as built: tabs, inline error format, restore dialog, Trash view)
 
 ## Owner decisions in force
@@ -15,6 +15,7 @@ Last run: 2026-11-10, D26 run (template recipients, ADR-0006, commit 2579b6b). B
 - D23 open: assumption 3 s accepted for apply in v1 (Q22).
 - D24 (orchestrator, confirmed smoke 5c dev-848206f): template subject set only when the draft subject is empty or whitespace; "Insert with subject" and switch override; "Insert body only" never.
 - D26 (owner 2026-11-10, updated same day): templates hold To, Cc, Bcc; insert adds, never removes. Outside addresses ALLOWED by default; admins need a way to turn them off (Script Property RECIPIENTS_EXTERNAL allow|deny in v1, in-app switch v1.1, Q32).
+- D27 (owner 2026-11-10): side panel must insert like the compose dialog; both entry points must work.
 - Near-zero maintenance: only recurring human task = deploy.
 
 ## Decisions
@@ -26,6 +27,8 @@ Last run: 2026-11-10, D26 run (template recipients, ADR-0006, commit 2579b6b). B
 - 0004: grammar, sanitizer allowlist, ProseMirror atoms. Amendments 2026-11-10: (errata) no sanitize-on-paste; (S4) allowlist unchanged, cap 100 KB; (subject D21) same grammar, prompts shared, SUBJ_TOO_LONG 200, SUBJ_LINEBREAK; (D24 + S5, Accepted) set only on empty draft subject, `draftHasSubject`, `replacesSubject`; S5 one response, no new scope.
 - 0006 (D26): fields `to`,`cc`,`bcc` arrays on item, version file, export meta; absent = []. 10/field, 20 total, 254 chars; trim+lowercase, dup in field dropped, dup across fields RCPT_DUPLICATE. Codes RCPT_FORMAT/TOO_LONG/TOO_MANY/DUPLICATE/EXTERNAL. No placeholders. deny: stored outside addresses kept, apply returns them in `blocked`, never inserted. Insert: skip present, To only when draft To empty, Cc/Bcc always. "Insert body only" = no subject, no recipients. Prompt switch `rcpt`. Any recipient -> no one-click, row "Review", card shows each address with markers. `rh` hash check at Insert. Apply returns lists every call, never cached. Logs: nothing new. Search: web app only. Private folders allowed. Import drops bad addresses, TOO_MANY refuses file.
 - 0004 amendment D26: pointer to 0006.
+- 0001 amendment 2026-11-10 (D27, Proposed): pointer to 0007; entry fns onComposeOpen, onHomepage, onMessageOpen.
+- 0007 (D27): side panel cannot change an open draft (UpdateDraftActionResponse ignored there). Uses compose actions: `setComposeAction` STANDALONE_DRAFT -> `GmailApp.createDraft(to, subject, "", {htmlBody, cc, bcc})`; REPLY_AS_DRAFT -> `getMessageById(gmail.messageId).createDraftReply/ReplyAll("", {htmlBody, cc, bcc})`; `setCurrentMessageAccessToken(gmail.accessToken)`; `ComposeActionResponseBuilder.setGmailDraft`. New manifest entry contextualTriggers unconditional `onMessageOpen` (homepage events carry no messageId). Row button: inbox "New email", message "Reply"; preview adds "Reply all", "New email"; "Review"/prompt rules as compose. Footer hint to compose toolbar. One pipeline, `entryOf(event)` compose|message|inbox in event.ts; `rowButton`, `insertButtons` only readers. D24: new draft gets template subject; reply never gets subject option; no "with subject"/"body only" in panel. D26: recipientActions on computed draft (new empty; reply To=sender; reply all To+Cc of message). Log `draft.via` compose|new|reply|replyAll. Signature not added, card says so (reading needs restricted gmail.settings.basic). Clipboard rejected (no Card Service class). Prompt blank field: notification; fallback Check + confirm card.
 - 0005 run 3: amendment owner change and dev to prod follow ADR-0002 owner handover.
 - 0005: esbuild, vitest, one bundle. Amendment 2026-11-10: bundle ships as JSON string literal, `/` before `/` or `*` written as `\/`, `(0, eval)(literal)`; HtmlService cut `//` after template literals on 43f10de; sandbox frame sets no CSP.
 
@@ -33,6 +36,7 @@ Last run: 2026-11-10, D26 run (template recipients, ADR-0006, commit 2579b6b). B
 gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, script.projects.readonly, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Subject needs none extra (S5 verified). Any new scope needs owner approval.
 
 ## Facts I verified
+- A29-A39 (2026-11-10, ADR-0007): compose guide, ComposeActionResponseBuilder, ComposedEmailType (REPLY_AS_DRAFT default, STANDALONE_DRAFT), GmailApp/GmailMessage ref pages list only mail.google.com (contradicts add-on guides; S7), workspace-scopes (action.compose creates drafts and replies; getMessageById+getFrom need only message.metadata), message UI guide, homepages (no contextual info in homepage events), manifest (contextual trigger names no scope), sendAs.get scopes (restricted), Card Service class list (no clipboard). createDraftReply options include subject (250).
 - A1 tanaike token note; A9 DriveApp needs drive; A10 consent texts; A11 versions API has no delete; A12 per-deployment web app settings.
 - A13 event-objects page (re-read 2026-11-10): documents 6 fields, no subject, no draftMetadata. LIVE compose event (owner smoke 5b/5c) has draftMetadata, to/cc/bccRecipients, subject; never threadId/messageId. Page is incomplete; trust smoke runs.
 - A14 extending-compose-ui: subject example `setUpdateDraftSubjectAction(newUpdateDraftSubjectAction().addUpdateSubject(s))`; one action per example; scopes not listed; no mobile note.
@@ -50,16 +54,17 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - 32a446c: warm save 4.2-5.2 s, Drive writes 2.0-2.7 s.
 
 ## Slice plan
-- Slices 1-7 done. 8a (shell, library, trash, history) running; then 9 (recipients, S6 first), then 8b (editor redesign moves recipient fields into Details panel). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
+- Slices 1-7, 8a done. 9 (recipients, S6 first), then Gmail panel pass with D27 (S7 first, spec 13.7), 8b (editor redesign moves recipient fields into Details panel). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
+- Q40-Q46 (D27): contextual trigger yes if no prompt, no signature, row Reply, discarded draft counts, mail.google.com never (hint only), reply-all merged cc, no forward.
 - Q32-Q39 (D26): admin switch v1.1, limits, no placeholders, To in reply not added, secondary domains (RECIPIENT_DOMAINS if needed), private allowed, no existence check, address search web only.
 - Q22 = D23 open, assumption 3 s apply. Q23 built 6a. Q25 rec accept.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A28]. Question IDs global Q1-Q39. Spikes S2, S2b, S4, S5 closed; S6 open (slice 9 first task).
+- External sources [A1]..[A39]. Question IDs global Q1-Q46. Spikes S2, S2b, S4, S5 closed; S6 open (slice 9 first task; owner's runs used side panel, rerun from compose toolbar); S7 open (panel pass first task).
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
@@ -71,4 +76,5 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - Do not invent mechanism details: read the source (e.g. scripts/lib/html.mjs) before writing an amendment.
 - Google reference pages can be incomplete (A13 missed `subject`): the owner's smoke log is the evidence for live event fields.
 - setup() refuses any account but recorded OWNER_EMAIL; triggers belong to their creator. Any owner change touches both.
+- Side panel = homepage trigger: no draftMetadata, draft responses silently ignored. Ask owners which entry point they used.
 - Damaged live index.json blocks every op incl. backup.restore (dispatch loads index first).
