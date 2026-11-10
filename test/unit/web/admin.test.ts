@@ -89,6 +89,39 @@ function harnessCall(
   });
 }
 
+/** Boots `url`, then sends `op` as another tab would, before the view loads its data. */
+async function harnessCallAfterBoot(
+  url: string,
+  op: string,
+  args: unknown,
+): Promise<void> {
+  await boot(url);
+  const reply = await harnessCall(op, args);
+  expect(reply.ok).toBe(true);
+}
+
+/** Counts the calls of `op` from now on, by wrapping `google.script.run`. */
+function countCalls(op: string): () => number {
+  interface Run {
+    withSuccessHandler(handler: (value: unknown) => void): Run;
+    withFailureHandler(handler: (error: unknown) => void): Run;
+    rpc(op: string, args: unknown, id: string): void;
+  }
+  const script = (window as unknown as { google: { script: { run: Run } } })
+    .google.script;
+  let count = 0;
+  const wrap = (run: Run): Run => ({
+    withSuccessHandler: (handler) => wrap(run.withSuccessHandler(handler)),
+    withFailureHandler: (handler) => wrap(run.withFailureHandler(handler)),
+    rpc: (name, args, id) => {
+      if (name === op) count += 1;
+      run.rpc(name, args, id);
+    },
+  });
+  script.run = wrap(script.run);
+  return () => count;
+}
+
 async function openQuotes(): Promise<void> {
   await until(() => {
     expect(main().querySelector('[role="tablist"]')).not.toBeNull();
@@ -223,9 +256,51 @@ describe("folders and grants", () => {
       "Inactive: OU resolution needs the Directory resolver",
     );
     expect(rows[1]).toContain("Sales (inherited)");
-    expect(main().querySelector("h3#folder-heading")?.textContent).toBe(
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
       "Sales / Quotes",
     );
+    // Slice 8c: the type is read before the key and shown as an icon; the level is a tag.
+    const principal = main().querySelector(".admin-table tbody .principal");
+    expect(principal?.querySelector(".sr-only")?.textContent).toBe("OU ");
+    expect(principal?.querySelector("svg")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(
+      main().querySelector(".admin-table tbody td:nth-child(2) .tag")
+        ?.textContent,
+    ).toBe("Use");
+  });
+
+  it("asks for a principal under the field and marks it invalid", async () => {
+    await boot("/?latency=0#/admin");
+    await openQuotes();
+    const form = main().querySelector("form") as HTMLFormElement;
+    const input = form.querySelector('input[type="text"]') as HTMLInputElement;
+    form.dispatchEvent(new Event("submit"));
+    const error = document.getElementById(`${input.id}-error`);
+    expect(error?.textContent).toBe("Enter a principal.");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("aria-describedby")).toContain(
+      `${input.id}-error`,
+    );
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("loads the library folders again after a grant change, with no page reload", async () => {
+    await boot("/?latency=0#/admin");
+    await openQuotes();
+    const folderLists = countCalls("folder.list");
+    const form = main().querySelector("form") as HTMLFormElement;
+    (form.querySelector('input[type="text"]') as HTMLInputElement).value =
+      "pat@example.com";
+    form.dispatchEvent(new Event("submit"));
+    await until(() => {
+      expect(status()).toContain("Added group pat@example.com with level use.");
+    });
+    (document.querySelector("[data-nav=library]") as HTMLElement).click();
+    await until(() => {
+      expect(folderLists()).toBe(1);
+    });
   });
 
   it("adds and removes a grant with a busy status at once", async () => {
@@ -283,7 +358,7 @@ describe("folders and grants", () => {
     await until(() => {
       expect(main().querySelector('[role="tablist"]')).not.toBeNull();
     });
-    const opener = button("+ Top-level folder");
+    const opener = button("New top-level folder");
     opener.focus();
     opener.click();
     const input = dialog().querySelector("input") as HTMLInputElement;
@@ -297,7 +372,7 @@ describe("folders and grants", () => {
     await until(() => {
       expect(status()).toContain('Created folder "Legal".');
     });
-    expect(main().querySelector("h3#folder-heading")?.textContent).toBe(
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
       "Legal",
     );
     expect(document.activeElement?.id).toBe("folder-heading");
@@ -344,7 +419,7 @@ describe("folders and grants", () => {
     await until(() => {
       expect(status()).toContain('Moved "Quotes" into HR.');
     });
-    expect(main().querySelector("h3#folder-heading")?.textContent).toBe(
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
       "HR / Quotes",
     );
   });
@@ -364,7 +439,7 @@ describe("folders and grants", () => {
       expect(status()).toContain("Changed by dev.user@example.com at");
     });
     await until(() => {
-      expect(main().querySelector("h3#folder-heading")?.textContent).toBe(
+      expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
         "Sales / Offers",
       );
     });
@@ -463,9 +538,29 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     expect(status()).toContain("Emptying the trash...");
     await until(() => {
-      expect(status()).toContain("Removed 1 items for good.");
+      expect(status()).toContain("Removed 1 template for good.");
     });
     expect(text()).toContain("Trash is empty.");
+  });
+
+  it("counts templates in both the dialog and the result when deleted folders go too", async () => {
+    await harnessCallAfterBoot("/?latency=0#/trash", "folder.delete", {
+      folderId: "F-EMPTY",
+      baseVersion: 1,
+    });
+    await until(() => {
+      expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
+    });
+    button("Empty trash now...").click();
+    expect(dialog().textContent).toContain(
+      "Remove all 1 templates in the trash for good? Deleted folders go too.",
+    );
+    button("Empty trash", dialog()).click();
+    await until(() => {
+      expect(status()).toContain(
+        "Removed 1 template and 1 deleted folder for good.",
+      );
+    });
   });
 
   it("says when the nightly job deletes the stored versions of purged templates", async () => {
@@ -477,7 +572,7 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Removed 1 items for good. The nightly job deletes the stored versions of 2 of them.",
+        "Removed 1 template for good. The nightly job deletes the stored versions of 2 of them.",
       );
     });
   });
