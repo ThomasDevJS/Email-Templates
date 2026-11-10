@@ -1,11 +1,12 @@
 import { escapeText } from "../../shared/html/escape";
-import type {
-  ActionSpec,
-  ButtonSpec,
-  CardSpec,
-  Reply,
-  SectionSpec,
-  Widget,
+import {
+  SWITCH_ON,
+  type ActionSpec,
+  type ButtonSpec,
+  type CardSpec,
+  type Reply,
+  type SectionSpec,
+  type Widget,
 } from "./spec";
 
 /**
@@ -49,6 +50,14 @@ function toItem(spec: Extract<Widget, { kind: "item" }>) {
   if (spec.onClick !== undefined)
     item = item.setOnClickAction(toAction(spec.onClick));
   if (spec.button !== undefined) item = item.setButton(toButton(spec.button));
+  if (spec.toggle !== undefined)
+    item = item.setSwitchControl(
+      CardService.newSwitch()
+        .setFieldName(spec.toggle.name)
+        .setValue(SWITCH_ON)
+        .setSelected(spec.toggle.selected)
+        .setControlType(CardService.SwitchControlType.SWITCH),
+    );
   return item;
 }
 
@@ -105,13 +114,20 @@ function navigate(
     .build();
 }
 
-function insertResponse(html: string): DraftResponse {
+/** Body and, when present, subject in one response (spec 4.1 step 4; spike S5 checks Gmail accepts both). */
+function insertResponse(html: string, subject: string | null): DraftResponse {
   const body = CardService.newUpdateDraftBodyAction()
     .addUpdateContent(html, CardService.ContentType.MUTABLE_HTML)
     .setUpdateType(CardService.UpdateDraftBodyType.IN_PLACE_INSERT);
-  return CardService.newUpdateDraftActionResponseBuilder()
-    .setUpdateDraftBodyAction(body)
-    .build();
+  const response =
+    CardService.newUpdateDraftActionResponseBuilder().setUpdateDraftBodyAction(
+      body,
+    );
+  if (subject !== null)
+    response.setUpdateDraftSubjectAction(
+      CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject),
+    );
+  return response.build();
 }
 
 export function renderReply(reply: Reply): ActionResponse | DraftResponse {
@@ -140,6 +156,6 @@ export function renderReply(reply: Reply): ActionResponse | DraftResponse {
         )
         .build();
     case "insert":
-      return insertResponse(reply.html);
+      return insertResponse(reply.html, reply.subject);
   }
 }

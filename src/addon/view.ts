@@ -45,6 +45,7 @@ export function clearView(cache: CacheStore): void {
 export interface CachedBody {
   readonly version: number;
   readonly html: string;
+  readonly subject: string;
 }
 
 const bodyKey = (id: string): string => `body:${id}`;
@@ -53,8 +54,11 @@ export function readBody(cache: CacheStore, id: string): CachedBody | null {
   const raw = cache.get(bodyKey(id));
   if (raw === null) return null;
   const parsed = JSON.parse(raw) as Partial<CachedBody>;
-  return typeof parsed.version === "number" && typeof parsed.html === "string"
-    ? { version: parsed.version, html: parsed.html }
+  // An entry written before slice 5 has no subject: a miss, so the next call fetches body and subject.
+  return typeof parsed.version === "number" &&
+    typeof parsed.html === "string" &&
+    typeof parsed.subject === "string"
+    ? { version: parsed.version, html: parsed.html, subject: parsed.subject }
     : null;
 }
 

@@ -6,14 +6,22 @@ import {
   type SidebarHome,
   type SidebarTemplate,
 } from "../shared/model/sidebar";
-import { previewText } from "../shared/placeholders/preview";
-import { promptsFor, renderBody } from "../shared/placeholders/render";
+import { previewText, subjectPreview } from "../shared/placeholders/preview";
+import {
+  promptsFor,
+  renderBody,
+  renderSubject,
+} from "../shared/placeholders/render";
 import { folderCard } from "./cards/folder";
 import { homeCard } from "./cards/home";
 import { previewCard } from "./cards/preview";
 import { promptCard, tooManyFieldsCard } from "./cards/prompt";
 import {
+  SKIP_SUBJECT,
+  SUBJECT_SWITCH,
+  SWITCH_ON,
   action,
+  insertReply,
   type ActionSpec,
   type CardSpec,
   type Reply,
@@ -34,7 +42,14 @@ import {
   isClean,
   problemText,
 } from "./prompts";
-import { clearView, readBody, readView, writeBody, writeView } from "./view";
+import {
+  clearView,
+  readBody,
+  readView,
+  writeBody,
+  writeView,
+  type CachedBody,
+} from "./view";
 
 /**
  * Sidebar flows (spec 4.1). Each takes its ports and the callback parameters and returns a card or a reply as
@@ -125,6 +140,7 @@ function templateOf(view: SidebarHome, id: string): SidebarTemplate | null {
 interface BodyReply {
   readonly id: string;
   readonly version: number;
+  readonly subject: string;
   readonly html: string;
 }
 
@@ -140,13 +156,11 @@ export function previewFlow(
   if (template === null) return failed(ports, notFound, retry);
   const body = load<BodyReply>(ports, "template.getBody", { id });
   if (!body.ok) return failed(ports, body.failure, retry);
-  writeBody(ports.cache, id, {
-    version: body.data.version,
-    html: body.data.html,
-  });
+  const { version, html, subject } = body.data;
+  writeBody(ports.cache, id, { version, html, subject });
   return {
     kind: "push",
-    card: previewCard(template, previewText(body.data.html)),
+    card: previewCard(template, previewText(html), subjectPreview(subject)),
   };
 }
 
@@ -155,17 +169,21 @@ interface Ready {
   readonly title: string;
   readonly version: number;
   readonly html: string;
+  /** Template subject, or "" when it has none or the user chose "Insert body only". */
+  readonly subject: string;
   readonly values: Readonly<Record<string, string>>;
 }
 
 /** Spec 4.1 steps 4 and 5: insert at once when nothing needs asking, else the prompt card. */
 function insertOrAsk(ready: Ready): Reply {
-  const fields = promptsFor(ready.html, ready.values);
-  if (fields.length === 0)
-    return {
-      kind: "insert",
-      html: renderBody(ready.html, { values: ready.values, answers: {} }).html,
-    };
+  const fields = promptsFor(ready.html, ready.values, ready.subject);
+  if (fields.length === 0) {
+    const input = { values: ready.values, answers: {} };
+    return insertReply(
+      renderBody(ready.html, input).html,
+      renderSubject(ready.subject, input).text,
+    );
+  }
   if (fields.length > MAX_FIELDS)
     return {
       kind: "push",
@@ -175,6 +193,7 @@ function insertOrAsk(ready: Ready): Reply {
     kind: "push",
     card: promptCard({
       ...ready,
+      replaceSubject: true,
       fields,
       entered: [],
       order: fields.map((_, n) => n),
@@ -183,13 +202,33 @@ function insertOrAsk(ready: Ready): Reply {
   };
 }
 
+/** Body and subject from an apply result, else from the add-on's cached copy of the same version. */
+function appliedBody(
+  ports: Ports,
+  result: ApplyResult,
+  cached: CachedBody | null,
+): CachedBody | null {
+  if (result.html === null || result.subject === null) return cached;
+  const fresh = {
+    version: result.version,
+    html: result.html,
+    subject: result.subject,
+  };
+  writeBody(ports.cache, result.id, fresh);
+  return fresh;
+}
+
 export function insertFlow(
   ports: Ports,
   event: AddonEvent | undefined,
   params: Readonly<Record<string, string>>,
 ): Reply {
   const id = params["id"] ?? "";
-  const retry = action("onInsert", { id });
+  const skip = params["subject"] === SKIP_SUBJECT;
+  const retry = action(
+    "onInsert",
+    skip ? { id, subject: SKIP_SUBJECT } : { id },
+  );
   const cached = readBody(ports.cache, id);
   const applied = load<ApplyResult>(ports, "template.apply", {
     id,
@@ -198,15 +237,14 @@ export function insertFlow(
   });
   if (!applied.ok) return failed(ports, applied.failure, retry);
   const result = applied.data;
-  const html = result.html ?? cached?.html;
-  if (html === undefined) return failed(ports, notFound, retry);
-  if (result.html !== null)
-    writeBody(ports.cache, id, { version: result.version, html });
+  const body = appliedBody(ports, result, cached);
+  if (body === null) return failed(ports, notFound, retry);
   return insertOrAsk({
     id,
     title: result.title,
     version: result.version,
-    html,
+    html: body.html,
+    subject: skip ? "" : body.subject,
     values: variableValues(result.sender, result.recipientFirstName),
   });
 }
@@ -235,20 +273,18 @@ function bodyFor(ports: Ports, id: string, version: number): Loaded<BodyReply> {
   const applied = load<ApplyResult>(ports, "template.apply", {
     id,
     knownVersion: usable?.version ?? 0,
-    recipientEmailIfInternal: "",
     followUp: true,
   });
   if (!applied.ok) return applied;
-  const html = applied.data.html ?? usable?.html;
-  if (html === undefined) return { ok: false, failure: notFound };
-  if (applied.data.html !== null)
-    writeBody(ports.cache, id, { version: applied.data.version, html });
-  return { ok: true, data: { id, version: applied.data.version, html } };
+  const body = appliedBody(ports, applied.data, usable);
+  if (body === null) return { ok: false, failure: notFound };
+  return { ok: true, data: { id, ...body } };
 }
 
 /**
  * Prompt card Insert (wireframe 02). Blank or over-long values re-render the card with the error line and those
  * fields first; the draft does not change. A new template version since the card opened re-renders it too.
+ * The subject goes into the draft only while the "Replace the subject" switch is on.
  */
 export function promptInsertFlow(
   ports: Ports,
@@ -261,18 +297,19 @@ export function promptInsertFlow(
   const body = bodyFor(ports, id, version);
   if (!body.ok) return failed(ports, body.failure, action("onBack"));
   const { html } = body.data;
-  const fields = promptsFor(html, values);
+  const subject = params["subject"] === SKIP_SUBJECT ? "" : body.data.subject;
+  const replaceSubject = formValue(event, SUBJECT_SWITCH) === SWITCH_ON;
+  const fields = promptsFor(html, values, subject);
   const entered = fields.map((_, n) => formValue(event, inputName(n)));
   const check = checkAnswers(fields, entered);
   const changed = body.data.version !== version;
-  if (!changed && isClean(check))
-    return {
-      kind: "insert",
-      html: renderBody(html, {
-        values,
-        answers: answersByKey(fields, entered),
-      }).html,
-    };
+  if (!changed && isClean(check)) {
+    const input = { values, answers: answersByKey(fields, entered) };
+    return insertReply(
+      renderBody(html, input).html,
+      replaceSubject ? renderSubject(subject, input).text : "",
+    );
+  }
   const problem = changed
     ? "The template changed. Check the fields and insert again."
     : problemText(fields, check);
@@ -282,6 +319,8 @@ export function promptInsertFlow(
       id,
       title: params["title"] ?? "",
       version: body.data.version,
+      subject,
+      replaceSubject: replaceSubject || changed,
       values,
       fields,
       entered,

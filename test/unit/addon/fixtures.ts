@@ -12,6 +12,7 @@ export function template(
     id,
     folderId: "F1",
     title: `Template ${id}`,
+    subject: "",
     snippet: `Snippet ${id}`,
     version: 1,
     prompts: [],

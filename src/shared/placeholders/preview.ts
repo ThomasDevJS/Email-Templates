@@ -1,6 +1,7 @@
 import { decodeCanonical } from "../html/escape";
 import { collapse, parseText, type Segment } from "./grammar";
 import { placeholderInfo } from "./registry";
+import { oneLine } from "./subject";
 
 /**
  * Plain-text preview of a sanitized body for the sidebar (wireframe 01): block tags become line breaks, tokens
@@ -47,4 +48,9 @@ export function previewText(html: string, max = PREVIEW_CHARS): string {
     .filter((line) => line !== "")
     .join("\n");
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
+}
+
+/** Subject with tokens as [Label], on one line (wireframe 02). Output is text, never HTML. */
+export function subjectPreview(subject: string): string {
+  return oneLine(parseText(subject).map(segmentText).join(""));
 }

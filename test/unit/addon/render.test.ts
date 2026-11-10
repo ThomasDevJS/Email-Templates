@@ -148,8 +148,24 @@ describe("renderReply", () => {
     expect(argsOf("setOnClose")).toEqual(["RELOAD_ADD_ON"]);
   });
 
+  it("insert with a subject adds UpdateDraftSubjectAction to the same response", () => {
+    renderReply({ kind: "insert", html: "<p>x</p>", subject: "Quote <b>" });
+    expect(calls.map((c) => c.method)).toEqual([
+      "newUpdateDraftBodyAction",
+      "addUpdateContent",
+      "setUpdateType",
+      "newUpdateDraftActionResponseBuilder",
+      "setUpdateDraftBodyAction",
+      "newUpdateDraftSubjectAction",
+      "addUpdateSubject",
+      "setUpdateDraftSubjectAction",
+      "build",
+    ]);
+    expect(argsOf("addUpdateSubject")).toEqual(["Quote <b>"]);
+  });
+
   it("insert builds an UpdateDraftActionResponse with IN_PLACE_INSERT and MUTABLE_HTML", () => {
-    renderReply({ kind: "insert", html: "<p>x</p>" });
+    renderReply({ kind: "insert", html: "<p>x</p>", subject: null });
     expect(calls.map((c) => c.method)).toEqual([
       "newUpdateDraftBodyAction",
       "addUpdateContent",

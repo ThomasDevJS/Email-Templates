@@ -185,7 +185,7 @@ describe("folder card (wireframe 01)", () => {
 describe("preview card (wireframe 01)", () => {
   it("shows text, fields to fill, Insert, and Edit only for edit or manage", () => {
     const t = template("T1", { prompts: ["Meeting date"] });
-    const card = previewCard(t, "Hi [Recipient first name]");
+    const card = previewCard(t, "Hi [Recipient first name]", "");
     expect(card.title).toBe("Template T1");
     expect(texts(card)).toEqual([
       "Hi [Recipient first name]",
@@ -194,15 +194,30 @@ describe("preview card (wireframe 01)", () => {
     expect(buttons(card).map((b) => b.text)).toEqual(["Insert"]);
     expect(buttons(card)[0]).toMatchObject({ filled: true });
     for (const level of ["edit", "manage"] as const) {
-      const editable = previewCard({ ...t, level }, "x");
+      const editable = previewCard({ ...t, level }, "x", "");
       expect(buttons(editable)[1]).toMatchObject({
         text: "Edit in library",
         action: { fn: "onOpenLink", params: { id: "T1" } },
       });
     }
-    expect(texts(previewCard(template("T2"), ""))).toEqual([
+    expect(texts(previewCard(template("T2"), "", ""))).toEqual([
       "(Empty template)",
     ]);
+  });
+
+  it("shows the subject, the replace note and Insert body only when the template has a subject", () => {
+    const card = previewCard(template("T1"), "Body", "Quote for [Product]");
+    expect(widgets(card)[0]).toEqual({
+      kind: "item",
+      topLabel: "Subject",
+      text: "Quote for [Product]",
+    });
+    expect(texts(card)).toContain("Replaces the draft subject.");
+    expect(buttons(card).map((b) => b.action)).toEqual([
+      { fn: "onInsert", params: { id: "T1" } },
+      { fn: "onInsert", params: { id: "T1", subject: "skip" } },
+    ]);
+    expect(buttons(card)[1]?.text).toBe("Insert body only");
   });
 });
 
@@ -217,6 +232,8 @@ describe("prompt card (wireframe 02)", () => {
       id: "T1",
       title: "Quote",
       version: 4,
+      subject: "",
+      replaceSubject: true,
       values: { "sender.name": "Ana" },
       fields,
       entered: ["12 Nov", ""],
@@ -250,6 +267,7 @@ describe("prompt card (wireframe 02)", () => {
           title: "Quote",
           version: "4",
           values: '{"sender.name":"Ana"}',
+          subject: "skip",
         },
       },
     });
@@ -264,6 +282,8 @@ describe("prompt card (wireframe 02)", () => {
       id: "T1",
       title: "Quote",
       version: 1,
+      subject: "",
+      replaceSubject: true,
       values: {},
       fields,
       entered: [],
@@ -271,6 +291,28 @@ describe("prompt card (wireframe 02)", () => {
       problem: "",
     });
     expect(widgets(card)).toHaveLength(2);
+  });
+
+  it("adds the Replace the subject switch with the subject preview when there is a subject", () => {
+    const card = promptCard({
+      id: "T1",
+      title: "Quote",
+      version: 1,
+      subject: "Quote for {{ask:Product}}",
+      replaceSubject: false,
+      values: {},
+      fields,
+      entered: [],
+      order: [0],
+      problem: "",
+    });
+    expect(widgets(card)[2]).toEqual({
+      kind: "item",
+      text: "Replace the subject",
+      bottomLabel: "Quote for [Product]",
+      toggle: { name: "subj", selected: false },
+    });
+    expect(card.footer?.primary.action.params).not.toHaveProperty("subject");
   });
 
   it("refuses more than 20 fields with a Back button", () => {

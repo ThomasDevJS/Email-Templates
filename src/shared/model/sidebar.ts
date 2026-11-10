@@ -17,6 +17,8 @@ export interface SidebarTemplate {
   readonly id: string;
   readonly folderId: string;
   readonly title: string;
+  /** Template subject with its tokens (spec 5.6); "" when the template sets none. */
+  readonly subject: string;
   /** First 80 characters of the plain-text snippet (wireframe 01). */
   readonly snippet: string;
   readonly version: number;

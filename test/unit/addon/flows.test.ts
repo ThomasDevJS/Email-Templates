@@ -312,6 +312,95 @@ describe("insert flow (spec 4.1 steps 3 to 5)", () => {
   });
 });
 
+describe("subject (spec 5.6, wireframe 02)", () => {
+  function withSubject(subject: string, html: string): Item {
+    return world.ok<Item>(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "Quote",
+      subject,
+      html,
+    });
+  }
+
+  function insertOf(reply: Reply) {
+    if (reply.kind !== "insert")
+      throw new Error(`expected insert, got ${reply.kind}`);
+    return reply;
+  }
+
+  it("one-click Insert sets body and rendered subject; values stay plain text", () => {
+    world.directory.users.set(ANA, { name: { fullName: "Ana <Lima> & Co" } });
+    const item = withSubject("From {{sender.name}}", "<p>Hi</p>");
+    expect(insertOf(insertFlow(ports(), undefined, { id: item.id }))).toEqual({
+      kind: "insert",
+      html: "<p>Hi</p>",
+      subject: "From Ana <Lima> & Co",
+    });
+    expect(readBody(cache, item.id)?.subject).toBe("From {{sender.name}}");
+    expect(
+      insertOf(insertFlow(ports(), undefined, { id: item.id })).subject,
+    ).toBe("From Ana <Lima> & Co");
+  });
+
+  it("an empty subject sends no subject action", () => {
+    const item = create("Plain", "<p>Hi</p>");
+    expect(
+      insertOf(insertFlow(ports(), undefined, { id: item.id })).subject,
+    ).toBeNull();
+  });
+
+  it("Insert body only leaves the subject out and does not ask its prompts", () => {
+    const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
+    expect(
+      insertOf(
+        insertFlow(ports(), undefined, { id: item.id, subject: "skip" }),
+      ),
+    ).toEqual({ kind: "insert", html: "<p>Hi</p>", subject: null });
+  });
+
+  it("the preview card shows the subject with [Label] and Insert body only", () => {
+    const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
+    const card = cardOf(previewFlow(ports(), { id: item.id }));
+    expect(texts(card)).toContain("Quote for [Product]");
+    expect(readBody(cache, item.id)?.subject).toBe(item.subject);
+  });
+
+  it("asks a label shared by subject and body once and fills both; the switch decides the subject", () => {
+    const item = withSubject(
+      "Quote for {{ask:Product}}",
+      "<p>{{ask:product}} {{ask:Date}}</p>",
+    );
+    const card = cardOf(insertFlow(ports(), undefined, { id: item.id }));
+    expect(inputs(card).map((i) => i.title)).toEqual(["Product *", "Date *"]);
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({
+        text: "Replace the subject",
+        toggle: { name: "subj", selected: true },
+      }),
+    );
+    const params = card.footer?.primary.action.params ?? {};
+    const submit = (form: Record<string, string>) =>
+      insertOf(promptInsertFlow(ports(), formEvent(form), params));
+    expect(submit({ "p-1": "Pen\nred", "p-2": "Mon", subj: "on" })).toEqual({
+      kind: "insert",
+      html: "<p>Pen<br>red Mon</p>",
+      subject: "Quote for Pen red",
+    });
+    expect(submit({ "p-1": "Pen", "p-2": "Mon" }).subject).toBeNull();
+  });
+
+  it("a blocked prompt card Insert keeps the switch state", () => {
+    const item = withSubject("{{ask:Product}}", "<p>x</p>");
+    const params =
+      cardOf(insertFlow(ports(), undefined, { id: item.id })).footer?.primary
+        .action.params ?? {};
+    const card = cardOf(promptInsertFlow(ports(), formEvent({}), params));
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({ toggle: { name: "subj", selected: false } }),
+    );
+  });
+});
+
 describe("prompt card Insert (wireframe 02)", () => {
   let item: Item;
   const values = JSON.stringify({ "sender.name": "Ana Lima" });
@@ -345,7 +434,6 @@ describe("prompt card Insert (wireframe 02)", () => {
         args: {
           id: item.id,
           knownVersion: 1,
-          recipientEmailIfInternal: "",
           followUp: true,
         },
       },

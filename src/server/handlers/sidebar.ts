@@ -61,6 +61,7 @@ function toTemplate(item: Item, levelOf: LevelOf): SidebarTemplate {
     id: item.id,
     folderId: item.folderId,
     title: item.title,
+    subject: item.subject,
     snippet: item.snippet.slice(0, SIDEBAR_SNIPPET_CHARS),
     version: item.currentVersion,
     prompts: item.prompts,
