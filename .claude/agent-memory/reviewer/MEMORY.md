@@ -17,7 +17,8 @@
 - Always reproduce `npm ci` from clean (rm -rf node_modules). If the lock changed, also `npm ci --ignore-scripts --dry-run` in a clean dir.
 - Secret scan: grep added lines for AIza, ya29., GOCSPX, client_secret, refresh_token, private keys, ghp_, AKIA, xox, eyJ; list all emails and URLs.
 - gitleaks is not installed locally; verify CI checksum against the upstream checksums.txt via curl.
-- Probing behaviour without editing src/ or test/: `git archive HEAD | tar -x` into scratchpad, symlink node_modules, add a probe test, `npx vitest run <file> --reporter=verbose`. Delete the copy after.
+- Probing behaviour without editing src/ or test/: `git archive HEAD | tar -x` into scratchpad, symlink node_modules, add a probe test, `npx vitest run <file> --silent=false`. Delete the copy after.
+- Server-plus-add-on probes: test/fakes/world.ts `setupWorld()`, `world.call(email, op, args, surface)`, `world.lines` for logs; add-on Ports pattern in test/unit/addon/flows.test.ts.
 
 ## Slice log
 - Slice 1 (2026-11-09): FAIL then PASS on retry 1 (501090f). Blocker was npm ci EUSAGE (@types/node peer). 144 tests, 99.34% lines.
@@ -29,17 +30,24 @@
   - Sanitizer src/shared/sanitize (htmlparser2 12.0.0), placeholders src/shared/placeholders, write path src/shared/body/prepare.ts + server/handlers/body.ts. Web app src/web (ProseMirror, no framework), dev harness scripts/dev-web.mjs.
   - Open minors: template.get not re-sanitized (editor loads through it); QUOTA retry not delayed 60 s; PH_BACKSLASH false positive across mark runs; bodySize dead in src; chrome-launcher undeclared; spec 6 lacks template.getBody; ADR paste-preview sanitize not done.
 
-## Check in slice 4
-- Add-on apply path must use template.getBody / readableBody, never raw stored html.
+- Slice 4 (2026-11-10): FAIL (review on 2ac580f). 40 files, 842 tests, lines 95.95% (addon 100, shared 100, server 99.08), Code.js 258.9 KB, 10 scopes.
+  - Blocker: home.ts:54 empty state needs folders AND templates empty; every caller gets a private folder on first folder.list, so the empty state never shows (smoke Slice 4 step 8 fails). Fix: templates.length === 0.
+  - Minors: prompt Insert renders from body:<id> cache (6 h) with no re-check; unused payload fields placeholders/own/rev; smoke Slice 1 step 3 stale Ping; setRequiredWidgets not tried.
+  - Accepted: unset DOMAIN -> NOT_CONFIGURED; sidebar hides others' private folders from admins (server filter, library still shows); apply event buffered at prompt card open (spec 4.1 step 3).
+  - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Spike S4 harness TEMPORARY (spike.s4, onSpikeCard, onSpikeInsert, src/shared/spike).
+
+## Check in slice 4 retry / slice 5
+- Retry: rerun tests, re-probe home card with an own private folder at count 0.
+- Slice 5: Recent counts cancelled prompt cards; search/favorites into homeSections; remove spike S4 harness after owner runs.
 - Import (slice 6) must call prepareBody.
-- Gap list of slice 3 above; readPreviousSnapshot error handling (slice 2) still open.
-- Code.js parse cost after htmlparser2 (226 KB) unmeasured.
+- Code.js parse cost (258.9 KB) unmeasured.
 
 ## Recurring lessons
 - ESLint probes without editing src/: pipe code to `npx eslint --stdin --stdin-filename <existing src file>` (new paths hit the projectService parse error).
 - Coverage text reporter hides 100% files; read the summary lines.
 - Read handlers for TOCTOU: authorization data vs data inside the lock. Tests by implementers cover the sequence, not concurrent changes of the target.
 - npm audit count from npm ci (16) differs from advisory count in handoffs (3); compare like with like. Runtime: `npm audit --omit=dev` (0 in slice 3).
+- Check state conditions against side effects of other ops (e.g. folder.list creates the private folder).
 - Handoff "Verified" sections go stale after late commits; rerun everything, trust own numbers.
 - Sanitizer probes: use a scratch copy and `sanitizeHtml`; web probes need `// @vitest-environment jsdom` and `--silent=false` to see console output.
 - Lighthouse: `npm run lighthouse` uses /opt/pw-browsers/chromium, about 1 min.
