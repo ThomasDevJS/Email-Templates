@@ -166,6 +166,8 @@ export function startApp(host: Host): AppContext {
     if (location.hash.replace(/^#/, "") === "" && route !== LIBRARY)
       host.navigate(routeHash(route), true);
     render(route);
+    // Pulls keyboard focus into the page, so the first "/" or arrow key reaches the app (smoke 5b item 8).
+    if (document.activeElement === document.body) main.focus();
   });
   return app;
 }
