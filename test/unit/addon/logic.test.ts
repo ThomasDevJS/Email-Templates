@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { replacesSubject } from "../../../src/addon/cards/spec";
 import {
   draftInfo,
   formValue,
   internalRecipient,
-  isReplyDraft,
+  draftHasSubject,
+  type AddonEvent,
   paramsOf,
 } from "../../../src/addon/event";
 import {
@@ -104,7 +106,7 @@ describe("event object", () => {
   });
 });
 
-describe("draft diagnostics and the reply rule (Q21)", () => {
+describe("draft diagnostics and the subject rule (D24)", () => {
   it("reports present field names in fixed order and recipient counts, no values", () => {
     const info = draftInfo({
       gmail: {
@@ -114,7 +116,11 @@ describe("draft diagnostics and the reply rule (Q21)", () => {
         ccRecipients: ["c@example.com"],
         accessToken: "not-a-field",
       },
-      draftMetadata: { toRecipients: ["a@example.com"], bccRecipients: [] },
+      draftMetadata: {
+        toRecipients: ["a@example.com"],
+        bccRecipients: [],
+        subject: "Re: secret price",
+      },
     });
     expect(info).toEqual({
       fields: [
@@ -123,13 +129,22 @@ describe("draft diagnostics and the reply rule (Q21)", () => {
         "toRecipients",
         "ccRecipients",
         "bccRecipients",
+        "subject",
       ],
       to: 2,
       cc: 1,
       bcc: 0,
+      hasSubject: true,
     });
     expect(JSON.stringify(info)).not.toContain("@");
-    expect(draftInfo(undefined)).toEqual({ fields: [], to: 0, cc: 0, bcc: 0 });
+    expect(JSON.stringify(info)).not.toContain("secret");
+    expect(draftInfo(undefined)).toEqual({
+      fields: [],
+      to: 0,
+      cc: 0,
+      bcc: 0,
+      hasSubject: false,
+    });
     expect(
       draftInfo({
         gmail: { toRecipients: Array.from({ length: 1500 }, () => "x") },
@@ -137,18 +152,33 @@ describe("draft diagnostics and the reply rule (Q21)", () => {
     ).toBe(1000);
   });
 
-  it("calls a draft a reply when the event names a thread or a message", () => {
-    expect(isReplyDraft({ gmail: { threadId: "t" } })).toBe(true);
-    expect(isReplyDraft({ gmail: { messageId: "m" } })).toBe(true);
-    expect(isReplyDraft({ messageMetadata: { messageId: "m" } })).toBe(true);
-    expect(isReplyDraft({ gmail: { threadId: "", messageId: null } })).toBe(
-      false,
-    );
-    expect(
-      isReplyDraft({ draftMetadata: { toRecipients: ["a@example.com"] } }),
-    ).toBe(false);
-    expect(isReplyDraft(undefined)).toBe(false);
+  it.each([
+    ["a reply subject", { draftMetadata: { subject: "Re: Price" } }, true],
+    ["a typed subject in gmail", { gmail: { subject: "x" } }, true],
+    ["an empty subject", { draftMetadata: { subject: "" } }, false],
+    ["a blank subject", { draftMetadata: { subject: " \t " } }, false],
+    ["no subject field", { draftMetadata: {} }, false],
+    ["a non-string subject", { draftMetadata: { subject: 7 } }, false],
+    ["a null subject", { gmail: { subject: null } }, false],
+    ["a thread ID alone", { gmail: { threadId: "t" } }, false],
+    ["no event", undefined, false],
+  ])("draftHasSubject: %s", (_label, event, expected) => {
+    expect(draftHasSubject(event as AddonEvent | undefined)).toBe(expected);
   });
+
+  it.each([
+    [undefined, false, true],
+    [undefined, true, false],
+    ["use", false, true],
+    ["use", true, true],
+    ["skip", false, false],
+    ["skip", true, false],
+  ])(
+    "replacesSubject: choice %s, draft subject %s gives %s",
+    (choice, filled, expected) => {
+      expect(replacesSubject(choice, filled)).toBe(expected);
+    },
+  );
 });
 
 describe("User Cache view and bodies", () => {

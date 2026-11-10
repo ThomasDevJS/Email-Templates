@@ -27,19 +27,25 @@ export const SUBJECT_SWITCH = "subj";
 export const SEARCH_INPUT = "q";
 /** Callback parameter `subject` of "Insert body only": the draft subject stays as it is. */
 export const SKIP_SUBJECT = "skip";
-/** Callback parameter `subject` of "Insert with subject": the opt-in in a reply (Q21). */
+/** Callback parameter `subject` of "Insert with subject": overrides a draft subject (D24). */
 export const WITH_SUBJECT = "use";
 
 /**
- * Whether an Insert sends the subject action: "Insert body only" never, "Insert with subject" always, a plain
- * Insert unless the draft is a reply (Q21: a new subject may move the reply to a new thread).
+ * D24 truth table, the one place: whether an Insert sends the subject action (and where the prompt card switch
+ * starts). A new subject moves a reply out of its conversation, so a plain Insert keeps any draft subject.
+ *
+ * | Insert choice         | draft subject empty | draft subject filled |
+ * |-----------------------|---------------------|----------------------|
+ * | plain Insert          | sets it             | keeps it             |
+ * | "Insert with subject" | sets it             | replaces it          |
+ * | "Insert body only"    | keeps it            | keeps it             |
  */
 export function replacesSubject(
   choice: string | undefined,
-  reply: boolean,
+  draftHasSubject: boolean,
 ): boolean {
   if (choice === SKIP_SUBJECT) return false;
-  return choice === WITH_SUBJECT || !reply;
+  return choice === WITH_SUBJECT || !draftHasSubject;
 }
 
 export interface ActionSpec {

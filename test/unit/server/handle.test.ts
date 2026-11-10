@@ -155,8 +155,14 @@ describe("handleRpc", () => {
     expect(lastLog()).toMatchObject({ cache: "hit" });
   });
 
-  it("logs the add-on's draft field names and counts (Q21)", () => {
-    const draft = { fields: ["threadId", "messageId"], to: 2, cc: 1, bcc: 0 };
+  it("logs the add-on's draft field names, counts and hasSubject", () => {
+    const draft = {
+      fields: ["threadId", "messageId"],
+      to: 2,
+      cc: 1,
+      bcc: 0,
+      hasSubject: true,
+    };
     const response = handleRpc({ email: OWNER }, { ...PING, draft }, "addon", {
       services: world.services,
     });
@@ -166,6 +172,7 @@ describe("handleRpc", () => {
       to: 2,
       cc: 1,
       bcc: 0,
+      hasSubject: true,
     });
     handleRpc({ email: OWNER }, PING, "addon", { services: world.services });
     expect(lastLog()).not.toHaveProperty("draft");
@@ -177,6 +184,7 @@ describe("handleRpc", () => {
       to: 1,
       cc: 0,
       bcc: 0,
+      hasSubject: false,
     };
     const response = handleRpc({ email: OWNER }, { ...PING, draft }, "addon", {
       services: world.services,

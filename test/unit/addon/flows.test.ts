@@ -435,9 +435,9 @@ describe("subject (spec 5.6, wireframe 02)", () => {
   });
 });
 
-describe("reply drafts (Q21)", () => {
-  const reply: AddonEvent = { gmail: { threadId: "t-1", messageId: "m-1" } };
-  const newDraft: AddonEvent = { gmail: { toRecipients: [] } };
+describe("draft subject rule (D24)", () => {
+  const reply: AddonEvent = { draftMetadata: { subject: "Re: Price" } };
+  const newDraft: AddonEvent = { draftMetadata: { subject: " " } };
   const replyForm = (form: Record<string, string>): AddonEvent => ({
     ...formEvent(form),
     ...reply,
@@ -458,14 +458,27 @@ describe("reply drafts (Q21)", () => {
     return result.subject;
   }
 
-  it("a new draft: one-click Insert sets the subject, as in build 32a446c", () => {
+  it("an empty draft subject: one-click Insert sets the subject", () => {
     const item = withSubject("Quote 7", "<p>Hi</p>");
     expect(subjectOf(insertFlow(ports(), newDraft, { id: item.id }))).toBe(
       "Quote 7",
     );
   });
 
-  it("a new draft: Insert body only and the switch turned off keep the subject", () => {
+  it("no readable draft subject: sets the subject, as in build 32a446c", () => {
+    const item = withSubject("Quote 7", "<p>Hi</p>");
+    for (const event of [
+      undefined,
+      { draftMetadata: {} },
+      { draftMetadata: { subject: 5 } },
+      { gmail: { subject: null } },
+    ])
+      expect(subjectOf(insertFlow(ports(), event, { id: item.id }))).toBe(
+        "Quote 7",
+      );
+  });
+
+  it("an empty draft subject: Insert body only and the switch turned off send no subject", () => {
     const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
     expect(
       subjectOf(
@@ -488,7 +501,7 @@ describe("reply drafts (Q21)", () => {
     ).toBeNull();
   });
 
-  it("a reply: one-click Insert keeps the subject and inserts the body", () => {
+  it("a draft subject: one-click Insert keeps it and inserts the body", () => {
     const item = withSubject("Quote 7", "<p>Hi</p>");
     expect(insertFlow(ports(), reply, { id: item.id })).toEqual({
       kind: "insert",
@@ -497,11 +510,13 @@ describe("reply drafts (Q21)", () => {
     });
   });
 
-  it("a reply: the preview card says the subject is kept and offers Insert with subject", () => {
+  it("a draft subject: the preview card says it is kept and offers Insert with subject", () => {
     const item = withSubject("Quote 7", "<p>Hi</p>");
     const card = cardOf(previewFlow(ports(), reply, { id: item.id }));
-    expect(texts(card)).toContain("The subject is kept in replies.");
-    expect(texts(card)).not.toContain("Replaces the draft subject.");
+    expect(texts(card)).toContain(
+      "The draft already has a subject. It is kept.",
+    );
+    expect(texts(card)).not.toContain("Sets the draft subject.");
     const buttons = widgets(card).flatMap((w) =>
       w.kind === "buttons" ? w.buttons : [],
     );
@@ -513,14 +528,14 @@ describe("reply drafts (Q21)", () => {
     expect(subjectOf(insertFlow(ports(), reply, plain))).toBeNull();
   });
 
-  it("a reply: Insert with subject is the opt-in", () => {
+  it("a draft subject: Insert with subject replaces it", () => {
     const item = withSubject("Quote 7", "<p>Hi</p>");
     expect(
       subjectOf(insertFlow(ports(), reply, { id: item.id, subject: "use" })),
     ).toBe("Quote 7");
   });
 
-  it("a reply: the prompt card switch starts off; turning it on sends the subject", () => {
+  it("a draft subject: the prompt card switch starts off; turning it on sends the subject", () => {
     const item = withSubject(
       "Quote for {{ask:Product}}",
       "<p>{{ask:Product}}</p>",
@@ -544,7 +559,7 @@ describe("reply drafts (Q21)", () => {
     ).toBe("Quote for Pen");
   });
 
-  it("a reply: a template changed under the prompt card keeps the switch off", () => {
+  it("a draft subject: a template changed under the prompt card keeps the switch off", () => {
     const item = withSubject(
       "Quote for {{ask:Product}}",
       "<p>{{ask:Product}}</p>",

@@ -159,7 +159,7 @@ function send(
   }
 }
 
-/** One server call; `draft` carries the Q21 event diagnostics of the callback that makes it. */
+/** One server call; `draft` carries the event diagnostics of the callback that makes it. */
 export function callServer(
   op: string,
   args: unknown,

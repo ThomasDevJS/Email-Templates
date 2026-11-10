@@ -24,7 +24,7 @@ export interface LogFields {
   readonly calls?: Numbers;
   /** Phase times in ms: startup, total, per service, and the add-on's own phases. */
   readonly timing?: Numbers;
-  /** Add-on Gmail event field names from a fixed list and recipient counts (Q21). Never values. */
+  /** Add-on Gmail event field names from a fixed list, recipient counts and `hasSubject` (D24). Never values. */
   readonly draft?: DraftLog;
   readonly error?: unknown;
 }
@@ -34,6 +34,7 @@ export interface DraftLog {
   readonly to: number;
   readonly cc: number;
   readonly bcc: number;
+  readonly hasSubject: boolean;
 }
 
 export interface LogEntry {
