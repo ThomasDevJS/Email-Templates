@@ -109,6 +109,30 @@ export function historyView(
     await showVersion();
   };
 
+  /** Runs after the confirm dialog closed: busy state at once, then the server call. */
+  const runRestore = async (version: number, base: number) => {
+    restoreButton.disabled = true;
+    list.setAttribute("aria-busy", "true");
+    status.textContent = `Restoring version ${String(version)}...`;
+    try {
+      const item = await app.api.restore(id, version, base);
+      selected = 0;
+      status.textContent = `Restored as version ${String(item.version)}.`;
+      await load();
+      void app.reload();
+    } catch (error: unknown) {
+      const rpc = toRpcError(error);
+      list.setAttribute("aria-busy", "false");
+      restoreButton.disabled = false;
+      status.textContent =
+        rpc.code === "CONFLICT"
+          ? "Not restored: someone saved a newer version. The list is updated."
+          : "Not restored.";
+      if (rpc.code === "CONFLICT") await load();
+      else app.fail(rpc, restore);
+    }
+  };
+
   const restore = () => {
     const entry = data?.versions[selected];
     if (data === null || entry === undefined || entry.current) return;
@@ -124,22 +148,9 @@ export function historyView(
         {
           label: "Restore",
           primary: true,
-          run: async () => {
-            try {
-              const item = await app.api.restore(id, entry.version, base);
-              selected = 0;
-              status.textContent = `Restored as version ${String(item.version)}.`;
-              await load();
-              void app.reload();
-            } catch (error: unknown) {
-              const rpc = toRpcError(error);
-              status.textContent =
-                rpc.code === "CONFLICT"
-                  ? "Not restored: someone saved a newer version. The list is updated."
-                  : "Not restored.";
-              if (rpc.code === "CONFLICT") await load();
-              else app.fail(rpc, restore);
-            }
+          run: () => {
+            void runRestore(entry.version, base);
+            return true;
           },
         },
         { label: "Cancel", run: () => true },

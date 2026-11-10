@@ -17,6 +17,8 @@ export interface DialogOptions {
   readonly actions: readonly DialogAction[];
   /** Runs on Esc and on the backdrop; the dialog closes either way. */
   readonly onCancel?: () => void;
+  /** Gets focus on close; default: the element that had focus when the dialog opened. */
+  readonly returnFocus?: HTMLElement;
 }
 
 export interface OpenDialog {
@@ -82,7 +84,7 @@ export function openDialog(options: DialogOptions): OpenDialog {
     if (closed) return;
     closed = true;
     backdrop.remove();
-    opener?.focus();
+    (options.returnFocus ?? opener)?.focus();
   };
   const cancel = () => {
     options.onCancel?.();

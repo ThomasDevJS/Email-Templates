@@ -56,6 +56,36 @@ function button(label: string, root: ParentNode = document): HTMLButtonElement {
   return found;
 }
 
+interface HarnessRun {
+  withSuccessHandler(handler: (value: unknown) => void): {
+    rpc(op: string, args: unknown, id: string): void;
+  };
+}
+
+/** One server op straight through the harness, as another tab or another user would send it. */
+function harnessCall(op: string, args: unknown): Promise<{ ok: boolean }> {
+  const run = (
+    window as unknown as { google: { script: { run: HarnessRun } } }
+  ).google.script.run;
+  return new Promise((resolve) => {
+    run
+      .withSuccessHandler((value) => {
+        resolve(value as { ok: boolean });
+      })
+      .rpc(op, args, "other-tab");
+  });
+}
+
+/** A save of version `base + 1` with the body "theirs" from a second tab. */
+function otherTabSave(id: string, base: number): Promise<{ ok: boolean }> {
+  return harnessCall("template.update", {
+    id,
+    baseVersion: base,
+    title: "Other tab",
+    html: "<p>theirs</p>",
+  });
+}
+
 describe("library (screen 3)", () => {
   it("shows 8 skeleton rows with aria-busy, then the grid, header and tree", async () => {
     await boot("/?latency=30#/library");
@@ -271,35 +301,7 @@ describe("editor (screen 4, flow 4.2)", () => {
     await until(() => {
       expect(main().querySelector(".ph")).not.toBeNull();
     });
-    const other = await new Promise<{ ok: boolean }>((resolve) => {
-      (
-        window as unknown as {
-          google: {
-            script: {
-              run: {
-                withSuccessHandler(f: (v: unknown) => void): {
-                  rpc(op: string, args: unknown, id: string): void;
-                };
-              };
-            };
-          };
-        }
-      ).google.script.run
-        .withSuccessHandler((value) => {
-          resolve(value as { ok: boolean });
-        })
-        .rpc(
-          "template.update",
-          {
-            id: "T-DISCOUNT",
-            baseVersion: 1,
-            title: "Other tab",
-            html: "<p>theirs</p>",
-          },
-          "other-tab",
-        );
-    });
-    expect(other.ok).toBe(true);
+    expect((await otherTabSave("T-DISCOUNT", 1)).ok).toBe(true);
     const save = button("Save");
     save.focus();
     save.click();
@@ -340,6 +342,48 @@ describe("editor (screen 4, flow 4.2)", () => {
     });
     expect(main().querySelector(".version")?.textContent).toBe("Version 2");
   });
+
+  it("opens their version of a template created in this tab (smoke defect 1)", async () => {
+    await boot("/?latency=0#/new?folder=F-QUOTES");
+    await until(() => {
+      expect(main().querySelector(".ProseMirror")).not.toBeNull();
+    });
+    (document.getElementById("title") as HTMLInputElement).value = "Mine";
+    button("Save").click();
+    await until(() => {
+      expect(main().querySelector(".version")?.textContent).toBe("Version 1");
+    });
+    const id = window.location.hash.replace("#/edit/", "");
+    expect((await otherTabSave(id, 1)).ok).toBe(true);
+    button("Save").click();
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    });
+    button("Open their version").click();
+    await until(() => {
+      expect(main().querySelector(".ProseMirror")?.textContent).toBe("theirs");
+    });
+    expect(main().querySelector(".version")?.textContent).toBe("Version 2");
+    expect(main().querySelector(".status")?.textContent).toBe(
+      "Loaded the latest version. Your changes were discarded.",
+    );
+  });
+
+  it("returns focus to Save when the conflict dialog closes after Ctrl+S in the body (smoke defect 2)", async () => {
+    await boot("/?latency=0#/edit/T-WELCOME");
+    await until(() => {
+      expect(main().querySelector(".ph")).not.toBeNull();
+    });
+    expect((await otherTabSave("T-WELCOME", 1)).ok).toBe(true);
+    const body = main().querySelector(".ProseMirror") as HTMLElement;
+    body.focus();
+    key(body, "s", { ctrlKey: true });
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    });
+    key(document.querySelector('[role="dialog"]') as Element, "Escape");
+    expect(document.activeElement).toBe(button("Save"));
+  });
 });
 
 describe("history (screen 5)", () => {
@@ -366,6 +410,12 @@ describe("history (screen 5)", () => {
     const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
     expect(dialog.textContent).toContain("Create version 3 from version 1?");
     button("Restore", dialog).click();
+    await Promise.resolve();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(main().querySelector(".status")?.textContent).toBe(
+      "Restoring version 1...",
+    );
+    expect(list.getAttribute("aria-busy")).toBe("true");
     await until(() => {
       expect(main().querySelector(".status")?.textContent).toBe(
         "Restored as version 3.",
