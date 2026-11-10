@@ -28,12 +28,24 @@ export function initials(email: string): string {
     .join("");
 }
 
-/** Avatar and name part; the full address is the tooltip. */
-export function person(email: string): HTMLElement {
+/**
+ * Avatar and name part. The full address is the tooltip and screen-reader text, or with `showAddress` a visible
+ * second line (the audit log, where keyboard and touch users need it and two people can share a name part).
+ */
+export function person(email: string, showAddress = false): HTMLElement {
+  const address =
+    email === ""
+      ? null
+      : showAddress
+        ? h("span", { class: "who-address" }, email)
+        : h("span", { class: "sr-only" }, ` (${email})`);
   return h(
     "span",
-    { class: "who", title: email },
+    {
+      class: showAddress ? "who stacked" : "who",
+      title: showAddress ? null : email,
+    },
     h("span", { class: "avatar", "aria-hidden": "true" }, initials(email)),
-    shortName(email),
+    h("span", { class: "who-text" }, shortName(email), address),
   );
 }
