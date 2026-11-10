@@ -1,14 +1,17 @@
 import { folderPath } from "../library/model";
 import type { FolderRow, ItemRow } from "../rpc/api";
 import { formatTime, h } from "../ui/dom";
+import { icon } from "../ui/icons";
 import { openMenu, type MenuItem } from "../ui/menu";
+import { person } from "../ui/person";
+import { subjectAsMe } from "./preview";
 
 /**
  * Template list (spec section 8): `role="grid"`, one tab stop on a cell. Arrow keys move between cells,
  * Home and End go to the row's first and last cell, Enter opens the editor. The row menu (wireframe 03) opens
  * with Enter on the Actions cell, Shift+F10 or the context menu key on any cell, or a click on Actions; Esc
  * closes it and focus returns to the cell. Enter or Space on the Favorite cell, or a click on the star, toggles
- * the favorite (wireframe 03).
+ * the favorite (wireframe 03). Columns hidden by the narrow layout (under 860 px) are skipped by the arrow keys.
  */
 export interface GridActions {
   open(item: ItemRow): void;
@@ -18,9 +21,19 @@ export interface GridActions {
   toggleFavorite(item: ItemRow): void;
 }
 
-const COLUMNS = ["Favorite", "Title", "Folder", "Updated", "By", "Actions"];
+const COLUMNS = [
+  "Favorite",
+  "Template",
+  "Folder",
+  "Tags",
+  "Updated",
+  "By",
+  "Actions",
+];
 const STAR_CELL = 0;
 const ACTIONS_CELL = COLUMNS.length - 1;
+/** Columns whose head shows no text; the name stays for assistive technology. */
+const QUIET_HEADS = new Set([STAR_CELL, ACTIONS_CELL]);
 
 /** Star button text and name: the name says what a press does (spec section 8). */
 function starButton(item: ItemRow, favorite: boolean): HTMLButtonElement {
@@ -28,13 +41,65 @@ function starButton(item: ItemRow, favorite: boolean): HTMLButtonElement {
     "button",
     {
       type: "button",
-      class: "star",
+      class: "icon-button star",
       tabindex: "-1",
       "aria-pressed": String(favorite),
       "aria-label": `${favorite ? "Remove from" : "Add to"} favorites: ${item.title}`,
     },
-    favorite ? "★" : "☆",
+    icon("star"),
   );
+}
+
+/**
+ * Title in weight 600, the subject under it with placeholders as "[Label]", or the snippet when the template has
+ * no subject.
+ */
+export function titleBlock(item: ItemRow): HTMLElement {
+  const second = subjectAsMe(
+    item.subject === "" ? item.snippet : item.subject,
+    null,
+  );
+  return h(
+    "div",
+    { class: "title-block" },
+    h("span", { class: "row-title" }, item.title),
+    second === "" ? null : h("span", { class: "row-sub" }, second),
+  );
+}
+
+/** "Sales / Quotes" with quiet separators; the text stays the plain path. */
+export function pathBlock(path: string): HTMLElement {
+  return h(
+    "span",
+    { class: "path" },
+    ...path
+      .split(" / ")
+      .flatMap((part, i) =>
+        i === 0 ? [part] : [h("span", { class: "sep" }, " / "), part],
+      ),
+  );
+}
+
+function tagList(tags: readonly string[]): HTMLElement {
+  return h(
+    "span",
+    { class: "tag-list" },
+    ...tags.map((tag) => h("span", { class: "tag" }, tag)),
+  );
+}
+
+const shown = (cell: Element | undefined): boolean =>
+  cell !== undefined && getComputedStyle(cell).display !== "none";
+
+/** Index of the first shown cell from `from` on in steps of `step`, or -1 when there is none. */
+function shownCell(
+  row: HTMLTableRowElement,
+  from: number,
+  step: number,
+): number {
+  for (let c = from; c >= 0 && c < row.cells.length; c += step)
+    if (shown(row.cells[c])) return c;
+  return -1;
 }
 
 /** Moves the grid's one tab stop to `cell` and focuses it. */
@@ -56,10 +121,10 @@ function cellKeys(table: HTMLTableElement): void {
     const targets: Record<string, [number, number]> = {
       ArrowDown: [Math.min(r + 1, rows.length - 1), c],
       ArrowUp: [Math.max(r - 1, 0), c],
-      ArrowRight: [r, Math.min(c + 1, COLUMNS.length - 1)],
-      ArrowLeft: [r, Math.max(c - 1, 0)],
-      Home: [r, 0],
-      End: [r, COLUMNS.length - 1],
+      ArrowRight: [r, shownCell(row, c + 1, 1)],
+      ArrowLeft: [r, shownCell(row, c - 1, -1)],
+      Home: [r, shownCell(row, 0, 1)],
+      End: [r, shownCell(row, COLUMNS.length - 1, -1)],
     };
     const target = targets[event.key];
     if (target === undefined) return;
@@ -99,12 +164,12 @@ function itemRow(
           {
             type: "button",
             tabindex: "-1",
-            class: "link",
+            class: "icon-button",
             "aria-haspopup": "menu",
             "aria-expanded": "false",
             "aria-label": `Actions for ${item.title}`,
           },
-          "Actions",
+          icon("more"),
         );
   const showMenu = (returnTo: HTMLTableCellElement) => {
     if (menuButton === null) return;
@@ -126,10 +191,11 @@ function itemRow(
     "tr",
     { role: "row" },
     cell(STAR_CELL, star),
-    cell(1, item.title),
-    cell(2, folderPath(folders, item.folderId)),
-    cell(3, formatTime(item.updatedAt)),
-    cell(4, item.updatedBy),
+    cell(1, titleBlock(item)),
+    cell(2, pathBlock(folderPath(folders, item.folderId))),
+    cell(3, tagList(item.tags)),
+    cell(4, formatTime(item.updatedAt)),
+    cell(5, person(item.updatedBy)),
     cell(ACTIONS_CELL, menuButton),
   );
   row.dataset["id"] = item.id;
@@ -179,8 +245,14 @@ export function templateGrid(
       h(
         "tr",
         { role: "row" },
-        ...COLUMNS.map((name) =>
-          h("th", { role: "columnheader", scope: "col" }, name),
+        ...COLUMNS.map((name, index) =>
+          h(
+            "th",
+            { role: "columnheader", scope: "col" },
+            QUIET_HEADS.has(index)
+              ? h("span", { class: "sr-only" }, name)
+              : name,
+          ),
         ),
       ),
     ),

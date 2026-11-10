@@ -7,6 +7,8 @@ import { h, uid } from "./dom";
 export interface DialogAction {
   readonly label: string;
   readonly primary?: boolean;
+  /** Red: the action destroys data (Delete, Empty trash). */
+  readonly destructive?: boolean;
   /** Gets the focus when the dialog opens; default: the first focusable element. */
   readonly autofocus?: boolean;
   /** Return false to keep the dialog open (for example on a validation message). */
@@ -61,7 +63,12 @@ export function openDialog(options: DialogOptions): OpenDialog {
       "button",
       {
         type: "button",
-        class: action.primary === true ? "primary" : "",
+        class:
+          action.destructive === true
+            ? "destructive"
+            : action.primary === true
+              ? "primary"
+              : "",
         onclick: () => {
           void Promise.resolve(action.run()).then((keep) => {
             if (keep !== false) close();

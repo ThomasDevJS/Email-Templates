@@ -2,14 +2,15 @@ import type { VersionEntry, VersionList } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { escapeText } from "../../shared/html/escape";
 import { formatTime, h, replace } from "../ui/dom";
+import { shortName } from "../ui/person";
 import { skeletonRows, toRpcError } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { withChips } from "./preview";
 
 /**
  * History (screen 5): version list (`role="listbox"`, arrows move, Enter previews, R restores), preview of the
- * subject line and body with placeholder chips, and Restore with a confirm dialog. Restore creates version N+1
- * from subject and body (linear history).
+ * subject line and body with placeholder chips on a sheet, and Restore with a confirm dialog. Restore creates
+ * version N+1 from subject and body (linear history).
  */
 export function historyView(
   app: AppContext,
@@ -30,7 +31,11 @@ export function historyView(
     },
     ...skeletonRows().map((row) => h("li", { "aria-hidden": "true" }, row)),
   );
-  const previewTitle = h("h2", { id: "version-heading" }, "Version");
+  const previewTitle = h(
+    "h2",
+    { id: "version-heading", class: "section-label" },
+    "Version",
+  );
   const preview = h("div", { class: "preview-body" });
   const subject = h("p", { class: "preview-subject" });
   const restoreButton = h(
@@ -44,17 +49,31 @@ export function historyView(
     "aria-live": "polite",
   });
 
-  const entryText = (entry: VersionEntry) => {
-    const parts = [
-      `Version ${String(entry.version)}`,
-      formatTime(entry.savedAt),
-      entry.savedBy,
-    ];
-    if (entry.current) parts.push("current");
-    if (entry.restoredFrom > 0)
-      parts.push(`restored from ${String(entry.restoredFrom)}`);
-    return parts.join(", ");
-  };
+  /** Version number, then the tags, then time and author on a second line. */
+  const entryContent = (entry: VersionEntry) => [
+    h(
+      "span",
+      { class: "version-line" },
+      h(
+        "span",
+        { class: "version-number" },
+        `Version ${String(entry.version)}`,
+      ),
+      entry.current ? h("span", { class: "tag" }, "current") : null,
+      entry.restoredFrom > 0
+        ? h(
+            "span",
+            { class: "tag" },
+            `restored from ${String(entry.restoredFrom)}`,
+          )
+        : null,
+    ),
+    h(
+      "span",
+      { class: "version-meta", title: entry.savedBy },
+      `${formatTime(entry.savedAt)}, ${shortName(entry.savedBy)}`,
+    ),
+  ];
 
   const drawList = () => {
     if (data === null) return;
@@ -76,7 +95,7 @@ export function historyView(
               void showVersion();
             },
           },
-          entryText(entry),
+          ...entryContent(entry),
         ),
       ),
     );
@@ -98,7 +117,7 @@ export function historyView(
       subject.innerHTML =
         body.subject === ""
           ? ""
-          : `Subject: ${withChips(escapeText(body.subject))}`;
+          : `<span class="subject-label">Subject:</span> ${withChips(escapeText(body.subject))}`;
       preview.innerHTML = withChips(body.html);
     } catch (error: unknown) {
       app.fail(error, () => void showVersion());
@@ -195,42 +214,49 @@ export function historyView(
     main,
     h(
       "div",
-      { class: "history-page" },
+      { class: "page history-page" },
       h(
         "div",
-        { class: "editor-header" },
+        { class: "page-head" },
+        heading,
+        h("span", { class: "grow" }),
         h(
           "button",
           {
             type: "button",
-            class: "link",
+            class: "ghost",
             onclick: () => {
               app.go({ name: "edit", id });
             },
           },
-          "‹ Editor",
+          "Open in editor",
         ),
-        heading,
+        restoreButton,
       ),
+      status,
       h(
         "div",
         { class: "history-columns" },
         h(
           "section",
-          { "aria-labelledby": "versions-heading" },
-          h("h2", { id: "versions-heading" }, "Versions"),
+          { class: "versions-panel", "aria-labelledby": "versions-heading" },
+          h(
+            "h2",
+            { id: "versions-heading", class: "section-label" },
+            "Versions",
+          ),
           list,
         ),
         h(
           "section",
-          { class: "preview", "aria-labelledby": "version-heading" },
+          {
+            class: "preview history-preview",
+            "aria-labelledby": "version-heading",
+          },
           previewTitle,
-          subject,
-          preview,
-          restoreButton,
+          h("div", { class: "sheet" }, subject, preview),
         ),
       ),
-      status,
     ),
   );
 

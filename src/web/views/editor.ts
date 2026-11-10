@@ -428,7 +428,7 @@ export function editorView(
       current = fromItem(item, html);
       showVersion();
       showProblems(warningsOf(html, args.subject));
-      status.textContent = `Saved as version ${String(item.version)}, ${formatTime(item.updatedAt).slice(11)}`;
+      status.textContent = `Saved as version ${String(item.version)}, ${formatTime(item.updatedAt, "time")}`;
       if (isNew) app.replaceRoute({ name: "edit", id: item.id });
       void app.reload();
     } catch (error: unknown) {

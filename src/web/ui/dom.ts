@@ -43,13 +43,33 @@ export function replace(parent: Element, ...children: Child[]): void {
   );
 }
 
-const pad = (value: number) => String(value).padStart(2, "0");
-
-/** "YYYY-MM-DD HH:MM" in the browser's time zone; the server stores UTC. "" for a blank or bad value. */
-export function formatTime(iso: string): string {
+/**
+ * "Nov 9, 2:05 PM" in the browser's time zone, with the year only for another year than `now`'s; `"time"` gives
+ * "2:05 PM". The server stores UTC. "" for a blank or bad value.
+ */
+export function formatTime(
+  iso: string,
+  parts: "date" | "time" = "date",
+  now: Date = new Date(),
+): string {
   const date = new Date(iso);
   if (iso === "" || Number.isNaN(date.getTime())) return "";
-  return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const clock = { hour: "numeric", minute: "2-digit" } as const;
+  const day = {
+    month: "short",
+    day: "numeric",
+    year:
+      date.getFullYear() === now.getFullYear()
+        ? undefined
+        : ("numeric" as const),
+  } as const;
+  // ICU puts a narrow no-break space before AM and PM; a plain space keeps the text searchable and testable.
+  return new Intl.DateTimeFormat(
+    "en-US",
+    parts === "time" ? clock : { ...day, ...clock },
+  )
+    .format(date)
+    .replace(/\u202f/g, " ");
 }
 
 let counter = 0;

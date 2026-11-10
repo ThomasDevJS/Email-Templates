@@ -33,6 +33,11 @@ async function boot(url: string): Promise<void> {
 
 const main = () => document.getElementById("main") as HTMLElement;
 const text = () => main().textContent;
+/** A row's or a cell's template title, without the subject line under it. */
+const titleOf = (element: Element | null | undefined) =>
+  element?.querySelector(".row-title")?.textContent;
+const sideTree = () =>
+  document.querySelector('#side [role="tree"]') as HTMLElement;
 
 async function until(check: () => void): Promise<void> {
   await vi.waitFor(check, { timeout: 2000, interval: 5 });
@@ -103,11 +108,18 @@ describe("library (screen 3)", () => {
     expect(document.getElementById("signed-in")?.textContent).toBe(
       "Signed in as dev.user@example.com",
     );
+    expect(sideTree().querySelectorAll('[role="treeitem"]')).toHaveLength(4);
     expect(
-      main()
-        .querySelector('[role="tree"]')
-        ?.querySelectorAll('[role="treeitem"]'),
-    ).toHaveLength(5);
+      [...sideTree().querySelectorAll('[role="treeitem"]')].map((item) =>
+        item.getAttribute("data-count"),
+      ),
+    ).toEqual([null, "3", "1", null]);
+    expect(
+      document
+        .querySelector("[data-nav=library]")
+        ?.hasAttribute("aria-current"),
+    ).toBe(true);
+    expect(main().querySelector(".count")?.textContent).toBe("4");
     const stars = [...main().querySelectorAll<HTMLButtonElement>(".star")];
     expect(stars.map((star) => star.getAttribute("aria-pressed"))).toContain(
       "true",
@@ -122,7 +134,7 @@ describe("library (screen 3)", () => {
     });
     const rowOf = (title: string) =>
       [...main().querySelectorAll<HTMLTableRowElement>("tbody tr")].find(
-        (row) => row.cells[1]?.textContent === title,
+        (row) => titleOf(row) === title,
       ) as HTMLTableRowElement;
     const starCell = rowOf("Welcome email").cells[0] as HTMLTableCellElement;
     expect(starCell.querySelector("button")?.getAttribute("aria-label")).toBe(
@@ -140,13 +152,16 @@ describe("library (screen 3)", () => {
       "Remove from favorites: Welcome email",
     );
     expect(document.activeElement).toBe(rowOf("Welcome email").cells[0]);
-    const filter = button("★ Favorites");
+    const filter = document.querySelector(
+      "[data-nav=favorites]",
+    ) as HTMLButtonElement;
     filter.click();
-    expect(filter.getAttribute("aria-pressed")).toBe("true");
+    expect(filter.hasAttribute("aria-current")).toBe(true);
+    expect(main().querySelector("#list-heading")?.textContent).toBe(
+      "Favorites",
+    );
     expect(
-      [...main().querySelectorAll("tbody tr")].map(
-        (row) => (row as HTMLTableRowElement).cells[1]?.textContent,
-      ),
+      [...main().querySelectorAll("tbody tr")].map((row) => titleOf(row)),
     ).toEqual(["Price quote 2026", "Welcome email"]);
     (
       rowOf("Price quote 2026").cells[0]?.querySelector("button") as HTMLElement
@@ -159,9 +174,12 @@ describe("library (screen 3)", () => {
     ).click();
     await until(() => {
       expect(text()).toContain(
-        "No favorites in All templates. Use the star in a row to add one.",
+        "No favorites yet. Use the star in a row to add one.",
       );
     });
+    (document.querySelector("[data-nav=library]") as HTMLElement).click();
+    expect(filter.hasAttribute("aria-current")).toBe(false);
+    expect(main().querySelectorAll("tbody tr")).toHaveLength(4);
   });
 
   it("finds subjects in the browser and body text through search.body", async () => {
@@ -173,10 +191,13 @@ describe("library (screen 3)", () => {
     search.value = "quote for";
     search.dispatchEvent(new Event("input"));
     expect(
-      [...main().querySelectorAll('tbody [role="row"]')].map(
-        (row) => row.children[1]?.textContent,
+      [...main().querySelectorAll('tbody [role="row"]')].map((row) =>
+        titleOf(row),
       ),
     ).toEqual(["Price quote 2026"]);
+    expect(main().querySelector(".row-sub")?.textContent).toBe(
+      "Quote for [Product name]",
+    );
     search.value = "interest";
     search.dispatchEvent(new Event("input"));
     expect(text()).toContain("Searching text...");
@@ -187,9 +208,11 @@ describe("library (screen 3)", () => {
       );
     });
     expect(
-      main().querySelector(
-        '[aria-label="Matches in text"] tbody tr td:nth-child(2)',
-      )?.textContent,
+      titleOf(
+        main().querySelector(
+          '[aria-label="Matches in text"] tbody tr td:nth-child(2)',
+        ),
+      ),
     ).toBe("Price quote 2026");
     expect(text()).not.toContain("Searching text...");
   });
@@ -233,8 +256,8 @@ describe("library (screen 3)", () => {
     search.value = "onboarding";
     search.dispatchEvent(new Event("input"));
     expect(
-      [...main().querySelectorAll('tbody [role="row"]')].map(
-        (row) => row.children[1]?.textContent,
+      [...main().querySelectorAll('tbody [role="row"]')].map((row) =>
+        titleOf(row),
       ),
     ).toEqual(["Welcome email"]);
     search.value = "qoute";
@@ -249,12 +272,13 @@ describe("library (screen 3)", () => {
   it("moves through the tree with arrow keys and opens a folder with Enter", async () => {
     await boot("/?latency=0#/library");
     await until(() => {
-      expect(main().querySelectorAll('[role="treeitem"]')).toHaveLength(5);
+      expect(sideTree().querySelectorAll('[role="treeitem"]')).toHaveLength(4);
     });
-    const tree = main().querySelector('[role="tree"]') as HTMLElement;
+    const tree = sideTree();
     const focused = () => tree.querySelector('[tabindex="0"]') as HTMLElement;
-    expect(focused().textContent).toBe("All templates");
-    key(focused(), "ArrowDown");
+    // All templates is a sidebar entry outside the tree; the first folder holds the tree's tab stop.
+    expect(focused().textContent).toBe("HR");
+    expect(tree.querySelector('[aria-selected="true"]')).toBeNull();
     key(focused(), "ArrowDown");
     expect(focused().textContent).toContain("Sales");
     key(focused(), "ArrowRight");
@@ -266,9 +290,9 @@ describe("library (screen 3)", () => {
     key(focused(), "ArrowLeft");
     expect(focused().getAttribute("aria-expanded")).toBe("false");
     key(focused(), "End");
+    expect(focused().textContent).toBe("My templates");
     key(focused(), "Home");
     key(focused(), "ArrowUp");
-    key(focused(), "ArrowDown");
     expect(focused().textContent).toBe("HR");
     key(focused(), "Enter");
     await until(() => {
@@ -278,7 +302,7 @@ describe("library (screen 3)", () => {
     expect(document.activeElement?.textContent).toBe("HR");
     expect(document.activeElement?.getAttribute("aria-selected")).toBe("true");
     button(
-      "+ New template",
+      "New template",
       main().querySelector(".empty") as HTMLElement,
     ).click();
     await until(() => {
@@ -293,7 +317,7 @@ describe("library (screen 3)", () => {
     await until(() => {
       expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
     });
-    const items = () => [...main().querySelectorAll('[role="treeitem"]')];
+    const items = () => [...sideTree().querySelectorAll('[role="treeitem"]')];
     const support = items().find((item) => item.textContent === "Support");
     (support as HTMLElement).click();
     expect(document.activeElement?.textContent).toBe("Support");
@@ -321,7 +345,7 @@ describe("library (screen 3)", () => {
     const first = main().querySelector('td[tabindex="0"]') as HTMLElement;
     first.focus();
     key(first, "ArrowDown");
-    expect(document.activeElement?.textContent).toBe("Price quote 2026");
+    expect(titleOf(document.activeElement)).toBe("Price quote 2026");
     key(document.activeElement as Element, "End");
     key(document.activeElement as Element, "Enter");
     const menu = document.querySelector('[role="menu"]') as HTMLElement;
@@ -342,11 +366,11 @@ describe("library (screen 3)", () => {
 
 describe("row menu (wireframe 03, smoke defect 6)", () => {
   const rows = () => [...main().querySelectorAll("tbody tr")];
-  const titles = () => rows().map((row) => row.children[1]?.textContent);
+  const titles = () => rows().map((row) => titleOf(row));
   const titleCell = (title: string) =>
     rows()
       .map((row) => row.children[1] as HTMLElement)
-      .find((cell) => cell.textContent === title) as HTMLElement;
+      .find((cell) => titleOf(cell) === title) as HTMLElement;
   const menuLabels = () =>
     [...document.querySelectorAll('[role="menuitem"]')].map(
       (item) => item.textContent,
@@ -409,7 +433,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
       expect(status()).toBe('Duplicated as "Copy of Welcome email".');
     });
     expect(titles()).toContain("Copy of Welcome email");
-    expect(document.activeElement?.textContent).toBe("Copy of Welcome email");
+    expect(titleOf(document.activeElement)).toBe("Copy of Welcome email");
   });
 
   it("moves only to folders with edit, after the dialog", async () => {
@@ -437,7 +461,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
     expect(
       titleCell("Welcome email").parentElement?.children[2]?.textContent,
     ).toBe("HR");
-    expect(document.activeElement?.textContent).toBe("Welcome email");
+    expect(titleOf(document.activeElement)).toBe("Welcome email");
   });
 
   it("deletes after confirmation, and Cancel keeps the template", async () => {
@@ -528,7 +552,7 @@ describe("editor (screen 4, flow 4.2)", () => {
     expect(save?.textContent).toBe("Saving...");
     await until(() => {
       expect(main().querySelector('[role="status"]')?.textContent).toMatch(
-        /^Saved as version 3, \d\d:\d\d$/,
+        /^Saved as version 3, \d{1,2}:\d\d [AP]M$/,
       );
     });
     expect(save?.disabled).toBe(false);
@@ -783,6 +807,135 @@ describe("history (screen 5)", () => {
     expect(
       main().querySelector(".preview-subject .ph")?.getAttribute("aria-label"),
     ).toBe("Placeholder: ask: product name");
+  });
+});
+
+describe("shell (slice 8a)", () => {
+  async function library(): Promise<void> {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+  }
+
+  it("opens the narrow-screen panel with the menu button and closes it with Esc or a pick", async () => {
+    await library();
+    const side = document.getElementById("side") as HTMLElement;
+    const menu = document.getElementById("menu-button") as HTMLButtonElement;
+    expect(menu.getAttribute("aria-label")).toBe("Menu");
+    menu.click();
+    expect(menu.getAttribute("aria-expanded")).toBe("true");
+    expect(side.classList.contains("open")).toBe(true);
+    const trash = document.querySelector("[data-nav=trash]") as HTMLElement;
+    trash.focus();
+    key(trash, "Escape");
+    expect(side.classList.contains("open")).toBe(false);
+    expect(menu.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(menu);
+    menu.click();
+    trash.click();
+    expect(side.classList.contains("open")).toBe(false);
+    expect(window.location.hash).toBe("#/trash");
+    expect(trash.hasAttribute("aria-current")).toBe(true);
+  });
+
+  it("opens Favorites from another view", async () => {
+    await boot("/?latency=0#/trash");
+    await until(() => {
+      expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
+    });
+    (document.querySelector("[data-nav=favorites]") as HTMLElement).click();
+    await until(() => {
+      expect(main().querySelectorAll("tbody tr")).toHaveLength(1);
+    });
+    expect(main().querySelector("#list-heading")?.textContent).toBe(
+      "Favorites",
+    );
+    expect(window.location.hash).toBe("#/library");
+  });
+
+  it("opens a folder of the sidebar tree from another view", async () => {
+    await boot("/?latency=0#/trash");
+    await until(() => {
+      expect(sideTree().querySelectorAll('[role="treeitem"]')).toHaveLength(4);
+    });
+    (
+      [...sideTree().querySelectorAll('[role="treeitem"]')].find(
+        (item) => item.textContent === "Support",
+      ) as HTMLElement
+    ).click();
+    await until(() => {
+      expect(main().querySelector("#list-heading")?.textContent).toBe(
+        "Support",
+      );
+    });
+    expect(window.location.hash).toBe("#/library?folder=F-SUPPORT");
+    expect(
+      sideTree().querySelector('[aria-selected="true"]')?.textContent,
+    ).toBe("Support");
+  });
+
+  it("names every icon-only button and hides every icon", async () => {
+    await library();
+    const buttons = [...document.querySelectorAll("button")];
+    expect(buttons.length).toBeGreaterThan(10);
+    for (const found of buttons)
+      expect(
+        found.textContent.trim() !== "" || found.hasAttribute("aria-label"),
+      ).toBe(true);
+    for (const svg of document.querySelectorAll("svg.i"))
+      expect(svg.getAttribute("aria-hidden")).toBe("true");
+    expect(document.querySelectorAll("#i-star, #i-more, #i-menu")).toHaveLength(
+      3,
+    );
+    expect(document.querySelector("svg.logo")?.getAttribute("aria-label")).toBe(
+      "Migway",
+    );
+  });
+
+  it("skips the columns the narrow layout hides when arrows move along a row", async () => {
+    await library();
+    for (const row of main().querySelectorAll("tbody tr"))
+      for (const index of [3, 5])
+        (row as HTMLTableRowElement).cells[index]?.setAttribute(
+          "style",
+          "display: none",
+        );
+    const row = main().querySelector("tbody tr") as HTMLTableRowElement;
+    const folder = row.cells[2] as HTMLTableCellElement;
+    folder.focus();
+    key(folder, "ArrowRight");
+    expect(document.activeElement).toBe(row.cells[4]);
+    key(document.activeElement as Element, "ArrowRight");
+    expect(document.activeElement).toBe(row.cells[6]);
+    key(document.activeElement as Element, "ArrowLeft");
+    key(document.activeElement as Element, "ArrowLeft");
+    expect(document.activeElement).toBe(folder);
+    key(folder, "End");
+    expect(document.activeElement).toBe(row.cells[6]);
+    key(document.activeElement as Element, "Home");
+    expect(document.activeElement).toBe(row.cells[0]);
+  });
+
+  it("shows Delete in red after a divider, and its confirm button as destructive", async () => {
+    await library();
+    (
+      main().querySelector(
+        '[aria-label="Actions for Welcome email"]',
+      ) as HTMLButtonElement
+    ).click();
+    const menu = document.querySelector('[role="menu"]') as HTMLElement;
+    const remove = [...menu.querySelectorAll('[role="menuitem"]')].at(-1);
+    expect(remove?.textContent).toBe("Delete...");
+    expect(remove?.classList.contains("destructive")).toBe(true);
+    expect(remove?.previousElementSibling?.getAttribute("role")).toBe(
+      "separator",
+    );
+    (remove as HTMLElement).click();
+    expect(
+      button("Delete", document.querySelector('[role="dialog"]') as HTMLElement)
+        .className,
+    ).toBe("destructive");
   });
 });
 

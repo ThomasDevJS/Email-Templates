@@ -24,12 +24,16 @@ import {
   toRpcError,
 } from "./ui/status";
 import { h } from "./ui/dom";
+import { icon, iconSprite } from "./ui/icons";
+import { initials, shortName } from "./ui/person";
+import { folderCounts } from "./library/model";
 import { adminView } from "./views/admin";
 import type { AppContext, View } from "./views/context";
 import { editorView } from "./views/editor";
 import { historyView } from "./views/history";
 import { libraryView } from "./views/library";
 import { trashView } from "./views/trash";
+import { createFolderTree } from "./views/tree";
 
 declare const google: { readonly script: GoogleScript };
 
@@ -39,10 +43,20 @@ function element(id: string): HTMLElement {
   return found;
 }
 
+/** Which sidebar entry a route marks as current: one of the `data-nav` names, or "" for none. */
+function navOf(route: Route, favoritesOnly: boolean): string {
+  if (route.name === "library") {
+    if (favoritesOnly) return "favorites";
+    return route.folderId === "" ? "library" : "";
+  }
+  return route.name === "trash" || route.name === "admin" ? route.name : "";
+}
+
 export function startApp(host: Host): AppContext {
   const main = element("main");
   const toasts = element("toasts");
-  const signedIn = element("signed-in");
+  const side = element("side");
+  const menuButton = element("menu-button");
   const client = createClient(host.runner, requestIdNow);
   const api = createApi(client);
   let folders: FolderRow[] = [];
@@ -51,6 +65,39 @@ export function startApp(host: Host): AppContext {
   let recent: string[] = [];
   let profile: Profile | null = null;
   let view: View | null = null;
+  let route: Route = LIBRARY;
+  /** The sidebar's "Favorites": the library shows only starred templates of every folder. */
+  let favoritesOnly = false;
+  document.body.prepend(iconSprite());
+
+  /** Under 860 px the sidebar is a panel behind the menu button; these close it. */
+  const closePanel = (focusButton = false) => {
+    side.classList.remove("open");
+    menuButton.setAttribute("aria-expanded", "false");
+    if (focusButton) menuButton.focus();
+  };
+  menuButton.addEventListener("click", () => {
+    const open = side.classList.toggle("open");
+    menuButton.setAttribute("aria-expanded", String(open));
+  });
+  side.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && side.classList.contains("open"))
+      closePanel(true);
+  });
+
+  /** Sidebar state: the current entry, the selected folder and the counts from the loaded index. */
+  const tree = createFolderTree((id) => {
+    openScope(id, false);
+  }, null);
+  element("side-folders").append(tree.element);
+  const drawSide = () => {
+    const current = navOf(route, favoritesOnly);
+    for (const link of document.querySelectorAll<HTMLElement>("[data-nav]"))
+      link.toggleAttribute("aria-current", link.dataset["nav"] === current);
+    const selected =
+      route.name === "library" && !favoritesOnly ? route.folderId : "";
+    tree.render(folders, selected, folderCounts(folders, items));
+  };
 
   const reload = async () => {
     const [folderList, itemList] = await Promise.all([
@@ -61,6 +108,7 @@ export function startApp(host: Host): AppContext {
     items = itemList.items;
     favorites = new Set(itemList.favorites);
     recent = itemList.recent;
+    drawSide();
   };
   let loading: Promise<void> = Promise.resolve();
   /** Resolves true when folders and templates loaded; the failure itself is shown once, as a toast. */
@@ -93,48 +141,67 @@ export function startApp(host: Host): AppContext {
     });
   };
 
-  let section = "library";
-  const render = (route: Route) => {
+  const render = (next: Route) => {
     view?.dispose();
-    section = route.name === "admin" ? "admin" : "library";
-    for (const link of document.querySelectorAll<HTMLElement>("[data-nav]"))
-      link.toggleAttribute("aria-current", link.dataset["nav"] === section);
-    view = viewOf(route);
+    route = next;
+    if (next.name !== "library") favoritesOnly = false;
+    closePanel();
+    drawSide();
+    view = viewOf(next);
   };
 
-  const viewOf = (route: Route): View => {
-    switch (route.name) {
+  const viewOf = (next: Route): View => {
+    switch (next.name) {
       case "library":
-        return libraryView(app, main, route.folderId, fresh());
+        return libraryView(
+          app,
+          main,
+          { folderId: next.folderId, favorites: favoritesOnly },
+          fresh(),
+        );
       case "history":
-        return historyView(app, main, route.id);
+        return historyView(app, main, next.id);
       case "trash":
         return trashView(app, main, fresh());
       case "admin":
-        return adminView(app, main, route.tab);
+        return adminView(app, main, next.tab);
       case "edit":
-        return editorView(app, main, { id: route.id }, fresh());
+        return editorView(app, main, { id: next.id }, fresh());
       case "new":
-        return editorView(app, main, { folderId: route.folderId }, fresh());
+        return editorView(app, main, { folderId: next.folderId }, fresh());
     }
   };
 
-  /** The rail shows Admin to callers who manage a folder (admins manage all); `admin.folders` decides on entry. */
+  /** A folder, all templates or the favorites: in place when the library shows (focus stays), else a new view. */
+  const openScope = (folderId: string, onlyFavorites: boolean) => {
+    favoritesOnly = onlyFavorites;
+    const next: Route = { name: "library", folderId };
+    if (view?.scope === undefined) {
+      app.go(next);
+      return;
+    }
+    route = next;
+    app.pushRoute(next);
+    closePanel();
+    drawSide();
+    view.scope(folderId, onlyFavorites);
+  };
+
+  /** The sidebar shows Admin to callers who manage a folder (admins manage all); `admin.folders` decides on entry. */
   const showAdminLink = () => {
-    const rail = document.querySelector(".rail");
     const manages = folders.some((folder) => folder.level === "manage");
-    const link = document.querySelector("[data-nav=admin]");
-    if (!manages || link !== null || rail === null) return;
+    if (!manages || document.querySelector("[data-nav=admin]") !== null) return;
     const button = h(
       "button",
-      { type: "button", class: "nav-link", "data-nav": "admin" },
+      { type: "button", class: "nav-item", "data-nav": "admin" },
+      icon("gear"),
       "Admin",
     );
     button.addEventListener("click", () => {
       app.go(ADMIN);
     });
-    button.toggleAttribute("aria-current", section === "admin");
-    rail.append(button);
+    button.toggleAttribute("aria-current", route.name === "admin");
+    element("side-manage").append(button);
   };
 
   const app: AppContext = {
@@ -155,16 +222,16 @@ export function startApp(host: Host): AppContext {
     foldersChanged: () => {
       stale = true;
     },
-    go: (route) => {
-      host.navigate(routeHash(route), false);
-      render(route);
+    go: (next) => {
+      host.navigate(routeHash(next), false);
+      render(next);
       main.focus();
     },
-    replaceRoute: (route) => {
-      host.navigate(routeHash(route), true);
+    replaceRoute: (next) => {
+      host.navigate(routeHash(next), true);
     },
-    pushRoute: (route) => {
-      host.navigate(routeHash(route), false);
+    pushRoute: (next) => {
+      host.navigate(routeHash(next), false);
     },
     fail: (error, retry) => {
       const rpc = toRpcError(error);
@@ -188,10 +255,13 @@ export function startApp(host: Host): AppContext {
     .profile()
     .then((me) => {
       profile = me;
-      signedIn.textContent = `Signed in as ${me.email}`;
+      element("account-name").textContent = shortName(me.email);
+      element("account-avatar").textContent = initials(me.email);
+      element("signed-in").textContent = `Signed in as ${me.email}`;
     })
     .catch((error: unknown) => app.fail(error));
   host.onBackForward((hash) => {
+    favoritesOnly = false;
     render(parseRoute(hash));
   });
   // `<base target="_top">` would send fragment links to the top window, so both links act in script.
@@ -199,15 +269,26 @@ export function startApp(host: Host): AppContext {
     event.preventDefault();
     main.focus();
   });
-  for (const link of document.querySelectorAll("[data-nav=library]"))
-    link.addEventListener("click", () => {
-      app.go(LIBRARY);
-    });
+  const navActions: Readonly<Record<string, () => void>> = {
+    library: () => {
+      openScope("", false);
+    },
+    favorites: () => {
+      openScope("", true);
+    },
+    trash: () => {
+      app.go({ name: "trash" });
+    },
+  };
+  for (const [name, action] of Object.entries(navActions))
+    document
+      .querySelector(`[data-nav=${name}]`)
+      ?.addEventListener("click", action);
   void host.location().then((location) => {
-    const route = startRoute(location);
-    if (location.hash.replace(/^#/, "") === "" && route !== LIBRARY)
-      host.navigate(routeHash(route), true);
-    render(route);
+    const start = startRoute(location);
+    if (location.hash.replace(/^#/, "") === "" && start !== LIBRARY)
+      host.navigate(routeHash(start), true);
+    render(start);
     // Pulls keyboard focus into the page, so the first "/" or arrow key reaches the app (smoke 5b item 8).
     if (document.activeElement === document.body) main.focus();
   });

@@ -43,7 +43,7 @@ export function subjectAsMe(subject: string, profile: Profile | null): string {
   return renderSubject(subject, { values, answers }).text;
 }
 
-/** Body with every token shown as a read-only chip, for the history preview. */
+/** Body with every token shown as a read-only chip, for the history preview; prompts get the `ask` look. */
 export function withChips(html: string): string {
   return mapTextRuns(html, (text) =>
     parseText(text)
@@ -52,7 +52,8 @@ export function withChips(html: string): string {
         if (segment.kind === "escape") return "{{";
         const attrs = placeholderAttrs(segment.raw);
         if (attrs === null) return escapeText(segment.raw);
-        return `<span class="ph" role="img" aria-label="${escapeAttr(chipLabel(attrs))}">${escapeText(chipText(attrs))}</span>`;
+        const kind = attrs.name === "" ? "ph ask" : "ph";
+        return `<span class="${kind}" role="img" aria-label="${escapeAttr(chipLabel(attrs))}">${escapeText(chipText(attrs))}</span>`;
       })
       .join(""),
   );

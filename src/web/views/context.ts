@@ -29,4 +29,6 @@ export interface AppContext {
 /** A mounted view; `dispose` runs before the next route renders. */
 export interface View {
   dispose(): void;
+  /** Library only: shows another folder ("" for all), or the favorites of every folder, in place. */
+  scope?(folderId: string, favorites: boolean): void;
 }
