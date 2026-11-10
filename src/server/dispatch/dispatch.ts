@@ -233,5 +233,12 @@ export function dispatch(
     },
   });
   authorized = authorize(row, context, request);
-  return handler(context);
+  try {
+    return handler(context);
+  } catch (error: unknown) {
+    // A DENIED after the policy check (handler refusal, in-lock re-check) writes the same audit row (ADR-0003 C).
+    if (error instanceof AppError && error.code === ErrorCode.DENIED)
+      recordDenied(request, services, ErrorCode.DENIED, [], "");
+    throw error;
+  }
 }

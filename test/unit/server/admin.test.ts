@@ -13,6 +13,7 @@ import {
   FOLDER_DEPTH_MAX,
   PRINCIPAL_KEY_MAX,
 } from "../../../src/shared/model/validate";
+import { readBuffer } from "../../../src/server/audit/buffer";
 import { handleRpc } from "../../../src/server/dispatch/handle";
 import { WRITE_LOCK_MS } from "../../../src/server/lock";
 import { ADMIN_EMAILS_KEY } from "../../../src/server/membership/snapshot";
@@ -244,6 +245,23 @@ describe("admin.folders", () => {
     expect(data.folders.map((entry) => entry.name)).toContain(
       `My templates (${ANA})`,
     );
+  });
+
+  it("buffers a denied audit event for a refused admin.folders and membership.status (ADR-0003 C)", () => {
+    const sales = folder("Sales");
+    grant(sales.id, ANA, "edit");
+    expect(codeOf(ANA, "admin.folders")).toBe("DENIED");
+    expect(codeOf(ANA, "membership.status")).toBe("DENIED");
+    const denied = readBuffer(world.cache).events.flatMap((entry) =>
+      entry.kind === "denied" ? [entry.event] : [],
+    );
+    expect(
+      denied.map((event) => [event.action, event.actor, event.targetType]),
+    ).toEqual([
+      ["admin.folders", ANA, "library"],
+      ["membership.status", ANA, "library"],
+    ]);
+    expect(denied[0]).toMatchObject({ result: "denied", errorCode: "DENIED" });
   });
 
   it("answers DENIED with no folder data to a caller who manages nothing", () => {
@@ -569,6 +587,10 @@ describe("trash", () => {
     });
     expect(response).toMatchObject({ ok: false, error: { code: "DENIED" } });
     expect(fileIndex().items.map((i) => i.id)).toEqual([gone.id]);
+    expect(readBuffer(world.cache).events.at(-1)).toMatchObject({
+      kind: "denied",
+      event: { action: "trash.purge", actor: OWNER },
+    });
   });
 });
 
