@@ -21,12 +21,22 @@ npm ci                                   # install pinned tools
 npm run lint && npm run typecheck && npm test
 npm run build -- --env dev               # writes dist/
 npm run dev:web                          # web app with a fake google.script on http://127.0.0.1:5173/
-npm run lighthouse                       # accessibility audit of library, editor and history (needs Chrome)
+npm run lighthouse                       # accessibility audit of 10 views: library, editor, history, trash, 6 admin tabs (needs Chrome)
 ```
 
 `npm run dev:web` serves the web app with the dev harness (`src/web/dev-harness.ts`): in-memory folders and
-templates, no Google call. Routes: `#/library`, `#/edit/T-QUOTE`, `#/history/T-QUOTE`, `#/new?folder=F-QUOTES`.
-Add `?fail=BUSY&failOp=template.update` (any error code and op) to see error states, `?latency=0` for speed.
+templates, no Google call. Routes: `#/library`, `#/edit/T-QUOTE`, `#/history/T-QUOTE`, `#/new?folder=F-QUOTES`, `#/trash`, `#/admin`, `#/admin/<tab>`.
+Add `?fail=BUSY&failOp=template.update` (any error code and op) to see error states, `?latency=0` for speed,
+`?admin=0` to act as a folder manager.
 The production build never includes the harness.
 
 Deploying needs the owner's clasp login: see `docs/ops/deploy.md`.
+
+## Documentation
+
+- [User quick start](docs/guide/user-quick-start.md): inserting templates in Gmail.
+- [Editor guide](docs/guide/editor-guide.md): writing templates, placeholders, history and trash.
+- [Admin guide](docs/guide/admin-guide.md): roles, grants, admin tabs and the one-time domain install.
+- [Operations runbook](docs/ops/runbook.md): ownership, deploy and rollback, logs, recovery.
+- [Specification](docs/spec.md) and [decisions (ADRs)](docs/adr/).
+- [Deploy checklist](docs/ops/deploy.md) and [smoke test](docs/ops/smoke.md).
