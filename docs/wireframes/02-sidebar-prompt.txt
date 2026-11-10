@@ -1,6 +1,26 @@
-Screen 2: Sidebar prompt card
-Slice 4. One TextInput per distinct prompt (same label filled once), plus implicit prompts for unresolved values without fallback (ADR-0004). Max 20.
+Screen 2: Sidebar preview card and prompt card
+Slice 4. Subject added in slice 5 (D21, spec 5.6, ADR-0004 Amendment 2026-11-10).
+One TextInput per distinct prompt (same label filled once, across subject and body),
+plus implicit prompts for unresolved values without fallback (ADR-0004). Max 20.
 
+Preview card (tap on a title in Home, Folder or Search):
++--------------------------------------+
+| < Price quote 2026                   |  CardHeader
+|--------------------------------------|
+| Subject                              |  DecoratedText, top label
+| Quote for [Product name]             |  shown only when the subject is not empty
+|--------------------------------------|
+| Plain-text preview, max 600 chars,   |  TextParagraph, 8 allowed tags
+| placeholders shown as [Sender name]  |
+|--------------------------------------|
+| Fields to fill: Product name,        |
+|   Meeting date                       |
+| Replaces the draft subject.          |  only when the subject is not empty
+| [Insert]  [Insert body only]         |  second button only when the subject is not empty
+| [Edit in library]                    |  only if level >= edit
++--------------------------------------+
+
+Prompt card (Insert on a template with prompts or unresolved values):
 +--------------------------------------+
 | < Price quote 2026                   |  CardHeader
 |--------------------------------------|
@@ -10,17 +30,24 @@ Slice 4. One TextInput per distinct prompt (same label filled once), plus implic
 | [ 12 November_________________ ]     |
 |                                      |
 | Product name *                       |  TextInput id p-2
-| [ ____________________________ ]     |  used 3 times in the template
+| [ ____________________________ ]     |  used in subject and body, asked once
 |                                      |
 | Recipient first name *               |  implicit: 2 To recipients,
 | [ ____________________________ ]     |  no fallback in template
 |                                      |
-| (!) Fill 1 field: Product name       |  shown after a blocked Apply
+| Replace the subject          [on ]   |  DecoratedText + SwitchControl, id subj
+| Quote for [Product name]             |  bottom label; row shown only when the subject is not empty
+|                                      |
+| (!) Fill 1 field: Product name       |  shown after a blocked Insert
 |--------------------------------------|
 | [Insert]            [Cancel]         |  FixedFooter
 +--------------------------------------+
 
 Rules
-- Insert validates every field server-side in the callback. Any blank field: no draft change, card re-rendered with the error line and the field first in order.
-- Values: plain text, max 500 chars, HTML-escaped, newline -> <br>.
+- Insert calls template.apply with followUp: true. The server re-checks use; no second apply event.
+- Insert validates every field in the callback. Any blank field: no draft change, card re-rendered with the error line and the field first in order.
+- Values: plain text, max 500 chars. Body: HTML-escaped, newline -> <br>. Subject: not escaped, line breaks and control characters -> one space, trimmed.
+- One UpdateDraftActionResponse: body action always; subject action only when the rendered subject is not empty and "Replace the subject" is on (or Insert, not "Insert body only", on the preview card).
+- The add-on cannot read the draft subject. A typed subject is replaced unless the user opts out.
+- Reply drafts: see spec Q21 (switch may default off).
 - Cancel pops back to the previous card. Values are not stored.

@@ -49,7 +49,7 @@ Mechanism:
 - Editing (web app, runs as the owner). `doGet` serves one HTML shell (HtmlService, `IFRAME` sandbox). The shell loads data async through `google.script.run` [R4 S48]. The editor library is bundled into the HTML file at build time, so the page loads no third-party CDN (BRIEF 11). Links use `target="_blank"` [R4 S46]. No more than 4 parallel `google.script.run` calls, below the 10-call cap and Firefox's 6 [R4 S49].
 - "Edit in web app". Sidebar buttons "Edit" and "Open library" return `OpenLink` with `setOpenAs(OVERLAY)` and `setOnClose(RELOAD_ADD_ON)` [R4 S40]. The URL is `/exec?view=editor&id=<templateId>`. The callback first clears the add-on's User Cache (ADR-0002), so the reload after close shows the saved change. `openLinkUrlPrefixes` lists `https://script.google.com/macros/s/`. Slice 4 checks whether script.google.com sends a COOP header. If it does, reload detection fails [R4 S40] and the sidebar shows a "Refresh" button as fallback.
 - Multi-login. Apps Script does not support several signed-in Google accounts [R4 S50]. Add-on to `/exec` calls carry the add-on user's token and are unaffected. The OVERLAY web app opens under the browser's default account. A non-Migway default account gets Google's access-denied page; a blank active user gets the app's "Cannot identify your account" page with the fix (separate Chrome profile or incognito). The web app header always shows "Signed in as <email>". The quick start (slice 7) documents the workaround.
-- Mobile. Same add-on on Gmail Android and iOS, best effort (BRIEF A7). Slice 4 spike tests insert on both. The web app editor targets desktop.
+- Mobile. Same add-on on Gmail Android and iOS, best effort (BRIEF A7). Slice 4 spike tests insert on both. [Spike runs on Android and iOS dropped, D22: see Amendment 2026-11-10.] The web app editor targets desktop.
 
 Consent consequence. One manifest gives one scope list (spec section 9, 10 scopes by default). Every user who self-installs the add-on (owner, pilot editors in 2.5a) sees all 10 on the consent screen, including the server-only scopes. After the admin domain install (2.5b), users skip the consent screen [R4 S60]. ADR-0002 removes `spreadsheets` from the list for this reason.
 
@@ -59,6 +59,10 @@ Pilot editors. Test deployments need editor access to the project [R4 S13], so t
 - Code enters only through `clasp push` from the owner's machine (BRIEF A5). The deploy script compares the remote HEAD with the last pushed build before pushing and aborts on drift, so a browser edit is detected and overwritten (ADR-0005).
 - Deployments are created and updated by the owner only (runbook rule, slice 7).
 - Dev holds pilot data only. Pilot editors are removed from the dev project after 2.5b, when the private Marketplace app replaces the test deployment.
+
+## Amendment 2026-11-10: acceptance client (D22)
+
+Owner decision D22 (2026-11-10): Gmail web on Chrome is the only acceptance client for v1. Spike S4 closed on the Gmail web results (ADR-0004 amendment). The add-on still runs on Gmail Android and iOS; that use is best effort and untested (BRIEF A7). No open item waits on a mobile run.
 
 ## Consequences
 

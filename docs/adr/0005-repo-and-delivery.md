@@ -1,6 +1,6 @@
 # ADR-0005: Repository, build, tests, CI, deployment and rollback
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance). Amendment 2026-11-10 at the end: web bundle inlining (fact of the build)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -92,7 +92,7 @@ dist/            build output, git-ignored: Code.js, index.html, appsscript.json
 - `tsconfig.json`: `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`, `noImplicitOverride: true`, target ES2020, types `google-apps-script`.
 - esbuild bundles `src/entry.ts` to `dist/Code.js`, format IIFE, global name `App`, target ES2020. A build step reads the exported names and appends one stub per name, `function doPost(e) { return App.doPost(e); }`, so Apps Script sees top-level functions. Exports are the only public functions; everything else is hidden in the IIFE.
 - The build takes `--env dev|prod` and injects `deploy/<env>.json` values (`execUrl`, environment name, git short SHA) as constants. The add-on reads `execUrl` from the bundle, so no Script Property names the URL.
-- `src/web/app.ts` bundles to one script, inlined with `styles.css` into `dist/index.html`. No runtime CDN.
+- `src/web/app.ts` bundles to one script, inlined with `styles.css` into `dist/index.html`. No runtime CDN. [Inlining form changed: see Amendment 2026-11-10.]
 - `appsscript.json` copies to `dist/`. `oauthScopes` are explicit, so auto-detection cannot add `https://mail.google.com/` [R4 S7, S41].
 - A build check fails if a manifest scope is not in the approved list in docs/spec.md section 9.
 - Bundle size is printed per file. Budget: `Code.js` under 800 KB, `index.html` under 400 KB.
@@ -161,6 +161,26 @@ Target: the only recurring human task is deploying a new version. Everything els
 | Owner identity change, GCP project switch | owner and admin, runbook | once or on staff change |
 
 Version pruning. No automatic way exists: the Apps Script API has no version delete method [A11], with or without a standard GCP project, and bulk delete is only in the editor's Project History [A7]. The driver is 1 version per prod deploy (one project, one version). Interval to the 150 mark: 150 deploys, about 6 years at 2 releases per month, about 3 years at 4. In dev, `/dev` mode creates 0 versions; if spike S2 (d) fails, dev creates 1 per deploy and reaches 150 after about 6 weeks at 5 deploys per working day, so the owner prunes dev every 6 weeks during Phase 3, or deletes and recreates the dev project and reimports dev data.
+
+## Amendment 2026-11-10: web bundle inlining
+
+Problem. HtmlService rewrites inline scripts on the server. On dev build 43f10de (2026-11-10) it deleted `//` to the end of the line after template literals, inside "https://" strings, and cut 1,767 bytes; the library rendered blank. A force-printed include of a second file (`<?!= ... ?>`) was cut the same way.
+
+Options:
+1. Inline the bundle as plain script (the original form). Fails: the server-side rewrite cuts it.
+2. Serve the bundle from a second file through a force-printed include. Fails: same cut, observed on the same build.
+3. Ship the bundle as one JSON string literal with no `//` and no `/*` sequence, and run it through an indirect eval (`(0, eval)(literal)`). The rewrite finds no comment marker to cut.
+4. Load the bundle from an external host or CDN. Breaks the no-runtime-CDN rule and the $0 Workspace-only constraint.
+
+Decision: option 3, built in hotfix 9bbd262 (scripts/lib/html.mjs `inlineHtml`), reviewed and accepted in the slice 4b review (item a). Mechanism:
+- The build serializes the bundle with `JSON.stringify`, then writes every `/` followed by `/` or `*` as `/\` plus the next character (`\/` decodes to `/`), so the literal holds no `//` and no `/*`. The page gets `(0, eval)(<literal>);`. Review fuzz of 191,075 strings, U+2028 and lone surrogates included: 0 mismatches after eval.
+- `</script` and `<?` in the bundle still fail the build before escaping.
+- The eval argument is a build-time constant; no runtime value reaches `eval`. The bundle has no `"use strict"`, so indirect eval keeps its globals global.
+- The served script equals the local build byte for byte (checked on dev 9bbd262).
+
+Fact: the HtmlService sandbox frame that serves the page sets no Content-Security-Policy (observed on dev 9bbd262, 2026-11-10). The eval runs because no CSP forbids it. If Google adds a CSP without `unsafe-eval`, the web app stops loading; the deploy smoke step "library renders" catches it. Fallback then: option 1 with a build check that refuses any `//` or `/*` sequence in the bundle (needs minifier settings that never emit them).
+
+Consequences: one build step and one constraint (no `//` or `/*` in the shipped literal). `index.html` grows about 2% (274,061-character literal for a 269,776-character bundle).
 
 ## Consequences
 

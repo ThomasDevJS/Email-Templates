@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -86,10 +86,10 @@ Saved items store the parsed `placeholders` (names) and `prompts` (normalized la
 1. Prompt identity: label trimmed, inner whitespace collapsed, compared case-insensitively. The first spelling is shown. One input per identity fills every occurrence.
 2. Variable values. Sender values come from the caller's profile (below). `recipient.first_name` resolves only when the draft has exactly one To recipient and that address is in the Migway domain; it is then the Directory `name.givenName`. Zero or several To recipients, or an external address, leave it unresolved. External addresses never leave the add-on and are never logged.
 3. Unresolved variable with a fallback: the fallback is used. Unresolved variable without a fallback becomes an implicit prompt ("Your phone", "Recipient first name"). No placeholder ever renders as empty text by accident.
-4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified).
+4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified). [Not tried in slice 4; optional, no slice owns it.]
 5. Values: plain text, max 500 characters, HTML-escaped (`& < > " '`), newline becomes `<br>`. Fallbacks and Directory values get the same escaping. Rendering never creates markup from values.
 6. Escape: `\{{` renders as the literal `{{`.
-7. Insert: `UpdateDraftBodyAction` with `MUTABLE_HTML` and `UpdateDraftBodyType.IN_PLACE_INSERT` [R4 S4, S5b]. The rendered HTML is the sanitized stored body with tokens replaced. Subject is not touched in v1.
+7. Insert: `UpdateDraftBodyAction` with `MUTABLE_HTML` and `UpdateDraftBodyType.IN_PLACE_INSERT` [R4 S4, S5b]. The rendered HTML is the sanitized stored body with tokens replaced. Subject is not touched in v1. [Changed by D21: see Amendment 2026-11-10, subject.]
 
 ### Sender values: option 1, server-side Directory `domain_public`
 
@@ -101,7 +101,7 @@ Saved items store the parsed `placeholders` (names) and `prompts` (normalized la
 
 ### HTML sanitizer: option 1, server-side allowlist on htmlparser2
 
-Runs on every write: save, restore, import. Output is canonical (attributes sorted, quotes normalized) and idempotent: `sanitize(sanitize(x)) == sanitize(x)`. The web app runs the same module on paste for preview only; the server result is authoritative.
+Runs on every write: save, restore, import. Output is canonical (attributes sorted, quotes normalized) and idempotent: `sanitize(sanitize(x)) == sanitize(x)`. The web app runs the same module on paste for preview only; the server result is authoritative. [Not built: see Amendment 2026-11-10, errata.]
 
 Allowed tags: `p br div span b strong i em u s strike sub sup font a ul ol li blockquote h1 h2 h3 h4 hr pre code table thead tbody tfoot tr td th caption colgroup col img`.
 
@@ -127,7 +127,7 @@ URL rules: after entity decoding and removal of whitespace and control character
 
 Inline style allowlist: `color`, `background-color`, `font-family`, `font-size`, `font-weight`, `font-style`, `text-decoration`, `text-align`, `line-height`, `vertical-align`, `margin` and `padding` (and their `-top/-right/-bottom/-left`), `border` family (`border`, `border-*`, `border-collapse`), `width`, `height`, `max-width`, `display` (`block`, `inline`, `inline-block`, `table`, `table-cell`). A declaration is dropped if its value contains `url(`, `expression(`, `@import`, `javascript:`, a backslash, `<`, `>` or a comment. `position`, `float` with `fixed`, `behavior`, `-moz-binding` are not in the list and drop.
 
-Size: sanitized body max 100 KB until the slice 4 spike sets the final cap (largest size that inserts on all 3 clients, divided by 2).
+Size: sanitized body max 100 KB until the slice 4 spike sets the final cap (largest size that inserts on all 3 clients, divided by 2). [Final 100 KB, Gmail web only: see Amendment 2026-11-10, spike S4.]
 
 Fixture set (BRIEF 9 asks for 30 or more; plan is 40): 25 malicious, 15 benign, each with expected output. Malicious: `<script>`; `img onerror`; `svg onload`; `javascript:` in mixed case, with entities (`&#106;avascript:`), with tab and newline inside the scheme; `data:text/html` href; `vbscript:`; CSS `expression()`; CSS `url(javascript:...)`; CSS escape `\6a avascript`; `<style>` block; `iframe srcdoc`; `object` and `embed`; `form action` with `button formaction`; `meta refresh`; `base href`; `link rel=stylesheet`; noscript mXSS (`<noscript><p title="</noscript><img src=x onerror=alert(1)>">`); comment break-out (`<!--><img src=x onerror=...>-->`); CDATA; unquoted attributes with event handlers; `srcset` with a script URL; `math` with `xlink:href`; 33 levels of nesting; `a target=_self` coerced. Benign: Gmail-pasted HTML with `font` tags; Word-pasted HTML with `mso-` styles (stripped); layout table with borders; nested lists; `mailto:` and `tel:` links; `https` image with width; headings; blockquote; every placeholder inside bold; a split token (expected `PH_MALFORMED`); `\{{` escape; prompt reused 3 times; 100 KB body; non-Latin text; emoji.
 
@@ -158,7 +158,7 @@ Run before the sanitizer allowlist and size cap are final. Owner runs it on the 
 | F8 | all 5 placeholders and 2 prompts filled | values correct, escaped |
 | F9 | insert with cursor in mid-line and with text selected | `IN_PLACE_INSERT` position, selection replaced |
 
-Clients: Gmail web on Chrome (acceptance target), Gmail Android app, Gmail iOS app. Record per fixture and client: inserted (y/n), styles kept, time in ms, and how the sent message renders in a Gmail web recipient. Output: docs/spikes/slice-04-insert.md (written by the implementer) and an update to this ADR with the trimmed allowlist and the final size cap.
+Clients: Gmail web on Chrome (acceptance target), Gmail Android app, Gmail iOS app. [Android and iOS dropped, D22.] Record per fixture and client: inserted (y/n), styles kept, time in ms, and how the sent message renders in a Gmail web recipient. Output: docs/spikes/slice-04-insert.md (written by the implementer) and an update to this ADR with the trimmed allowlist and the final size cap.
 
 ### Signature duplication (v2 notes, no v1 work)
 
@@ -167,6 +167,71 @@ Clients: Gmail web on Chrome (acceptance target), Gmail Android app, Gmail iOS a
 - The add-on cannot read the draft body with the compose scope, so it cannot detect an existing signature.
 - Options for v2: (a) "Set my Gmail signature" with the user's own token and `gmail.settings.basic` (restricted, no verification for an internal app) [R4 S26, S18], and never insert; (b) insert only and ask users to clear their Gmail signature; (c) central push with domain-wide delegation, super admin approval, service account key risk [R4 S29, S65]. Recommendation for v2: (a). Validate signature HTML under 10,000 characters [R4 S28], store a plain-text variant for mobile [R2 lessons].
 - v1 templates that end with a sign-off and `{{sender.name}}` may duplicate a Gmail signature. The quick start (slice 7) tells authors to leave sign-offs to the Gmail signature.
+
+## Amendment 2026-11-10: errata (facts of the build)
+
+- Paste. The editor has no sanitize-on-paste preview. Pasted HTML goes through the ProseMirror schema parser, which keeps only nodes and marks of the schema (links `https`, `http`, `mailto`, `tel`; images `https`). Save runs the server sanitizer, which stays the only authority. Source: slice 3 review gap 6.
+- `Action.setRequiredWidgets`: not tried. The Apply callback stays the enforcement point. Optional; no slice owns it.
+- Prompt card Insert calls `template.apply` with `followUp: true`, so `use` is re-checked on every insert (spec 4.1 step 5).
+
+## Amendment 2026-11-10: spike S4 closed on Gmail web (D22)
+
+Owner decision D22 (2026-11-10): Gmail web is the only acceptance client for v1. Android and iOS runs are dropped; mobile stays best effort and untested (BRIEF A7).
+
+Results, Gmail web on Chrome, builds 43f10de and 9bbd262, run by the Claude Chrome extension (docs/spikes/slice-04-insert.md):
+
+| Fixture | Inserted | Kept | Callback ms (server) |
+|---|---|---|---|
+| F1 text, bold, italic, underline, link | y | all | 1739 (227) |
+| F2 colors, sizes, families, `font`, line-height, margin, padding, border | y | every visible property; line-height not visible on one line | 2285 (239) |
+| F3 lists, nested item, `start=5 type=a`, blockquote | y | all | 1952 (344) |
+| F4 3x3 table, borders, padding, widths | y | all | 1826 (178) |
+| F5 `https` image, `width=600` | y | image, about 600 px | 2125 (276) |
+| F6 51,208 bytes | y | | 1940 (138) |
+| F7 204,837 bytes | y | | 1285 (56) |
+| F8 5 placeholders, 2 prompts | y | escaped prompt text literal, 2 lines kept | 2910 (1015) |
+| F9 selection | y | selected word replaced | |
+| F9 mid-line | y | landed at the top of the body in 3 runs; cursor placement by the extension unverified | 1996, 1692, 2093 |
+
+Sent copies of F2 to F5 and F8 rendered the same as the draft.
+
+Decision:
+- Allowlist: unchanged. No tag, attribute or style property was lost on Gmail web, so the rule "lost on web leaves the list" removes nothing.
+- Size cap: 100 KB, final. Rule of this ADR applied to web only: largest body that inserted (F7, 204,837 bytes, about 200 KB) divided by 2.
+- F9 mid-line stays an owner hand check in docs/ops/smoke.md. It tests `IN_PLACE_INSERT` position and changes neither allowlist nor cap.
+- Harness removal in slice 5: `spike.s4` and its policy row, `onSpikeCard`, `onSpikeInsert`, `src/shared/spike/`, the "Spike S4" home section.
+
+## Amendment 2026-11-10: template subject (D21, Proposed)
+
+Owner decision D21 (2026-11-10): the template subject is applied to the draft in v1, built in slice 5. Spec section 5.6 holds the field rules; this section records options and mechanism.
+
+Platform facts, read 2026-11-10:
+- `UpdateDraftActionResponseBuilder.setUpdateDraftSubjectAction(UpdateDraftSubjectAction)` "Sets an action that updates the subject line of a draft". `CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject)` "Updates the subject line of an email draft" [A15].
+- The same builder has `setUpdateDraftBodyAction`; every setter returns the builder for chaining. No page says whether body and subject combine in one response; Google's examples set one action each [A14, A15]. Unverified, spike S5 (spec Q20).
+- Scope: Google's compose guide asks for the scopes "required for compose actions" and names none per action; `gmail.addons.current.action.compose` reads "Manage drafts and send emails when you interact with the Google Workspace add-on" [A14, A16]. Expected: no new scope. Unverified until spike S5. A new scope needs owner approval before any manifest change.
+- The Gmail event object has no draft subject field; with `draftAccess: METADATA` it carries recipients only [A5, A13]. The add-on cannot read what the user typed in Subject.
+- Mobile: no page mentions Android or iOS support for the subject action. Best effort, untested (D22, BRIEF A7).
+
+Options, existing subject:
+1. Replace on every Insert when the template subject is not empty. One click. Overwrites a typed subject and a reply's "Re: ..." line.
+2. Never set it automatically; a separate "Set subject" button. Typed subjects are safe. Two clicks for the common case, against D21's intent.
+3. Replace by default, with an opt-out at the points where the user already decides: "Insert body only" on the preview card, a "Replace the subject" switch (default on) on the prompt card. One-click list Insert replaces.
+
+Decision: option 3. Mechanism: the add-on adds `UpdateDraftSubjectAction` to the same `UpdateDraftActionResponse` as the body action only when the rendered subject is not empty and the user did not opt out. An empty template subject sends no subject action, so the draft subject is never cleared. Reply drafts follow spec Q21.
+
+Options, placeholders in the subject:
+1. Plain text, no placeholders. Simple. Authors cannot put `{{ask:Product name}}` or `{{recipient.first_name}}` in the subject.
+2. Same grammar as the body, prompts shared by label identity. One parser, one prompt per label.
+
+Decision: option 2. Mechanism: the parser runs on the subject as one text run with the same regex and registry. `prompts` and `placeholders` on the item are the union over subject and body, so the prompt card asks each label identity once and the value fills both. Rendering uses the same value map; the subject renderer skips HTML escaping, replaces every control character (CR, LF, tab, U+0000 to U+001F, U+007F, U+2028, U+2029) with one space, collapses spaces and trims. Values keep their 500-character cap. The subject string goes to Card Service as a plain string; no markup is ever built from it.
+
+Save validation adds `SUBJ_TOO_LONG` (over 200 characters after trim) and `SUBJ_LINEBREAK` (any control character). `PH_*` codes apply to the subject with `field: "subject"`, except `PH_ATTR` (no attributes) and `PH_BACKSLASH` (no chips in a plain input). `PH_TOO_MANY` counts distinct prompts over subject and body. Import replaces line breaks with one space and reports the count.
+
+Editor: a single-line `<input>` "Subject" under Title, plain text with tokens typed as text (no chips). The Placeholder menu inserts token text at the cursor when the subject has focus. Preview as me shows the rendered subject. Problems list names the field.
+
+Storage and history: the index item `subject` holds the current version's subject (field present since slice 2). Each `bodies/<id>.v<n>.json` gains `subject`; files without it read as `""`, so no migration. Restore of version K copies K's subject. Duplicate, export and import carry it. Search weight 2.
+
+Consequences: one more field on save and apply; no new op, no new scope expected. A user who typed a subject and taps one-click Insert loses it; the preview and prompt cards offer the opt-out, and the quick start (slice 7) states it. Revisit after spike S5.
 
 ## Consequences
 
@@ -177,6 +242,8 @@ Clients: Gmail web on Chrome (acceptance target), Gmail Android app, Gmail iOS a
 
 ## Open questions
 
+- Q20, Q21 (spec section 15, added 2026-11-10): body and subject in one response and per-action scope; subject on reply drafts. Recommendation: spike S5, first task of slice 5.
+
 - Q9. Does `domain_public` return `organizations` and `phones`? Recommendation: test in slice 2; fallback `searchDirectoryPeople` with `directory.readonly` (one consent line, replaces `admin.directory.user.readonly`).
 - Q11. External recipient first names need `contacts.readonly` or `contacts.other.readonly` (user consent, sensitive). Recommendation: not in v1; external recipients use the fallback or the implicit prompt.
 - Q12. Image hosts: any `https` host, or a list? Recommendation: any `https` host in v1, `IMG_HOSTS` config available to restrict.
@@ -186,3 +253,7 @@ Clients: Gmail web on Chrome (acceptance target), Gmail Android app, Gmail iOS a
 - [R1 S24], [R2 S8, S16, lessons], [R3 S4, S12, S26], [R4 S3 to S5b, S8, S18, S26, S28, S29, S35, S36, S65, S78], read 2026-11-09.
 - [A5] https://developers.google.com/workspace/add-ons/concepts/event-objects, read 2026-11-09.
 - [A6] https://developers.google.com/workspace/admin/directory/v1/guides/manage-users (domain_public, contact sharing, fields not listed), read 2026-11-09.
+- [A13] https://developers.google.com/workspace/add-ons/concepts/event-objects (Gmail event object fields, no subject), read 2026-11-10.
+- [A14] https://developers.google.com/workspace/add-ons/gmail/extending-compose-ui (`UpdateDraftActionResponse`, subject example, one action per example, no per-action scope, no mobile note), read 2026-11-10.
+- [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder and https://developers.google.com/apps-script/reference/card-service/update-draft-subject-action, read 2026-11-10.
+- [A16] https://developers.google.com/workspace/gmail/api/auth/scopes (`gmail.addons.current.action.compose`, non-sensitive), read 2026-11-10.

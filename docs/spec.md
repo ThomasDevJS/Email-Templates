@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Proposed (gate G2, revised 2026-11-09 after D15: one project, Drive-only storage, near-zero maintenance)
-Date: 2026-11-09
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves.
+Date: 2026-11-09, amended 2026-11-10
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D15), docs/research/*.md, ADR-0001 to ADR-0005.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D22), docs/research/*.md, ADR-0001 to ADR-0005.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -20,19 +20,21 @@ Gmail compose sidebar (add-on code, runs as the user)
     Search results (paged)
     Template preview
       Prompt card (only if prompts or unresolved values)
-        Apply -> draft body updated
+        Apply -> draft body updated, subject set when the template has one (D21)
     Open library / Edit -> web app in OVERLAY
 
 Web app (same project, /exec, runs as the owner)
   Library  (default view)
     Folder tree | template list | search | favorites filter | trash
   Editor   (?view=editor&id=...)
-    Title, folder, tags, body, placeholder menu, preview as me, save
+    Title, subject, folder, tags, body, placeholder menu, preview as me, save
   History  (?view=history&id=...)
     Version list, preview, restore
   Admin    (?view=admin, admins and manage holders)
     Folders and grants | Memberships | Audit log | Usage | Export and import | Config (read only)
 ```
+
+Private folders (D18, amended 2026-11-10). The library shows admins every private folder. The sidebar does not: `sidebar.home` filters other users' private folders out for admins too, in the handler (`visibleFolders`). The filter grants nothing and hides nothing an admin can reach in the library.
 
 Navigation in the web app is a left rail: Library, Admin (visible to admins and manage holders only). The URL query `view` restores state on reload.
 
@@ -58,10 +60,10 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 | # | Screen | Wireframe | Slice |
 |---|---|---|---|
 | 1 | Sidebar home | docs/wireframes/01-sidebar-home.txt | 4 (search, favorites, recent in 5) |
-| 2 | Sidebar prompt card | docs/wireframes/02-sidebar-prompt.txt | 4 |
+| 2 | Sidebar preview and prompt cards | docs/wireframes/02-sidebar-prompt.txt | 4 (subject in 5) |
 | 3 | Web app library | docs/wireframes/03-web-library.txt | 3 (search, favorites in 5) |
-| 4 | Web app editor | docs/wireframes/04-web-editor.txt | 3 |
-| 5 | Web app history | docs/wireframes/05-web-history.txt | 5 |
+| 4 | Web app editor | docs/wireframes/04-web-editor.txt | 3 (subject field in 5) |
+| 5 | Web app history | docs/wireframes/05-web-history.txt | 3 (subject line in 5) |
 | 6 | Admin | docs/wireframes/06-web-admin.txt | 6 |
 | 7 | States | docs/wireframes/07-states.txt | 3, 4, 6 |
 
@@ -69,15 +71,16 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 1. User opens compose, opens the add-on. Compose trigger reads the add-on User Cache `view:*`; on miss it calls server op `sidebar.home`.
 2. Server returns Favorites (max 10), Recent (max 5, from `usage`), top-level folders the caller can `use`, and the caller's filtered list for caching.
-3. User taps Insert on a template. The callback calls server op `template.apply` with `{ id, knownVersion, recipientEmailIfInternal }`. The server re-checks `use`, returns body (if version changed), sender profile, internal recipient first name, and buffers the apply event.
-4. No prompts and no unresolved values: the add-on renders and returns `UpdateDraftActionResponse`, `IN_PLACE_INSERT`, `MUTABLE_HTML`. One click.
-5. Otherwise the add-on pushes the prompt card. Apply validates every field, renders, inserts. Blank fields keep the card with an error.
+3. User taps Insert on a template. The callback calls server op `template.apply` with `{ id, knownVersion, recipientEmailIfInternal }`. The server re-checks `use`, returns body and subject (if version changed), sender profile, internal recipient first name, and buffers the apply event.
+4. No prompts and no unresolved values: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the rendered subject is not empty, `UpdateDraftSubjectAction` (D21, section 5.6). One click.
+5. Otherwise the add-on pushes the prompt card. Its Insert calls `template.apply` again with `followUp: true`. The server re-checks `use` on that call and buffers no second apply event, so one Insert tap counts once. A grant removed while the card is open gives DENIED and leaves the draft unchanged. Then the callback validates every field, renders body and subject, inserts. Blank fields keep the card with an error.
+6. Usage counts the first Insert tap. A cancelled prompt card still counts in `applyCount` and Recent (accepted, Q14: usage is analytics).
 
 ### 4.2 Flow: edit and restore (DoD 2)
 
 1. Editor opens from the library or from the sidebar Edit button (OVERLAY, RELOAD_ADD_ON).
-2. Save sends `{ id, baseVersion, title, folderId, tags, html }`. Server sanitizes, validates placeholders, writes the version (ADR-0002 write sequence). Conflict shows a dialog: "Changed by <name> at <time>. Open their version / Copy my text / Cancel." No silent overwrite.
-3. History lists versions. Restore creates version N+1 from version K and writes an audit row.
+2. Save sends `{ id, baseVersion, title, subject, folderId, tags, html }`. Server sanitizes, validates placeholders and the subject (section 5.6), writes the version (ADR-0002 write sequence). Conflict shows a dialog: "Changed by <name> at <time>. Open their version / Copy my text / Cancel." No silent overwrite.
+3. History lists versions with their subject. Restore creates version N+1 from subject and body of version K and writes an audit row.
 
 ### 4.3 Flow: grant access (DoD 3)
 
@@ -89,7 +92,7 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 - Sidebar: search input with `onChangeAction`. Server op `search` returns the top 20 visible matches. Operators `folder:<name>` and `tag:<name>`. Empty query shows Home.
 - Web app: title, folder and tag filtering runs in the browser on the loaded index; body matches come from server op `search.body` over `ft:*` chunks. Sort: relevance, then last used by the caller.
-- Matching: case-insensitive, accent-insensitive token prefix match on title (weight 3), tags (2), folder (2), body text (1). Fuzzy tolerance: one typo for terms of 5 or more characters.
+- Matching: case-insensitive, accent-insensitive token prefix match on title (weight 3), subject (2, D21), tags (2), folder (2), body text (1). Subject terms come from the index item, so the sidebar `search` op and the browser filter both see them without `search.body`. Fuzzy tolerance: one typo for terms of 5 or more characters.
 
 ### 4.5 Flow: export and import
 
@@ -134,14 +137,14 @@ JSON files in one private Drive folder (ADR-0002). `index.json` holds the `folde
 | kind | `template` or `signature` | always `template` in v1 |
 | folderId | string | |
 | title | string, 1 to 120 chars | |
-| subject | string or empty | reserved, not applied in v1 |
+| subject | string, 0 to 200 chars | applied to the draft in v1 (D21, section 5.6). Empty = the draft subject is not touched |
 | tags | string array, max 10, each 1 to 30 chars | |
 | status | `published` or `draft` | always `published` in v1 |
 | currentVersion | integer | |
 | bodyFileId | string | Drive file of the current version |
 | snippet | string, 140 chars | plain text for lists |
-| placeholders | string array | parsed names |
-| prompts | string array | normalized labels |
+| placeholders | string array | parsed names, subject and body together |
+| prompts | string array | normalized labels, subject and body together |
 | sizeBytes | integer | sanitized HTML size |
 | createdAt, createdBy, updatedAt, updatedBy | | |
 | deletedAt, deletedBy | | soft delete, 30-day trash |
@@ -173,9 +176,23 @@ Reserved file `push_log.json` (created in v2): records `id, itemId, userEmail, s
 | `favorites.json` | `{ rev, byUser: { email: [itemId] } }` |
 | `usage.json` | `{ rev, items: { itemId: { applyCount, lastUsedAt } }, recent: { email: [itemId, max 20] } }` |
 | `members.json` | `{ refreshedAt, resolver, groups: { groupEmail: { members[], childGroups[], status } } }` |
-| `bodies/<itemId>.v<version>.json` | `{ itemId, version, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. Drive `appProperties`: `itemId, version, savedBy, restoredFrom`. Version history = one `files.list` by `itemId` |
+| `bodies/<itemId>.v<version>.json` | `{ itemId, version, subject, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. `subject` added 2026-11-10 (D21); a file without it reads as `""`. Drive `appProperties`: `itemId, version, savedBy, restoredFrom`. Version history = one `files.list` by `itemId` |
 | `audit/YYYY-MM.jsonl` | one ADR-0003 Part D event per line, append-only |
 | `backups/YYYY-MM-DD/` | copies of `index.json`, `favorites.json`, `usage.json`, 14 kept |
+
+### 5.6 Template subject (D21, amended 2026-11-10)
+
+Mechanism and options in ADR-0004, Amendment 2026-11-10 (subject).
+
+- Field: plain text, 0 to 200 characters after trim. No CR, LF or other control characters (U+0000 to U+001F, U+007F, U+2028, U+2029). Empty is allowed and means "do not touch the draft subject".
+- Placeholders: the ADR-0004 grammar applies to the subject as one text run. `\{{` is the escape. Prompts are shared with the body: one label identity is asked once and fills both. Implicit prompts for unresolved values are shared the same way. `PH_TOO_MANY` counts distinct prompts over subject and body together (max 20).
+- Rendering: values are inserted as plain text, never HTML-escaped. Every CR, LF, tab and other control character in the rendered result becomes one space; runs of spaces collapse; the result is trimmed.
+- Save validation (server, every write: create, update, duplicate, restore, import). Codes carry `field: "subject"` and the character offset: `SUBJ_TOO_LONG` ("Subject must be 200 characters or fewer"), `SUBJ_LINEBREAK` ("Subject must be one line"), and the ADR-0004 `PH_*` codes except `PH_ATTR` and `PH_BACKSLASH`. Import replaces line breaks with one space and reports the count; it rejects only `SUBJ_TOO_LONG` and `PH_*`.
+- Apply: `template.apply` and `template.getBody` return `subject` with the body (same `knownVersion` rule). The add-on caches it in `body:<id>` next to the HTML.
+- Draft: a non-empty rendered subject replaces whatever the draft subject holds. The add-on cannot read the draft subject (the Gmail event object has no subject field [A13]), so it cannot merge or detect a typed subject. The preview card shows the subject and offers "Insert body only" next to Insert. The prompt card shows a switch "Replace the subject", on by default; off sends no subject action. The one-click Insert in lists sets the subject (wireframe 02).
+- History: each version file stores its subject. Restore of version K copies subject and body of K into version N+1. History shows the subject line of each version.
+- Search: subject weight 2 (section 4.4).
+- Logs: the subject is template content. It is never logged, like the body.
 
 Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property.
 
@@ -186,7 +203,7 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | Op | Level | Surface |
 |---|---|---|
 | sidebar.home, folder.list, template.list, search, search.body | use (results filtered) | both |
-| template.get, template.apply | use | both |
+| template.get, template.getBody, template.apply | use | both |
 | favorite.set, favorite.unset | use | both |
 | template.create, template.update, template.duplicate, template.delete, template.restoreFromTrash | edit | web |
 | template.move | edit on source and target | web |
@@ -197,20 +214,24 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | export.folder | manage | web |
 | export.library, import, audit.query, usage.report, membership.refresh, config.get, backup.list, backup.restore | admin | web |
 | me | none beyond a valid caller | both |
+| spike.s4 | admin | both. Temporary harness of spike S4; removed in slice 5 |
+
+Status 2026-11-10: `template.getBody` (built in slice 3) returns the readable body without an apply event; the add-on uses it on a body cache miss. `template.apply` takes `followUp: true` on the prompt card Insert (section 4.1 step 5). `template.duplicate` is built (slice 4b): title "Copy of ...", cut to 120, tags, subject and the current body become version 1; edit on source and target. `template.restoreFromTrash`, `search`, `search.body`, `favorite.set` and `favorite.unset` are still stubs (`LATER_SLICE_OPS`).
 
 ## 7. Error, empty and loading states
 
-Error codes and UI (wireframe 07):
+Error codes and UI (wireframe 07). Guard order: blank caller gives AUTH_NO_USER first, then NOT_CONFIGURED while `DOMAIN` is unset (every caller, in or out of the domain), then the domain check, then the policy row.
 
 | Code | Cause | Sidebar | Web app | Retry |
 |---|---|---|---|---|
+| NOT_CONFIGURED | Script Property `DOMAIN` unset: `setup()` has not run | "Migway Templates is not set up yet. Ask the owner to finish setup." | Same, full page | no |
 | AUTH_NO_USER | blank or non-domain active user | "Cannot identify your Migway account. Sign out of other Google accounts or use a separate Chrome profile." | Same, full page | no |
 | DENIED | no level on target | "You don't have access to this template. Ask a folder manager." | Inline banner, item removed from list | no |
 | NOT_FOUND | deleted or moved | "This template was removed or moved." + Refresh | Banner + link to library | no |
 | CONFLICT | baseVersion stale | n/a | Conflict dialog (4.2) | after choice |
 | BUSY | lock not acquired in 10 s | "Busy, try again." + Retry | Toast + Retry | yes |
 | QUOTA | Apps Script quota or simultaneous executions | "Service is busy. Try again in a minute." | Toast | yes, after 60 s |
-| VALIDATION | placeholder or size errors | n/a | Inline list under editor with positions | after fix |
+| VALIDATION | placeholder, subject, size or request ID errors | n/a | Inline list under editor with positions | after fix |
 | PROMPTS_MISSING | blank prompt at apply | Prompt card with fields marked | n/a | after fill |
 | TIMEOUT, SERVER | network or unhandled | "Something went wrong. Retry." + request ID | Banner + request ID | yes |
 
@@ -249,7 +270,7 @@ Default list, 10 scopes (final after spike S2 (a), 2026-11-09):
 | Scope | Class | Consent text | Used by | Reason |
 |---|---|---|---|---|
 | gmail.addons.execute | Non-sensitive, add-on scope | "Run as a Gmail add-on" | add-on | Required at runtime by Gmail for the compose trigger. Verified 2026-11-09 on the dev deployment: without it Gmail raises "Required permissions: gmail.addons.execute". R4 S42 (release note of 2019) is wrong in practice |
-| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft |
+| gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft; set the draft subject (D21). Google's compose guide uses one set of compose-action scopes for body, subject and recipient updates and names no extra scope for `UpdateDraftSubjectAction` [A14]. Per-action scope unverified until the slice 5 smoke run (Q20) |
 | gmail.addons.current.message.metadata | Sensitive [R4 S8] | "View your email message metadata when the add-on is running" | add-on | Read To recipients for `recipient.first_name` (D10) |
 | script.external_request | Unclassified [R4 S7] | not published | add-on | Call the project's own `/exec` with UrlFetchApp |
 | drive.file | Non-sensitive [R4 S57] | "See, edit, create, and delete only the specific Google Drive files you use with this app" | web app, triggers; also in the add-on token | Storage files the app creates (ADR-0002); the `/exec` front door needs a Drive scope in the bearer token [A1] |
@@ -294,13 +315,24 @@ Daily ceilings at 500 users and 20 applies per user per day: 10,000 applies, abo
 
 ## 11. Logging format
 
-One JSON line per request and per trigger run, via `console.log(JSON.stringify(entry))`.
+One JSON line per request and per trigger run, via `console.log(JSON.stringify(entry))`. Add-on executions log nothing; their phase times reach the server line.
 
 ```
-{"ts":"2026-11-09T14:03:22.120Z","level":"info","requestId":"01JC8...","surface":"addon","action":"template.apply","actor":"user@migway.com","targetId":"01JC7...","result":"ok","errorCode":"","durationMs":412,"cache":"hit","appVersion":"42"}
+{"ts":"2026-11-10T14:03:22.120Z","level":"info","requestId":"MWARO9CA-YG9VT8","surface":"addon","action":"template.apply","actor":"user@migway.com","targetId":"01JC7...","result":"ok","errorCode":"","durationMs":412,"cache":"hit","appVersion":"42","calls":{"props":1,"cache":9,"drive":0,"lock":1,"dir":0},"timing":{"startupMs":40,"totalMs":420,"propsMs":3,"cacheMs":60,"driveReadMs":0,"driveWriteMs":0,"lockMs":35,"dirMs":0,"addonPreMs":310,"addonTokenMs":20,"prevFetchMs":0,"prevTotalMs":0}}
 ```
 
-Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`). Never log template bodies, prompt values, recipient addresses or tokens. Errors add `errorName` and the first 3 stack frames. Logs appear in the Apps Script executions view on the default GCP project and in Cloud Logging on the standard project (2.5b).
+Fields added 2026-11-10 (slice 4b):
+
+| Field | Content |
+|---|---|
+| `requestId` | One format on both surfaces: `XXXXXXXX-XXXXXX`, 8 base-36 time characters, a dash, 6 random, upper case. Pattern `^[0-9A-Z]{8}-[0-9A-Z]{6}$`, generator and check in src/shared/requestId.ts. The server enforces it on add-on and web calls before parsing: any other value answers VALIDATION "Request ID must have the format XXXXXXXX-XXXXXX", and the log line and audit events carry a server-made ID. Client text never reaches the log |
+| `action` | The op name only when the policy table knows it, else `""` |
+| `targetId` | `args.id`, else `args.folderId`, only when it is a well-formed 26-character ID, else `""` |
+| `calls` | Service calls in this execution: `props` (Script Properties), `cache` (Script Cache), `drive`, `lock` (`tryLock`), `dir` (Admin Directory). Integers |
+| `timing` server keys | `startupMs` (bundle evaluation to handler start), `totalMs` (to the log line), `propsMs`, `cacheMs`, `driveReadMs`, `driveWriteMs`, `lockMs`, `dirMs` |
+| `timing` add-on keys | `addonPreMs` (add-on start to this call), `addonTokenMs` (`getOAuthToken`), `prevFetchMs` and `prevTotalMs` (the previous server call of the same add-on execution). The server keeps only these 4 keys, whole ms from 0 to 600,000, and drops anything else |
+
+Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`). Never log template bodies, subjects, prompt values, recipient addresses or tokens. `calls` and `timing` hold numbers only. Errors add `errorName` and the first 3 stack frames. Logs appear in the Apps Script executions view on the default GCP project and in Cloud Logging on the standard project (2.5b).
 
 ## 12. Measurable targets (BRIEF 9)
 
@@ -316,6 +348,29 @@ Web Gmail, dev deployment, 200 pilot templates:
 | Keyboard | every web app action reachable, focus visible, labels on all inputs | manual checklist (slices 3, 5, 6) |
 | Lighthouse accessibility | 90 or higher | Lighthouse on 4 views (slice 6) |
 
+Gmail web is the only acceptance client for v1 (D22). Android and iOS are best effort and untested (BRIEF A7).
+
+### 12.1 Measured 2026-11-10 (facts, no architecture change)
+
+Dev build 9bbd262, Gmail web on Chrome, smoke run through the Claude Chrome extension. Times from the Apps Script execution log unless marked "observed". Source: docs/handoffs/2026-11-10-orchestrator-to-implementer-slice-04b.md.
+
+| Point | Add-on function | Add-on duration | doPost duration | Handler `durationMs` | Target | Met |
+|---|---|---|---|---|---|---|
+| First sidebar open | onComposeOpen | 4.064 s (about 6 s on screen, observed) | 1.381 s | 250 (`sidebar.home`) | under 3 s | no |
+| Open folder | onOpenFolder | 3.005 s | 1.437 s | 346 (`sidebar.home`) | under 3 s | no |
+| Insert, no prompt, first use | onInsert | 4.07 s | 2.419 s | 1314 (`template.apply`) | under 2 s p95 | no |
+| Prompt card Insert | onPromptInsert | 2.083 s | 0.671 s | 78 | under 2 s p95 | no |
+| Prompt card Insert | onPromptInsert | 2.317 s | 0.902 s | 89 | under 2 s p95 | no |
+| Spike S4 F9 | onSpikeInsert | 1.692 s callback | n/a | 55 | under 2 s p95 | callback only, no stopwatch |
+| Web app save | n/a | n/a | n/a | n/a | under 3 s | no, about 10 s (observed) |
+| Web app library first load | n/a | n/a | n/a | n/a | not set; list under 1 s after first load | 4 to 10 s (observed) |
+
+- doPost spends 0.6 to 1.1 s outside the handler: platform start and parsing of the 266 KB bundle.
+- The add-on spends 1.4 to 2.7 s outside the server call: token, two UrlFetch hops (POST to `/exec`, GET of the 302 target), Card Service rendering.
+- Spike S4 callbacks on Gmail web: 1,285 to 2,910 ms per fixture (server 55 to 1,015 ms).
+- Slice 4b cut per-request Properties reads from 7 to 12 down to 1 or 2, removed the read-path lock and the Drive body read on a warm body cache. Call counts before and after: docs/handoffs/2026-11-10-implementer-to-reviewer-slice-04b.md. Times after 4b come from smoke "Slice 4b" step 8 (`calls`, `timing`); none are recorded yet.
+- If the 4b numbers stay above target, the owner decides on ADR-0003 Pattern A (Q22). The 6 larger proposals from the 4b handoff stay unbuilt until then.
+
 ## 13. Slice map
 
 | Spec section | Slice |
@@ -325,7 +380,9 @@ Web Gmail, dev deployment, 200 pilot templates:
 | 3 Topology and identity | 1 (one project, one manifest, one deployment per environment, boundary test), 2 (dispatch, caller identity, spike S2) |
 | 4 Screens 1, 2 and flow 4.1 | 4 |
 | 4 Screens 3, 4 and flow 4.2 save | 3 |
-| 4 Screen 5 and flow 4.2 restore, flow 4.4 search, favorites | 5 |
+| 4 Screen 5 and flow 4.2 restore | 3 (built); subject line in 5 |
+| Flow 4.4 search, favorites, Recent, subject (5.6) | 5 |
+| Trash view, `template.restoreFromTrash` | 6 |
 | 4 Screen 6, flows 4.3 and 4.5 | 6 |
 | 4 Screen 7 states | 3 (web), 4 (sidebar), 6 (admin) |
 | 5 Data model, JSON files, reserved fields | 2 |
@@ -337,9 +394,22 @@ Web Gmail, dev deployment, 200 pilot templates:
 | 10 Quota budget, measurements | 2 (spike S2, cache), 4 (apply) |
 | 11 Logging | 1 (logger), 2 (audit) |
 | 12 Measurable targets | 2, 3, 4, 5, 6 as listed |
-| ADR-0004 placeholder parser and sanitizer | 3; insert spike and allowlist trim in 4 |
+| ADR-0004 placeholder parser and sanitizer | 3; insert spike in 4; spike S4 closed 2026-11-10 on Gmail web (D22), allowlist unchanged, cap 100 KB; harness removal in 5 |
 | ADR-0005 repo, CI, deploy, rollback | 1; rollback exercise before slice 7 ends |
 | Docs: README, admin install, quick start, runbook | 7 |
+
+### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
+
+1. First task, 15 min on the dev deployment: one `UpdateDraftActionResponse` with body and subject actions on Gmail web (Q20, Q21). The result decides the apply path before the rest is built.
+2. Subject (D21, section 5.6): item field, save validation codes, shared prompts, rendering, `template.apply` and `template.getBody` return it, body file field, restore copies it, editor field, preview and prompt cards, duplicate and export carry it.
+3. Sidebar search: op `search`, top 20, `folder:` and `tag:`, weights of section 4.4.
+4. Favorites: `favorite.set`, `favorite.unset`, `favorites.json`, sidebar section (max 10), library star and filter.
+5. Recent: sidebar section (max 5) from `usage.json` `recent`.
+6. Web app search: browser filter on the loaded index, `search.body` for body text.
+7. Removal of the S4 harness: `spike.s4` and its policy row, `onSpikeCard`, `onSpikeInsert`, `src/shared/spike/`, the home card section, smoke steps.
+8. Spec 12 measurement: web app list and search under 1 s after first load.
+
+Trash view and `template.restoreFromTrash` go to slice 6. Reasons: slice 5 already holds 8 items across sidebar, web app and server; the Trash view shares the admin slice's folder-delete and `trash.purge` work (restore into a deleted folder needs a target picker, and purge is admin only); soft delete since slice 4b keeps data, and the `daily` purge deletes only after 30 days. Risk until slice 6: a template deleted on dev more than 30 days before slice 6 ships is purged with no restore UI. Mitigation: none needed on dev data; `backups/` keeps 14 days.
 
 ## 14. Spikes
 
@@ -347,7 +417,8 @@ Web Gmail, dev deployment, 200 pilot templates:
 |---|---|---|---|
 | S2 | 2, first task | (a) `drive.file` token passes `/exec` with `DOMAIN`; (b) `getActiveUser` set on token calls; (c) project sharing needed; (d) token call to `/dev` works for editors; (e) Advanced Drive service works on `drive.file` alone | (a), (b), (e) yes; (c), (d) answered |
 | S2b | 2 | UrlFetch round trip to `/exec`, add-on start time, Drive read and write of 0.85 MB and 8.4 MB files, `domain_public` fields | p95 recorded in ADR-0002; 0.85 MB read and write each under 2 s (Q17) |
-| S4 | 4, first task | Draft insert on web, Android, iOS (ADR-0004 table) | allowlist and size cap updated |
+| S4 | 4, first task | Draft insert on Gmail web (ADR-0004 table) | Resolved 2026-11-10: F1 to F9 inserted on Gmail web, 204,837 bytes (F7) included. Allowlist unchanged, cap 100 KB. Android and iOS runs dropped by the owner (D22). Harness removed in slice 5 |
+| S5 | 5, first task | Body and subject actions in one `UpdateDraftActionResponse` on Gmail web; subject replaced, not appended; reply drafts (Q20, Q21) | answered in the slice 5 handoff |
 
 ## 15. Open questions for the owner
 
@@ -371,13 +442,18 @@ Web Gmail, dev deployment, 200 pilot templates:
 | Q16 | Advanced Drive service on `drive.file` alone | Spike S2 (e); fallback Drive REST via UrlFetch, same scope |
 | Q17 | Thresholds that keep Drive-only storage | 0.85 MB read and write each under 2 s in spike S2b; else ADR-0002 reopens with Sheets and its consent cost |
 | Q18 | Prod data in My Drive or a shared drive | Prod owner's My Drive; shared drive only if `setup()` can create its own folder there (2.5b dry run) |
-| Q19 | Dev web app on `/dev` or versioned `/exec` | `/dev` if spike S2 (d) passes: 0 versions per dev deploy |
+| Q19 | Dev web app on `/dev` or versioned `/exec` | `/dev` if spike S2 (d) passes: 0 versions per dev deploy. Spike S2 (d) passed 2026-11-10 for a non-owner editor |
+| Q20 | Does `UpdateDraftSubjectAction` need a scope beyond `gmail.addons.current.action.compose`, and does Gmail web accept it with `UpdateDraftBodyAction` in one response? Google's pages list both setters on one builder but show one action per example and name no per-action scope [A14, A15] | Spike S5 on dev. If one response fails: Insert sets the body, the preview card gets a second button "Set subject". If Gmail asks for a new scope: stop; a new scope needs owner approval and a manifest and approved-list change |
+| Q21 | Reply drafts. Replacing a reply's "Re: ..." subject may split the Gmail conversation (unverified). The add-on cannot read the subject; whether the compose event of a reply carries `gmail.threadId` or `gmail.messageId` is not documented [A13] | Spike S5 logs whether those fields are present on a reply (boolean only). If present: skip the subject on one-click Insert in replies and default the prompt card switch off. If absent: keep "Insert body only" as the escape and state it in the quick start |
+| Q22 | Apply and sidebar targets missed on 2026-11-10 (section 12.1) | Wait for smoke "Slice 4b" step 8 numbers. If apply stays above 2 s p95, the owner decides between accepting the measured value and an ADR-0003 change (4b proposals 3 and 6) |
+| Q23 | `installTriggers` deletes the old triggers before it creates the new set; a failed create leaves fewer than 3 until a web app page load (4b review minor 7) | Create the new set first, then delete the old one; record a `job:triggers:lastError` health key the Config tab flags. Slice 6 |
+| Q24 | `template.apply` accepts `recipientEmailIfInternal` on `followUp` calls, an event-free first-name lookup (slice 4 review) | Ignore the field when `followUp` is true. Slice 5, one line |
 
 ## 16. Operations and maintenance
 
 Target (BRIEF 1 Operations): the only recurring human task is deploying a new version. Details in ADR-0003 Part B (triggers) and ADR-0005 (Maintenance).
 
-Triggers. All time-driven, owned by and running as the owner. `setup()` installs them idempotently; the owner runs it once per environment after the first deploy, and the first web app request after each deploy reinstalls them when `TRIGGERS_VERSION` changes.
+Triggers. All time-driven, owned by and running as the owner. `setup()` installs them idempotently; the owner runs it once per environment after the first deploy. The trigger version check (amended 2026-11-10, slice 4b) runs in `doGet` and at the end of every `tick`; `rpc` and `doPost` skip it. It reads `TRIGGERS_VERSION` live inside the script lock and reinstalls when it differs, so after a deploy the triggers update on the first web app page load or within 5 min through `tick`, whichever comes first. Limit: a release that renames or removes the `tick` handler needs one web app page load.
 
 | Trigger | Schedule | Work | Runtime per day (estimate) |
 |---|---|---|---|
@@ -404,3 +480,7 @@ Template, folder and grant changes and backup restores happen in the web app, do
 
 - docs/research/r1 to r4, feature-matrix.md, ux-notes.md, summary.md, read 2026-11-09. Tags [R2 S43], [R4 Sn] as in those files.
 - [A1] https://github.com/tanaikech/taking-advantage-of-Web-Apps-with-google-apps-script, third party, read 2026-11-09. Other [An] tags are listed in the ADR that uses them.
+- [A13] https://developers.google.com/workspace/add-ons/concepts/event-objects (Gmail event object: `accessToken`, `messageId`, `threadId`, `toRecipients`, `ccRecipients`, `bccRecipients`; no subject field; `commonEventObject.platform` WEB, IOS, ANDROID), read 2026-11-10.
+- [A14] https://developers.google.com/workspace/add-ons/gmail/extending-compose-ui (compose actions return `UpdateDraftActionResponse`; subject example `setUpdateDraftSubjectAction(CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject))`; one action per example; scopes "required for compose actions" not listed; no mobile note), read 2026-11-10.
+- [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder (setters for body, subject, To, Cc, Bcc on one builder, each returns the builder for chaining; no statement on combining; no scope listed) and https://developers.google.com/apps-script/reference/card-service/update-draft-subject-action (`addUpdateSubject(subject)`: "Updates the subject line of an email draft"), read 2026-11-10.
+- [A16] https://developers.google.com/workspace/gmail/api/auth/scopes (`gmail.addons.current.action.compose` "Manage drafts and send emails when you interact with the Google Workspace add-on", non-sensitive), read 2026-11-10.

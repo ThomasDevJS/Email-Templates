@@ -1,10 +1,11 @@
 Screen 4: Web app editor (/exec?view=editor&id=...)
-Slice 3.
+Slice 3. Subject field slice 5 (D21).
 
 +----------------------------------------------------------------------------------+
 | < Library   Price quote 2026                 Version 7   [History]  [Save Ctrl+S] |
 +----------------------------------------------------------------------------------+
 | Title  [ Price quote 2026_________________________ ]                             |
+| Subject [ Quote for {{ask:Product name}}__________ ]  31/200   (optional)        |
 | Folder [ Sales / Quotes        v ]   Tags [ pricing x ] [ quotes x ] [+ tag]     |
 |----------------------------------------------------------------------------------|
 | [B][I][U][S] [Color v][Size v][Font v] [Align v] [* list][1. list] ["] [--]      |
@@ -21,6 +22,8 @@ Slice 3.
 |                                                          | +1 555 0100           |
 | (Sender name)                                            |                       |
 | (Sender title)                                           |                       |
+|----------------------------------------------------------------------------------|
+| PREVIEW AS ME subject: Quote for [Product name]                                  |
 |----------------------------------------------------------------------------------|
 | Problems (2):                                            role="alert" region     |
 |  - Unknown placeholder sender.nmae at char 120. Did you mean sender.name?        |
@@ -39,3 +42,11 @@ Placeholder menu ({{ or toolbar):
 Conflict dialog (CONFLICT on save):
   "Ben saved version 8 at 14:05 while you edited."
   [Open Ben's version]  [Copy my text]  [Cancel]
+
+Subject field (D21, spec 5.6):
+  Single-line <input>, label "Subject", optional, counter 0/200. Plain text: tokens are typed
+  as text, no chips. Placeholder menu inserts token text at the cursor when the subject has
+  focus. Enter does not add a line. Paste of a line break becomes one space in the input; the
+  server still rejects line breaks with SUBJ_LINEBREAK.
+  Problems name the field: "Subject: Unknown placeholder sender.nmae at char 3."
+  Empty subject = the draft subject is not touched on Insert.
