@@ -179,6 +179,8 @@ describe("library (screen 3)", () => {
     ).toEqual(["Price quote 2026"]);
     search.value = "interest";
     search.dispatchEvent(new Event("input"));
+    expect(text()).toContain("Searching text...");
+    expect(text()).not.toContain("No templates match");
     await until(() => {
       expect(main().querySelector(".matches-heading")?.textContent).toBe(
         "Matches in text",
@@ -189,6 +191,35 @@ describe("library (screen 3)", () => {
         '[aria-label="Matches in text"] tbody tr td:nth-child(2)',
       )?.textContent,
     ).toBe("Price quote 2026");
+    expect(text()).not.toContain("Searching text...");
+  });
+
+  it("shows the no-match text once a failed search.body settles", async () => {
+    await boot("/?latency=0&fail=BUSY&failOp=search.body#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    const search = document.getElementById("search") as HTMLInputElement;
+    search.value = "interest";
+    search.dispatchEvent(new Event("input"));
+    expect(text()).toContain("Searching text...");
+    await until(() => {
+      expect(text()).toContain(
+        'No templates match "interest". Try folder: or tag:.',
+      );
+    });
+  });
+
+  it("takes focus on load and focuses search on the first / even when the key targets the document", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    expect(document.activeElement).toBe(main());
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "/", bubbles: true }),
+    );
+    expect(document.activeElement).toBe(document.getElementById("search"));
   });
 
   it("focuses search with / and filters by title, folder and tag", async () => {
@@ -208,9 +239,11 @@ describe("library (screen 3)", () => {
     ).toEqual(["Welcome email"]);
     search.value = "qoute";
     search.dispatchEvent(new Event("input"));
-    expect(text()).toContain(
-      'No templates match "qoute". Try folder: or tag:.',
-    );
+    await until(() => {
+      expect(text()).toContain(
+        'No templates match "qoute". Try folder: or tag:.',
+      );
+    });
   });
 
   it("moves through the tree with arrow keys and opens a folder with Enter", async () => {
@@ -371,6 +404,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
         (item) => item.textContent === "Duplicate",
       ) as HTMLElement
     ).click();
+    expect(status()).toBe("Duplicating...");
     await until(() => {
       expect(status()).toBe('Duplicated as "Copy of Welcome email".');
     });
@@ -396,6 +430,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
     ]);
     select.value = "F-EMPTY";
     button("Move", dialog).click();
+    expect(status()).toBe("Moving...");
     await until(() => {
       expect(status()).toBe('Moved "Welcome email" to HR.');
     });
@@ -416,6 +451,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
       return document.querySelector('[role="dialog"]') as HTMLElement;
     };
     const first = pickDelete();
+    expect(document.activeElement).toBe(button("Cancel", first));
     expect(first.textContent).toContain(
       'Delete "Discount approval"? Deleted templates stay in the trash for 30 days.',
     );
@@ -425,6 +461,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
     });
     expect(document.activeElement).toBe(cell);
     button("Delete", pickDelete()).click();
+    expect(status()).toBe("Deleting...");
     await until(() => {
       expect(status()).toBe('Deleted "Discount approval".');
     });
@@ -700,6 +737,7 @@ describe("history (screen 5)", () => {
     });
     const list = main().querySelector('[role="listbox"]') as HTMLElement;
     expect(list.getAttribute("aria-activedescendant")).toBe("version-2");
+    expect(document.activeElement).toBe(list);
     key(list, "ArrowDown");
     key(list, "Enter");
     await until(() => {

@@ -24,7 +24,16 @@ export interface LogFields {
   readonly calls?: Numbers;
   /** Phase times in ms: startup, total, per service, and the add-on's own phases. */
   readonly timing?: Numbers;
+  /** Add-on Gmail event field names from a fixed list and recipient counts (Q21). Never values. */
+  readonly draft?: DraftLog;
   readonly error?: unknown;
+}
+
+export interface DraftLog {
+  readonly fields: readonly string[];
+  readonly to: number;
+  readonly cc: number;
+  readonly bcc: number;
 }
 
 export interface LogEntry {
@@ -42,6 +51,7 @@ export interface LogEntry {
   readonly appVersion: string;
   readonly calls?: Numbers;
   readonly timing?: Numbers;
+  readonly draft?: DraftLog;
   readonly errorName?: string;
   readonly stack?: readonly string[];
 }
@@ -111,6 +121,7 @@ export function buildEntry(
     appVersion: options.appVersion,
     ...(fields.calls === undefined ? {} : { calls: fields.calls }),
     ...(fields.timing === undefined ? {} : { timing: fields.timing }),
+    ...(fields.draft === undefined ? {} : { draft: fields.draft }),
     ...errorFields(fields.error),
   };
 }

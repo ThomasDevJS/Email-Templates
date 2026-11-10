@@ -8,7 +8,7 @@ import { renderCard, renderReply } from "./cards/render";
 import type { Reply } from "./cards/spec";
 import { waitSeconds } from "./cards/states";
 import { callServer } from "./client/serverClient";
-import { paramsOf, type AddonEvent } from "./event";
+import { draftInfo, paramsOf, type AddonEvent } from "./event";
 import {
   folderFlow,
   homeFlow,
@@ -29,9 +29,11 @@ type Response =
   | GoogleAppsScript.Card_Service.UpdateDraftActionResponse;
 type Params = Readonly<Record<string, string>>;
 
-function ports(): Ports {
+/** Every server call of this execution carries the event's Q21 diagnostics (names and counts only). */
+function ports(event: AddonEvent | undefined): Ports {
+  const draft = draftInfo(event);
   return {
-    call: callServer,
+    call: (op, args) => callServer(op, args, draft),
     cache: CacheService.getUserCache(),
     nowMs: () => Date.now(),
     userEmail: Session.getActiveUser().getEmail(),
@@ -47,7 +49,7 @@ function respond(
 ): Response {
   requireAddonSession(name);
   const params = paramsOf(event);
-  const context = ports();
+  const context = ports(event);
   const wait = waitSeconds(params, context.nowMs());
   return renderReply(
     wait > 0
@@ -60,15 +62,15 @@ function respond(
 }
 
 /** Gmail compose trigger (`addOns.gmail.composeTrigger.selectActions`). */
-export function onComposeOpen(): Card {
+export function onComposeOpen(event?: AddonEvent): Card {
   requireAddonSession("onComposeOpen");
-  return renderCard(homeFlow(ports()));
+  return renderCard(homeFlow(ports(event)));
 }
 
 /** Add-on homepage (`addOns.common.homepageTrigger`). */
-export function onHomepage(): Card {
+export function onHomepage(event?: AddonEvent): Card {
   requireAddonSession("onHomepage");
-  return renderCard(homeFlow(ports()));
+  return renderCard(homeFlow(ports(event)));
 }
 
 /** Universal action "Open library": opens the web app in an overlay and reloads the add-on on close. */
@@ -89,7 +91,9 @@ export function onOpenFolder(event?: AddonEvent): Response {
 }
 
 export function onPreview(event?: AddonEvent): Response {
-  return respond("onPreview", event, previewFlow);
+  return respond("onPreview", event, (context, params) =>
+    previewFlow(context, event, params),
+  );
 }
 
 export function onInsert(event?: AddonEvent): Response {

@@ -154,4 +154,47 @@ describe("handleRpc", () => {
     world.call(OWNER, "template.list");
     expect(lastLog()).toMatchObject({ cache: "hit" });
   });
+
+  it("logs the add-on's draft field names and counts (Q21)", () => {
+    const draft = { fields: ["threadId", "messageId"], to: 2, cc: 1, bcc: 0 };
+    const response = handleRpc({ email: OWNER }, { ...PING, draft }, "addon", {
+      services: world.services,
+    });
+    expect(response.ok).toBe(true);
+    expect(lastLog()["draft"]).toEqual({
+      fields: ["messageId", "threadId"],
+      to: 2,
+      cc: 1,
+      bcc: 0,
+    });
+    handleRpc({ email: OWNER }, PING, "addon", { services: world.services });
+    expect(lastLog()).not.toHaveProperty("draft");
+  });
+
+  it("rejects a draft name outside the fixed list with VALIDATION and logs none of its text", () => {
+    const draft = {
+      fields: ["threadId", "Dear Bob, the price is 10"],
+      to: 1,
+      cc: 0,
+      bcc: 0,
+    };
+    const response = handleRpc({ email: OWNER }, { ...PING, draft }, "addon", {
+      services: world.services,
+    });
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDATION",
+        message: "Draft fields must come from the fixed list",
+      },
+    });
+    expect(world.lines).toHaveLength(1);
+    expect(lastLog()).toMatchObject({
+      result: "error",
+      errorCode: "VALIDATION",
+    });
+    expect(lastLog()).not.toHaveProperty("draft");
+    expect(world.lines[0]).not.toContain("Dear Bob");
+    expect(world.lines[0]).not.toContain("threadId");
+  });
 });

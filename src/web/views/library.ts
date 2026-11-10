@@ -31,6 +31,8 @@ export function libraryView(
   let bodyQuery = "";
   let bodyIds: readonly string[] = [];
   let bodySkipped = 0;
+  /** Query whose `search.body` call is still due or running; "" when none. */
+  let bodyPending = "";
   const search = h("input", {
     type: "search",
     id: "search",
@@ -161,7 +163,13 @@ export function libraryView(
     open: (item) => {
       app.go({ name: "edit", id: item.id });
     },
-    menu: (item) => rowMenu(app, item, afterAction),
+    menu: (item) =>
+      rowMenu(app, item, {
+        busy: (text) => {
+          status.textContent = text;
+        },
+        done: afterAction,
+      }),
     isFavorite: (item) => app.favorites().has(item.id),
     toggleFavorite,
   };
@@ -177,6 +185,8 @@ export function libraryView(
   };
 
   const bodySection = (shown: readonly ItemRow[]): HTMLElement[] => {
+    if (bodyPending !== "" && bodyPending === search.value.trim())
+      return [h("p", { class: "hint" }, "Searching text...")];
     const extra = bodyMatches(shown);
     const note =
       bodyQuery === search.value.trim() && bodySkipped > 0
@@ -218,35 +228,43 @@ export function libraryView(
   const searchBodies = () => {
     window.clearTimeout(bodyTimer);
     const query = search.value.trim();
-    if (parseQuery(query).terms.length === 0) return;
+    bodyPending = parseQuery(query).terms.length === 0 ? "" : query;
+    if (bodyPending === "") return;
     bodyTimer = window.setTimeout(() => {
       const started = performance.now();
       app.api.searchBody(query).then(
         (found) => {
           if (query !== search.value.trim()) return;
+          bodyPending = "";
           bodyQuery = query;
           bodyIds = found.ids;
           bodySkipped = found.skipped;
           drawList();
           performance.measure("library.body", { start: started });
         },
-        (error: unknown) => app.fail(error),
+        (error: unknown) => {
+          if (query === bodyPending) bodyPending = "";
+          drawList();
+          app.fail(error);
+        },
       );
     }, BODY_SEARCH_DELAY_MS);
   };
 
   search.addEventListener("input", () => {
-    drawList();
     searchBodies();
+    drawList();
   });
   favoritesFilter.addEventListener("click", () => {
     onlyFavorites = !onlyFavorites;
     favoritesFilter.setAttribute("aria-pressed", String(onlyFavorites));
     drawList();
   });
+  /** The key may target the document itself when nothing in the page has focus (smoke 5b item 8). */
   const slash = (event: KeyboardEvent) => {
-    const target = event.target as HTMLElement;
+    const target = event.target;
     const typing =
+      target instanceof Element &&
       target.closest("input, textarea, select, [contenteditable]") !== null;
     if (event.key === "/" && !typing) {
       event.preventDefault();

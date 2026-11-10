@@ -12,6 +12,7 @@ import {
 import {
   parseRpcResponse,
   type ClientTiming,
+  type DraftInfo,
   type RpcRequest,
   type RpcResponse,
 } from "../../shared/model/protocol";
@@ -120,7 +121,12 @@ let previous: ClientTiming = {};
  * One request with the add-on's phase times (slice 4b): start to this call, the token call, and the previous
  * call's fetch and total. The server writes them into its log line, because add-on executions show no logs.
  */
-function send(op: string, args: unknown, requestId: string): RpcResponse {
+function send(
+  op: string,
+  args: unknown,
+  requestId: string,
+  draft: DraftInfo | undefined,
+): RpcResponse {
   if (BUILD_INFO.execUrl === "") {
     return localError(
       ErrorCode.NOT_CONFIGURED,
@@ -142,6 +148,7 @@ function send(op: string, args: unknown, requestId: string): RpcResponse {
       requestId,
       clientVersion: APP_VERSION,
       timing,
+      ...(draft === undefined ? {} : { draft }),
     };
     const hop = fetchServer(request, token);
     const done = Date.now();
@@ -152,7 +159,12 @@ function send(op: string, args: unknown, requestId: string): RpcResponse {
   }
 }
 
-export function callServer(op: string, args: unknown): ServerCall {
+/** One server call; `draft` carries the Q21 event diagnostics of the callback that makes it. */
+export function callServer(
+  op: string,
+  args: unknown,
+  draft?: DraftInfo,
+): ServerCall {
   const requestId = requestIdNow();
-  return { requestId, response: send(op, args, requestId) };
+  return { requestId, response: send(op, args, requestId, draft) };
 }

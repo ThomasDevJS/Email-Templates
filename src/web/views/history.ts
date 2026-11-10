@@ -109,10 +109,13 @@ export function historyView(
   };
 
   const load = async () => {
+    const first = data === null;
     data = await app.api.versions(id);
     heading.textContent = `${data.title} - History`;
     selected = Math.min(selected, data.versions.length - 1);
     drawList();
+    // Arrow keys work at once after opening (smoke 5b item 5).
+    if (first) list.focus();
     await showVersion();
   };
 

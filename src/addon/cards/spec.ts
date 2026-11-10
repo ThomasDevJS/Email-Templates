@@ -27,6 +27,20 @@ export const SUBJECT_SWITCH = "subj";
 export const SEARCH_INPUT = "q";
 /** Callback parameter `subject` of "Insert body only": the draft subject stays as it is. */
 export const SKIP_SUBJECT = "skip";
+/** Callback parameter `subject` of "Insert with subject": the opt-in in a reply (Q21). */
+export const WITH_SUBJECT = "use";
+
+/**
+ * Whether an Insert sends the subject action: "Insert body only" never, "Insert with subject" always, a plain
+ * Insert unless the draft is a reply (Q21: a new subject may move the reply to a new thread).
+ */
+export function replacesSubject(
+  choice: string | undefined,
+  reply: boolean,
+): boolean {
+  if (choice === SKIP_SUBJECT) return false;
+  return choice === WITH_SUBJECT || !reply;
+}
 
 export interface ActionSpec {
   readonly fn: Callback;

@@ -98,7 +98,18 @@ export interface FolderView extends Folder {
   readonly level: AccessLevel;
 }
 
-/** Live folders where the caller holds `use` or more, each with the caller's level. */
+/**
+ * Display name: another user's private folder gets its owner, "My templates (name@domain)" (D18: only admins see
+ * those folders, so no other user's address reaches a non-admin). The caller's own keeps its name.
+ */
+function folderLabel(folder: Folder, callerEmail: string): string {
+  const owner = folder.ownerEmail.toLowerCase();
+  return folder.kind === "private" && owner !== callerEmail.toLowerCase()
+    ? `${folder.name} (${owner})`
+    : folder.name;
+}
+
+/** Live folders where the caller holds `use` or more, each with the caller's level and display name. */
 export function folderList(context: HandlerContext): { folders: FolderView[] } {
   const index = ensurePrivateFolder(context);
   const access = context.access();
@@ -108,7 +119,11 @@ export function folderList(context: HandlerContext): { folders: FolderView[] } {
       : levelResolver(access.subject, index);
   const folders = index.folders
     .filter((folder) => folder.deletedAt === "")
-    .map((folder) => ({ ...folder, level: levelOf(folder.id) }))
+    .map((folder) => ({
+      ...folder,
+      name: folderLabel(folder, context.caller.email),
+      level: levelOf(folder.id),
+    }))
     .filter((folder) => atLeast(folder.level, "use"));
   return { folders };
 }

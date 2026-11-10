@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  draftInfo,
   formValue,
   internalRecipient,
+  isReplyDraft,
   paramsOf,
 } from "../../../src/addon/event";
 import {
@@ -99,6 +101,53 @@ describe("event object", () => {
     expect(internalRecipient(to(), me)).toBe("");
     expect(internalRecipient(undefined, me)).toBe("");
     expect(internalRecipient(to("a@example.com"), "")).toBe("");
+  });
+});
+
+describe("draft diagnostics and the reply rule (Q21)", () => {
+  it("reports present field names in fixed order and recipient counts, no values", () => {
+    const info = draftInfo({
+      gmail: {
+        threadId: "thread-1",
+        messageId: "",
+        toRecipients: ["a@example.com", "b@example.com"],
+        ccRecipients: ["c@example.com"],
+        accessToken: "not-a-field",
+      },
+      draftMetadata: { toRecipients: ["a@example.com"], bccRecipients: [] },
+    });
+    expect(info).toEqual({
+      fields: [
+        "threadId",
+        "draftMetadata",
+        "toRecipients",
+        "ccRecipients",
+        "bccRecipients",
+      ],
+      to: 2,
+      cc: 1,
+      bcc: 0,
+    });
+    expect(JSON.stringify(info)).not.toContain("@");
+    expect(draftInfo(undefined)).toEqual({ fields: [], to: 0, cc: 0, bcc: 0 });
+    expect(
+      draftInfo({
+        gmail: { toRecipients: Array.from({ length: 1500 }, () => "x") },
+      }).to,
+    ).toBe(1000);
+  });
+
+  it("calls a draft a reply when the event names a thread or a message", () => {
+    expect(isReplyDraft({ gmail: { threadId: "t" } })).toBe(true);
+    expect(isReplyDraft({ gmail: { messageId: "m" } })).toBe(true);
+    expect(isReplyDraft({ messageMetadata: { messageId: "m" } })).toBe(true);
+    expect(isReplyDraft({ gmail: { threadId: "", messageId: null } })).toBe(
+      false,
+    );
+    expect(
+      isReplyDraft({ draftMetadata: { toRecipients: ["a@example.com"] } }),
+    ).toBe(false);
+    expect(isReplyDraft(undefined)).toBe(false);
   });
 });
 

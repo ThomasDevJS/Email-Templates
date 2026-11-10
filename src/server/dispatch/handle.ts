@@ -8,6 +8,7 @@ import { isId } from "../../shared/ids";
 import type { LogResult, Surface } from "../../shared/log/logger";
 import {
   parseRpcRequest,
+  requestDraft,
   requestTiming,
   type RpcResponse,
 } from "../../shared/model/protocol";
@@ -47,6 +48,11 @@ function runDispatch(
     throw new AppError(
       ErrorCode.VALIDATION,
       "Request ID must have the format XXXXXXXX-XXXXXX",
+    );
+  if (requestDraft(raw) === null)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "Draft fields must come from the fixed list",
     );
   const request = parseRpcRequest(raw);
   if (request === null)
@@ -94,6 +100,12 @@ function targetOf(raw: unknown): string {
   return isId(folderId) ? folderId : "";
 }
 
+/** Draft diagnostics for the log line, only when they passed the fixed-list check; a rejected set leaves no trace. */
+function draftOf(raw: unknown) {
+  const draft = requestDraft(raw);
+  return draft === null || draft === undefined ? {} : { draft };
+}
+
 /**
  * Measured part of the log line: how the index was served, service call counts, and phase times. `startupMs`
  * runs from script load to handler start, `totalMs` from script load to now; the add-on adds its own phases.
@@ -133,6 +145,7 @@ export function handleRpc(
     requestId,
     actor: caller.email,
     targetId: targetOf(raw),
+    ...draftOf(raw),
   };
   try {
     const data = runDispatch(caller, raw, surface, deps, requestId);

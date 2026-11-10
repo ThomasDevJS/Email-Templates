@@ -17,18 +17,29 @@ import type { AppContext } from "./context";
  */
 export type Done = (status: string, focusId: string) => void;
 
+interface Report {
+  /** Shows a busy status at once, before the server call returns ("Duplicating..."). */
+  readonly busy: (status: string) => void;
+  readonly done: Done;
+}
+
 interface Outcome {
   readonly status: string;
   readonly focusId: string;
 }
 
-/** Runs one server action, reloads the library and reports. A failure shows the usual toast or banner text. */
+/**
+ * Shows `pending` at once, runs one server action, reloads the library and reports. A failure shows the usual
+ * toast or banner text.
+ */
 async function act(
   app: AppContext,
   item: ItemRow,
+  pending: string,
   work: () => Promise<Outcome>,
-  done: Done,
+  { busy, done }: Report,
 ): Promise<void> {
+  busy(pending);
   try {
     const outcome = await work();
     await app.reload();
@@ -40,7 +51,7 @@ async function act(
   }
 }
 
-function askMove(app: AppContext, item: ItemRow, done: Done): void {
+function askMove(app: AppContext, item: ItemRow, report: Report): void {
   const id = uid("move-folder");
   const select = h(
     "select",
@@ -66,6 +77,7 @@ function askMove(app: AppContext, item: ItemRow, done: Done): void {
           void act(
             app,
             item,
+            "Moving...",
             async () => {
               await app.api.move(item.id, target, item.version);
               return {
@@ -73,7 +85,7 @@ function askMove(app: AppContext, item: ItemRow, done: Done): void {
                 focusId: item.id,
               };
             },
-            done,
+            report,
           );
           return true;
         },
@@ -83,7 +95,7 @@ function askMove(app: AppContext, item: ItemRow, done: Done): void {
   });
 }
 
-function askDelete(app: AppContext, item: ItemRow, done: Done): void {
+function askDelete(app: AppContext, item: ItemRow, report: Report): void {
   openDialog({
     title: "Delete template",
     body: h(
@@ -99,16 +111,18 @@ function askDelete(app: AppContext, item: ItemRow, done: Done): void {
           void act(
             app,
             item,
+            "Deleting...",
             async () => {
               await app.api.remove(item.id, item.version);
               return { status: `Deleted "${item.title}".`, focusId: "" };
             },
-            done,
+            report,
           );
           return true;
         },
       },
-      { label: "Cancel", run: () => true },
+      // Cancel gets the first focus: Enter right after the menu must not delete (smoke 5b item 6).
+      { label: "Cancel", run: () => true, autofocus: true },
     ],
   });
 }
@@ -116,7 +130,7 @@ function askDelete(app: AppContext, item: ItemRow, done: Done): void {
 export function rowMenu(
   app: AppContext,
   item: ItemRow,
-  done: Done,
+  report: Report,
 ): MenuItem[] {
   const entries: Readonly<Record<RowAction, MenuItem>> = {
     edit: {
@@ -131,6 +145,7 @@ export function rowMenu(
         void act(
           app,
           item,
+          "Duplicating...",
           async () => {
             const copy = await app.api.duplicate(item.id);
             return {
@@ -138,14 +153,14 @@ export function rowMenu(
               focusId: copy.id,
             };
           },
-          done,
+          report,
         );
       },
     },
     move: {
       label: "Move...",
       run: () => {
-        askMove(app, item, done);
+        askMove(app, item, report);
       },
     },
     history: {
@@ -157,7 +172,7 @@ export function rowMenu(
     delete: {
       label: "Delete...",
       run: () => {
-        askDelete(app, item, done);
+        askDelete(app, item, report);
       },
     },
   };

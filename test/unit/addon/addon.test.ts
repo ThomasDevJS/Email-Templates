@@ -199,6 +199,25 @@ describe("readResponse", () => {
 });
 
 describe("add-on entry points", () => {
+  it("sends the event's draft field names and counts with every call, never values (Q21)", () => {
+    serve({ "sidebar.home": HOME });
+    addon.onComposeOpen({
+      gmail: {
+        threadId: "thread-secret",
+        toRecipients: ["bob@example.com"],
+      },
+    });
+    const payload = fetchApp.requests[0]?.params.payload as string;
+    expect((JSON.parse(payload) as { draft: unknown }).draft).toEqual({
+      fields: ["threadId", "toRecipients"],
+      to: 1,
+      cc: 0,
+      bcc: 0,
+    });
+    expect(payload).not.toContain("thread-secret");
+    expect(payload).not.toContain("bob@example.com");
+  });
+
   it("compose and homepage load sidebar.home once, then read the User Cache", () => {
     const ops = serve({ "sidebar.home": HOME });
     addon.onComposeOpen();

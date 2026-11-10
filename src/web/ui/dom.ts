@@ -43,9 +43,13 @@ export function replace(parent: Element, ...children: Child[]): void {
   );
 }
 
+const pad = (value: number) => String(value).padStart(2, "0");
+
+/** "YYYY-MM-DD HH:MM" in the browser's time zone; the server stores UTC. "" for a blank or bad value. */
 export function formatTime(iso: string): string {
-  if (iso === "") return "";
-  return iso.replace("T", " ").slice(0, 16);
+  const date = new Date(iso);
+  if (iso === "" || Number.isNaN(date.getTime())) return "";
+  return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 let counter = 0;

@@ -1,3 +1,9 @@
+import {
+  DRAFT_COUNT_MAX,
+  DRAFT_FIELDS,
+  type DraftField,
+  type DraftInfo,
+} from "../shared/model/protocol";
 import { domainOf } from "../shared/permissions/principals";
 
 /**
@@ -13,7 +19,59 @@ export interface AddonEvent {
       Record<string, { readonly stringInputs?: { readonly value?: string[] } }>
     >;
   };
-  readonly draftMetadata?: { readonly toRecipients?: readonly string[] };
+  readonly draftMetadata?: {
+    readonly toRecipients?: readonly string[];
+    readonly [field: string]: unknown;
+  };
+  /** Gmail fields of the event (`messageId`, `threadId`, recipients); read only by `draftInfo`. */
+  readonly gmail?: Readonly<Record<string, unknown>>;
+  readonly messageMetadata?: Readonly<Record<string, unknown>>;
+}
+
+function presentValue(value: unknown): boolean {
+  return value !== undefined && value !== null && value !== "";
+}
+
+/**
+ * Q21 diagnostics: which `DRAFT_FIELDS` the event carries in `gmail`, `draftMetadata` or `messageMetadata`, and
+ * the To, Cc and Bcc counts. Names and numbers only: no value leaves the add-on.
+ */
+export function draftInfo(event: AddonEvent | undefined): DraftInfo {
+  const sources = [
+    event?.gmail,
+    event?.draftMetadata,
+    event?.messageMetadata,
+  ].filter((source) => source !== undefined);
+  const has = (name: DraftField) =>
+    name === "draftMetadata"
+      ? event?.draftMetadata !== undefined
+      : sources.some((source) => presentValue(source[name]));
+  const count = (name: DraftField) =>
+    Math.min(
+      DRAFT_COUNT_MAX,
+      Math.max(
+        0,
+        ...sources.map((source) => {
+          const list = source[name];
+          return Array.isArray(list) ? list.length : 0;
+        }),
+      ),
+    );
+  return {
+    fields: DRAFT_FIELDS.filter(has),
+    to: count("toRecipients"),
+    cc: count("ccRecipients"),
+    bcc: count("bccRecipients"),
+  };
+}
+
+/**
+ * Q21 rule, the only place that decides it: the draft is a reply when the event names a thread or a message.
+ * Cards and flows read this result. The smoke run's `draft` log fields confirm or replace the rule.
+ */
+export function isReplyDraft(event: AddonEvent | undefined): boolean {
+  const { fields } = draftInfo(event);
+  return fields.includes("threadId") || fields.includes("messageId");
 }
 
 export function paramsOf(

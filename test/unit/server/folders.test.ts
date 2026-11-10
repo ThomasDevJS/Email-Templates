@@ -102,6 +102,44 @@ describe("folders", () => {
     expect(ownerView.every((f) => f.level === "manage")).toBe(true);
   });
 
+  it("labels another user's private folder with its owner; nobody but an admin sees one (D18, role matrix)", () => {
+    const sales = folder("Sales");
+    grant(sales.id, ANA, "use");
+    const CY = "cy@example.com";
+    const DEE = "dee@example.com";
+    grant(sales.id, BOB, "edit");
+    grant(sales.id, CY, "manage");
+    for (const user of [ANA, BOB, CY, DEE]) world.ok(user, "folder.list");
+    for (const user of [ANA, BOB, CY, DEE]) {
+      const folders = world.ok<Listed>(user, "folder.list").folders;
+      const privates = folders.filter((f) => f.kind === "private");
+      expect(privates.map((f) => [f.name, f.ownerEmail])).toEqual([
+        [PRIVATE_FOLDER_NAME, user],
+      ]);
+      const others = [OWNER, ANA, BOB, CY, DEE].filter((x) => x !== user);
+      const names = JSON.stringify(folders.map((f) => [f.name, f.ownerEmail]));
+      for (const other of others) expect(names).not.toContain(other);
+    }
+    const adminView = world.ok<Listed>(OWNER, "folder.list").folders;
+    expect(
+      adminView
+        .filter((f) => f.kind === "private")
+        .map((f) => f.name)
+        .sort(),
+    ).toEqual([
+      PRIVATE_FOLDER_NAME,
+      `${PRIVATE_FOLDER_NAME} (${ANA})`,
+      `${PRIVATE_FOLDER_NAME} (${BOB})`,
+      `${PRIVATE_FOLDER_NAME} (${CY})`,
+      `${PRIVATE_FOLDER_NAME} (${DEE})`,
+    ]);
+    expect(
+      fileIndex().folders.filter(
+        (f) => f.name !== PRIVATE_FOLDER_NAME && f.kind === "private",
+      ),
+    ).toEqual([]);
+  });
+
   it("lets the private folder owner create templates there, nobody else", () => {
     const mine = world.ok<Listed>(ANA, "folder.list").folders[0];
     expect(
