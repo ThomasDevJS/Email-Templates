@@ -8,6 +8,7 @@ import type { FolderRow, ImportReport } from "../rpc/api";
 import { lineText } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
 import type { AdminData } from "./admin";
+import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 
 /**
@@ -15,6 +16,22 @@ import type { AppContext, View } from "./context";
  * from pages into one JSON download `migway-templates-<scope>-<date>.json`. Import (admin): choose a file and a
  * target folder, Validate (nothing is written), then Import with the same file and target.
  */
+const REPORT_COLUMNS: readonly Column[] = [
+  { label: "Templates", num: true },
+  { label: "Skipped", num: true },
+  { label: "Failed", num: true },
+  { label: "New folders", num: true },
+  { label: "Existing folders", num: true },
+];
+const LINE_COLUMNS: readonly Column[] = [
+  { label: "Name" },
+  { label: "Kind" },
+  { label: "Result" },
+  { label: "Reason" },
+];
+const EXPORT_NOTE =
+  "as one JSON file, without the trash, older versions, favorites, usage or the audit log.";
+
 function folderOptions(folders: readonly FolderRow[]): HTMLOptionElement[] {
   return folders
     .map((folder) => ({ id: folder.id, label: folderPath(folders, folder.id) }))
@@ -61,7 +78,7 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
   const run = h(
     "button",
     { type: "button", class: "primary" },
-    data.isAdmin ? "Download JSON" : "Export folder",
+    data.isAdmin ? "Export" : "Export folder",
   );
   const sync = () => {
     folder.disabled = library.checked;
@@ -114,51 +131,61 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     : null;
   return h(
     "section",
-    { "aria-labelledby": "export-heading" },
+    { class: "transfer", "aria-labelledby": "export-heading" },
     h(
-      "h3",
+      "h2",
       { id: "export-heading" },
       data.isAdmin ? "Export" : "Export folder",
     ),
+    h(
+      "p",
+      { class: "hint" },
+      data.isAdmin
+        ? `Downloads the live templates, folders and grants of the scope you choose ${EXPORT_NOTE}`
+        : `Downloads the live templates, folders and grants of a folder you manage and its subfolders ${EXPORT_NOTE}`,
+    ),
     scope,
-    labelled("Folder", folder),
-    run,
+    h("div", { class: "form-row" }, labelled("Folder", folder), run),
     status,
   );
 }
 
-function reportTable(report: ImportReport): HTMLElement | null {
-  if (report.lines.length === 0) return null;
-  return h(
-    "table",
-    { class: "admin-table" },
-    h("caption", {}, "Skipped and failed records"),
-    h(
-      "thead",
-      {},
-      h(
-        "tr",
-        {},
-        ...["Name", "Kind", "Result", "Reason"].map((label) =>
-          h("th", { scope: "col" }, label),
-        ),
+function reportTables(report: ImportReport): HTMLElement[] {
+  const counts = adminTable(
+    REPORT_COLUMNS,
+    [
+      tableRow(
+        REPORT_COLUMNS,
+        [
+          report.created,
+          report.skipped,
+          report.failed,
+          report.foldersCreated,
+          report.foldersReused,
+        ].map(String),
       ),
-    ),
-    h(
-      "tbody",
-      {},
-      ...report.lines.map((line) =>
-        h(
-          "tr",
-          {},
-          h("td", {}, line.name),
-          h("td", {}, line.kind),
-          h("td", {}, line.outcome),
-          h("td", {}, line.reason),
-        ),
-      ),
-    ),
+    ],
+    { caption: report.dryRun ? "Validate report" : "Import report" },
   );
+  counts.classList.add("compact");
+  if (report.lines.length === 0) return [counts];
+  const lines = adminTable(
+    LINE_COLUMNS,
+    report.lines.map((line) =>
+      tableRow(LINE_COLUMNS, [
+        line.name,
+        line.kind === "folder" ? "Folder" : "Template",
+        toneTag(
+          line.outcome === "failed" ? "Failed" : "Skipped",
+          line.outcome === "failed" ? "bad" : "warn",
+        ),
+        line.reason,
+      ]),
+    ),
+    { caption: "Skipped and failed records" },
+  );
+  lines.querySelector("caption")?.classList.remove("sr-only");
+  return [counts, lines];
 }
 
 function importSection(app: AppContext, data: AdminData): HTMLElement {
@@ -204,7 +231,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
       .importFile(folderId, text, dryRun)
       .then((report) => {
         status.textContent = importSummary(report);
-        replace(result, reportTable(report));
+        replace(result, ...reportTables(report));
         validated = dryRun ? { text, target: folderId } : null;
         if (!dryRun) void app.reload();
       })
@@ -229,16 +256,30 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
 
   return h(
     "section",
-    { "aria-labelledby": "import-heading" },
-    h("h3", { id: "import-heading" }, "Import"),
+    { class: "transfer", "aria-labelledby": "import-heading" },
+    h("h2", { id: "import-heading" }, "Import"),
     h(
       "p",
       { class: "hint" },
-      `An export file of up to ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB and ${String(IMPORT_ITEMS_MAX)} templates. Validate shows what Import would do; nothing is written before Import.`,
+      `Adds the templates of an export file of up to ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB and ${String(IMPORT_ITEMS_MAX)} templates to a shared folder as new templates, without the file's grants and without templates whose title is already in their folder.`,
     ),
-    labelled("Export file", input),
-    labelled("Target folder", target),
-    h("div", { class: "list-actions" }, validate, run),
+    h(
+      "div",
+      { class: "form-row" },
+      labelled("Export file", input),
+      labelled("Target folder", target),
+    ),
+    h(
+      "div",
+      { class: "steps" },
+      validate,
+      run,
+      h(
+        "span",
+        { class: "meta" },
+        "Validate writes nothing and shows what Import would do.",
+      ),
+    ),
     status,
     result,
   );

@@ -10,6 +10,7 @@ import {
   importSummary,
   localDayStart,
   principalHint,
+  recipientsText,
 } from "../../../src/web/admin/model";
 import type { FolderRow, GrantRow } from "../../../src/web/rpc/api";
 
@@ -112,6 +113,23 @@ describe("admin model", () => {
       ["domain example.com", "this folder", ""],
       ["group sales@example.com", "a parent folder (inherited)", ""],
     ]);
+    expect(rows.map((row) => row.typeLabel)).toEqual([
+      "group",
+      "group",
+      "OU",
+      "domain",
+      "group",
+    ]);
+  });
+
+  it("shows outside recipients only when config.get returns the setting", () => {
+    expect(recipientsText(undefined, "example.com")).toBeNull();
+    expect(recipientsText("allow", "example.com")).toBe(
+      "allowed (set by the owner in Script Properties, RECIPIENTS_EXTERNAL)",
+    );
+    expect(recipientsText("deny", "example.com")).toBe(
+      "example.com only (set by the owner in Script Properties, RECIPIENTS_EXTERNAL)",
+    );
   });
 
   it("names what each principal type takes and shows paths with spaces", () => {

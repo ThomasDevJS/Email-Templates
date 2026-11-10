@@ -1,16 +1,25 @@
 import { displayPath } from "../admin/model";
 import { formatTime, h, replace } from "../ui/dom";
 import { skeletonRows } from "../ui/status";
+import { adminTable, tableRow, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
+import { pathBlock } from "./grid";
 
 /** Tab "Usage" (admin, wireframe 06): template, folder, applies in 30 days, last used; most applied first. */
+const COLUMNS: readonly Column[] = [
+  { label: "Template" },
+  { label: "Folder" },
+  { label: "Applies 30 d", num: true },
+  { label: "Last used" },
+];
+
 export function usageTab(app: AppContext, panel: HTMLElement): View {
   const table = h(
     "div",
     { class: "list", "aria-busy": "true", "aria-label": "Template usage" },
     ...skeletonRows(),
   );
-  const hint = h("p", { class: "hint" });
+  const hint = h("p", { class: "meta note" });
 
   const load = () => {
     table.setAttribute("aria-busy", "true");
@@ -31,35 +40,17 @@ export function usageTab(app: AppContext, panel: HTMLElement): View {
         }
         replace(
           table,
-          h(
-            "table",
-            { class: "admin-table" },
-            h("caption", { class: "sr-only" }, "Usage per template"),
-            h(
-              "thead",
-              {},
-              h(
-                "tr",
-                {},
-                ...["Template", "Folder", "Applies 30 d", "Last used"].map(
-                  (label) => h("th", { scope: "col" }, label),
-                ),
-              ),
+          adminTable(
+            COLUMNS,
+            data.rows.map((row) =>
+              tableRow(COLUMNS, [
+                h("span", { class: "row-title" }, row.title),
+                pathBlock(displayPath(row.folderPath)),
+                String(row.applies30d),
+                formatTime(row.lastUsedAt) || "never",
+              ]),
             ),
-            h(
-              "tbody",
-              {},
-              ...data.rows.map((row) =>
-                h(
-                  "tr",
-                  {},
-                  h("td", {}, row.title),
-                  h("td", {}, displayPath(row.folderPath)),
-                  h("td", {}, String(row.applies30d)),
-                  h("td", {}, formatTime(row.lastUsedAt) || "never"),
-                ),
-              ),
-            ),
+            { caption: "Usage per template" },
           ),
         );
       },

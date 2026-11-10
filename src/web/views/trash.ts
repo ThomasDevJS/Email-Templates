@@ -1,4 +1,5 @@
 import { TRASH_DAYS } from "../../shared/model/validate";
+import { purgeText } from "../admin/actions";
 import { daysLeft, displayPath } from "../admin/model";
 import { editableFolders, folderPath } from "../library/model";
 import type { TrashRow } from "../rpc/api";
@@ -118,12 +119,13 @@ export function trashView(
   };
 
   const purge = () => {
+    const before = rows.length;
     openDialog({
       title: "Empty trash",
       body: h(
         "p",
         {},
-        `Remove all ${String(rows.length)} templates in the trash for good? This cannot be undone.`,
+        `Remove all ${String(before)} templates in the trash for good? Deleted folders go too. This cannot be undone.`,
       ),
       actions: [
         {
@@ -135,7 +137,7 @@ export function trashView(
               .purgeTrash()
               .then(async ({ purged, itemsPending }) => {
                 await load();
-                status.textContent = `Removed ${String(purged)} items for good.${
+                status.textContent = `${purgeText(before, rows.length, purged)}${
                   itemsPending > 0
                     ? ` The nightly job deletes the stored versions of ${String(itemsPending)} of them.`
                     : ""

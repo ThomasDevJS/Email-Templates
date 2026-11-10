@@ -58,6 +58,8 @@ const PRINCIPAL_LABEL: Readonly<Record<PrincipalType, string>> = {
 
 export interface AccessRow {
   readonly grant: GrantRow;
+  /** "group", "user", "domain" or "OU": read before the key, the icon shows it. */
+  readonly typeLabel: string;
   readonly principal: string;
   readonly source: string;
   /** Text for an OU grant: stored, but the resolver cannot apply it (D17, Q4). */
@@ -73,6 +75,7 @@ export function displayPath(path: string): string {
 export function accessRows(grants: readonly GrantRow[]): AccessRow[] {
   return grants.map((grant) => ({
     grant,
+    typeLabel: PRINCIPAL_LABEL[grant.principalType],
     principal: `${PRINCIPAL_LABEL[grant.principalType]} ${grant.principalKey}`,
     source: grant.inherited
       ? `${displayPath(grant.sourcePath) || "a parent folder"} (inherited)`
@@ -135,6 +138,19 @@ export function localDayStart(day: string, nextDay = false): string {
     number,
   ];
   return new Date(year, month - 1, date + (nextDay ? 1 : 0)).toISOString();
+}
+
+/**
+ * Config row "Outside recipients" (spec 5.7, `RECIPIENTS_EXTERNAL`): null while `config.get` does not return the
+ * value, so the tab shows no row.
+ */
+export function recipientsText(
+  value: "allow" | "deny" | undefined,
+  domain: string,
+): string | null {
+  if (value === undefined) return null;
+  const shown = value === "deny" ? `${domain} only` : "allowed";
+  return `${shown} (set by the owner in Script Properties, RECIPIENTS_EXTERNAL)`;
 }
 
 /** "850 KB" or "3.10 MB". */

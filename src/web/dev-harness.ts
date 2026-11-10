@@ -940,12 +940,15 @@ const OPS: Readonly<Record<string, Op>> = {
   "trash.purge": () => {
     const gone = [...items.values()].filter((entry) => entry.deletedAt !== "");
     for (const entry of gone) items.delete(entry.id);
+    // Like the server, deleted folders leave too and count in `purged`.
+    const goneFolders = folders.filter((entry) => entry.deletedAt !== "");
+    folders.splice(0, folders.length, ...liveFolders());
     // `?pending=<n>` shows the message for templates whose files wait for the daily job.
     const pending = Number(
       new URLSearchParams(window.location.search).get("pending") ?? "0",
     );
     return {
-      purged: gone.length,
+      purged: gone.length + goneFolders.length,
       filesTrashed: gone.length,
       itemsPending: pending,
     };

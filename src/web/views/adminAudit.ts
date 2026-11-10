@@ -1,18 +1,31 @@
 import type { AuditEvent } from "../../shared/model/data";
-import { localDate, localDayStart } from "../admin/model";
+import { actionWords, resultTag } from "../admin/actions";
+import { displayPath, localDate, localDayStart } from "../admin/model";
 import type { AuditFilter, AuditPage, AuditRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace, uid } from "../ui/dom";
+import { person } from "../ui/person";
 import { lineText, skeletonRows } from "../ui/status";
+import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
+import { pathBlock } from "./grid";
 
 /**
  * Tab "Audit log" (admin, wireframe 06): month, date range, actor, action, result and target filters, 50 rows per
  * page, a details drawer with before and after JSON. The server reads the month file plus events not yet rolled.
+ * Actions show in words (admin/actions.ts); the drawer shows the raw operation name.
  */
 const RESULTS = ["ok", "denied", "conflict", "error"];
 const NOTE =
   "Source: the month's audit file plus events not yet rolled (daily). Denied and apply events can arrive up to 5 min late.";
+const COLUMNS: readonly Column[] = [
+  { label: "Time" },
+  { label: "Actor" },
+  { label: "Action" },
+  { label: "Target" },
+  { label: "Result" },
+  { label: "Details", hidden: true },
+];
 
 function select(options: readonly [string, string][]): HTMLSelectElement {
   return h(
@@ -37,7 +50,7 @@ function setOptions(
 function json(label: string, value: unknown): HTMLElement {
   return h(
     "div",
-    {},
+    { class: "json-block" },
     h("h3", {}, label),
     h(
       "pre",
@@ -48,19 +61,24 @@ function json(label: string, value: unknown): HTMLElement {
 }
 
 function details(event: AuditEvent, returnFocus: HTMLElement): void {
-  const facts: [string, string][] = [
+  const { word, tone } = resultTag(event.result);
+  const facts: [string, Node | string][] = [
     ["Time", formatTime(event.ts)],
     ["Actor", `${event.actor} (${event.actorRoles || "no level"})`],
-    ["Action", event.action],
+    ["Action", actionWords(event.action)],
+    ["Operation", h("code", {}, event.action)],
     ["Target", event.targetPath || event.targetId || event.targetType],
     [
       "Result",
-      event.errorCode === ""
-        ? event.result
-        : `${event.result} (${event.errorCode})`,
+      h(
+        "span",
+        {},
+        toneTag(word, tone),
+        event.errorCode === "" ? null : ` ${event.errorCode}`,
+      ),
     ],
     ["Duration", `${String(event.durationMs)} ms`],
-    ["Request ID", event.requestId || "none"],
+    ["Request ID", h("code", {}, event.requestId || "none")],
     ["App version", event.appVersion],
   ];
   openDialog({
@@ -94,7 +112,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
   const action = select([["", "All actions"]]);
   const result = select([
     ["", "All results"],
-    ...RESULTS.map((r): [string, string] => [r, r]),
+    ...RESULTS.map((r): [string, string] => [r, resultTag(r).word]),
   ]);
   const target = h("input", { type: "text", maxlength: 200 });
   const apply = h("button", { type: "submit", class: "primary" }, "Apply");
@@ -130,11 +148,13 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
   });
 
   const row = (entry: AuditRow) => {
+    const words = actionWords(entry.action);
     const open = h(
       "button",
       {
         type: "button",
-        "aria-label": `Details: ${entry.action} at ${formatTime(entry.ts)}`,
+        class: "ghost",
+        "aria-label": `Details: ${words} at ${formatTime(entry.ts)}`,
       },
       "Details",
     );
@@ -150,16 +170,17 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
         },
       );
     });
-    return h(
-      "tr",
-      {},
-      h("td", {}, formatTime(entry.ts)),
-      h("td", {}, entry.actor),
-      h("td", {}, entry.action),
-      h("td", {}, entry.targetPath || entry.targetId || entry.targetType),
-      h("td", {}, entry.result),
-      h("td", {}, open),
-    );
+    const { word, tone } = resultTag(entry.result);
+    return tableRow(COLUMNS, [
+      formatTime(entry.ts),
+      person(entry.actor),
+      h("span", { class: "action", title: entry.action }, words),
+      entry.targetPath === ""
+        ? entry.targetId || entry.targetType
+        : pathBlock(displayPath(entry.targetPath)),
+      toneTag(word, tone),
+      open,
+    ]);
   };
 
   const pageButton = (label: string, to: number, enabled: boolean) => {
@@ -180,7 +201,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     month.value = data.month;
     setOptions(action, [
       ["", "All actions"],
-      ...data.actions.map((a): [string, string] => [a, a]),
+      ...data.actions.map((a): [string, string] => [a, actionWords(a)]),
     ]);
     table.setAttribute("aria-busy", "false");
     const first = data.page * data.pageSize;
@@ -210,23 +231,9 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     }
     replace(
       table,
-      h(
-        "table",
-        { class: "admin-table" },
-        h("caption", { class: "sr-only" }, `Audit events of ${data.month}`),
-        h(
-          "thead",
-          {},
-          h(
-            "tr",
-            {},
-            ...["Time", "Actor", "Action", "Target", "Result", "Details"].map(
-              (label) => h("th", { scope: "col" }, label),
-            ),
-          ),
-        ),
-        h("tbody", {}, ...data.rows.map(row)),
-      ),
+      adminTable(COLUMNS, data.rows.map(row), {
+        caption: `Audit events of ${data.month}`,
+      }),
     );
   };
 
@@ -277,7 +284,13 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     load();
   });
 
-  replace(panel, form, h("p", { class: "hint" }, NOTE), status, table, pager);
+  replace(
+    panel,
+    form,
+    h("p", { class: "meta note" }, NOTE),
+    table,
+    h("div", { class: "table-foot" }, status, pager),
+  );
   load();
   return { dispose: () => undefined };
 }

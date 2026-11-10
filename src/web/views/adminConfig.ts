@@ -1,18 +1,33 @@
-import { formatBytes } from "../admin/model";
+import { formatBytes, recipientsText } from "../admin/model";
 import type { ConfigView, JobRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
-import { formatTime, h, replace, uid } from "../ui/dom";
+import { formatTime, h, replace } from "../ui/dom";
 import { lineText, skeletonRows } from "../ui/status";
+import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 
 /**
  * Tab "Config" (admin, read only, wireframe 06): settings, index size with the 3 MB warning, job health (a job
- * late by more than 2 intervals shows "late" with its last error), and the 14 daily backups with Restore.
+ * late by more than 2 intervals shows "Late" with its last error), and the 14 daily backups with Restore.
  */
-function statusText(job: JobRow): string {
-  if (job.status === "ok") return "ok";
-  const head = job.status === "late" ? "late" : "never ran";
-  return job.lastError === "" ? head : `${head}: ${job.lastError}`;
+const JOB_COLUMNS: readonly Column[] = [
+  { label: "Job" },
+  { label: "Schedule" },
+  { label: "Last OK" },
+  { label: "Status" },
+];
+
+function jobStatus(job: JobRow): HTMLElement {
+  return h(
+    "div",
+    { class: "status-cell" },
+    job.status === "ok"
+      ? toneTag("OK", "ok")
+      : toneTag(job.status === "late" ? "Late" : "Never ran", "warn"),
+    job.status === "ok" || job.lastError === ""
+      ? null
+      : h("span", { class: "meta" }, job.lastError),
+  );
 }
 
 function settings(data: ConfigView): HTMLElement {
@@ -21,8 +36,12 @@ function settings(data: ConfigView): HTMLElement {
       ? ` (warning: over ${formatBytes(data.indexWarnBytes)}, the index should be split, ADR-0002)`
       : ` (warning at ${formatBytes(data.indexWarnBytes)})`
   }`;
+  const recipients = recipientsText(data.recipientsExternal, data.domain);
   const facts: [string, string][] = [
     ["Domain", data.domain],
+    ...(recipients === null
+      ? []
+      : [["Outside recipients", recipients] as [string, string]]),
     ["ADMIN_GROUP", data.adminGroup || "not set"],
     ["MEMBERSHIP_RESOLVER", data.resolver],
     ["CALLER_IDENTITY", data.callerIdentity],
@@ -42,33 +61,24 @@ function settings(data: ConfigView): HTMLElement {
 
 function jobsTable(data: ConfigView): HTMLElement {
   return h(
-    "table",
-    { class: "admin-table" },
-    h("caption", {}, "Jobs"),
-    h(
-      "thead",
-      {},
-      h(
-        "tr",
-        {},
-        ...["Job", "Schedule", "Last OK", "Status"].map((label) =>
-          h("th", { scope: "col" }, label),
+    "section",
+    { "aria-labelledby": "jobs-heading" },
+    h("h2", { id: "jobs-heading" }, "Jobs"),
+    adminTable(
+      JOB_COLUMNS,
+      data.jobs.map((job) =>
+        tableRow(
+          JOB_COLUMNS,
+          [
+            h("span", { class: "row-title" }, job.name),
+            job.schedule,
+            formatTime(job.lastOk) || "never",
+            jobStatus(job),
+          ],
+          job.status === "ok" ? {} : { class: "late" },
         ),
       ),
-    ),
-    h(
-      "tbody",
-      {},
-      ...data.jobs.map((job) =>
-        h(
-          "tr",
-          { class: job.status === "ok" ? "" : "late" },
-          h("td", {}, job.name),
-          h("td", {}, job.schedule),
-          h("td", {}, formatTime(job.lastOk) || "never"),
-          h("td", {}, statusText(job)),
-        ),
-      ),
+      { labelledBy: "jobs-heading" },
     ),
   );
 }
@@ -79,21 +89,19 @@ function backupsSection(app: AppContext): HTMLElement {
     role: "status",
     "aria-live": "polite",
   });
-  const choice = h("select", {});
-  const restore = h(
-    "button",
-    { type: "button", class: "danger" },
-    "Restore from backup",
-  );
-  const id = uid("backup");
-  choice.id = id;
   const list = h(
     "div",
     { "aria-busy": "true" },
     h("p", { class: "hint" }, "Loading backups..."),
   );
 
-  const confirm = (date: string) => {
+  /** One restore at a time: every Restore button waits for the running one. */
+  const setBusy = (busy: boolean) => {
+    for (const button of list.querySelectorAll("button"))
+      button.disabled = busy;
+  };
+
+  const confirm = (date: string, restore: HTMLButtonElement) => {
     openDialog({
       title: `Restore the backup of ${date}?`,
       body: h(
@@ -107,7 +115,7 @@ function backupsSection(app: AppContext): HTMLElement {
           label: `Restore ${date}`,
           primary: true,
           run: () => {
-            restore.disabled = true;
+            setBusy(true);
             status.textContent = `Restoring the backup of ${date}...`;
             app.api
               .restoreBackup(date)
@@ -119,7 +127,7 @@ function backupsSection(app: AppContext): HTMLElement {
                 status.textContent = lineText(error, app.fail(error));
               })
               .finally(() => {
-                restore.disabled = false;
+                setBusy(false);
               });
             return undefined;
           },
@@ -128,9 +136,17 @@ function backupsSection(app: AppContext): HTMLElement {
       returnFocus: restore,
     });
   };
-  restore.addEventListener("click", () => {
-    if (choice.value !== "") confirm(choice.value);
-  });
+  const restoreButton = (date: string) => {
+    const button = h(
+      "button",
+      { type: "button", "aria-label": `Restore the backup of ${date}` },
+      "Restore",
+    );
+    button.addEventListener("click", () => {
+      confirm(date, button);
+    });
+    return button;
+  };
 
   const load = () => {
     app.api.backups().then(
@@ -148,10 +164,6 @@ function backupsSection(app: AppContext): HTMLElement {
           return;
         }
         replace(
-          choice,
-          ...dates.map((date) => h("option", { value: date }, date)),
-        );
-        replace(
           list,
           h(
             "p",
@@ -159,15 +171,16 @@ function backupsSection(app: AppContext): HTMLElement {
             `${String(dates.length)} daily copies (14 kept).`,
           ),
           h(
-            "div",
-            { class: "admin-toolbar" },
-            h(
-              "div",
-              { class: "field" },
-              h("label", { for: id }, "Backup date"),
-              choice,
+            "ul",
+            { class: "backups", "aria-labelledby": "backups-heading" },
+            ...dates.map((date) =>
+              h(
+                "li",
+                {},
+                h("span", { class: "row-title" }, date),
+                restoreButton(date),
+              ),
             ),
-            restore,
           ),
         );
       },
@@ -189,7 +202,7 @@ function backupsSection(app: AppContext): HTMLElement {
   return h(
     "section",
     { "aria-labelledby": "backups-heading" },
-    h("h3", { id: "backups-heading" }, "Backups"),
+    h("h2", { id: "backups-heading" }, "Backups"),
     list,
     status,
   );
@@ -207,12 +220,13 @@ export function configTab(app: AppContext, panel: HTMLElement): View {
         body.setAttribute("aria-busy", "false");
         replace(
           body,
+          h("h2", { class: "first" }, "Settings"),
           settings(data),
           data.triggersError === ""
             ? null
             : h(
                 "p",
-                { class: "late", role: "alert" },
+                { class: "error", role: "alert" },
                 `Trigger reinstall failed: ${data.triggersError}`,
               ),
           jobsTable(data),

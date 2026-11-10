@@ -96,6 +96,11 @@
   - Harness src/addon/spikeS7.ts, callbacks onS7Card/onS7Compose/onS7Notify, Reply kinds s7, s7Error; s7Visible wraps after the guard.
   - Minors: hint missing on folder/search/preview; smoke lacks Drafts/Executions check and "reopen harness"; spec 10 no onMessageOpen row, failures uncached (1 server call per message open); no compose regression step; messageMetadata fallback not in spec.
 
+- Slice 8c UI admin (2026-11-10): PASS (75ebb53). 56 files, 1295 tests, lines 96.45, index.html 352.9 KB (+12.3, css +7.2), Lighthouse 100x12 (incl. admin audit dark), 10 scopes. No server/shared/addon/editor change.
+  - New: src/web/admin/actions.ts (actionWords Map, resultTag, purgeText), views/adminTable.ts (data-label stacking <860 px, Chromium keeps table roles), tint tokens --ok-bg/--warn-bg/--red-bg.
+  - Minors: trash.ts:140 purgeText infers templates from the list (wrong when reload fails); server has goneItems, ask for it. Audit actor short name only (title). Export sentence omits private folders. Config widths uneven.
+  - Pre-existing (base too): dialog background not inert; focus to BODY after audit Next page and after Import.
+
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -123,5 +128,6 @@
 - UI slices: Playwright at /opt/node-tools/node_modules/playwright (require by absolute path), `chromium.launch()` works. Dev harness `node scripts/dev-web.mjs --port N`. Base comparison: git archive base into scratchpad, symlink node_modules, serve on another port.
 - Harness data injection: page.route the HTML and replace `\"literal\"` strings in the JSON-escaped bundle; wrapping google.script.run after load does not work (runner captured at start).
 - Contrast: compute every token pair incl. hover (`--hover`), `--select`, button hover fills, disabled at 55% opacity; check overrides for hover as well as selected.
+- Run new test files against the base copy to prove fixes fail on old code (copy test file into git-archive base, npx vitest run).
 - Overlay panels: Tab past the last item and check where focus lands; check outside click.
 - Entry gating by event fields: verify the field exists on action (click) events too, from live logs, before trusting the classifier.

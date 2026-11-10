@@ -1,6 +1,13 @@
 import type { Memberships } from "../rpc/api";
 import { formatTime, h, replace } from "../ui/dom";
 import { lineText, skeletonRows } from "../ui/status";
+import {
+  adminTable,
+  noteRow,
+  tableRow,
+  toneTag,
+  type Column,
+} from "./adminTable";
 import type { AppContext, View } from "./context";
 
 /**
@@ -8,13 +15,20 @@ import type { AppContext, View } from "./context";
  * count, child group count and status. A group with child groups gets a warning row: with a direct-members
  * resolver their members get no access (D7). "Refresh now" runs `membership.refresh`.
  */
+const COLUMNS: readonly Column[] = [
+  { label: "Group" },
+  { label: "Members", num: true },
+  { label: "Child groups", num: true },
+  { label: "Status" },
+];
+
 export function membershipsTab(app: AppContext, panel: HTMLElement): View {
   const status = h("p", {
     class: "status",
     role: "status",
     "aria-live": "polite",
   });
-  const summary = h("p", { class: "hint" });
+  const summary = h("p", { class: "meta" });
   const refresh = h("button", { type: "button" }, "Refresh now");
   const table = h(
     "div",
@@ -23,14 +37,11 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
   );
 
   const warningRow = (group: string, children: readonly string[]) =>
-    h(
-      "tr",
-      { class: "warn" },
-      h(
-        "td",
-        { colspan: "4" },
-        `Warning: ${group} contains ${children.join(", ")}. Members of these child groups get no access: the resolver reads direct members only.`,
-      ),
+    noteRow(
+      COLUMNS,
+      "warn",
+      `Warning: ${group} contains ${children.join(", ")}. Members of these child groups get no access: the resolver reads direct members only.`,
+      "warn",
     );
 
   const draw = (data: Memberships) => {
@@ -49,42 +60,22 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
     }
     replace(
       table,
-      h(
-        "table",
-        { class: "admin-table" },
-        h("caption", { class: "sr-only" }, "Groups in the refresh set"),
-        h(
-          "thead",
-          {},
-          h(
-            "tr",
-            {},
-            ...["Group", "Members", "Child groups", "Status"].map((label) =>
-              h("th", { scope: "col" }, label),
-            ),
-          ),
-        ),
-        h(
-          "tbody",
-          {},
-          ...data.groups.flatMap((group) => [
-            h(
-              "tr",
-              {},
-              h("td", {}, group.group),
-              h("td", {}, String(group.members)),
-              h("td", {}, String(group.childGroups.length)),
-              h(
-                "td",
-                {},
-                group.status === "ok" ? "ok" : "error: could not be read",
-              ),
-            ),
-            ...(group.childGroups.length > 0 && !data.nested
-              ? [warningRow(group.group, group.childGroups)]
-              : []),
+      adminTable(
+        COLUMNS,
+        data.groups.flatMap((group) => [
+          tableRow(COLUMNS, [
+            h("span", { class: "row-title" }, group.group),
+            String(group.members),
+            String(group.childGroups.length),
+            group.status === "ok"
+              ? toneTag("OK", "ok")
+              : toneTag("Could not be read", "bad"),
           ]),
-        ),
+          ...(group.childGroups.length > 0 && !data.nested
+            ? [warningRow(group.group, group.childGroups)]
+            : []),
+        ]),
+        { caption: "Groups in the refresh set" },
       ),
     );
   };
@@ -111,7 +102,7 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
 
   replace(
     panel,
-    h("div", { class: "admin-toolbar" }, summary, refresh),
+    h("div", { class: "tab-head" }, summary, refresh),
     table,
     status,
   );

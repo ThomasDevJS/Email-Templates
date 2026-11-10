@@ -70,12 +70,14 @@
 - `loadIndex` is lock-free; `maintain` runs in `doGet` only. Body cache `bd:<bodyFileId>` in handlers/body.ts (`readStoredBody`, `cacheBody`).
 - Web: views/rowActions.ts (row menu), grid "Actions" column, `AppContext.pushRoute`, library selects folders in place, `openDialog({ returnFocus })`.
 
+
 ## Lessons (slices 4b to 6b, merged)
 - Snapshots break read-check-write; re-read live in the lock.
 - Old-code check: `git checkout <base> -- src`, run, `git reset -q; git checkout HEAD -- src` (base-only files: `git rm -f`).
 - Call counts: scratch test with Proxy counters or `appendFileSync` of `world.lines`; delete before commit.
 - `handleRpc` enforces `REQUEST_ID_PATTERN` (tests send `TESTREQ0-000001`); every client string in a log needs a server format check and an upper bound.
 
+- Prettier may reformat after other edits; run `prettier --write` before every commit.
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
 - Old data: `readIndexDoc`, `withSubject`, `Unmigrated<T>` in shared/model/data.ts (driveStore read + `cachedIndex`).
@@ -95,8 +97,7 @@
 
 ## Lessons (slice 5b)
 - Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
-- Prettier renumbers markdown lists; a non-list sentence keeps old step references honest.
-- jsdom: `vi.stubEnv("TZ", ...)` changes Date local time at runtime.
+
 
 ## Code map (after slice 6a)
 - Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
@@ -114,6 +115,7 @@
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
 ## Lessons kept from 5b to 6b
 - `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines.
+- `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines. jsdom: `vi.stubEnv("TZ", ...)` changes Date local time.
 - A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
 
 ## Slice 8a (UI shell, 2026-11-10)
@@ -132,6 +134,12 @@
 - Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry` set in `ports(event)`; `templateItem(t, entry, below)`, `folderCard(..., entry)`, `homeCard(view, entry)`, `searchCard(..., entry)`, `previewCard(..., entry)`; `TOOLBAR_HINT` (home.ts); `onMessageOpen` + manifest `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
 - TEMPORARY: src/addon/spikeS7.ts, `onS7Card/Compose/Notify`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-10-s7.md.
 - Harness guard stays outside the error wrapper (the guard test expects a throw). `perl -0pi` multi-file edits pass the worktree guard; python heredocs do not.
+
+## Slice 8c (admin UI, 2026-11-10)
+- `views/adminTable.ts` (`adminTable`, `tableRow` with `data-label`, `noteRow`, `toneTag`); `admin/actions.ts` (`actionWords`, `resultTag`, `purgeText`). Tint tokens `--ok-bg`, `--warn-bg`, `--red-bg`.
+- Admin h1 then tab h2s (Lighthouse heading order). Admin tables stack under 860 px via `td[data-label]::before`.
+- Worktree guard refuses `cmd && python3 - <<EOF`; scratchpad `ed8c.py` (@@@/<<</===/>>>) run alone works. Screens: scratchpad `shoot8c.cjs`, dev server on a fixed port, rebuild by restart.
+- Count harness calls in jsdom: wrap `window.google.script.run` (host reads `script.run` per call).
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.

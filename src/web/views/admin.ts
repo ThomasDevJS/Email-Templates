@@ -83,7 +83,7 @@ export function adminView(
   main: HTMLElement,
   startTab: AdminTab,
 ): View {
-  const heading = h("h2", { id: "admin-heading" }, "Admin");
+  const heading = h("h1", { id: "admin-heading" }, "Admin");
   const body = h(
     "div",
     { class: "list", "aria-busy": "true", "aria-labelledby": "admin-heading" },
@@ -121,6 +121,8 @@ export function adminView(
         button.setAttribute("aria-selected", String(on));
         button.tabIndex = on ? 0 : -1;
         if (on && focus) button.focus();
+        // Narrow screens: the tab row scrolls inside itself (`.tabs` is the offset parent); the chosen tab shows.
+        if (on) tablist.scrollLeft = Math.max(0, button.offsetLeft - 16);
       });
       panel.setAttribute("aria-labelledby", `tab-${name}`);
       app.replaceRoute({ name: "admin", tab: name });
@@ -154,8 +156,8 @@ export function adminView(
     main,
     h(
       "section",
-      { class: "admin", "aria-labelledby": "admin-heading" },
-      heading,
+      { class: "page admin", "aria-labelledby": "admin-heading" },
+      h("div", { class: "page-head" }, heading),
       body,
     ),
   );
