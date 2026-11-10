@@ -161,7 +161,13 @@ export function libraryView(
     open: (item) => {
       app.go({ name: "edit", id: item.id });
     },
-    menu: (item) => rowMenu(app, item, afterAction),
+    menu: (item) =>
+      rowMenu(app, item, {
+        busy: (text) => {
+          status.textContent = text;
+        },
+        done: afterAction,
+      }),
     isFavorite: (item) => app.favorites().has(item.id),
     toggleFavorite,
   };

@@ -371,6 +371,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
         (item) => item.textContent === "Duplicate",
       ) as HTMLElement
     ).click();
+    expect(status()).toBe("Duplicating...");
     await until(() => {
       expect(status()).toBe('Duplicated as "Copy of Welcome email".');
     });
@@ -396,6 +397,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
     ]);
     select.value = "F-EMPTY";
     button("Move", dialog).click();
+    expect(status()).toBe("Moving...");
     await until(() => {
       expect(status()).toBe('Moved "Welcome email" to HR.');
     });
@@ -416,6 +418,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
       return document.querySelector('[role="dialog"]') as HTMLElement;
     };
     const first = pickDelete();
+    expect(document.activeElement).toBe(button("Cancel", first));
     expect(first.textContent).toContain(
       'Delete "Discount approval"? Deleted templates stay in the trash for 30 days.',
     );
@@ -425,6 +428,7 @@ describe("row menu (wireframe 03, smoke defect 6)", () => {
     });
     expect(document.activeElement).toBe(cell);
     button("Delete", pickDelete()).click();
+    expect(status()).toBe("Deleting...");
     await until(() => {
       expect(status()).toBe('Deleted "Discount approval".');
     });
@@ -700,6 +704,7 @@ describe("history (screen 5)", () => {
     });
     const list = main().querySelector('[role="listbox"]') as HTMLElement;
     expect(list.getAttribute("aria-activedescendant")).toBe("version-2");
+    expect(document.activeElement).toBe(list);
     key(list, "ArrowDown");
     key(list, "Enter");
     await until(() => {

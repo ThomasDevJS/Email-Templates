@@ -7,6 +7,8 @@ import { h, uid } from "./dom";
 export interface DialogAction {
   readonly label: string;
   readonly primary?: boolean;
+  /** Gets the focus when the dialog opens; default: the first focusable element. */
+  readonly autofocus?: boolean;
   /** Return false to keep the dialog open (for example on a validation message). */
   readonly run: () => boolean | undefined | Promise<void>;
 }
@@ -102,7 +104,8 @@ export function openDialog(options: DialogOptions): OpenDialog {
     }
   });
   document.body.append(backdrop);
-  (focusables(panel)[0] ?? panel).focus();
+  const initial = buttons[options.actions.findIndex((a) => a.autofocus)];
+  (initial ?? focusables(panel)[0] ?? panel).focus();
   return { element: panel, close };
 }
 
