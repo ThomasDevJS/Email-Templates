@@ -110,7 +110,13 @@ export function historyView(
   const showVersion = async () => {
     const entry = data?.versions[selected];
     if (entry === undefined) return;
-    previewTitle.textContent = `Version ${String(entry.version)}, ${formatTime(entry.savedAt)}, ${entry.savedBy}`;
+    // The short name as in the rows; the full address stays in the tooltip and the accessible name.
+    replace(
+      previewTitle,
+      `Version ${String(entry.version)}, ${formatTime(entry.savedAt)}, `,
+      h("span", { title: entry.savedBy }, shortName(entry.savedBy)),
+      h("span", { class: "sr-only" }, ` (${entry.savedBy})`),
+    );
     preview.setAttribute("aria-busy", "true");
     try {
       const body = await app.api.version(id, entry.version);

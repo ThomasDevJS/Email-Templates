@@ -769,6 +769,13 @@ describe("history (screen 5)", () => {
         "Version 1",
       );
     });
+    const heading = main().querySelector(".preview h2") as HTMLElement;
+    expect(heading.textContent).toMatch(
+      /^Version 1, Nov \d+, \d+:\d\d [AP]M, Dev U\. \(dev\.user@example\.com\)$/,
+    );
+    expect(heading.querySelector("[title]")?.getAttribute("title")).toBe(
+      "dev.user@example.com",
+    );
     await until(() => {
       expect(
         main().querySelector(".preview-body .ph")?.getAttribute("aria-label"),
