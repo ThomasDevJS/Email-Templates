@@ -1,6 +1,6 @@
 # ADR-0005: Repository, build, tests, CI, deployment and rollback
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance). Amendment 2026-11-10 at the end: web bundle inlining (fact of the build)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance). Amendment 2026-11-10 at the end: web bundle inlining (fact of the build). Amendment 2026-11-10: owner change and dev to prod data move (Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -132,8 +132,8 @@ dist/            build output, git-ignored: Code.js, index.html, appsscript.json
 ### GCP project and ownership (2.5b, prod only)
 
 - Dev stays on the default GCP project.
-- Prod needs a standard GCP project for Marketplace publishing [R4 S14]. The switch is one way [R4 S61]. Order in 2.5b: (1) prod project created under the prod owner identity (Q3), (2) switched to the standard GCP project, (3) first deploy, (4) owner runs `setup()`, which creates the data folder, (5) pilot data imported from a dev export. Data created before step 2 would be bound to the old OAuth client under `drive.file` (ADR-0002).
-- A later owner change breaks the web app until the new owner redeploys [R4 S12] and loses `drive.file` access to the old owner's files. Runbook (slice 7): export, new owner deploys and runs `setup()`, import. A one-time event, not a recurring task.
+- Prod needs a standard GCP project for Marketplace publishing [R4 S14]. The switch is one way [R4 S61]. Order in 2.5b: (1) prod project created under the prod owner identity (Q3), (2) switched to the standard GCP project, (3) first deploy, (4) owner runs `setup()`, which creates the data folder, (5) pilot data imported from a dev export. [Import skips private folders and grants: ADR-0002 Amendment 2026-11-10, owner handover, Q30.] Data created before step 2 would be bound to the old OAuth client under `drive.file` (ADR-0002).
+- A later owner change breaks the web app until the new owner redeploys [R4 S12] and loses `drive.file` access to the old owner's files. Runbook (slice 7): export, new owner deploys and runs `setup()`, import. A one-time event, not a recurring task. [Superseded: ADR-0002 Amendment 2026-11-10, owner handover.]
 
 ### Secrets policy
 
@@ -181,6 +181,10 @@ Decision: option 3, built in hotfix 9bbd262 (scripts/lib/html.mjs `inlineHtml`),
 Fact: the HtmlService sandbox frame that serves the page sets no Content-Security-Policy (observed on dev 9bbd262, 2026-11-10). The eval runs because no CSP forbids it. If Google adds a CSP without `unsafe-eval`, the web app stops loading; the deploy smoke step "library renders" catches it. Fallback then: option 1 with a build check that refuses any `//` or `/*` sequence in the bundle (needs minifier settings that never emit them).
 
 Consequences: one build step and one constraint (no `//` or `/*` in the shipped literal). `index.html` grows about 2% (274,061-character literal for a 269,776-character bundle).
+
+## Amendment 2026-11-10: owner change and dev to prod data move
+
+Status: Proposed until the owner approves. Export and import as built (slice 6b) skip private folders, grants, history and audit, and stop at 200 templates per file. The owner-change runbook and the 2.5b data move now follow ADR-0002 Amendment 2026-11-10 (owner handover): option D (dedicated owner account) first; otherwise the B2 server-to-server pull once built (Q27), and the interim runbook of spec 16 until then.
 
 ## Consequences
 

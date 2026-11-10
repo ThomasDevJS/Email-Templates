@@ -1,6 +1,6 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves.
 Date: 2026-11-09, amended 2026-11-10
 Author: architect. Owner: thomas@migway.com.
 Inputs: docs/BRIEF.md, PLAN.md (D1 to D24), docs/research/*.md, ADR-0001 to ADR-0005.
@@ -96,8 +96,17 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 ### 4.5 Flow: export and import
 
-- Export folder (manage) or library (admin): server builds JSON (ADR-0002), browser downloads `migway-templates-<scope>-<date>.json`.
-- Import (admin): upload JSON, server validates schema version, sanitizes every body, maps to a chosen target folder, reports created, skipped and failed counts.
+Amended 2026-11-10 (errata run 3) to match slice 6b. File format and mechanism: ADR-0002 Amendment 2026-11-10 (errata run 3).
+
+- File: JSON, `schemaVersion` 1: header (`exportedAt`, `exportedBy`, `scope`), `folders` (`id, parentId, name`), `grants` (`folderId, principalType, principalKey, level`), `items` (`meta: { id, folderId, title, subject, tags }`, `html`). Live templates, current version only. No history, favorites, usage, audit or `createdBy`.
+- Export folder (manage): the folder and its live subtree, grants on those folders only. Export library (admin): every shared folder; private folders and their templates are left out (D11), label "Whole library (shared folders)".
+- Paging: each call returns at most 20 templates, so it reads at most 20 bodies from Drive. Pages use an offset. The browser joins them into `migway-templates-<scope>-<date>.json` (`library` or the folder name, local date).
+- Import (admin): choose a file and a target folder, then Validate, then Import. Validate writes nothing. Limits checked on the server before any write: 5 MB, 200 templates, 100 folders, `schemaVersion` exactly 1, no duplicate folder `id`.
+- Target: a shared folder. A folder in a private tree answers VALIDATION "Templates cannot be imported into a private folder. Pick a shared folder."
+- Import creates shared folders only and reuses a folder whose name a live sibling has. It creates no grants: the file's grants are information for the admin. Templates get new IDs. A template whose title already exists in its destination folder is skipped, so a second import adds nothing.
+- Bodies pass the sanitizer and placeholder checks; subjects follow section 5.6. A failure answers "Nothing was imported: <what>. Run the import again."
+- Report: templates created, skipped, failed; folders created and reused; subjects flattened; one line per skipped or failed record.
+- Import is not an owner-change path: section 16, Owner handover.
 
 ## 5. Data model
 
@@ -117,6 +126,8 @@ JSON files in one private Drive folder (ADR-0002). `index.json` holds the `folde
 | deletedAt, deletedBy | | soft delete, folder must be empty |
 | version | integer | optimistic lock |
 
+Depth (slice 6a): at most 5 levels, top level included (`FOLDER_DEPTH_MAX`). A create or move that makes a sixth level answers VALIDATION. A move checks the target chain plus the height of the moved subtree. A move to the top level is not depth-checked; it cannot deepen. A move into itself or a subfolder answers VALIDATION.
+
 ### 5.2 `grants`
 
 | Field | Type | Notes |
@@ -124,10 +135,12 @@ JSON files in one private Drive folder (ADR-0002). `index.json` holds the `folde
 | id | string | |
 | folderId | string | |
 | principalType | `group`, `user`, `domain`, `ou` | `ou` stored, inactive under `groupsapp_direct` |
-| principalKey | string | group email, user email, domain, OU path |
+| principalKey | string, 1 to 254 chars | group email, user email, domain, OU path. Trimmed and lowercased, then at most 254 characters (`PRINCIPAL_KEY_MAX`, the email address limit), checked for all 4 types before the format check; longer answers VALIDATION. Input `maxlength` 254 |
 | principalId | string or empty | Directory ID when the resolver provides it (rename safety, [R2 S43]) |
 | level | `use`, `edit`, `manage` | |
 | createdAt, createdBy | | |
+
+A grant to a principal that already holds one on the folder updates its level (before and after in the audit event). Grants carry no version: two admins writing the same principal at once, the last write wins (spec 13.4). Grants on private folders answer VALIDATION for admins and DENIED for others.
 
 ### 5.3 `items` (templates now, signatures in v2)
 
@@ -174,11 +187,11 @@ Reserved file `push_log.json` (created in v2): records `id, itemId, userEmail, s
 |---|---|
 | `index.json` | `{ schemaVersion, rev, updatedAt, folders[], grants[], items[], pendingAudit[] }`. 0.85 MB at 1,000 items, 8.4 MB at 10,000 (ADR-0002) |
 | `favorites.json` | `{ rev, byUser: { email: [itemId] } }` |
-| `usage.json` | `{ rev, items: { itemId: { applyCount, lastUsedAt } }, recent: { email: [itemId, max 20] } }` |
+| `usage.json` | `{ rev, items: { itemId: { applyCount, lastUsedAt, days } }, recent: { email: [itemId, max 20] } }`. `days` (slice 6b): `{ "YYYY-MM-DD": count }` per UTC day, kept to the 30 days that end on the latest apply; absent in older entries, read as 0 |
 | `members.json` | `{ refreshedAt, resolver, groups: { groupEmail: { members[], childGroups[], status } } }` |
 | `bodies/<itemId>.v<version>.json` | `{ itemId, version, subject, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. `subject` added 2026-11-10 (D21); a file without it reads as `""`. Drive `appProperties`: `itemId, version, savedBy, restoredFrom`. Version history = one `files.list` by `itemId` |
 | `audit/YYYY-MM.jsonl` | one ADR-0003 Part D event per line, append-only |
-| `backups/YYYY-MM-DD/` | copies of `index.json`, `favorites.json`, `usage.json`, 14 kept |
+| `backups/YYYY-MM-DD/` | copies of `index.json`, `favorites.json`, `usage.json`, 14 kept. Restore: section 16 |
 
 ### 5.6 Template subject (D21, amended 2026-11-10)
 
@@ -214,19 +227,22 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | sidebar.home, folder.list, template.list, search, search.body | use (results filtered) | both |
 | template.get, template.getBody, template.apply | use | both |
 | favorite.set, favorite.unset | use | both |
-| template.create, template.update, template.duplicate, template.delete, template.restoreFromTrash | edit | web |
+| template.create, template.update, template.duplicate, template.delete | edit | web |
+| template.restoreFromTrash | edit on the original folder and on the target (`folderId`, optional); a purged original folder needs admin | web |
 | template.move | edit on source and target | web |
 | version.list, version.get, version.restore | edit | web |
 | folder.create (sub), folder.rename, folder.move, folder.delete | manage | web |
-| folder.create (top level), trash.purge | admin | web |
+| folder.create (top level) | admin | web |
+| trash.purge | admin; empties the whole trash (templates and soft-deleted folders), at most 50 body-file deletions per call, the rest by the daily orphan cleanup | web |
+| admin.folders | manage on at least one folder: admins get every live folder, manage holders the folders they manage; anyone else DENIED (one denied audit row) | web |
 | grant.list, grant.add, grant.remove | manage | web |
 | export.folder | manage | web |
-| export.library, import, audit.query, usage.report, membership.refresh, config.get, backup.list, backup.restore | admin | web |
+| export.library, import, audit.query, usage.report, membership.status, membership.refresh, config.get, backup.list, backup.restore | admin | web |
 | me | none beyond a valid caller | both |
 
 `spike.s4` and its policy row were removed in slice 5.
 
-Status 2026-11-10 (build a7e5abb): `template.getBody` (slice 3) returns the readable body without an apply event; the add-on uses it on a body cache miss. `template.apply` takes `followUp: true` on the prompt card Insert (section 4.1 step 5). `template.duplicate` is built (slice 4b): title "Copy of ...", cut to 120, tags, subject and the current body become version 1; edit on source and target. `search`, `search.body`, `favorite.set` and `favorite.unset` are built (slice 5). `template.restoreFromTrash` has a server handler; its Trash view is slice 6a. Stubs that answer "not implemented" (`LATER_SLICE_OPS`): `trash.purge` (6a), `export.folder`, `export.library`, `import`, `audit.query`, `usage.report`, `config.get`, `backup.list`, `backup.restore` (6b).
+Status 2026-11-10 (build f6b567f, slices 6a and 6b merged): every op in this table has a handler. `LATER_SLICE_OPS` and the "not implemented" answer are removed. `template.getBody` (slice 3) returns the readable body without an apply event; the add-on uses it on a body cache miss. `template.apply` takes `followUp: true` on the prompt card Insert (section 4.1 step 5). `template.duplicate` (slice 4b): title "Copy of ...", cut to 120, tags, subject and the current body become version 1; edit on source and target. `search`, `search.body`, `favorite.set`, `favorite.unset` (slice 5). `admin.folders`, `membership.status`, `trash.purge`, the Trash view of `template.restoreFromTrash` (slice 6a). `export.*`, `import`, `audit.query`, `usage.report`, `config.get`, `backup.list`, `backup.restore` (slice 6b). Admin rows re-read the membership snapshot inside the lock before a write (dispatch `recheck`).
 
 ## 7. Error, empty and loading states
 
@@ -353,6 +369,16 @@ Example: `"draft":{"fields":["draftMetadata","toRecipients","subject"],"to":1,"c
 
 Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`). `actor` and `targetId` are in every line. No line holds a recipient address, subject text, body text, prompt value or token: `draft` carries names, counts and one boolean only. Never log template bodies, subjects, prompt values, recipient addresses or tokens. `calls` and `timing` hold numbers only. Errors add `errorName` and the first 3 stack frames. Logs appear in the Apps Script executions view on the default GCP project and in Cloud Logging on the standard project (2.5b).
 
+### 11.1 Audit and log rules of the admin ops (slices 6a, 6b, added 2026-11-10)
+
+Mechanism: ADR-0003 Amendment 2026-11-10 (errata run 3).
+
+- Denied rows: every DENIED writes one denied audit event: a policy denial, a handler refusal after the policy check (`admin.folders`), or an in-lock re-check (`trash.purge`, admin rows). One call writes at most one row. VALIDATION and NOT_FOUND write none.
+- Event buffer: at most 200 apply and denied events between two `tick` runs. Further events are dropped and counted; `tick` writes one `audit.dropped` event (actor `system`, result `error`, `after: { dropped }`). Change events go through `pendingAudit` in the index write and are never dropped.
+- Usage: `usage.json` entries carry `days`, apply counts per UTC day, kept 30 days (section 5.5). `usage.report` shows applies in the 30 UTC days ending today.
+- Log lines keep the closed field list above. `grant.add`: `targetId` = folder ID; `grant.remove`: `""`. No line carries a principal key. `import`: `targetId` = target folder; `export.folder`: folder ID; `export.library`: `""`; `backup.restore`: `""`, the date is not logged. No line carries a title, subject or body of an import file.
+- Audit events: `grant.*` with before and after; one `import` event per created folder and template; `backup.restore` with before `{ rev, items }` and after `{ date, rev, items }`; `trash.purge` one event per purged template and folder; `audit.dropped`. Export writes no audit event in v1 (section 13.5).
+
 ## 12. Measurable targets (BRIEF 9)
 
 Web Gmail, dev deployment, 200 pilot templates:
@@ -452,12 +478,45 @@ Trash view and `template.restoreFromTrash` go to slice 6 (6a since 2026-11-10, s
 | 6a | Admin shell (`?view=admin`, rail entry for admins and manage holders); tab Folders and grants (flow 4.3); tab Memberships; Trash view with `template.restoreFromTrash` and `trash.purge`; trigger reinstall order: create the new set, then delete the old (Q23); open review minors |
 | 6b | Tab Audit log; tab Usage; tab Export and import, with `subject` in export and the import rules of section 5.6; tab Config with job health and backups (`backup.list`, `backup.restore`) |
 
+Done 2026-11-10. 6a: review PASS on bb53d6c (docs/reviews/slice-06a.md), merged, dev-292d7ad; owner smoke "Slice 6a" prompt 1 passed, the rest open. 6b: review PASS on f6b567f (docs/reviews/slice-06b.md), merged at 3bffb70, not deployed yet; owner smoke "Slice 6b" follows the 6a run.
+
 ### 13.4 Known limits (Gmail web, recorded 2026-11-10)
 
 - The first `/` after a library load may need a second press. The browser gives the app frame no focus before a click or a key press inside it.
 - History loads the preview of a version on Enter. Arrow keys move the selection only.
 - The compose card is modal on Gmail web. The user places the cursor in the draft body before opening the add-on; Insert (`IN_PLACE_INSERT`) then lands at the cursor.
 - "Edit in library" (OVERLAY window close and sidebar reload) is unverified on Gmail web. It is an owner hand check (PLAN Next action).
+
+Added 2026-11-10 (slices 6a, 6b; accepted for v1, each with a v1.1 fix in section 13.5):
+
+- Grant writes in the admin view do not reload the library tree (6b minor R3). A manage holder who removes a grant they depend on sees the old tree until a page reload. Folder writes do reload it.
+- 200 refused calls inside 5 min fill the event buffer, and apply events of that window are dropped with the denials (6b minor 4). Usage counts lose them; one `audit.dropped` row records the total.
+- An audit month file larger than the Script Cache is read and parsed on every `audit.query` call (6b minor 8). About 2.4 MB per month at 1x, 24 MB at 10x.
+- Export pages by offset (6b minor 9). A save between two pages can repeat or skip one template in the file. Export when nobody saves, or compare the count in the status line with the folder.
+- A failure inside the restore undo leaves backup side files with the live index and replaces the first error (6b minor R2).
+- Grants carry no version: concurrent writes of one principal, last write wins (6a handoff).
+- The Usage tab shows "My templates" for every private folder, without the owner label (6b handoff).
+- Refusal text says "1 templates" for a count of 1 (6b minor R4).
+- A 5 MB import is unverified on Apps Script: `google.script.run` may refuse the argument; the UI then shows a retryable network error and nothing is written (6b minor 7).
+
+### 13.5 Open items for slice 7 and v1.1 (2026-11-10)
+
+| Item | Where | Slice |
+|---|---|---|
+| Runbook: recovery from a damaged live `index.json` (section 16) | docs/ops | 7 |
+| Runbook: owner handover, interim path and B2 path (section 16) | docs/ops | 7 |
+| Runbook: restore from backup, import of more than 200 templates (one file per folder) | docs/ops | 7 |
+| Smoke step with a 4.9 MB import file | docs/ops/smoke.md | 7 |
+| Rollback exercise (ADR-0005) | owner | 7 |
+| Owner-run `restoreBackup(date)` editor function (Q31) | src/server | v1.1, before 2.5b if possible |
+| B2 server-to-server pull, `READ_ONLY` write refusal (ADR-0002 Amendment, owner handover; Q27) | src/server, Config tab | v1.1, before the first owner change |
+| Grant writes call `foldersChanged` | src/web | v1.1 |
+| Separate buffer caps for apply and denied events | src/server/audit | v1.1 |
+| Audit month read by byte range or a per-month row index | src/server/audit | v1.1, before a month passes 5 MB |
+| Export pages by item ID cursor instead of offset | src/server/handlers/transfer.ts | v1.1 |
+| One `export` audit event per export (first page) | src/server/handlers/transfer.ts | v1.1 (ADR-0002 lists export as a security event) |
+| Restore undo keeps the first error | src/server/handlers/config.ts | v1.1 |
+| Plural in the purge refusal; owner label in the Usage tab | src/server, src/web | v1.1 |
 
 ## 14. Spikes
 
@@ -497,12 +556,20 @@ Trash view and `template.restoreFromTrash` go to slice 6 (6a since 2026-11-10, s
 | Q23 | `installTriggers` deletes the old triggers before it creates the new set; a failed create leaves fewer than 3 until a web app page load (4b review minor 7) | Create the new set first, then delete the old one; record a `job:triggers:lastError` health key the Config tab flags. Slice 6a |
 | Q24 | `template.apply` accepts `recipientEmailIfInternal` on `followUp` calls, an event-free first-name lookup (slice 4 review) | Closed in slice 5: `followUp: true` returns `recipientFirstName: ""` with no Directory read |
 | Q25 | With "Replace the subject" off, the prompt card still asks prompts that only the subject uses (slice 5 review minor 2, 5c minor 3) | Accept in v1: the value goes nowhere, the draft stays correct. Hiding those fields probably needs a card re-render on each switch change, one more callback per toggle |
+| Q26 | Prod owner identity (refines Q3, D16) | A dedicated account if Migway has one before 2.5b: a later handover then moves a credential, not data (ADR-0002 Amendment 2026-11-10, owner handover, option D) |
+| Q27 | When to build the B2 server-to-server pull for an owner change | v1.1, before the first planned owner change. Until then the interim runbook of section 16 |
+| Q28 | Run tests V1 to V4 (section 16) on dev with the pilot's second account | Yes, in the 2.5b dry run, about 30 min. If V1 and V3 pass, the same-project transfer (option C) replaces B2 and needs no code |
+| Q29 | Owner change: move all body versions or current versions only | All versions while under 20,000 files (D20 keeps all versions); above that, current versions only and the old data folder kept read-only |
+| Q30 | Dev to prod pilot data (2.5b step 5): import loses private templates and grants | The interim runbook (admin-only "Handover" folder) unless B2 exists by 2.5b |
+| Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance
 
 Target (BRIEF 1 Operations): the only recurring human task is deploying a new version. Details in ADR-0003 Part B (triggers) and ADR-0005 (Maintenance).
 
 Triggers. All time-driven, owned by and running as the owner. `setup()` installs them idempotently; the owner runs it once per environment after the first deploy. The trigger version check (amended 2026-11-10, slice 4b) runs in `doGet` and at the end of every `tick`; `rpc` and `doPost` skip it. It reads `TRIGGERS_VERSION` live inside the script lock and reinstalls when it differs, so after a deploy the triggers update on the first web app page load or within 5 min through `tick`, whichever comes first. Limit: a release that renames or removes the `tick` handler needs one web app page load.
+
+Reinstall order (Q23, built in slice 6a, hardened in 6b): create the 3 new triggers, then delete every old one. A failed create deletes the new ones it made, keeps the old set, writes `job:triggers:lastError` and leaves `TRIGGERS_VERSION` stale, so the next check retries. A failed delete still deletes the others, then throws; the next run leaves 3. The Config tab shows the error while `TRIGGERS_VERSION` is stale.
 
 | Trigger | Schedule | Work | Runtime per day (estimate) |
 |---|---|---|---|
@@ -521,9 +588,46 @@ Human tasks:
 | Run `setup()` | owner | once per environment |
 | Read a trigger failure email, redeploy or roll back | owner | only on failure |
 | Remove pilot editors from dev | owner | once, after 2.5b |
-| Owner identity change: export, deploy, `setup()`, import | owner and admin | on staff change |
+| Owner identity change: section 16.3 | owner and admin | on staff change |
 
-Template, folder and grant changes and backup restores happen in the web app, done by managers and admins. Role group membership changes happen in Google Groups. Nobody edits code or data files by hand.
+Template, folder and grant changes and backup restores happen in the web app, done by managers and admins. Role group membership changes happen in Google Groups. Nobody edits code or data files by hand, except the recovery below.
+
+### 16.1 Restore from backup (slice 6b)
+
+- Admin, Config tab, "Restore from backup". The confirmation names the date; Cancel has focus.
+- The server reads the 3 copies (`index.json`, `favorites.json`, `usage.json`) and runs the shared shape check before the lock. A missing, unparsable or damaged copy answers VALIDATION "This backup cannot be read: <file> ..."; live files stay untouched.
+- Under the lock: admin re-check; refusal when the backup holds templates emptied from the trash since that date ("<n> templates of the <date> backup were emptied from the trash after that date and would not open. Pick a newer backup."). The automatic purge needs 30 days in the trash and backups go back 14, so only a manual "Empty trash now" can cause it.
+- Writes `favorites.json`, then `usage.json`, then `index.json` last as the commit point (`rev = current + 1`, current `pendingAudit` kept). A failure before or during the index write puts the side files back. One `backup.restore` audit event.
+- The same shape check runs on every Drive read of the live files. A damaged live file answers INTERNAL "<file> is damaged: <problem>" on every op that loads it.
+
+### 16.2 Recovery from a damaged live file (runbook input, slice 7)
+
+A damaged live `index.json` answers INTERNAL on every op, `backup.restore` included: dispatch loads the index first. `backup.list` still answers. Q31 recommends an owner-run `restoreBackup(date)`; until it exists the owner runs these steps:
+
+1. Drive, as the owner: open `Migway Templates Data/backups/`, pick the newest date, download its `index.json`.
+2. Open the live `Migway Templates Data/index.json`, File information, Manage versions, Upload new version, pick the downloaded file [A24 in ADR-0002]. Do not upload it as a new file and do not make a copy: a file the app did not create is invisible to it (`drive.file`).
+3. Apps Script editor, as the owner: run `setup()`. It is idempotent; it reads `index.json`, republishes `INDEX_REV` and the cache, and reinstalls triggers.
+4. Web app: open the library and the Config tab; check `INDEX_REV` and the template count.
+5. For a damaged `favorites.json` or `usage.json`: the same steps with that file.
+
+Unverified: that Upload new version keeps the file ID and `appProperties` (Google's page does not say). Changes after the backup date are lost, as with a restore. The restored `rev` is lower than the damaged one, so revision numbers repeat once; the writer reads the file whenever its cached `rev` differs from the file's `appProperties` `rev`, so no stale index is written.
+
+### 16.3 Owner handover (D16, runbook input for slice 7)
+
+Decision and options: ADR-0002 Amendment 2026-11-10 (owner handover). Export and import are not the handover path: they lose private folders, grants, favorites, usage, audit and version history, and stop at 200 templates per file.
+
+Order of preference:
+1. Dedicated owner account (Q26). A staff change moves the password and 2-step verification. No data moves.
+2. B2 server-to-server pull, once built (Q27). Steps: new owner account in `ADMIN_EMAILS` of the old deployment; old project shared with the new owner as editor; new owner deploys a new project and runs `setup()`; old owner sets Script Property `READ_ONLY`; new owner runs the pull from the Config tab until done; template, folder, grant and version counts compared in both Config tabs; the admin moves the domain install to the new deployment; old owner deletes the old triggers and deployment; the old data folder is kept 30 days, then trashed.
+3. Interim, until B2 ships or V1 passes. The old owner account stays active; do not suspend or delete it. An admin creates a shared folder "Handover" with no grants and moves each user's private templates into one subfolder per user. Export each top folder of at most 200 templates and import it into the new deployment. Re-add grants by hand from the `grants` list of each file. Each user opens the new library once; the admin moves their templates into their new private folder. Lost: favorites, usage, audit and version history, item IDs.
+
+Tests that need a second owner account (Q28; the pilot account on dev can play it):
+- V1. After a transfer of the data files, does the new owner's `drive.file` token in the same project read them?
+- V2. Does a token minted by another project's server pass the old `/exec` with `getActiveUser` set?
+- V3. After the script project changes owner, does the web app deployment run as the new owner, and what must the new owner authorize?
+- V4. Do the web app and triggers of a suspended owner account keep running?
+
+Triggers belong to the account that created them (`getProjectTriggers()` returns only the current user's). `setup()` refuses any account other than the recorded `OWNER_EMAIL`, so option C would need `OWNER_EMAIL` changed in Project Settings first.
 
 ## Sources
 

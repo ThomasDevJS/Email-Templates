@@ -1,6 +1,6 @@
 # ADR-0002: Storage, caching and concurrency
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches) (Amendment 2026-11-10, errata run 3: export, import and backups as built, Proposed) (Amendment 2026-11-10: owner handover, Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -78,7 +78,7 @@ All files live in one folder `Migway Templates Data`, created by the setup funct
 |---|---|---|---|
 | `index.json` | `{ schemaVersion, rev, updatedAt, folders[], grants[], items[], pendingAudit[] }` | requests, under lock | 0.85 MB |
 | `favorites.json` | `{ rev, byUser: { email: [itemId] } }` | requests, under lock | 150 KB |
-| `usage.json` | `{ rev, items: { id: { applyCount, lastUsedAt } }, recent: { email: [itemId] } }` | 5-min trigger | 0.5 MB |
+| `usage.json` | `{ rev, items: { id: { applyCount, lastUsedAt } }, recent: { email: [itemId] } }` [entries also carry `days`, applies per UTC day, 30 days kept; Amendment 2026-11-10, errata run 3] | 5-min trigger | 0.5 MB |
 | `members.json` | group snapshot (ADR-0003 Part B) | 15-min trigger | under 450 KB |
 | `bodies/<itemId>.v<version>.json` | `{ itemId, version, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. `appProperties`: `itemId`, `version`, `savedBy`, `restoredFrom` | requests, outside lock | 2 to 100 KB each |
 | `audit/YYYY-MM.jsonl` | one audit event per line, append-only, one file per month | daily trigger | 2.4 MB per month |
@@ -126,7 +126,7 @@ Rules:
 ### Audit storage and admin view
 
 - Security events (create, edit, move, delete, restore, grant change, export, import, backup restore) enter `pendingAudit` inside the same `index.json` write as the change. An event cannot exist without its change, or the reverse.
-- Apply events and denied requests go to the `evt:*` cache buffer under `tryLock(500)` (fallback: skip buffering, keep the console log line). The 5-min trigger moves apply events into `usage.json` and denied events into `pendingAudit`. Cache eviction can lose up to 5 min of these events (Q14). Every request also writes a structured console log line (ADR-0003 Part D).
+- Apply events and denied requests go to the `evt:*` cache buffer under `tryLock(500)` (fallback: skip buffering, keep the console log line). The 5-min trigger moves apply events into `usage.json` and denied events into `pendingAudit`. Cache eviction can lose up to 5 min of these events (Q14). [Buffer capped at 200 events, drops counted in one `audit.dropped` event per `tick`; ADR-0003 Amendment 2026-11-10, errata run 3.] Every request also writes a structured console log line (ADR-0003 Part D).
 - The daily job appends `pendingAudit` to `audit/YYYY-MM.jsonl` outside the lock, then removes the flushed event IDs from `pendingAudit` under the lock. A crash between the two steps duplicates lines; readers drop duplicate IDs. The 5-min trigger flushes early when `pendingAudit` exceeds 200 KB (a bulk import).
 - Month file rewrite cost: up to 2.4 MB once per day at 1x.
 - Retention: the daily job trashes month files older than 24 months (Q10). 24 files, about 58 MB at 1x.
@@ -135,13 +135,13 @@ Rules:
 ### Backup and export
 
 - Daily job copies `index.json`, `favorites.json`, `usage.json` to `backups/YYYY-MM-DD/` and trashes folders older than 14 days. Bodies and audit files are immutable or append-only, so they need no copy.
-- Restore: admin UI "Restore from backup" (admin only) lists the 14 dates. The server copies the chosen files over the live ones under the lock with `rev = current + 1` and writes an audit event. No hand edit of files.
-- Export as JSON from the web app: `{ schemaVersion, exportedAt, exportedBy, scope, folders[], grants[], items[{ meta, html }] }`, current versions only. Folder export needs `manage`, library export needs admin. The browser downloads a Blob (`allow-downloads` [R4 S46]).
-- Import: admin only, same schema, every body passes the sanitizer, IDs remapped, conflicts reported per item. Import is also the migration path from dev to prod and between owners (below).
+- Restore: admin UI "Restore from backup" (admin only) lists the 14 dates. The server copies the chosen files over the live ones under the lock with `rev = current + 1` and writes an audit event. No hand edit of files. [Shape check, write order, undo and purge refusal as built: Amendment 2026-11-10, errata run 3.]
+- Export as JSON from the web app: `{ schemaVersion, exportedAt, exportedBy, scope, folders[], grants[], items[{ meta, html }] }`, current versions only. [Fields, paging and the library scope without private folders: Amendment 2026-11-10, errata run 3.] Folder export needs `manage`, library export needs admin. The browser downloads a Blob (`allow-downloads` [R4 S46]).
+- Import: admin only, same schema, every body passes the sanitizer, IDs remapped, conflicts reported per item. Import is also the migration path from dev to prod and between owners (below). [Import creates no grants and no private folders and stops at 200 templates: Amendment 2026-11-10, errata run 3. Owner change path replaced: Amendment 2026-11-10, owner handover.]
 
 ### `drive.file` binding (consequence of option 2)
 
-`drive.file` grants access per user and per OAuth client (likely; the 2.5b dry run verifies). Two events change one of them: moving prod to a standard GCP project (new client, 2.5b) and a change of owner identity (Q3). Mechanism: 2.5b switches prod to the standard GCP project before the setup function creates any prod data. Pilot data moves from dev to prod by export and import. An owner change is an export, a setup under the new owner, and an import (runbook, slice 7). Sheets with `spreadsheets` would not have this constraint.
+`drive.file` grants access per user and per OAuth client (likely; the 2.5b dry run verifies). Two events change one of them: moving prod to a standard GCP project (new client, 2.5b) and a change of owner identity (Q3). Mechanism: 2.5b switches prod to the standard GCP project before the setup function creates any prod data. Pilot data moves from dev to prod by export and import. An owner change is an export, a setup under the new owner, and an import (runbook, slice 7). [Superseded: Amendment 2026-11-10, owner handover.] Sheets with `spreadsheets` would not have this constraint.
 
 ### Budget with 200 templates
 
@@ -188,10 +188,140 @@ Consequences:
 - A crash between the side file write and `setProperty` leaves readers on the older cached set until the next write of that file. No data loss. Accepted (slice 5 review minor 4).
 - A reader's late put of `idx:meta` can overwrite a newer one; the next reader misses and reads Drive once. No stale data, because chunk keys carry `rev`.
 
+## Amendment 2026-11-10 (errata run 3): export, import and backups as built
+
+Status: Proposed until the owner approves. Built in slice 6b, review PASS on f6b567f (docs/reviews/slice-06b.md). The options above stand. This section records the mechanism as built.
+
+Export:
+- File format, `schemaVersion` 1: `{ schemaVersion, exportedAt, exportedBy, scope: { kind: "library" | "folder", folderId, name }, folders: [{ id, parentId, name }], grants: [{ folderId, principalType, principalKey, level }], items: [{ meta: { id, folderId, title, subject, tags }, html }] }`.
+- Content: live templates, current version only. No version history, no `createdBy` or `updatedBy`, no favorites, usage, audit, membership or property data. The export root has `parentId` "".
+- `export.folder` (manage): the folder and its live subtree. Grants only on folders inside that subtree; inherited grants from above are left out.
+- `export.library` (admin): every live folder outside a private tree. Private folders and their templates are left out (D11). The UI label is "Whole library (shared folders)".
+- Paging: one call returns the header and at most 20 templates (`EXPORT_PAGE`), so it reads at most 20 bodies from Drive (body cache first). Pages use an `offset`; the server recomputes the scope on every call. The browser joins the pages into `migway-templates-<scope>-<date>.json` (`library` or the folder name, local date).
+
+Import (admin):
+- Validate (`dryRun: true`) runs every check and writes nothing. Import runs the same checks again on the index read inside the lock.
+- File checks before any write: at most 5 MB (UTF-8), valid JSON, `schemaVersion` exactly 1, at most 100 folders and 200 templates, no two folders with one `id`. A bad record fails alone and carries its reason.
+- Target: a live shared folder. A folder in a private tree answers VALIDATION "Templates cannot be imported into a private folder. Pick a shared folder." The picker lists shared folders only.
+- Folders are created as `kind: "shared"` under the target. A folder whose name a live sibling already has is reused.
+- Templates get new IDs. Bodies pass the sanitizer and placeholder checks. Subject line breaks become one space (counted in `subjectsFlattened`), then SUBJ_TOO_LONG and PH_* apply. A template whose title already exists in its destination folder is skipped, so a second import of one file adds nothing.
+- Grants in the file are not created. Existing records are never moved or overwritten.
+- Write: body files outside the lock, then one index commit with one `import` audit event per created folder and template. Any failure answers "Nothing was imported: <what>. Run the import again." Body files already written are orphans; the daily cleanup trashes them after 1 h.
+- Report: templates created, skipped and failed; folders created and reused; `subjectsFlattened`; one line per skipped or failed record.
+
+Shape check (src/shared/model/shape.ts):
+- `index.json`: `schemaVersion` 1, integer `rev`, lists `folders`, `grants`, `items`, `pendingAudit` of records with typed required fields. `favorites.json`: integer `rev`, object `byUser`. `usage.json`: integer `rev`, objects `items` and `recent`. Optional fields (`subject`, `days`, unknown fields) are not checked.
+- It runs on every Drive read of the 3 live files. A damaged live file answers INTERNAL "<file> is damaged: <problem>" on every op that loads it.
+- The reviewer replayed data written by 9 builds from slice 2 to 6a: no false rejection.
+
+Restore (`backup.restore`, admin):
+1. Reads the 3 copies of `backups/<date>/` and runs the shape check before the lock. A missing, unparsable or damaged copy answers VALIDATION "This backup cannot be read: <file> ...". Live files stay untouched.
+2. Under the lock: admin re-check. Refusal when the backup holds templates that were live then and were emptied from the trash since; their body files are gone. Trashed templates purged since are dropped from the restored index.
+3. Writes `favorites.json`, then `usage.json`, then `index.json` as the commit point: `rev = current + 1`, current `pendingAudit` kept, one `backup.restore` audit event. Side file revs become `max(live, copy) + 1`.
+4. A failure before or during the index write puts the replaced side files back with a new rev.
+5. Publishes `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` and the cache sets.
+
+Limits of restore:
+- A failure inside the undo leaves backup side files with the live index and replaces the first error (slice 6b minor R2).
+- Body versions saved after the backup date sit above the restored `currentVersion`. History hides them; the daily cleanup trashes them after 1 h.
+- Readers take no lock, so for under a second a reader can see restored side files with the old index.
+- A damaged live `index.json` blocks `backup.restore` too: dispatch loads the index before the handler. Recovery: spec 16 "Recovery from a damaged live file" and Q31.
+
+## Amendment 2026-11-10: owner handover
+
+Status: Proposed until the owner approves. Replaces the owner-change sentences of "Backup and export" and "`drive.file` binding".
+
+### Context
+
+D16: the owner account owns prod, with a handover runbook. This ADR named export and import as the owner-change path. As built (amendment above), that path loses:
+- private folders and their templates (library export leaves them out, import refuses a private target);
+- all grants (import creates none);
+- favorites, usage counts, audit history, version history, item IDs, `createdBy` and dates;
+- and it stops at 200 templates, 100 folders and 5 MB per file. 1,000 templates need at least 5 folder files.
+
+Facts:
+
+| Fact | Source |
+|---|---|
+| `drive.file` covers files the app creates, files the user opens with the app, and files the user shares with the app through Google Picker. Google's page does not say whether the grant is per user | [A17] |
+| A second user of the same app does not see files the app created for the first user. Picking a folder gives access to the folder, not to the files inside | third party, unverified [A18] |
+| Files created by hand are invisible to the app | this ADR, Layout |
+| An admin with the Drive and Docs privilege transfers a user's My Drive files to another active user of the organization. A transfer folder appears in the new owner's My Drive. Trashed files do not transfer. Access is unchanged; the previous owner keeps edit access until the account is deleted. File IDs: not stated | [A19] |
+| A user transfers ownership per file or folder, inside the organization only. "When you make someone else the owner of a folder, you still own the files inside" | [A20] |
+| "Execute as me": "the script always executes as you, the owner of the script". Web apps cease to work when ownership moves to another domain. In a shared drive the web app runs as the user who deployed it | [A21] |
+| Installable triggers are not shared with collaborators. When an owner's account is removed, access to scripts without other owners is lost | [A22] |
+| `getProjectTriggers()` returns the current user's triggers of the project only | [A23] |
+| UrlFetch response and POST payload 50 MB; script runtime 6 min | [R4 S2] |
+| A token minted by another OAuth client (the owner's clasp token) passes the `/exec` front door | PLAN log 2026-11-09 (2.5a) |
+| `setup()` records `OWNER_EMAIL` on its first run and refuses every other account afterwards; triggers run only as `OWNER_EMAIL` | src/server/guards.ts `setupAllowed`, `triggerAllowed` |
+
+### Options
+
+1. A. Copy the data folder to the new owner and point the new deployment's `STORE` at it. A copy made in the Drive UI is a file the app did not create: invisible under `drive.file`. A copy made by the app as the new owner needs read access to the old files, and `drive.file` gives none (likely, third party [A18]). Cost: no code. Risk: rests on behavior Google does not document; probably fails.
+2. B1. Full export and import through the browser. Admin-only export of everything: index with private folders and grants, all body versions with their `appProperties`, favorites, usage, audit month files. An import that writes them unchanged. Cost: large code. The audit files alone reach about 58 MB over 24 months at 1x, above the 5 MB upload cap and the undocumented `google.script.run` payload limit, so the admin moves tens of files by hand.
+3. B2. Server-to-server pull. Same content as B1. The new deployment calls the old deployment's `/exec` with the new owner's token and writes every file itself. Cost: code, about one slice (opinion). Rests on verified pieces only (Decision).
+4. C. Same project, Drive ownership transfer. The admin transfers the old owner's files (Apps Script project and data folder) to the new owner [A19]. The new owner authorizes, redeploys, sets `OWNER_EMAIL`, runs `setup()`. Cost: no code. Risks: works only if the new owner's `drive.file` token reads files the app created for the old owner (unverified, third party says no [A18]); web app identity after the transfer is unverified; admin transfer moves every My Drive file of the old account; a user transfer leaves the files inside a folder with the old owner [A20], so 1,000 to 50,000 body files would need one transfer each.
+5. D. No handover. A dedicated owner account (shared mailbox) that outlives staff changes (D16, Q3). A staff change moves the password and 2-step verification to the next person. Cost: no code, no data move; one Workspace licence unless Migway already has such an account. Risk: a shared credential.
+6. E. Shared drive for project and data. Files belong to the organization; the web app runs as the deployer [A21]. `drive.file` is still per user (likely) and triggers are still per user, so a new deployer still cannot read the old files. Q18 stays open. Rejected as a handover path.
+
+| Criterion | A copy | B1 browser | B2 pull | C transfer | D dedicated account |
+|---|---|---|---|---|---|
+| Private folders, grants, IDs, history, favorites, usage, audit | all, if it works | all | all | all, if it works | nothing moves |
+| Code | none | large | about one slice | none | none |
+| Relies on unverified platform behavior | yes | `google.script.run` payload | `getActiveUser` for a server token (V2) | yes (V1, V3) | no |
+| Old owner account must stay active | no | yes | yes | no (sender not deleted) | n/a |
+| Human steps | few | many file moves | about 10 runbook steps | about 8 runbook steps | credential handover |
+
+### Decision (Proposed)
+
+1. Prevent first: option D when Migway has a dedicated account before 2.5b (Q26). Then nothing below runs.
+2. When the owner account must change: option B2, the server-to-server pull. It uses facts this project has verified: files the app creates as the new owner are visible to it (`setup()` since slice 1); a token call with `script.projects.readonly` passes `/exec` (spike S2); a foreign-client token passes the front door (2.5a). It needs no new scope.
+3. Before building B2, run tests V1 to V4 below on dev with the pilot's second account (Q28, about 30 min). If V1 and V3 pass, option C replaces B2: runbook only, no code.
+
+Mechanism of B2:
+- Source (old deployment, old owner). Script Property `READ_ONLY`, set by the owner in Project Settings, makes every write op answer BUSY "Migway Templates is moving to a new owner. Try again later." Reads and apply keep working; apply events during the move stay in the old `usage.json` (accepted, analytics).
+- Source op `migrate.manifest` (admin): the index `rev` and the data files (kind, Drive file ID, name, `appProperties`, size), in pages of 500.
+- Source op `migrate.read` (admin): the contents of up to 20 files, or one file, per call, under 40 MB per response (the 50 MB cap minus margin).
+- Target (new project and new deployment under the new owner, after `setup()` on an empty store). Op `migrate.pull { sourceUrl }` (admin), started from the Config tab. It refuses a target that holds any template.
+- Each step runs at most 4 min (6 min limit) and stores its cursor in Script Property `MIGRATE`. The admin presses Continue until done; no trigger is added.
+- Each step calls `sourceUrl` with `UrlFetchApp` and `ScriptApp.getOAuthToken()` (the new owner's token). It creates body files with the same names and `appProperties` and records old to new file IDs in a Drive file `migrate-map.json` (about 3 MB at 50,000 versions, too large for Properties). Audit month files are copied unchanged.
+- Last step: reads the source index, runs the shape check, requires the `rev` seen at the start (else: "The library changed. Set READ_ONLY and run again."), replaces every `bodyFileId` through the map, writes `favorites.json`, `usage.json`, then `index.json` as the commit point (`rev = source rev + 1`) with one `migrate.pull` audit event, and publishes the revs.
+- Moves: folders including private ones, grants, items with their IDs, all body versions, favorites, usage, audit months and `pendingAudit`. Does not move: backups (the target's `daily` starts new ones), `members.json` (`refreshMembers` rebuilds it), Script Properties (setup and runbook), caches.
+- Audit `before` and `after` body references keep the old file IDs. `itemId` and `version` still name the version. Accepted.
+- Scopes: none new. `script.external_request` and `script.projects.readonly` are in the manifest. `urlFetchWhitelist` already lists `https://script.google.com/macros/s/` and `https://script.googleusercontent.com/`.
+- Duration: one Drive create per body version. Small-file create time is unmeasured; at an assumed 0.7 s, 5,000 versions take about 1 h (15 steps), 50,000 about 10 h. Q29 decides between all versions and current versions only.
+- The same pull covers dev to prod (ADR-0005 2.5b step 5), so pilot users keep their private templates (Q30).
+
+What needs code (B2, v1.1 or a slice before the first handover, Q27): the `READ_ONLY` write refusal in `dispatch`; `migrate.manifest` and `migrate.read` with admin policy rows; `migrate.pull` with cursor, map file, empty-target check, shape check, final commit and audit event; a Config tab section; tests in the role matrix.
+
+Runbook steps (input for slice 7; spec 16 holds the list): new owner account ready and in `ADMIN_EMAILS` of the source; source project shared with the new owner as editor; new owner deploys a new project and runs `setup()`; owner sets `READ_ONLY` on the source; new owner runs the pull; counts compared in both Config tabs; the admin moves the domain install to the new deployment; old owner deletes old triggers and the old deployment; old data folder kept 30 days, then trashed.
+
+Owner decides: Q26 (dedicated account), Q27 (when to build B2), Q28 (run V1 to V4), Q29 (history scope), Q30 (dev to prod path).
+
+Cannot be verified without a second owner account (the pilot account on dev can play it):
+- V1. After an admin or user transfer of the data files, does the new owner's `drive.file` token in the same project read them?
+- V2. Does a token minted by another project's server pass the source `/exec` with `getActiveUser` set, so the source admin check works?
+- V3. After the script project changes owner, does the existing web app deployment run as the new owner, and what must the new owner authorize?
+- V4. Do the web app and triggers of a suspended owner account keep running? The runbook assumes no and keeps the old account active until the move ends.
+
+Interim, until B2 ships or V1 passes (runbook, no code):
+1. Keep the old owner account active. Do not suspend or delete it.
+2. An admin creates a shared folder "Handover" with no grants (only admins see it) and moves each private template into it, one subfolder per user.
+3. Export each top folder of at most 200 templates (`export.folder`); import each into the new deployment.
+4. Re-add grants by hand from the `grants` list of each export file.
+5. Each user opens the new library once, which creates their private folder. The admin then moves their templates back into it (ADR-0003 Part C gives admins `manage` there).
+6. Lost: favorites, usage counts, audit history, version history, item IDs. The old data folder stays readable by the old owner for the audit record.
+
+### Consequences
+
+- Easier: a staff change no longer silently drops private templates and grants. D, when chosen, removes the event.
+- Harder: B2 adds 3 ops and a resumable job. The old owner account must stay active during the move.
+- Revisit: after V1 to V4 run; when 2.5b picks the prod owner (Q26).
+
 ## Consequences
 
 - Easier: one folder holds all data; one file read rebuilds the cache; the consent list loses `spreadsheets`; no spreadsheet UI exists for hand edits; change and audit commit in one write.
-- Harder: every index write rewrites 0.85 MB at 1x and 8.4 MB at 10x. All writes serialize on one script lock. Data access is tied to the owner and the OAuth client (`drive.file`), so ownership and GCP project changes go through export and import.
+- Harder: every index write rewrites 0.85 MB at 1x and 8.4 MB at 10x. All writes serialize on one script lock. Data access is tied to the owner and the OAuth client (`drive.file`), so ownership and GCP project changes go through export and import. [Owner change: Amendment 2026-11-10, owner handover.]
 - All server I/O counts against the owner's quotas and 30 simultaneous executions [R4 S2]. Peak estimate: about 1 concurrent execution on average. The add-on retries `Too many simultaneous invocations` once after 300 to 600 ms.
 - Revisit when `index.json` exceeds 3 MB (about 3,500 items) or spike S2b measures a save above 3 s: split items into 16 files `items-<0..f>.json` by the last hex digit of the item ID hash. `schemaVersion` 2 marks it; the server migrates on the first request after deploy, under the lock. Revisit also at 50,000 body files.
 
@@ -202,6 +332,12 @@ Consequences:
 - Q16. Resolved 2026-11-09: the Advanced Drive service works on `drive.file` alone (create, update, get media, trash). `alt: media` returns parsed JSON with reordered keys; the adapter re-serializes (docs/spikes/slice-02-s2b.md). `appProperties` list is confirmed at the first version-history use in slice 3.
 - Q17. Resolved 2026-11-09: read 549 to 809 ms, write about 1,130 ms for 821 KB. Option 2 stands.
 - Q18. Prod data in the prod owner's My Drive or in a shared drive? A shared-drive folder created by hand is not visible to `drive.file`. Recommendation: the prod owner's My Drive (dedicated account, Q3); shared drive only if the 2.5b dry run shows the setup function can create its own folder there.
+- Q26. Prod owner identity (refines Q3, D16). Recommendation: a dedicated account if Migway has one before 2.5b; a handover then moves a credential, not data.
+- Q27. When to build the B2 pull. Recommendation: v1.1, before the first planned owner change and before the dev to prod move if pilot private templates must survive. Until then the interim runbook applies.
+- Q28. Run V1 to V4 on dev with the pilot's second account. Recommendation: yes, in the 2.5b dry run, about 30 min. V1 and V3 passing replaces B2 with option C.
+- Q29. Move all body versions or current versions only. Recommendation: all versions (D20 keeps all versions) while the count is under 20,000; above that, current versions only and the old data folder kept read-only for history.
+- Q30. Dev to prod pilot data. Recommendation: the interim runbook (private templates through an admin-only "Handover" folder) unless B2 exists by 2.5b.
+- Q31. Recovery from a damaged live `index.json`. Recommendation: add an owner-run editor function `restoreBackup(date)` with the `setup()` guard that runs the restore without `dispatch`; until it exists, the manual runbook of spec 16.
 - Do `google.script.run` payloads above 1 MB fail? Undocumented [R4 S49]. Recommendation: page index responses at 500 items; slice 3 measures.
 
 ## Sources
@@ -209,3 +345,11 @@ Consequences:
 - [R4 S2, S11, S30, S41, S46, S49, S57, S58, S60, S66, S68 to S72] in docs/research/r4-platform-constraints.md, read 2026-11-09.
 - [A9] https://developers.google.com/apps-script/reference/drive/drive-app (authorization sections of `createFile`, `createFolder`, `getFileById`), read 2026-11-09.
 - [A10] https://developers.google.com/identity/protocols/oauth2/scopes (consent descriptions of `spreadsheets`, `drive.file`, `groups`, `admin.directory.user.readonly`, Gmail add-on scopes, `userinfo.email`), read 2026-11-09.
+- [A17] https://developers.google.com/workspace/drive/api/guides/api-specific-auth ("Choose Google Drive API scopes": `drive.file` covers files created or opened with the app or shared with it through Google Picker; per-user binding not stated), read 2026-11-10.
+- [A18] Third party, unverified: https://groups.google.com/g/google-apps-script-community/c/_W-NKbttfbo, https://nango.dev/blog/fix-google-drive-api-404-file-not-found, Stack Overflow archive https://kiwix.lema.org/stackoverflow.com_en_all_2023-11/questions/68462168/google-drive-api-permission-to-children-files (folder picked in Picker gives no access to its files; app files not visible to other users), read 2026-11-10.
+- [A19] https://knowledge.workspace.google.com/admin/drive/transfer-drive-files-to-a-new-owner-as-an-admin (redirect from https://support.google.com/a/answer/1247799), read 2026-11-10.
+- [A20] https://support.google.com/drive/answer/2494892 (transfer ownership as a user), read 2026-11-10.
+- [A21] https://developers.google.com/apps-script/guides/web (permissions: "Execute as me"; domain and shared drive notes), read 2026-11-10.
+- [A22] https://developers.google.com/apps-script/guides/collaborating (installable triggers not shared; owner leaving), read 2026-11-10.
+- [A23] https://developers.google.com/apps-script/reference/script/script-app (`getProjectTriggers()`: current user's triggers), read 2026-11-10.
+- [A24] https://support.google.com/drive/answer/2409045 (Manage versions, Upload new version; versions may be deleted after 30 days or 100 newer versions; file ID after upload not stated), read 2026-11-10.

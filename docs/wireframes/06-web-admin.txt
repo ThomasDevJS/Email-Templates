@@ -1,7 +1,16 @@
 Screen 6: Admin (/exec?view=admin)
 Slice 6. Tabs: Folders and grants | Memberships | Audit log | Usage | Export and import | Config.
 Split 2026-11-10 (spec 13.3): 6a builds the shell, Folders and grants, Memberships and the Trash view; 6b builds Audit log, Usage, Export and import, Config.
-Admins see all tabs. manage holders see Folders and grants (their subtrees) and Export folder.
+Admins see all tabs. manage holders see Folders and grants (their subtrees) and Export and import (Export folder only).
+As built 2026-11-10 (slices 6a bb53d6c, 6b f6b567f): routes #/admin, #/admin/memberships, #/admin/audit, #/admin/usage,
+#/admin/transfer, #/admin/config, and #/trash (link under the library tree). Tablist: Left, Right, Home, End, wrap.
+Entry: the server op admin.folders decides. Anyone else gets a full page:
+  "You don't have access to the admin view. It is for admins and folder managers."  [Back to the library]
+
+Inline errors (status line under a form or table, smoke 6b defect A): the error message as one sentence ending
+with a period, no "Back to the library" link. Example: "Group missing@example.com was not found or its members are
+not visible." The full-page banner, the admin no-access page and Trash keep the link. A toast with the request ID
+replaces the line on SERVER errors; QUOTA keeps Retry disabled for 60 s.
 
 Tab: Folders and grants
 +----------------------------------------------------------------------------------+
@@ -10,6 +19,8 @@ Tab: Folders and grants
 | v Sales                  | Sales / Quotes                     [Rename] [Delete]  |
 |    Onboarding            |-------------------------------------------------------|
 |  > Quotes <              | Effective access (includes inherited from Sales)      |
+|                          |  (a manager who cannot see Sales reads "a parent      |
+|                          |   folder (inherited)" as the source)                  |
 | > Support                |  Principal                 Level    Source            |
 | > HR                     |  group sales@migway.com    edit     Sales (inherited) |
 | [+ Top-level folder]     |  group all@migway.com      use      this folder       |
@@ -18,7 +29,9 @@ Tab: Folders and grants
 |                          |     resolver" (Q4)                                     |
 |                          |-------------------------------------------------------|
 |                          | Add grant: [group v] [ email____________ ] [use v]    |
-|                          |            [Add]                                      |
+|                          |            [Add]          (key max 254 characters)    |
+|                          | Private folder: "Private folder of <owner>"; no       |
+|                          | Subfolder, Move, Delete or grant form                 |
 +--------------------------+-------------------------------------------------------+
 
 Tab: Memberships
@@ -39,10 +52,19 @@ Tab: Audit log
 Tab: Usage
   Template            Folder          Applies 30 d   Last used
   Price quote 2026    Sales/Quotes    112            2026-11-09
+  (30 UTC days ending today, most applied first; no user addresses)
 
 Tab: Export and import
-  Export: (o) Whole library (admin)  ( ) Folder [Sales v]   [Download JSON]
-  Import: [Choose file]  Target folder [ Imports v ]  [Validate]  -> report: 40 ok, 2 skipped, 1 failed  [Import]
+  Export scope: (o) Whole library (shared folders)  ( ) One folder and its subfolders   Folder [Sales v]
+                [Download JSON]     (manage holder: heading "Export folder", Folder [v], [Export folder])
+  Status: "Exporting... 40 of 120 templates."  then  "Exported 120 templates to migway-templates-library-2026-11-10.json."
+  Import: "An export file of up to 5 MB and 200 templates. Validate shows what Import would do; nothing is written
+           before Import."
+          [Choose file]  Target folder [ Imports v ] (shared folders only)  [Validate]  [Import]
+  Status: "Validating..." / "Importing..."
+  Report: created, skipped, failed templates; folders created and reused; subjects flattened.
+          Table "Skipped and failed records": name, outcome, reason
+          ("A template with this title is already in this folder").
 
 Tab: Config (read only)
   Domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_REV, app version, index size (0.85 MB, warn at 3 MB).
@@ -51,4 +73,34 @@ Tab: Config (read only)
   refreshMembers       15 min      2026-11-09 14:00   ok
   daily                02:00       2026-11-09 02:01   ok
   (a job late by more than 2 intervals shows "late" in red text with the last error)
-  Backups: 14 daily copies   [Restore from backup v]  (admin only, confirms, writes an audit event)
+  (while TRIGGERS_VERSION is stale: "Trigger reinstall failed: <error>")
+  Backups: 14 daily copies, newest first   [Restore from backup v]  (admin only, writes an audit event)
+  Empty: "No backups yet. The daily job makes one each night and keeps 14."
+
+  Restore dialog (Cancel has focus):
+  +--------------------------------------------------------------------------------+
+  | Restore the backup of 2026-11-09?                                              |
+  | Every change made after 2026-11-09 is lost: templates, versions, folders,      |
+  | grants, favorites and usage counts go back to that day. Templates emptied from |
+  | the trash after 2026-11-09 cannot come back; the server refuses the restore if |
+  | the backup holds any. The audit log is kept and records the restore.           |
+  |                                         [Restore 2026-11-09]  [Cancel]         |
+  +--------------------------------------------------------------------------------+
+  Status: "Restoring the backup of 2026-11-09..."  then  "Restored the backup of 2026-11-09."
+  Refusals: "This backup cannot be read: index.json is damaged: folders must be a list."
+            "2 templates of the 2026-11-09 backup were emptied from the trash after that date and would not
+             open. Pick a newer backup."
+
+Trash view (#/trash, see also wireframe 07 H; edit holders see templates of folders they can edit; admins see all)
+  Deleted templates stay 30 days, then are removed.
+  Title              Folder          Deleted            By               Days left   Actions
+  Old price quote    Sales/Quotes    2026-11-08 10:12   ana@migway.com   28          [Restore]
+  [Empty trash now...]   (admin only)
+  Restore: in place when the folder is live and editable, else a dialog:
+    "Restore template"  "The folder Sales/Old was deleted." | "You cannot edit Sales/Quotes any more."
+    Restore "Old price quote" to [ folder v ]   [Restore] [Cancel]
+    No editable folder: "You can edit no folder to restore into. Ask a folder manager."
+  Status: 'Restoring "Old price quote"...'  then  'Restored "Old price quote" to Sales/Quotes.'
+  Empty trash dialog: "Remove all 3 templates in the trash for good? This cannot be undone."  [Empty trash] [Cancel]
+    then "Removed 3 items for good." (+ " The nightly job deletes the stored versions of N of them.")
+  Empty: "Trash is empty. Deleted templates stay here for 30 days."

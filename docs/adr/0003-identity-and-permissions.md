@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -96,7 +96,7 @@ Admin role: member of `ADMIN_GROUP` (Script Property, group email) via the snaps
 
 ### Triggers
 
-All triggers are time-driven, owned by the owner identity, and run as the owner. The setup function `setup()` installs them: it deletes every project trigger and recreates the set below, so a second run changes nothing. The owner runs it once per environment from the Apps Script editor after the first deploy. Afterwards the first web app request after each deploy compares Script Property `TRIGGERS_VERSION` with the code constant and reruns the install under the script lock when they differ, so new or changed triggers need no human step. Limit: 20 triggers per user per script [R4 S2]; this design uses 3.
+All triggers are time-driven, owned by the owner identity, and run as the owner. The setup function `setup()` installs them: it deletes every project trigger and recreates the set below, so a second run changes nothing. [Since slice 6a it creates the new set first, then deletes the old one; Amendment 2026-11-10, errata run 3.] The owner runs it once per environment from the Apps Script editor after the first deploy. Afterwards the first web app request after each deploy compares Script Property `TRIGGERS_VERSION` with the code constant and reruns the install under the script lock when they differ, so new or changed triggers need no human step. Limit: 20 triggers per user per script [R4 S2]; this design uses 3.
 
 | Trigger | Schedule | Work | Runtime per run (estimate) | Runtime per day |
 |---|---|---|---|---|
@@ -141,7 +141,7 @@ Role matrix (level needed on the target folder; "A" = admin only):
 Enforcement mechanism:
 
 - One entry point for ops. `doPost` (add-on) and one `google.script.run` function `rpc(op, args)` (web app) both call `dispatch(caller, op, args)`. The bundle is one IIFE (ADR-0005), so only its exports become top-level functions, and every top-level function is callable through `google.script.run` [R4 S49]. Each export is listed in an allowlist (`src/shared/entryPoints.ts`) with one surface, and a test fails on any export missing from it: `webapp_rpc` (`doGet`, `rpc`) and `doPost` run `dispatch`, which rejects a blank caller (`AUTH_NO_USER`) and a caller outside Script Property `DOMAIN` (`AUTH_DOMAIN`); `trigger` (`setup`, `tick`, `refreshMembers`, `daily`) runs only when the effective user is Script Property `OWNER_EMAIL` and either the active user is that owner or the call carries the `triggerUid` of this project's trigger for that function with no other active user, and `setup` runs only when active and effective user are the same account and match `OWNER_EMAIL` once it is set; `addon` (`onComposeOpen`, `onHomepage`, `onOpenLibrary`, `onPing`) runs only when the active and effective user are the same account, so a web app caller cannot make it fetch the server with the owner's token. Op names never equal export names, so no callback is reachable through `rpc`. Revised 2026-11-09 in slice 2: this allowlist replaces the rule that non-entry functions end with `_`.
-- `dispatch` looks up `op` in a policy table: `{ op, requiredLevel, targetResolver }`. It resolves the target folder(s), computes the effective level, and denies before the handler runs. Denied requests return `DENIED` and write an audit row.
+- `dispatch` looks up `op` in a policy table: `{ op, requiredLevel, targetResolver }`. It resolves the target folder(s), computes the effective level, and denies before the handler runs. Denied requests return `DENIED` and write an audit row. [Also a DENIED thrown after the policy check, one row per call; Amendment 2026-11-10, errata run 3.]
 - A unit test enumerates the policy table and fails if any handler has no policy row. A second test checks every role matrix cell above (BRIEF 9).
 - List and search results are filtered by the same level function, so hidden templates never leave the server.
 
@@ -171,6 +171,40 @@ Audit event (one JSON line in `audit/YYYY-MM.jsonl` after the daily flush, `pend
 Retention: 24 months (Q10). The `daily` trigger trashes month files older than 24 months. Admins read events in the admin UI audit tab (wireframe 06), one month at a time.
 
 Structured log (BRIEF 10): one JSON line per request via `console.log(JSON.stringify(...))`. Fields: `ts, level, requestId, surface, action, actor, targetId, result, errorCode, durationMs, cache (hit|miss|rebuild), appVersion`. Logs never contain template bodies, prompt values or recipient addresses.
+
+## Amendment 2026-11-10 (errata run 3): denied rows, event buffer, triggers, admin log lines
+
+Status: Proposed until the owner approves. Built in slices 6a and 6b, review PASS (docs/reviews/slice-06a.md on bb53d6c, slice-06b.md on f6b567f). Part C and Part D stand; this section records the mechanism as built.
+
+Denied audit rows:
+- `dispatch` buffers one denied event for a policy denial, and one for a DENIED thrown after the policy check: a handler refusal (`admin.folders` for a caller who manages no folder) or an in-lock re-check (`trash.purge`, admin rows). One call writes at most one row.
+- VALIDATION and NOT_FOUND write no denied row. The log line carries `result: denied` in every DENIED case.
+
+Event buffer (`evt:*`):
+- At most 200 events (`BUFFER_MAX`). When full, new apply and denied events are dropped and counted in `evt:dropped`.
+- `tick` writes one `audit.dropped` event per run with `after: { dropped }`, actor `system`, result `error`.
+- Limit: 200 refused calls inside 5 min also drop apply events, so usage counts lose them; the count does not split applies from denials (spec 13.5, v1.1).
+
+Usage: `usage.json` entries carry `days`, a map of UTC day (`YYYY-MM-DD`) to apply count, kept to the 30 days that end on the latest apply. Entries written before slice 6b have no `days` and count 0 until their next apply. `usage.report` (admin) sums the 30 UTC days ending today.
+
+Triggers (Q23, built in 6a, hardened in 6b):
+- `installTriggers` creates the 3 new triggers, then deletes every old one, duplicates included.
+- A failed create deletes the new ones it made, keeps the old set, writes `job:triggers:lastError` and leaves `TRIGGERS_VERSION` stale.
+- A failed delete still deletes the rest, then throws; the next run leaves 3. The Config tab shows `triggersError` while `TRIGGERS_VERSION` is stale.
+- The version check runs in `doGet` and at the end of `tick`.
+
+Log lines of admin ops (closed field list of spec 11, no new field):
+
+| Op | `targetId` | Never logged |
+|---|---|---|
+| `grant.add` | folder ID | principal key (it sits only in the audit event `before` and `after`) |
+| `grant.remove` | `""` (`grantId` is not `id` or `folderId`) | principal key |
+| `import` | target folder ID | titles, subjects, bodies of the file |
+| `export.folder` | folder ID | template content |
+| `export.library` | `""` | template content |
+| `backup.restore` | `""` | the backup date |
+
+Audit events of these ops: `grant.add` and `grant.remove` with before and after; one `import` event per created folder and template (after = record and body reference); `backup.restore` with before `{ rev, items }` and after `{ date, rev, items }`; `trash.purge` one event per purged template and folder. Exports write no audit event in v1 [6b built no export event; the security event list in ADR-0002 names export, so this is a gap: spec 13.5].
 
 ## Consequences
 
