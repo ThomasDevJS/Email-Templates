@@ -106,6 +106,16 @@
 - `git checkout <base> -- src` adds base-only files to the index; remove them with `git rm -f` afterwards.
 - New side-file reads need a published rev property, else readers never cache (warm counter test catches it).
 
+## Code map (after slice 5b)
+- Q21: `DRAFT_FIELDS`, `requestDraft` (protocol.ts); `draftInfo`, `isReplyDraft` (addon/event.ts); `replacesSubject`, `WITH_SUBJECT` (cards/spec.ts). `ports(event)` sends `draft` on every call; server logs `draft` only when valid, else VALIDATION.
+- `folderLabel` in folders.ts: `folder.list` renames other users' private folders "My templates (owner)".
+- Web: `formatTime` local; `conflictText` in status.ts; `DialogAction.autofocus`; rowMenu takes `{ busy, done }`; library `bodyPending`.
+
+## Lessons (slice 5b)
+- `cat > file` with no input hangs the shell; `python3 /dev/stdin <<'EOF'` works for edits, alone in one command.
+- jsdom: `vi.stubEnv("TZ", ...)` changes Date local time at runtime.
+- Old-code check of the whole slice: `git checkout <base> -- src`, run, `git checkout HEAD -- src`.
+
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
@@ -114,7 +124,7 @@
 ## Open items handed forward
 - Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; google.script.url/history and clipboard unverified in the real iframe.
 - Slice 4: Card Service calls unverified in Gmail; `setRequiredWidgets` not tried.
-- Slice 5: spike S5 unverified (smoke Slice 5 step 1); Q21 reply subject; export must carry subject, import flattens line breaks (slice 6); `ft:*` warm-up in tick; spec 6 status line and Script Properties list need FAVORITES_REV/USAGE_REV (architect).
+- Slice 5: Q21 rule built in 5b, unconfirmed until smoke Slice 5b step 5; export must carry subject, import flattens line breaks (slice 6); `ft:*` warm-up in tick; spec 6 status line and Script Properties list need FAVORITES_REV/USAGE_REV (architect).
 - Not verified against Google: Advanced Drive on drive.file, `alt: 'media'` return type, `getActiveUser` in triggers, triggerUid values, 5 MB multipart limit.
 - `membership.refresh` should clear `prof:*` (slice 6). Audit reader dedupe (slice 6). Caches `fav`, `use`, `ft` built in slice 5.
 - Drift check behaviour against real Apps Script reformatting: unverified.
