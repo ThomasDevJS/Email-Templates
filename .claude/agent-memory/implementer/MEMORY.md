@@ -65,6 +65,11 @@
 - `CacheService.getUserCache()` is typed non-null; a null check fails lint.
 - A recording CardService fake needs every enum the code reads (`ContentType`, `UpdateDraftBodyType`, `TextButtonStyle`).
 - `vi.mock` of src/shared/buildInfo in its own test file covers the blank execUrl branch.
+- Slice 4 review FAIL: empty state keyed on folders, but every caller owns a private folder. Key empty states on the content the spec names ("no visible templates"), and test with a private folder present.
+- Every server-checked action needs a server call right before it acts; cached bodies alone skip the permission check. `template.apply` `followUp: true` = re-check without a second event.
+- Payload fields need a reader; review flags unused ones as dead.
+- When a feature is removed, grep docs/ops for its UI text (Ping lingered in smoke.md).
+- Worktree guard: put multi-edit python in a temp .py file inside the worktree, run it, delete it.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.

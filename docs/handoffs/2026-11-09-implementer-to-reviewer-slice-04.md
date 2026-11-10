@@ -21,7 +21,7 @@ Branch `slice/04-apply`, based on 05ed21f (`claude/gracious-franklin-3n8zbq`). 6
 
 - User Cache: `view:*` chunks (shared `putChunked`, TTL 600 s) and `body:<id>` (6 h, skipped above 90 KB). Cleared by Open library, Edit in library, Refresh, DENIED and NOT_FOUND. A grant change shows in the sidebar within 10 min.
 - An apply event is buffered when the prompt card opens, even if the user then cancels (spec 4.1 step 3 buffers at apply time).
-- The prompt card's Insert carries the sender values and recipient first name as action parameters, so it renders from the cached body with no server call. On a cache miss it calls `template.getBody` (no second apply event). A newer version re-renders the card with "The template changed."
+- The prompt card's Insert carries the sender values and recipient first name as action parameters. Superseded in Retry 1: it now calls `template.apply` with `followUp: true` before inserting (see below). A newer version re-renders the card with "The template changed."
 - `requireDomain` with `DOMAIN` unset now throws NOT_CONFIGURED (was AUTH_DOMAIN). Still a denial; the denied event keeps `AUTH_DOMAIN`.
 - `Action.setRequiredWidgets` not used (Gmail support unverified, ADR-0004 point 4 says "tries"); the callback is the enforcement point.
 - Chunked cache helpers and `CacheStore` moved to src/shared/cache so the add-on can chunk `view:*`; `services.ts` re-exports `CacheStore`.
@@ -35,6 +35,18 @@ Branch `slice/04-apply`, based on 05ed21f (`claude/gracious-franklin-3n8zbq`). 6
 - `npm run scopes:check`: "Scope check passed: 10 scopes, all approved."
 - Secret scan of the diff (lock excluded): 0 key or token patterns. Emails only `example.com`, `other.example`, `outside.example`. URL hosts: script.google.com, www.google.com (F1 link), www.gstatic.com (F5 image, loaded by Gmail, not by app code), test hosts.
 - Not verified against Google: every Card Service call (`setAltText`, `setDisabled`, `FixedFooter`, `popToRoot`), `draftMetadata.toRecipients` on action events, `commonEventObject.formInputs` shape, insert behavior. Smoke "Slice 4" and the spike sheet cover them.
+
+## Retry 1 (review docs/reviews/slice-04.md, FAIL, gaps 1 to 4)
+
+Commits: 76dee46 (gaps 1 and 3), 662f264 (gap 2), 2b6a9c8 (gap 4).
+
+1. Blocking, fixed. `homeSections` shows the empty state when `view.templates` is empty (spec section 7 "no visible templates"), even when the caller's empty private folder is visible. Test: "shows the empty state when the only folder is the caller's empty private folder" in test/unit/addon/cards.test.ts. Smoke "Slice 4" step 8 matches as written.
+2. Fixed. Mechanism: the prompt card Insert calls `template.apply` with `{ id, knownVersion, recipientEmailIfInternal: "", followUp: true }`. Dispatch re-checks `use` as for every apply; a removed grant gives DENIED and the draft does not change. `followUp: true` skips `bufferEvent`, so Insert tap plus prompt Insert buffer 1 event. `knownVersion` is the cached version, so the body travels only when the cache lost it or the template changed. `template.getBody` is no longer called from the prompt card. Cost: 1 UrlFetch per prompt Insert (spec 10 apply budget, no Drive read when cached). Tests: flows.test.ts "re-checks use without the body or a second event" (1 apply event, args sent), "blocks the insert with DENIED when the grant was removed while the card was open", "reports a removed template when the server omits a body the cache lost"; sidebar.test.ts "followUp ... buffers no second event" (also DENIED for a caller without use). Spec 4.1 step 5 should name this (architect).
+3. Fixed. Removed `SidebarHome.rev`, `SidebarFolder.own`, `SidebarTemplate.placeholders` from the payload. The server still sorts the caller's private folder last.
+4. Fixed. Smoke Slice 1 step 3 now expects "Migway Templates", "Signed in as <your email>" and the library.
+5. Left: `Action.setRequiredWidgets` (below).
+
+Verified 2026-11-10 after `rm -rf node_modules dist coverage && npm ci` (559 packages): lint 0, typecheck 0, format clean, "Test Files 40 passed (40)", "Tests 846 passed (846)", lines 95.96% (addon 100%, shared 100%, server 99.38%, web 90.07%), Code.js 259.2 KB of 800 KB, index.html 271.1 KB of 400 KB, "Scope check passed: 10 scopes, all approved."
 
 ## Left for later
 
