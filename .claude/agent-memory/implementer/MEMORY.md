@@ -3,7 +3,6 @@
 ## Environment facts (2026-11-09)
 - Worktrees may start at an old commit. Reset to the orchestrator branch `claude/gracious-franklin-3n8zbq` first (task prompt gives the command).
 - Worktree guard rejects some heredocs and multi-command scripts it cannot verify (cat > file heredoc, `git` plus python in one command, backslash-heavy python). `python3 - <<'EOF'` edits alone usually pass; new files go through the Write tool; fall back to the Edit tool.
-- Write tool may turn `\u0300` into a literal; use `\p{M}` with `u`.
 - Chromium for browser checks: /opt/pw-browsers/chromium. puppeteer-core and chrome-launcher arrive with lighthouse (dev dep). Scratch scripts that import repo code must live inside the worktree (delete before commit).
 - No external binaries (permission classifier). Node 22.23.4, npm 10.9.9; clasp login impossible here.
 
@@ -64,7 +63,6 @@
 - Every server-checked action needs a server call right before it acts; cached bodies alone skip the permission check. `template.apply` `followUp: true` = re-check without a second event.
 - Payload fields need a reader; review flags unused ones as dead.
 - When a feature is removed, grep docs/ops for its UI text (Ping lingered in smoke.md).
-- Worktree guard: put multi-edit python in a temp .py file inside the worktree, run it, delete it.
 
 ## Code map (after slice 4b)
 - `src/shared/requestId.ts`: `newRequestId`, `requestIdNow` (`XXXXXXXX-XXXXXX`), used by web, add-on, `web.open`, rpc fallback.
@@ -76,7 +74,6 @@
 ## Lessons (slice 4b)
 - Verify "fails on old code" by `git diff src > patch; git checkout src; run; git apply patch`.
 - Call counts: a scratch vitest file with Proxy counters on the fake globals, run on base and head; delete before commit.
-- The worktree guard rejects `python3 - <<EOF` combined with other commands; write the .py to the scratchpad and run it alone.
 - Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
 
 ## Lessons (slice 4b retry 1)
@@ -131,6 +128,12 @@
 - Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
 - `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines.
+
+## Slice 9 task 1 (spike S6 harness, 2026-11-10)
+- TEMPORARY: src/addon/spikeS6.ts (pure builders, flows gated on env `dev`), `onS6Card`/`onS6Apply`, Reply kind `s6`, `s6Response` in render.ts, home `s6Sections`. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-09-s6.md.
+- `UpdateDraftActionResponse` cannot update the card or notify; harness results go into the draft body.
+- Env-gated card tests: `vi.hoisted` mutable `BUILD_INFO` mock in its own file. Adding to `CALLBACKS` auto-covers the guard test.
+- Scratchpad ed.py with `sub(path, old, new)` asserts is the reliable multi-edit path.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
