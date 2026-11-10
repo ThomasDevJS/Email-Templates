@@ -1,4 +1,6 @@
+import { BUILD_INFO } from "../../shared/buildInfo";
 import type { SidebarHome, SidebarTemplate } from "../../shared/model/sidebar";
+import { s6Sections } from "../spikeS6";
 import { folderItem, folderPath, templateItem } from "./folder";
 import {
   SEARCH_INPUT,
@@ -101,7 +103,12 @@ function homeSections(view: SidebarHome): SectionSpec[] {
 }
 
 export function homeCard(view: SidebarHome): CardSpec {
-  return { name: HOME_CARD, title: HOME_TITLE, sections: homeSections(view) };
+  return {
+    name: HOME_CARD,
+    title: HOME_TITLE,
+    // TEMPORARY (spike S6): dev build only.
+    sections: [...homeSections(view), ...s6Sections(BUILD_INFO.env)],
+  };
 }
 
 /** Search results in place of Home (spec 4.4): the server's top 20, or the empty state of spec section 7. */

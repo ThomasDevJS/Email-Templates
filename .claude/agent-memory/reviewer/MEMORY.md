@@ -81,6 +81,11 @@
   - Minors: Recent "about 5 min" is up to 15 (tick + 10 min view cache); forward subject unverified; grid "By" column; QUOTA Retry not disabled (notice); image width fixed 600; quick start 1,087 words.
   - Confirmed spec/ADR errata: spec 7 NOT_CONFIGURED/AUTH/SERVER texts, spec 8/12 4 vs 10 Lighthouse views, NOT_IMPLEMENTED dead in status.ts, ADR-0004 profile clear not built.
 
+- Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
+  - Harness: src/addon/spikeS6.ts, callbacks onS6Card/onS6Apply (param b), Reply kind s6, env gate in the flow after respond prelude. Removal list in the handoff.
+  - Minors: callback ms excludes build() and Gmail; mixed-type list reads as missing; Gmail error text may quote an address in Executions; step 4 confounded if F1 fails.
+  - UpdateDraftActionResponse has no navigation or notification: harness results show in the draft only.
+
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 

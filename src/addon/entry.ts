@@ -21,6 +21,7 @@ import {
   type Ports,
 } from "./flows";
 import { requireAddonSession } from "./guard";
+import { s6ApplyFlow, s6CardFlow } from "./spikeS6";
 import { clearView } from "./view";
 
 type Card = GoogleAppsScript.Card_Service.Card;
@@ -123,4 +124,17 @@ export function onBack(event?: AddonEvent): Response {
 
 export function onOpenLink(event?: AddonEvent): Response {
   return respond("onOpenLink", event, openLinkFlow);
+}
+
+/** TEMPORARY (spike S6): harness card, dev build only. */
+export function onS6Card(event?: AddonEvent): Response {
+  return respond("onS6Card", event, () => s6CardFlow(BUILD_INFO.env, event));
+}
+
+/** TEMPORARY (spike S6): one draft response, dev build only. */
+export function onS6Apply(event?: AddonEvent): Response {
+  const started = Date.now();
+  return respond("onS6Apply", event, (context, params) =>
+    s6ApplyFlow(BUILD_INFO.env, event, params, started, () => context.nowMs()),
+  );
 }

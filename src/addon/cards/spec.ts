@@ -3,6 +3,7 @@
  * return these values; render.ts is the only code that turns them into Card Service objects. All text is plain
  * text: the renderer escapes it.
  */
+import type { S6Draft } from "../spikeS6";
 
 /** Top-level add-on callbacks a card may name. Each one is an export of src/entry.ts and an ENTRY_POINTS row. */
 export const CALLBACKS = [
@@ -14,6 +15,9 @@ export const CALLBACKS = [
   "onBack",
   "onOpenLink",
   "onSearch",
+  // TEMPORARY (spike S6)
+  "onS6Card",
+  "onS6Apply",
 ] as const;
 export type Callback = (typeof CALLBACKS)[number];
 
@@ -120,7 +124,9 @@ export type Reply =
       readonly kind: "insert";
       readonly html: string;
       readonly subject: string | null;
-    };
+    }
+  /** TEMPORARY (spike S6): one `UpdateDraftActionResponse` with the actions of `draft`. */
+  | { readonly kind: "s6"; readonly draft: S6Draft };
 
 /**
  * Spec 4.1 step 4 and 5.6: the rendered body, plus the rendered subject when it is not empty. An empty subject
