@@ -86,3 +86,21 @@ Scripts and docs: scripts/{lighthouse,dev-web}.mjs, docs/ops/smoke.md.
 ## Commands
 
 `npm ci`, `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build -- --env dev`, `npm run scopes:check`, `npm run format:check`, `npm run lighthouse`. Local look: `npm run dev:web`, then `#/admin`, `#/admin/memberships`, `#/trash`, `?admin=0` for a manage holder, `?fail=DENIED&failOp=admin.folders`.
+
+## Retry 1 (review FAIL 7a9ab77)
+
+Commits efad596, d82cc3e, e00d34e, 5a179ec, 5c5ce65, eece656. Each fix has a test that fails when the changed src file is swapped back to the code before it.
+
+| Item | Change | Test |
+|---|---|---|
+| Blocker 1 | `PRINCIPAL_KEY_MAX = 254` (src/shared/model/validate.ts). `principalKeyFor` refuses a longer trimmed key with VALIDATION for all 4 types, before the format checks. The add-grant input has `maxlength` 254. | admin.test.ts: group (the group exists in the fake), user, domain, OU over 254; OU at exactly 254 accepted; web test checks `maxLength` |
+| Blocker 2 | `dispatch` buffers the denied event (`recordDenied`, target `library`) for any DENIED thrown after the policy check: `admin.folders` refusals and in-lock re-check denials. `membership.status` and the other admin rows were already recorded by `authorize`. No other 6a handler throws DENIED (grep: only admin.ts, plus the trigger guard `refuse`, which is not an op). | buffer holds rows for `admin.folders` and `membership.status`; the in-lock `trash.purge` refusal writes one too |
+| Minor 1 | `grant.list` `sourcePath`: admins the full path; others only the folders they can see (level use or more), from the top of the visible part; "" when the source folder is hidden. The web shows "a parent folder (inherited)". | manage holder on Quotes: `/Quotes` and "", no "Sales" in the response; admin: `/Sales/Quotes`, `/Sales` |
+| Minor 3 | `targetFolder` in templates.ts: another user's private tree takes no template, admins included, unless the template already lives in that owner's tree. Applied to restore, move, duplicate, create and update with `folderId`. | 5 refusals as admin; admin restore and duplicate inside the owner's tree still allowed |
+| Minor 2 | `PURGE_FILES_MAX = 50` body files per `purgeDeleted` call. `trash.purge` returns `{ purged, filesTrashed, itemsPending }`; the Trash status names the pending count. Leftover files belong to no item, so the daily orphan cleanup (files older than 1 h) trashes them. | 53 templates: 50 files trashed, 3 pending, all 53 trashed after `runDaily` 2 h later; web message test |
+
+Bounds of the other 6a string args: folder `name` has `FOLDER_NAME_MAX`. `principalType` and `level` are enums. `folderId`, `parentId`, `grantId`, `id` are only matched against existing records; `parentId` is stored only after `liveFolder` found it. `admin.folders`, `membership.*`, `trash.purge` take no strings. No other unbounded string reaches storage.
+
+Results from a clean install: npm ci 559 packages, 16 advisories (unchanged). lint 0, typecheck 0. 49 files, 1131 tests. Lines 96.56, statements 95.63, branches 89.10, functions 94.19. Code.js 286.9 KB, index.html 301.5 KB. 10 scopes. Format clean. Lighthouse 100 on 6 views.
+
+Left for later: review minor 4 (a failed delete of an old trigger leaves 6 triggers until the next run), minor 5 (spec rows for `admin.folders`, `membership.status`, depth, status line), minor 6 (web error-branch coverage). The web Move and Restore pickers still list other users' private folders for admins; the server refuses them with "Only its owner can put templates into a private folder".

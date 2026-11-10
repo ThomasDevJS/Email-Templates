@@ -122,6 +122,10 @@
 ## Lessons (slice 6a)
 - Call counts: scratch test writes `calls` from `world.lines` with `appendFileSync` (vitest hides console.log); run on base via `git checkout <base> -- src`, restore with `git reset -q; git checkout HEAD -- src`.
 - A timing test for a stale reply must wait past the second reply, or it passes on old code too.
+- Slice 6a review FAIL: every stored client string needs an upper bound (`PRINCIPAL_KEY_MAX`); a handler-thrown DENIED skipped the denied audit row (now `dispatch` records any DENIED after the policy check).
+- Path strings for non-admins: show only folders the caller can see (`visiblePath` in grants.ts).
+- D11 holds for admins on writes: `targetFolder` in templates.ts. Post-commit Drive loops are bounded (`PURGE_FILES_MAX`).
+- A negative test must fail for the reason under test: a missing group passed the length test on old code.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
