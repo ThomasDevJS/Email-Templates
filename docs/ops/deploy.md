@@ -25,6 +25,8 @@ If step 10 shows "Something went wrong." with `Network: Server returned HTTP 401
 
 - Dev: `npm run deploy -- dev`.
 - Prod: from a clean `main`, `npm run deploy -- prod`. Steps: build, drift check, `clasp push`, `clasp create-version "<sha>"`, `clasp create-deployment -i <deploymentId> -V <n> -d "<sha>"`. The deployment keeps its ID and URL. The output ends with "Versions used N of 200; prune at 150".
+- Triggers: the trigger version check runs in `doGet` (a web app page load) and at the end of every `tick`; `rpc` and `doPost` skip it. After a deploy that changes `TRIGGERS_VERSION`, the triggers update on the first web app page load or within 5 min through `tick`. A release that renames or removes the `tick` handler needs one web app page load.
+- Since slice 5, `tick` also publishes Script Properties `FAVORITES_REV` and `USAGE_REV` when they are unset (environments set up before slice 5). Until the first `tick` after the deploy, `sidebar.home` reads `favorites.json` and `usage.json` from Drive.
 - The drift check aborts when the remote code differs from the last push from this machine (someone edited in the browser). Inspect the pulled copy it names. Delete `deploy/.last-push-<env>.json` only when the overwrite is intended.
 
 ## Rollback
