@@ -141,7 +141,6 @@
 
 ## Open items handed forward
 - Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; google.script.url/history and clipboard unverified in the real iframe.
-- Slice 4: Card Service calls unverified in Gmail; `setRequiredWidgets` not tried.
 - Slice 5: `ft:*` warm-up in tick; spec 6 needs FAVORITES_REV/USAGE_REV (architect).
 - Slice 6a: spec 6 lacks `admin.folders`, `membership.status`; spec 5.1 lacks depth (FOLDER_DEPTH_MAX 5 assumed).
 - Slice 6b: spec 5.5 `usage.json` `days`; private folders left out of `export.library`; import skips grants; 5 MB `google.script.run` arg unverified; restore orphans newer body versions.
