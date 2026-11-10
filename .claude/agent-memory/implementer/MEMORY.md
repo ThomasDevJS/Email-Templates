@@ -84,6 +84,15 @@
 - The worktree guard rejects `python3 - <<EOF` combined with other commands; write the .py to the scratchpad and run it alone.
 - Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
 
+## Slice 4b retry 1 (review FAIL: request ID not enforced)
+- `handleRpc` enforces `REQUEST_ID_PATTERN` (src/shared/requestId.ts) on both surfaces: bad ID = VALIDATION, log gets a server ID. Tests must send valid IDs (`TESTREQ0-000001`; world.call does).
+- Log `action` only for ops in the policy table.
+- `ensureTriggers(services, live)`: re-check inside the lock reads live properties; `tick` runs it too.
+- Readers never set `INDEX_REV`; `runSetup` publishes it under the lock.
+- Lesson: every client-supplied string that reaches a log line needs a format check at the server boundary, not only in the client.
+- Lesson: a per-execution property snapshot breaks any read-check-write across executions; re-read live inside the lock.
+- Old-code check of earlier commits: `git checkout <testCommit> -- test; git checkout <oldCommit> -- src; run; git checkout HEAD -- src test`.
+
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.

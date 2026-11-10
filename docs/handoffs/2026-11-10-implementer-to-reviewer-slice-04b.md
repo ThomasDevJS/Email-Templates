@@ -110,3 +110,37 @@ src/shared/requestId.ts (new), src/shared/log/logger.ts, src/shared/model/protoc
 | `npm run build -- --env dev` | exit 0, "Code.js: 265.8 KB of 800 KB", "index.html: 278.2 KB of 400 KB" |
 | `npm run scopes:check` | exit 0, "Scope check passed: 10 scopes, all approved." |
 | `npm run lighthouse` | accessibility library 100, editor 100, history 100 |
+
+## Retry 1
+
+Review docs/reviews/slice-04b.md (78a3d34): FAIL, blocker 1. 3 commits on top: d8d25a6, 2e72af4, c59624c. Gaps 5 and 6 left as accepted.
+
+1. Blocker, fixed (d8d25a6). `REQUEST_ID_PATTERN` `^[0-9A-Z]{8}-[0-9A-Z]{6}$` and `isRequestId` live in src/shared/requestId.ts next to the generator. `handleRpc` checks the ID for both surfaces before parsing: any other value answers VALIDATION "Request ID must have the format XXXXXXXX-XXXXXX", and the log line and audit events carry a server-made ID (`requestIdNow()`). `rpc` passes the client value through; its own 8-to-64 pattern is gone. A non-object body still answers BAD_REQUEST. Also from the review: the log's `action` is the op only when the policy table knows it, else "". Tests (entry.test.ts) per surface: 5,000-character ID, newline, UUID, empty, lower case, missing, number, valid; the log line never contains the client text. Test helpers now send valid IDs (`TESTREQ0-000001`).
+2. Fixed (2e72af4). `ensureTriggers(services, live)` re-checks `TRIGGERS_VERSION` from `live` inside the lock; `maintain` passes `PropertiesService.getScriptProperties()`. Test: 2 executions with stale snapshots, 1 reinstall, trigger IDs unchanged by the second.
+3. Fixed in code (2e72af4): `runTick` also runs `ensureTriggers` (live properties on the trigger surface); `TickResult.triggers` reports it. Picked over a deploy.md step because it needs no human step and costs 1 property read per 5 min; add-on-only use reinstalls within 5 min of a deploy. Limit: a release that renames or removes the `tick` handler itself still needs one web app page load. No deploy.md change.
+4. Fixed (c59624c). Readers never set `INDEX_REV`; `loadIndex` puts chunks only when the file's `rev` equals the published one. `runSetup` publishes `INDEX_REV` under the lock (`rebuildIndexLocked`), so the unset case ends at setup. Test: a reader whose snapshot saw no `INDEX_REV` runs after a writer set 5; `INDEX_REV` stays 5.
+
+### Old-code checks for defects 4, 5, 6
+
+Tests of each fix commit run against the src before it (src files added later stayed in place):
+
+| Defect | Tests from | src from | Result |
+|---|---|---|---|
+| 4 | be82474 | 899b80c | 2 failed (`targetId` test in handle.test.ts, `version.restore` log line in history.test.ts) |
+| 5 | 899b80c | 43d138f | 7 failed (callServer and no-execUrl ID format, 3 `web.open` lines, 2 `rpc` ID tests) |
+| 6 | c7386e5 | 2f7729f | 14 failed (7 duplicate, role and body-cache server tests, 6 row-menu web tests, 1 `rowActions` logic test) |
+
+Gap 1, 2, 3, 4 tests against the src before each retry commit: 8, 2 and 2 failed.
+
+### Commands (clean install, Node 22.23.4)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0, added 559 packages, audited 560, 16 advisories (14 moderate, 2 high), dev tree |
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run format:check` | exit 0, "All matched files use Prettier code style!" |
+| `npm run test:coverage` | exit 0, "Test Files 42 passed (42)", "Tests 891 passed (891)". Statements 95.28%, branches 88.68%, functions 93.9%, lines 96.27% |
+| `npm run build -- --env dev` | exit 0, "Code.js: 266.5 KB of 800 KB", "index.html: 278.2 KB of 400 KB" |
+| `npm run scopes:check` | exit 0, "Scope check passed: 10 scopes, all approved." |
+| `npm run lighthouse` | accessibility library 100, editor 100, history 100 |
