@@ -15,6 +15,8 @@
   --hover: #eaedef;
   --line: #e2e6e9;
   --line-strong: #c8cfd4;
+  /* Borders of inputs, selects and default buttons: 3:1 against paper and canvas (WCAG 1.4.11). */
+  --field-line: #7f8b93;
   --select: #e8edf1;
   --red: #b32025;
   --on-red: #ffffff;
@@ -25,10 +27,10 @@
   --warn: #7a4f01;
   /* Table avatars: the mockup's #7b8992 gives white initials 3.6:1; this gives 5.6:1. */
   --avatar-2: #5d6a73;
-  /* Star stroke: the off state keeps 3:1 against white and the row hover. */
-  --star-off: #848f97;
-  --star: #c58a00;
-  --star-fill: #e6a700;
+  /* Stars keep 3:1 on paper, the row hover and the button hover; the on state differs by its fill. */
+  --star-off: #78838b;
+  --star: #a87400;
+  --star-fill: #a87400;
   --logo-red: #b32025;
   --logo-slate: #2a3c49;
   --logo-plate: transparent;
@@ -65,6 +67,7 @@
     --hover: #252d33;
     --line: #2c353c;
     --line-strong: #45515a;
+    --field-line: #7c8a94;
     --select: #2a343c;
     --red: #f0958f;
     --on-red: #171c20;
@@ -74,7 +77,7 @@
     --ok: #6fcf9b;
     --warn: #e8b44c;
     --avatar-2: #93a0a9;
-    --star-off: #6b7781;
+    --star-off: #7f8b94;
     --star: #e6a700;
     --star-fill: #e6a700;
     /* The logo's slate letters disappear on dark gray, so the logo sits on a small light plate. */
@@ -178,7 +181,7 @@ button {
   gap: 7px;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--field-line);
   border-radius: var(--radius);
   background: var(--paper);
   font-weight: 500;
@@ -257,7 +260,7 @@ select,
 textarea {
   min-height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--field-line);
   border-radius: var(--radius);
   background: var(--paper);
 }
@@ -499,6 +502,7 @@ input[aria-invalid="true"] {
 /* --ink-3 is for white and canvas only; on the hover and selected fills counts use --ink-2. */
 .tree-item[data-count]:hover::after,
 .tree-item[aria-selected="true"][data-count]::after,
+.tree-item:hover .owner,
 .tree-item[aria-selected="true"] .owner {
   color: var(--ink-2);
 }
