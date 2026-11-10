@@ -34,6 +34,14 @@ const SYMBOLS = {
     '<path d="M5.5 3C4 3 4 4.5 4 5.5S3.5 8 2.5 8C3.5 8 4 9.5 4 10.5S4 13 5.5 13M10.5 3C12 3 12 4.5 12 5.5s.5 2.5 1.5 2.5c-1 0-1.5 1.5-1.5 2.5S12 13 10.5 13"/>',
   drop: '<path d="M8 2.5c2 2.5 3.5 4.3 3.5 6.3a3.5 3.5 0 0 1-7 0c0-2 1.5-3.8 3.5-6.3z"/>',
   menu: '<path d="M2.5 4h11M2.5 8h11M2.5 12h11"/>',
+  person:
+    '<circle cx="8" cy="5.5" r="2.5"/><path d="M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4"/>',
+  group:
+    '<circle cx="6" cy="6" r="2.2"/><path d="M2 13c.4-2.2 1.9-3.4 4-3.4s3.6 1.2 4 3.4"/><path d="M10.5 3.9a2.2 2.2 0 0 1 0 4.2M11.5 9.8c1.3.4 2.2 1.5 2.5 3.2"/>',
+  domain:
+    '<circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c1.6 1.6 2.3 3.4 2.3 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.7 5.9 5.7 8s.7 3.9 2.3 5.5"/>',
+  org: '<rect x="6" y="2" width="4" height="3" rx=".6"/><rect x="2" y="11" width="4" height="3" rx=".6"/><rect x="10" y="11" width="4" height="3" rx=".6"/><path d="M8 5v3M4 11V8h8v3"/>',
+  warn: '<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.2v.1"/>',
 } as const;
 
 export type IconName = keyof typeof SYMBOLS;
