@@ -870,11 +870,11 @@ describe("backups", () => {
     const indexBefore = fileIndex();
     const update = world.drive.Files.update.bind(world.drive.Files);
     let updates = 0;
-    world.drive.Files.update = ((...args: Parameters<typeof update>) => {
+    world.drive.Files.update = (...args: Parameters<typeof update>) => {
       updates += 1;
       if (updates === 3) throw new Error("Drive update failed");
       return update(...args);
-    }) as typeof update;
+    };
     expect(codeOf(OWNER, "backup.restore", { date: today() })).toBe("INTERNAL");
     world.drive.Files.update = update;
     expect(world.services.store().readSide("favorites").byUser).toEqual(
