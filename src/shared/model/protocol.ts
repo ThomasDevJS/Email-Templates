@@ -8,6 +8,75 @@ export interface RpcRequest {
   readonly clientVersion: string;
   /** Add-on phase times; the server copies them into its log line. */
   readonly timing?: ClientTiming;
+  /** Add-on only: which Gmail event fields the call's event carried (Q21); the server logs them. */
+  readonly draft?: DraftInfo;
+}
+
+/**
+ * Gmail event fields the add-on reports as present (Q21, slice 5b). Names only, never values; the server accepts
+ * no other name.
+ */
+export const DRAFT_FIELDS = [
+  "messageId",
+  "threadId",
+  "draftMetadata",
+  "toRecipients",
+  "ccRecipients",
+  "bccRecipients",
+  "subject",
+] as const;
+export type DraftField = (typeof DRAFT_FIELDS)[number];
+/** Largest recipient count the server accepts; the add-on caps its counts at this value. */
+export const DRAFT_COUNT_MAX = 1000;
+
+/** Present event fields, in `DRAFT_FIELDS` order, and the To, Cc and Bcc counts. */
+export interface DraftInfo {
+  readonly fields: readonly DraftField[];
+  readonly to: number;
+  readonly cc: number;
+  readonly bcc: number;
+}
+
+function isDraftCount(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= DRAFT_COUNT_MAX
+  );
+}
+
+function isDraftField(value: unknown): value is DraftField {
+  return (DRAFT_FIELDS as readonly unknown[]).includes(value);
+}
+
+/**
+ * The request's draft diagnostics: `undefined` when the request has none, `null` when they break the contract
+ * (a name outside `DRAFT_FIELDS`, a repeated name, another key, or a count that is not a whole number from 0 to
+ * 1,000). The server answers `null` with VALIDATION and logs nothing from it.
+ */
+export function requestDraft(raw: unknown): DraftInfo | null | undefined {
+  const draft = isRecord(raw) ? raw["draft"] : undefined;
+  if (draft === undefined) return undefined;
+  if (!isRecord(draft)) return null;
+  const { fields, to, cc, bcc } = draft;
+  const keys = Object.keys(draft).sort().join(",");
+  if (
+    keys !== "bcc,cc,fields,to" ||
+    !Array.isArray(fields) ||
+    !fields.every(isDraftField) ||
+    new Set(fields).size !== fields.length ||
+    !isDraftCount(to) ||
+    !isDraftCount(cc) ||
+    !isDraftCount(bcc)
+  )
+    return null;
+  return {
+    fields: DRAFT_FIELDS.filter((name) => fields.includes(name)),
+    to,
+    cc,
+    bcc,
+  };
 }
 
 /**

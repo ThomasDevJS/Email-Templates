@@ -258,7 +258,7 @@ describe("folder card (wireframe 01)", () => {
 describe("preview card (wireframe 01)", () => {
   it("shows text, fields to fill, Insert, and Edit only for edit or manage", () => {
     const t = template("T1", { prompts: ["Meeting date"] });
-    const card = previewCard(t, "Hi [Recipient first name]", "");
+    const card = previewCard(t, "Hi [Recipient first name]", "", false);
     expect(card.title).toBe("Template T1");
     expect(texts(card)).toEqual([
       "Hi [Recipient first name]",
@@ -267,19 +267,24 @@ describe("preview card (wireframe 01)", () => {
     expect(buttons(card).map((b) => b.text)).toEqual(["Insert"]);
     expect(buttons(card)[0]).toMatchObject({ filled: true });
     for (const level of ["edit", "manage"] as const) {
-      const editable = previewCard({ ...t, level }, "x", "");
+      const editable = previewCard({ ...t, level }, "x", "", false);
       expect(buttons(editable)[1]).toMatchObject({
         text: "Edit in library",
         action: { fn: "onOpenLink", params: { id: "T1" } },
       });
     }
-    expect(texts(previewCard(template("T2"), "", ""))).toEqual([
+    expect(texts(previewCard(template("T2"), "", "", false))).toEqual([
       "(Empty template)",
     ]);
   });
 
   it("shows the subject, the replace note and Insert body only when the template has a subject", () => {
-    const card = previewCard(template("T1"), "Body", "Quote for [Product]");
+    const card = previewCard(
+      template("T1"),
+      "Body",
+      "Quote for [Product]",
+      false,
+    );
     expect(widgets(card)[0]).toEqual({
       kind: "item",
       topLabel: "Subject",
@@ -291,6 +296,18 @@ describe("preview card (wireframe 01)", () => {
       { fn: "onInsert", params: { id: "T1", subject: "skip" } },
     ]);
     expect(buttons(card)[1]?.text).toBe("Insert body only");
+  });
+
+  it("in a reply: keeps the subject note and offers Insert with subject (Q21)", () => {
+    const card = previewCard(template("T1"), "Body", "Quote", true);
+    expect(texts(card)).toContain("The subject is kept in replies.");
+    expect(buttons(card).map((b) => [b.text, b.action.params])).toEqual([
+      ["Insert", { id: "T1" }],
+      ["Insert with subject", { id: "T1", subject: "use" }],
+    ]);
+    expect(buttons(previewCard(template("T1"), "Body", "", true))).toHaveLength(
+      1,
+    );
   });
 });
 

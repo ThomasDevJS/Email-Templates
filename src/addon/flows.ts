@@ -21,8 +21,10 @@ import {
   SKIP_SUBJECT,
   SUBJECT_SWITCH,
   SWITCH_ON,
+  WITH_SUBJECT,
   action,
   insertReply,
+  replacesSubject,
   type ActionSpec,
   type CardSpec,
   type Reply,
@@ -33,7 +35,12 @@ import {
   type Failure,
   type ServerCall,
 } from "./client/serverClient";
-import { formValue, internalRecipient, type AddonEvent } from "./event";
+import {
+  formValue,
+  internalRecipient,
+  isReplyDraft,
+  type AddonEvent,
+} from "./event";
 import {
   MAX_FIELDS,
   answersByKey,
@@ -167,6 +174,7 @@ interface BodyReply {
 
 export function previewFlow(
   ports: Ports,
+  event: AddonEvent | undefined,
   params: Readonly<Record<string, string>>,
 ): Reply {
   const id = params["id"] ?? "";
@@ -181,7 +189,12 @@ export function previewFlow(
   writeBody(ports.cache, id, { version, html, subject });
   return {
     kind: "push",
-    card: previewCard(template, previewText(html), subjectPreview(subject)),
+    card: previewCard(
+      template,
+      previewText(html),
+      subjectPreview(subject),
+      isReplyDraft(event),
+    ),
   };
 }
 
@@ -192,6 +205,8 @@ interface Ready {
   readonly html: string;
   /** Template subject, or "" when it has none or the user chose "Insert body only". */
   readonly subject: string;
+  /** Whether the subject goes into the draft: `replacesSubject` of the Insert; the prompt card switch starts here. */
+  readonly replaceSubject: boolean;
   readonly values: Readonly<Record<string, string>>;
 }
 
@@ -202,7 +217,7 @@ function insertOrAsk(ready: Ready): Reply {
     const input = { values: ready.values, answers: {} };
     return insertReply(
       renderBody(ready.html, input).html,
-      renderSubject(ready.subject, input).text,
+      ready.replaceSubject ? renderSubject(ready.subject, input).text : "",
     );
   }
   if (fields.length > MAX_FIELDS)
@@ -214,7 +229,6 @@ function insertOrAsk(ready: Ready): Reply {
     kind: "push",
     card: promptCard({
       ...ready,
-      replaceSubject: true,
       fields,
       entered: [],
       order: fields.map((_, n) => n),
@@ -245,11 +259,10 @@ export function insertFlow(
   params: Readonly<Record<string, string>>,
 ): Reply {
   const id = params["id"] ?? "";
-  const skip = params["subject"] === SKIP_SUBJECT;
-  const retry = action(
-    "onInsert",
-    skip ? { id, subject: SKIP_SUBJECT } : { id },
-  );
+  const choice = params["subject"];
+  const skip = choice === SKIP_SUBJECT;
+  const known = skip || choice === WITH_SUBJECT;
+  const retry = action("onInsert", known ? { id, subject: choice } : { id });
   const cached = readBody(ports.cache, id);
   const applied = load<ApplyResult>(ports, "template.apply", {
     id,
@@ -266,6 +279,7 @@ export function insertFlow(
     version: result.version,
     html: body.html,
     subject: skip ? "" : body.subject,
+    replaceSubject: replacesSubject(choice, isReplyDraft(event)),
     values: variableValues(result.sender, result.recipientFirstName),
   });
 }
@@ -341,7 +355,8 @@ export function promptInsertFlow(
       title: params["title"] ?? "",
       version: body.data.version,
       subject,
-      replaceSubject: replaceSubject || changed,
+      // A changed template shows the switch at its default; in a reply that default is off (Q21).
+      replaceSubject: replaceSubject || (changed && !isReplyDraft(event)),
       values,
       fields,
       entered,

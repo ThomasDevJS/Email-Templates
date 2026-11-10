@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseRpcRequest,
   parseRpcResponse,
+  requestDraft,
 } from "../../../src/shared/model/protocol";
 
 describe("parseRpcRequest", () => {
@@ -76,5 +77,37 @@ describe("parseRpcResponse", () => {
     ["ok not boolean", { ok: "yes", serverVersion: "v", durationMs: 1 }],
   ])("rejects %s", (_label, value) => {
     expect(parseRpcResponse(value)).toBeNull();
+  });
+});
+
+describe("requestDraft (Q21 diagnostics)", () => {
+  const draft = { fields: ["threadId", "messageId"], to: 1, cc: 0, bcc: 0 };
+
+  it("accepts names from the fixed list and returns them in list order", () => {
+    expect(requestDraft({ draft })).toEqual({
+      fields: ["messageId", "threadId"],
+      to: 1,
+      cc: 0,
+      bcc: 0,
+    });
+    expect(requestDraft({})).toBeUndefined();
+    expect(requestDraft("x")).toBeUndefined();
+  });
+
+  it.each([
+    ["an unknown name", { ...draft, fields: ["threadId", "Dear Bob"] }],
+    ["a repeated name", { ...draft, fields: ["threadId", "threadId"] }],
+    ["a name that is not a string", { ...draft, fields: [1] }],
+    ["fields not a list", { ...draft, fields: "threadId" }],
+    ["a negative count", { ...draft, to: -1 }],
+    ["a fraction", { ...draft, cc: 0.5 }],
+    ["a count over 1000", { ...draft, bcc: 1001 }],
+    ["a text count", { ...draft, to: "1" }],
+    ["an extra key", { ...draft, subject: "Hello" }],
+    ["a missing key", { fields: [], to: 0, cc: 0 }],
+    ["a list", []],
+    ["null", null],
+  ])("rejects %s", (_label, value) => {
+    expect(requestDraft({ draft: value })).toBeNull();
   });
 });

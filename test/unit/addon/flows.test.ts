@@ -199,7 +199,7 @@ describe("preview flow", () => {
       "Quote",
       "<p>Hi {{recipient.first_name|there}},</p><p>Date: {{ask:Meeting date}}</p>",
     );
-    const card = cardOf(previewFlow(ports(), { id: item.id }));
+    const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
     expect(texts(card)).toEqual([
       "Hi [Recipient first name],\nDate: [Meeting date]",
       "Fields to fill: Meeting date",
@@ -208,9 +208,9 @@ describe("preview flow", () => {
   });
 
   it("reports a template outside the view as removed", () => {
-    expect(texts(cardOf(previewFlow(ports(), { id: "NOPE" })))).toEqual([
-      "This template was removed or moved.",
-    ]);
+    expect(
+      texts(cardOf(previewFlow(ports(), undefined, { id: "NOPE" }))),
+    ).toEqual(["This template was removed or moved."]);
   });
 
   it("shows DENIED when access was lost after the view was cached", () => {
@@ -221,7 +221,7 @@ describe("preview flow", () => {
       .readIndex()
       .grants.find((g) => g.principalKey === ANA)?.id;
     world.ok(OWNER, "grant.remove", { grantId });
-    const card = cardOf(previewFlow(ports(), { id: item.id }));
+    const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
     expect(texts(card)).toEqual([
       "You don't have access to this template. Ask a folder manager.",
     ]);
@@ -394,7 +394,7 @@ describe("subject (spec 5.6, wireframe 02)", () => {
 
   it("the preview card shows the subject with [Label] and Insert body only", () => {
     const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
-    const card = cardOf(previewFlow(ports(), { id: item.id }));
+    const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
     expect(texts(card)).toContain("Quote for [Product]");
     expect(readBody(cache, item.id)?.subject).toBe(item.subject);
   });
@@ -429,6 +429,141 @@ describe("subject (spec 5.6, wireframe 02)", () => {
       cardOf(insertFlow(ports(), undefined, { id: item.id })).footer?.primary
         .action.params ?? {};
     const card = cardOf(promptInsertFlow(ports(), formEvent({}), params));
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({ toggle: { name: "subj", selected: false } }),
+    );
+  });
+});
+
+describe("reply drafts (Q21)", () => {
+  const reply: AddonEvent = { gmail: { threadId: "t-1", messageId: "m-1" } };
+  const newDraft: AddonEvent = { gmail: { toRecipients: [] } };
+  const replyForm = (form: Record<string, string>): AddonEvent => ({
+    ...formEvent(form),
+    ...reply,
+  });
+
+  function withSubject(subject: string, html: string): Item {
+    return world.ok<Item>(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "Quote",
+      subject,
+      html,
+    });
+  }
+
+  function subjectOf(result: Reply): string | null {
+    if (result.kind !== "insert")
+      throw new Error(`expected insert, got ${result.kind}`);
+    return result.subject;
+  }
+
+  it("a new draft: one-click Insert sets the subject, as in build 32a446c", () => {
+    const item = withSubject("Quote 7", "<p>Hi</p>");
+    expect(subjectOf(insertFlow(ports(), newDraft, { id: item.id }))).toBe(
+      "Quote 7",
+    );
+  });
+
+  it("a new draft: Insert body only and the switch turned off keep the subject", () => {
+    const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
+    expect(
+      subjectOf(
+        insertFlow(ports(), newDraft, { id: item.id, subject: "skip" }),
+      ),
+    ).toBeNull();
+    const card = cardOf(insertFlow(ports(), newDraft, { id: item.id }));
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({ toggle: { name: "subj", selected: true } }),
+    );
+    const params = card.footer?.primary.action.params ?? {};
+    expect(
+      subjectOf(
+        promptInsertFlow(
+          ports(),
+          { ...formEvent({ "p-1": "Pen" }), ...newDraft },
+          params,
+        ),
+      ),
+    ).toBeNull();
+  });
+
+  it("a reply: one-click Insert keeps the subject and inserts the body", () => {
+    const item = withSubject("Quote 7", "<p>Hi</p>");
+    expect(insertFlow(ports(), reply, { id: item.id })).toEqual({
+      kind: "insert",
+      html: "<p>Hi</p>",
+      subject: null,
+    });
+  });
+
+  it("a reply: the preview card says the subject is kept and offers Insert with subject", () => {
+    const item = withSubject("Quote 7", "<p>Hi</p>");
+    const card = cardOf(previewFlow(ports(), reply, { id: item.id }));
+    expect(texts(card)).toContain("The subject is kept in replies.");
+    expect(texts(card)).not.toContain("Replaces the draft subject.");
+    const buttons = widgets(card).flatMap((w) =>
+      w.kind === "buttons" ? w.buttons : [],
+    );
+    expect(buttons.map((b) => [b.text, b.action.params])).toEqual([
+      ["Insert", { id: item.id }],
+      ["Insert with subject", { id: item.id, subject: "use" }],
+    ]);
+    const plain = buttons[0]?.action.params ?? {};
+    expect(subjectOf(insertFlow(ports(), reply, plain))).toBeNull();
+  });
+
+  it("a reply: Insert with subject is the opt-in", () => {
+    const item = withSubject("Quote 7", "<p>Hi</p>");
+    expect(
+      subjectOf(insertFlow(ports(), reply, { id: item.id, subject: "use" })),
+    ).toBe("Quote 7");
+  });
+
+  it("a reply: the prompt card switch starts off; turning it on sends the subject", () => {
+    const item = withSubject(
+      "Quote for {{ask:Product}}",
+      "<p>{{ask:Product}}</p>",
+    );
+    const card = cardOf(insertFlow(ports(), reply, { id: item.id }));
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({ toggle: { name: "subj", selected: false } }),
+    );
+    const params = card.footer?.primary.action.params ?? {};
+    expect(
+      subjectOf(promptInsertFlow(ports(), replyForm({ "p-1": "Pen" }), params)),
+    ).toBeNull();
+    expect(
+      subjectOf(
+        promptInsertFlow(
+          ports(),
+          replyForm({ "p-1": "Pen", subj: "on" }),
+          params,
+        ),
+      ),
+    ).toBe("Quote for Pen");
+  });
+
+  it("a reply: a template changed under the prompt card keeps the switch off", () => {
+    const item = withSubject(
+      "Quote for {{ask:Product}}",
+      "<p>{{ask:Product}}</p>",
+    );
+    const params =
+      cardOf(insertFlow(ports(), reply, { id: item.id })).footer?.primary.action
+        .params ?? {};
+    world.ok(OWNER, "template.update", {
+      id: item.id,
+      baseVersion: 1,
+      title: "Quote",
+      subject: "Quote for {{ask:Product}}",
+      folderId: sales.id,
+      tags: [],
+      html: "<p>{{ask:Product}}!</p>",
+    });
+    const card = cardOf(
+      promptInsertFlow(ports(), replyForm({ "p-1": "Pen" }), params),
+    );
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({ toggle: { name: "subj", selected: false } }),
     );
