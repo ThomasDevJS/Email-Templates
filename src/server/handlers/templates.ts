@@ -74,7 +74,7 @@ export function templateList(context: HandlerContext): {
   return { items, rev: index.rev };
 }
 
-/** Item and body for the editor. The body is sanitized again on read, like `template.getBody`. */
+/** Item (with its subject) and body for the editor. The body is sanitized again on read, like `template.getBody`. */
 export function templateGet(context: HandlerContext): {
   item: Item;
   html: string;
@@ -85,17 +85,20 @@ export function templateGet(context: HandlerContext): {
     html: readableBody(
       context.services.props,
       readStoredBody(context.services, item),
+      item.subject,
     ).html,
   };
 }
 
 /**
- * Current body for apply and preview (level use): sanitized HTML, placeholder names and prompt labels. The stored
- * body is already sanitized; sanitizing again on read costs one parse and covers bodies stored before slice 3.
+ * Current body and subject for apply and preview (level use): sanitized HTML, the subject, placeholder names and
+ * prompt labels over both. The stored body is already sanitized; sanitizing again on read costs one parse and
+ * covers bodies stored before slice 3.
  */
 export function templateGetBody(context: HandlerContext): {
   id: string;
   version: number;
+  subject: string;
   html: string;
   placeholders: string[];
   prompts: string[];
@@ -104,9 +107,11 @@ export function templateGetBody(context: HandlerContext): {
   return {
     id: item.id,
     version: item.currentVersion,
+    subject: item.subject,
     ...readableBody(
       context.services.props,
       readStoredBody(context.services, item),
+      item.subject,
     ),
   };
 }
@@ -117,13 +122,14 @@ interface Draft {
   readonly body: PreparedBody;
 }
 
-/** Save step 1 (ADR-0004): title and tags, then sanitize and placeholder validation, all before the lock. */
+/** Save step 1 (ADR-0004): title and tags, then sanitize, placeholder and subject validation, all before the lock. */
 function readDraft(context: HandlerContext): Draft {
   const title = templateTitle(reqString(context.args, "title"));
   const tags = tagList(optStringArray(context.args, "tags"));
   const body = prepareFor(
     context.services.props,
     optString(context.args, "html"),
+    optString(context.args, "subject"),
   );
   return { title, tags, body };
 }
@@ -140,6 +146,7 @@ export function writeBody(
   const body: BodyFile = {
     itemId,
     version,
+    subject: prepared.subject,
     html: prepared.html,
     plainText: prepared.plainText,
     savedAt: nowIso(context.services),
@@ -153,12 +160,13 @@ export function writeBody(
   return { version, fileId, sha256 };
 }
 
-/** Item fields that follow the body version (spec 5.3). */
+/** Item fields that follow the body version (spec 5.3), the subject included. */
 export function bodyFields(prepared: PreparedBody, body: BodyRef) {
   return {
     currentVersion: body.version,
     version: body.version,
     bodyFileId: body.fileId,
+    subject: prepared.subject,
     snippet: prepared.snippet,
     placeholders: prepared.placeholders,
     prompts: prepared.prompts,
@@ -191,7 +199,7 @@ export function templateDuplicate(context: HandlerContext): Item {
   const draft: Draft = {
     title: copyTitle(source.title),
     tags: [...source.tags],
-    body: prepareFor(context.services.props, stored),
+    body: prepareFor(context.services.props, stored, source.subject),
   };
   return addTemplate(context, folderId, draft, "template.duplicate");
 }
@@ -214,7 +222,6 @@ function addTemplate(
       id,
       kind: "template",
       folderId,
-      subject: "",
       status: "published",
       title: draft.title,
       tags: draft.tags,

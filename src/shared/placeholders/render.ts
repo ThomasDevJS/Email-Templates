@@ -1,6 +1,7 @@
 import { escapeText, escapeValue, mapTextRuns, textRuns } from "../html/escape";
 import { collapse, parseText, promptKey, type Segment } from "./grammar";
 import { placeholderInfo } from "./registry";
+import { oneLine } from "./subject";
 
 /**
  * Apply semantics (ADR-0004): tokens in sanitized HTML become escaped values. A variable uses its value, else its
@@ -56,17 +57,39 @@ function segmentsOf(html: string): Segment[] {
   return textRuns(html).flatMap((run) => parseText(run.text));
 }
 
-/** Prompt fields for one apply, explicit and implicit, one per identity, in order of first use. */
+/**
+ * Prompt fields for one apply, explicit and implicit, one per identity over subject and body (spec 5.6), in order
+ * of first use, subject first.
+ */
 export function promptsFor(
   html: string,
   values: RenderInput["values"],
+  subject = "",
 ): PromptField[] {
   const fields = new Map<string, PromptField>();
-  for (const segment of segmentsOf(html)) {
+  for (const segment of [...parseText(subject), ...segmentsOf(html)]) {
     const field = fieldOf(segment, values);
     if (field !== null && !fields.has(field.key)) fields.set(field.key, field);
   }
   return [...fields.values()];
+}
+
+/** Plain value of a token segment; a missing answer goes to `missing` and renders as "". */
+function tokenValue(
+  segment: Exclude<Segment, { kind: "text" | "escape" }>,
+  input: RenderInput,
+  missing: Map<string, PromptField>,
+): string {
+  const field = fieldOf(segment, input.values);
+  if (field === null) {
+    const variable = segment as Extract<Segment, { kind: "variable" }>;
+    const value = input.values[variable.name];
+    return present(value) ? value : (variable.fallback ?? "");
+  }
+  const answer = input.answers[field.key];
+  if (present(answer)) return answer;
+  missing.set(field.key, field);
+  return "";
 }
 
 function renderSegment(
@@ -76,16 +99,7 @@ function renderSegment(
 ): string {
   if (segment.kind === "text") return escapeText(segment.text);
   if (segment.kind === "escape") return "{{";
-  const field = fieldOf(segment, input.values);
-  if (field === null) {
-    const variable = segment as Extract<Segment, { kind: "variable" }>;
-    const value = input.values[variable.name];
-    return formatValue(present(value) ? value : (variable.fallback ?? ""));
-  }
-  const answer = input.answers[field.key];
-  if (present(answer)) return formatValue(answer);
-  missing.set(field.key, field);
-  return "";
+  return formatValue(tokenValue(segment, input, missing));
 }
 
 export function renderBody(html: string, input: RenderInput): Rendered {
@@ -96,4 +110,23 @@ export function renderBody(html: string, input: RenderInput): Rendered {
       .join(""),
   );
   return { html: out, missing: [...missing.values()] };
+}
+
+/**
+ * Subject for the draft (spec 5.6): values as plain text, never HTML-escaped; every control character becomes one
+ * space, runs of spaces collapse, the result is trimmed. The string goes to Card Service as plain text.
+ */
+export function renderSubject(
+  subject: string,
+  input: RenderInput,
+): { text: string; missing: PromptField[] } {
+  const missing = new Map<string, PromptField>();
+  const raw = parseText(subject)
+    .map((segment) => {
+      if (segment.kind === "text") return segment.text;
+      if (segment.kind === "escape") return "{{";
+      return tokenValue(segment, input, missing);
+    })
+    .join("");
+  return { text: oneLine(raw), missing: [...missing.values()] };
 }

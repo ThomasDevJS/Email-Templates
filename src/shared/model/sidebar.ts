@@ -51,6 +51,8 @@ export interface ApplyResult {
   readonly version: number;
   /** Sanitized body, or null when `knownVersion` equals `version` and the add-on holds it already. */
   readonly html: string | null;
+  /** Template subject (spec 5.6), null under the same rule as `html`. "" leaves the draft subject alone. */
+  readonly subject: string | null;
   readonly sender: Sender;
   /** Directory given name of the one internal To recipient; blank when unknown. */
   readonly recipientFirstName: string;

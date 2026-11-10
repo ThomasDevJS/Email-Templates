@@ -172,7 +172,7 @@ describe("prepareBody (save path)", () => {
 
   it("rejects the split token fixture with PH_MALFORMED", () => {
     const error = thrown(() => prepareBody(read("b10-split-token", "input")));
-    expect(error.message).toBe("1 placeholder problem");
+    expect(error.message).toBe("1 problem to fix");
     expect(error.details?.["problems"]).toEqual([
       expect.objectContaining({ code: "PH_MALFORMED", offset: 0 }),
     ]);
@@ -187,7 +187,7 @@ describe("prepareBody (save path)", () => {
 
   it("counts several problems in the message", () => {
     expect(thrown(() => prepareBody("{{a.b}} {{c.d}}")).message).toBe(
-      "2 placeholder problems",
+      "2 problems to fix",
     );
   });
 });

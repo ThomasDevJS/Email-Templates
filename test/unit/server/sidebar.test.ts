@@ -173,6 +173,7 @@ describe("template.apply (spec 4.1 step 3)", () => {
         title: "Welcome",
         version: 1,
         html: "<p>Hi {{recipient.first_name}}, {{sender.name}}</p>",
+        subject: "",
         sender: {
           name: "Ana Lima",
           title: "Sales Lead",
@@ -246,6 +247,29 @@ describe("template.apply (spec 4.1 step 3)", () => {
         true,
       ).code,
     ).toBe("DENIED");
+  });
+
+  it("followUp ignores recipientEmailIfInternal (Q24): no Directory lookup, blank first name", () => {
+    grant(sales.id, ANA, "use");
+    const calls = world.directory.calls.length;
+    expect(
+      apply(ANA, {
+        id: item.id,
+        knownVersion: 1,
+        recipientEmailIfInternal: BOB,
+        followUp: true,
+      }).recipientFirstName,
+    ).toBe("");
+    expect(
+      world.directory.calls.slice(calls).map((call) => call.email),
+    ).not.toContain(BOB);
+    expect(
+      apply(ANA, {
+        id: item.id,
+        knownVersion: 1,
+        recipientEmailIfInternal: BOB,
+      }).recipientFirstName,
+    ).toBe("Bob");
   });
 
   it("never looks up an external or blank recipient", () => {

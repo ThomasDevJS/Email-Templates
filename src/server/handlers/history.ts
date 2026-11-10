@@ -79,6 +79,7 @@ export function versionList(context: HandlerContext): {
 
 export function versionGet(context: HandlerContext): {
   version: number;
+  subject: string;
   html: string;
   savedAt: string;
   savedBy: string;
@@ -88,9 +89,14 @@ export function versionGet(context: HandlerContext): {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   const ref = findVersion(context, item, reqInt(context.args, "version"));
   const body = context.services.store().readBody(ref.fileId);
-  const readable = readableBody(context.services.props, body.html);
+  const readable = readableBody(
+    context.services.props,
+    body.html,
+    body.subject,
+  );
   return {
     version: body.version,
+    subject: body.subject,
     html: readable.html,
     savedAt: body.savedAt,
     savedBy: body.savedBy,
@@ -99,7 +105,7 @@ export function versionGet(context: HandlerContext): {
   };
 }
 
-/** Restore creates version N+1 from version K (linear history) through the save write path, plus an audit row. */
+/** Restore creates version N+1 from subject and body of version K (linear history) through the save write path, plus an audit row. */
 export function versionRestore(context: HandlerContext): Item {
   const id = reqString(context.args, "id");
   const from = reqInt(context.args, "version");
@@ -109,7 +115,7 @@ export function versionRestore(context: HandlerContext): Item {
   const old = context.services
     .store()
     .readBody(findVersion(context, known, from).fileId);
-  const prepared = prepareFor(context.services.props, old.html);
+  const prepared = prepareFor(context.services.props, old.html, old.subject);
   const body = writeBody(context, id, baseVersion + 1, prepared, from);
   const source = eventSource(context, known.folderId);
   return commit(context, (current) => {

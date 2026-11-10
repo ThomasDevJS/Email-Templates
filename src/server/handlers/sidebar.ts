@@ -157,27 +157,31 @@ export function recipientFirstName(context: HandlerContext): string {
  * Apply (spec 4.1 step 3). Dispatch re-checked `use` on the item's folder. The body travels only when the
  * add-on's copy is stale. The apply event goes to the `evt:*` buffer (500 ms lock at most, spec section 10).
  * `followUp: true` is the prompt card's Insert: the same `use` check, no second event, because the Insert tap
- * that opened the card buffered one already. One user action, one event.
+ * that opened the card buffered one already. One user action, one event. It also skips the recipient lookup
+ * (Q24): the card carries the values of the first call, so a follow-up never serves as a free name lookup.
  */
 export function templateApply(context: HandlerContext): ApplyResult {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   const knownVersion = reqInt(context.args, "knownVersion");
-  const html =
-    knownVersion === item.currentVersion
-      ? null
-      : readableBody(
-          context.services.props,
-          readStoredBody(context.services, item),
-        ).html;
+  const followUp = optBool(context.args, "followUp");
+  const fresh = knownVersion !== item.currentVersion;
+  const html = fresh
+    ? readableBody(
+        context.services.props,
+        readStoredBody(context.services, item),
+        item.subject,
+      ).html
+    : null;
   const result: ApplyResult = {
     id: item.id,
     title: item.title,
     version: item.currentVersion,
     html,
+    subject: fresh ? item.subject : null,
     sender: senderOf(context),
-    recipientFirstName: recipientFirstName(context),
+    recipientFirstName: followUp ? "" : recipientFirstName(context),
   };
-  if (!optBool(context.args, "followUp"))
+  if (!followUp)
     bufferEvent(context.services.cache, context.services.lock, {
       kind: "apply",
       itemId: item.id,

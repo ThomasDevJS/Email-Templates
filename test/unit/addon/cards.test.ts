@@ -94,7 +94,6 @@ describe("home card (wireframe 01)", () => {
     expect(texts(card)).not.toContain("My templates (0)");
     expect(buttons(card).map((b) => b.text)).toEqual(["Open library"]);
   });
-
 });
 
 describe("folder card (wireframe 01)", () => {

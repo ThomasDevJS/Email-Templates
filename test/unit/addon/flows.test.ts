@@ -452,5 +452,4 @@ describe("links", () => {
     });
     expect(readView(cache)).toBeNull();
   });
-
 });

@@ -47,17 +47,28 @@ export function imgHosts(props: PropertyStore): string[] {
     .filter((host) => host !== "");
 }
 
-/** Sanitize and validate a body with this deployment's image host list. Throws VALIDATION with `details.problems`. */
-export function prepareFor(props: PropertyStore, html: string): PreparedBody {
-  return prepareBody(html, { imgHosts: imgHosts(props) });
+/**
+ * Sanitize and validate a body and subject with this deployment's image host list. Throws VALIDATION with
+ * `details.problems`.
+ */
+export function prepareFor(
+  props: PropertyStore,
+  html: string,
+  subject: string,
+): PreparedBody {
+  return prepareBody(html, { imgHosts: imgHosts(props) }, subject);
 }
 
-/** A stored body as clients read it: sanitized again (covers bodies stored before slice 3), names and prompts. */
+/**
+ * A stored body as clients read it: sanitized again (covers bodies stored before slice 3), names and prompts over
+ * subject and body.
+ */
 export function readableBody(
   props: PropertyStore,
   stored: string,
+  subject: string,
 ): { html: string; placeholders: string[]; prompts: string[] } {
   const html = sanitize(stored, { imgHosts: imgHosts(props) });
-  const { placeholders, prompts } = scanBody(html);
+  const { placeholders, prompts } = scanBody(html, [], subject);
   return { html, placeholders, prompts };
 }

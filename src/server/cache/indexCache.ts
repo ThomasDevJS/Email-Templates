@@ -1,4 +1,8 @@
-import type { IndexDoc } from "../../shared/model/data";
+import {
+  readIndexDoc,
+  type IndexDoc,
+  type StoredIndex,
+} from "../../shared/model/data";
 import type { Services } from "../services";
 import { getChunked, putChunked } from "../../shared/cache/chunked";
 
@@ -18,7 +22,7 @@ function cachedIndex(services: IndexServices): IndexDoc | null {
   const rev = services.props.getProperty(INDEX_REV_KEY);
   if (rev === null) return null;
   const text = getChunked(services.cache, INDEX_PREFIX, rev);
-  return text === null ? null : (JSON.parse(text) as IndexDoc);
+  return text === null ? null : readIndexDoc(JSON.parse(text) as StoredIndex);
 }
 
 /** Sets `INDEX_REV` and puts the chunk set. */
