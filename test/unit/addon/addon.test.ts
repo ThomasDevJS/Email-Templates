@@ -93,13 +93,15 @@ function argsOf(method: string): unknown[] {
     .map((call) => call.args[0]);
 }
 
+/** One request ID format on both surfaces (spec section 11). */
+const REQUEST_ID = /^[0-9A-Z]{8}-[0-9A-Z]{6}$/;
+
 describe("callServer", () => {
   it("posts the request with the user's OAuth token and returns the request ID", () => {
     fetchApp.respondWith(() => ({ status: 200, body: ok({ pong: true }) }));
-    expect(callServer("ping", {})).toMatchObject({
-      requestId: "uuid-1",
-      response: { ok: true, durationMs: 7 },
-    });
+    const call = callServer("ping", {});
+    expect(call).toMatchObject({ response: { ok: true, durationMs: 7 } });
+    expect(call.requestId).toMatch(REQUEST_ID);
     const [request] = fetchApp.requests;
     expect(request?.url).toBe(EXEC_URL);
     expect(request?.params).toMatchObject({
@@ -111,7 +113,7 @@ describe("callServer", () => {
     expect(JSON.parse(request?.params.payload as string)).toEqual({
       op: "ping",
       args: {},
-      requestId: "uuid-1",
+      requestId: call.requestId,
       clientVersion: "test-testsha",
     });
   });

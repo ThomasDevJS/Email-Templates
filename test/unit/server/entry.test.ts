@@ -218,6 +218,7 @@ describe("web app and add-on entry points", () => {
       result: "ok",
       actor: USER,
     });
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });
 
   it.each([
@@ -228,6 +229,7 @@ describe("web app and add-on entry points", () => {
     const page = doGet() as unknown as FakeHtmlOutput;
     expect(page.title).toBe("Cannot identify your account");
     expect(lastLog()).toMatchObject({ result: "denied", errorCode: code });
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });
 
   it("reinstalls triggers on the first request after TRIGGERS_VERSION changed", () => {
@@ -278,7 +280,8 @@ describe("web app and add-on entry points", () => {
 
   it("rpc dispatches with a server-assigned request ID", () => {
     expect(rpc("ping", {})).toMatchObject({ ok: true, data: { pong: true } });
-    expect(lastLog()).toMatchObject({ surface: "webapp", requestId: "uuid-1" });
+    expect(lastLog()).toMatchObject({ surface: "webapp" });
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
     expect(rpc(42, {})).toMatchObject({
       ok: false,
       error: { code: "BAD_REQUEST" },
@@ -291,7 +294,7 @@ describe("web app and add-on entry points", () => {
     rpc("ping", {}, "bad id <x>");
     expect(lastLog()["requestId"]).not.toBe("bad id <x>");
     rpc("ping", {}, 7);
-    expect(lastLog()["requestId"]).toMatch(/^uuid-/);
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });
 
   it("rpc runs a full create through the real runtime services", () => {

@@ -7,6 +7,7 @@
 import { APP_VERSION } from "../shared/buildInfo";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { RpcResponse } from "../shared/model/protocol";
+import { requestIdNow } from "../shared/requestId";
 import { loadIndex } from "./cache/indexCache";
 import { handleRpc } from "./dispatch/handle";
 import {
@@ -58,10 +59,12 @@ function identified(email: string, services: Services): boolean {
 export function doGet(): GoogleAppsScript.HTML.HtmlOutput {
   const services = createServices("webapp");
   const caller = currentCaller();
+  const requestId = requestIdNow();
   if (!identified(caller.email, services)) {
     services.logger.warn({
       surface: "webapp",
       action: "web.open",
+      requestId,
       result: "denied",
       actor: caller.email,
       errorCode:
@@ -77,6 +80,7 @@ export function doGet(): GoogleAppsScript.HTML.HtmlOutput {
   services.logger.info({
     surface: "webapp",
     action: "web.open",
+    requestId,
     result: "ok",
     actor: caller.email,
   });
@@ -113,12 +117,12 @@ export function doPost(
   );
 }
 
-/** Client request IDs the server accepts for its log line; anything else gets a server UUID. */
+/** Client request IDs the server accepts for its log line; anything else gets a new server ID. */
 const CLIENT_REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
 
 /**
  * Web app `google.script.run.rpc(op, args, requestId)`. The web app sends its own request ID so the error toast
- * and the server log line show the same value; a missing or malformed ID is replaced by a UUID.
+ * and the server log line show the same value; a missing or malformed ID is replaced by a new one.
  */
 export function rpc(
   op: unknown,
@@ -133,7 +137,7 @@ export function rpc(
     requestId:
       typeof requestId === "string" && CLIENT_REQUEST_ID.test(requestId)
         ? requestId
-        : Utilities.getUuid(),
+        : requestIdNow(),
     clientVersion: APP_VERSION,
   };
   return handleRpc(currentCaller(), request, "webapp", { services });

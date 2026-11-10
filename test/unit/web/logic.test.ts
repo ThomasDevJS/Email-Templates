@@ -20,7 +20,6 @@ import {
 import {
   RpcError,
   createClient,
-  newRequestId,
   settle,
   transportError,
   type Runner,
@@ -214,10 +213,6 @@ function envelope(data: unknown) {
 }
 
 describe("rpc client", () => {
-  it("makes request IDs from time and a random part", () => {
-    expect(newRequestId(1000, () => 0.5)).toMatch(/^RS-[0-9A-Z]{6}$/);
-  });
-
   it("returns data and maps error envelopes, malformed replies and transport failures", () => {
     expect(settle(envelope(3), "r")).toBe(3);
     const denied = {

@@ -40,16 +40,6 @@ export interface RpcClient {
 
 export const MAX_CONCURRENT = 4;
 
-/** Request IDs: time plus a random part, `[A-Za-z0-9-]`, short enough to read aloud from a toast. */
-export function newRequestId(now: number, random: () => number): string {
-  const time = now.toString(36).toUpperCase();
-  const tail = Math.floor(random() * 36 ** 6)
-    .toString(36)
-    .toUpperCase()
-    .padStart(6, "0");
-  return `${time}-${tail}`;
-}
-
 /** Turns one reply into data or an RpcError. */
 export function settle(value: unknown, requestId: string): unknown {
   const response = parseRpcResponse(value);

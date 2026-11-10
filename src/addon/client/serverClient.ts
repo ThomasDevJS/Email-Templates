@@ -14,6 +14,7 @@ import {
   type RpcRequest,
   type RpcResponse,
 } from "../../shared/model/protocol";
+import { requestIdNow } from "../../shared/requestId";
 
 const HTTP_OK = 200;
 
@@ -127,7 +128,7 @@ export function callServer(op: string, args: unknown): ServerCall {
   const request: RpcRequest = {
     op,
     args,
-    requestId: Utilities.getUuid(),
+    requestId: requestIdNow(),
     clientVersion: APP_VERSION,
   };
   return { requestId: request.requestId, response: send(request) };
