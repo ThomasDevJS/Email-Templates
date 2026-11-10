@@ -177,6 +177,13 @@ describe("folder card flow", () => {
     expect(readView(cache)).toBeNull();
   });
 
+  it("opens a folder from the view the home card cached, with no second sidebar.home", () => {
+    create("Welcome", "<p>Hi</p>");
+    homeFlow(ports());
+    folderFlow(ports(), { folderId: sales.id, page: "1" });
+    expect(sent.map((s) => s.op)).toEqual(["sidebar.home"]);
+  });
+
   it("pushes the error state when the view cannot load", () => {
     const reply = folderFlow(ports("eve@other.example"), {
       folderId: sales.id,
