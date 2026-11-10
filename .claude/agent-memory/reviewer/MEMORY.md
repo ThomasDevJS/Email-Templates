@@ -96,6 +96,11 @@
   - Harness src/addon/spikeS7.ts, callbacks onS7Card/onS7Compose/onS7Notify, Reply kinds s7, s7Error; s7Visible wraps after the guard.
   - Minors: hint missing on folder/search/preview; smoke lacks Drafts/Executions check and "reopen harness"; spec 10 no onMessageOpen row, failures uncached (1 server call per message open); no compose regression step; messageMetadata fallback not in spec.
 
+- Slice 9 recipients (2026-11-10): FAIL (441ab04). 60 files, 1391 tests, lines 96.58 (addon 100, server 99.31), Code.js 345.5 KB, index.html 340.6 KB unchanged, 10 scopes, Lighthouse 100x11.
+  - Must fix: draftRecipients (addon/event.ts) reads missing/non-array/mixed list as [], and REPLACE actions then wipe the draft field (tests assert it). Prompt card switchLabel lacks Bcc marker, Not added, blocked. No "finish typing" line on cards.
+  - Accepted: rh over to/cc/bcc/blocked, no rh -> preview card, forged rh -> card; update omission keeps lists, deny then refuses; apply/getBody blocked split; audit admin only; validator rejects injection probes.
+  - Code: shared/model/recipients.ts (validateRecipients, importRecipients, splitBlocked), addon/cards/recipients.ts (recipientPlan, recipientActions, rowHint), flows.ts needsReview. Minor: version files have no shape check.
+
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -125,3 +130,4 @@
 - Contrast: compute every token pair incl. hover (`--hover`), `--select`, button hover fills, disabled at 55% opacity; check overrides for hover as well as selected.
 - Overlay panels: Tab past the last item and check where focus lands; check outside click.
 - Entry gating by event fields: verify the field exists on action (click) events too, from live logs, before trusting the classifier.
+- Replace-type writes (Gmail recipient actions): probe missing, non-array and mixed input; "unknown" must never read as "empty".
