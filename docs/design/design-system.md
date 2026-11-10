@@ -26,7 +26,10 @@ Brief from the owner: classic, quiet, high quality, built to last without a rede
 | `--paper` | `#ffffff` | page, cards, inputs |
 | `--canvas` | `#f4f5f6` | sidebar, editor backdrop, table head of content tables, row hover |
 | `--line` | `#e2e6e9` | hairlines |
-| `--line-strong` | `#c8cfd4` | input borders, table head rule |
+| `--line-strong` | `#c8cfd4` | table head rule, dividers (never a control border) |
+| `--field-line` | `#7f8b93` | borders of inputs, selects, the search field and default buttons (3:1 or more, WCAG 1.4.11) |
+| `--star` | `#a87400` | filled star, outline and fill (3:1 or more on white, hover and selected) |
+| `--star-off` | `#78838b` | empty star |
 | `--select` | `#e8edf1` | selected nav item, selected row, active toggle, tag background |
 | `--red` | `#b32025` | error text, destructive button, error border |
 | `--blank-bg` | `#fdf2d0` | placeholder background |
@@ -57,9 +60,9 @@ Inline SVG symbols in one sprite, 16 px box, `fill: none`, `stroke: currentColor
 
 ## Components
 
-- Button: height 32, padding 0 12, radius 6, weight 500. Default: paper with `--line-strong` border. Primary: slate, white text. Ghost: no border, `--ink-2`. Destructive: `--red` background, white text, only inside a confirm dialog. Disabled: 55% opacity, no pointer. Busy: label changes ("Saving..."), control disabled.
+- Button: height 32, padding 0 12, radius 6, weight 500. Default: paper with `--field-line` border. Primary: slate, white text. Ghost: no border, `--ink-2`. Destructive: `--red` background, white text, only inside a confirm dialog. Disabled: 55% opacity, no pointer. Busy: label changes ("Saving..."), control disabled.
 - Icon button: 28 by 28, radius 6, hover and pressed `--select`.
-- Input and select: height 32 (30 in the side panel), `--line-strong` border, radius 6, focus ring 2 px `--slate` with 2 px offset. Error: `--red` border and a one-sentence message under the field.
+- Input and select: height 32 (30 in the side panel), `--field-line` border, radius 6, focus ring 2 px `--slate` with 2 px offset. Error: `--red` border and a one-sentence message under the field.
 - Search: input with the search icon inside left and a `/` key hint inside right.
 - Nav item (sidebar): height 30, radius 6, icon 16 in `--ink-3`, label, optional right-aligned count in 12 px `--ink-3`. Hover `#eaedef`, current `--select` with weight 600.
 - Table (lists): head row 32 px, 12 px weight 600 `--ink-3`, bottom rule `--line-strong`. Body rows 52 px for two-line cells and 40 px for one-line cells, bottom rule `--line`, hover `--canvas`, selected `--select`. No zebra, no vertical rules.
@@ -98,3 +101,11 @@ Sentence case. Plain verbs. A button says what happens ("Save", "Move", "Delete 
 - No new dependency. No change to `inlineHtml`. No server change unless a screen needs data an existing op already returns.
 - Keyboard behavior, ARIA roles and focus handling keep working; tests are updated, not removed.
 - Lighthouse accessibility 100 on every audited view, light and dark.
+
+## Changes after the first build (slice 8a review, 2026-11-10)
+
+- Control borders moved from `--line-strong` (1.58:1) to `--field-line` (3.49:1 on white). The mockup image still shows the lighter borders.
+- Star colors darkened to reach 3:1; the filled star differs from the empty one by its fill.
+- The folder separator, table avatars and owner labels are darker than in the mockup for 4.5:1.
+- `test/unit/web/contrast.test.ts` holds the token pairs and their limits; a new token pair goes into that table.
+- Under 860 px the menu panel is modal while open.
