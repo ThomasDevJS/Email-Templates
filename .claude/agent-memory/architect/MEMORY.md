@@ -1,48 +1,58 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-09, Phase 2 revision after owner decision D15. Repo is the source of truth; this file is a cache.
+Last run: 2026-11-10, errata run plus D21 (subject) and D22 (web only). Repo is the source of truth; this file is a cache.
 
 ## Files I own
-- docs/adr/0001 to 0005 (all Proposed, 0001/0002/0003/0005 revised 2026-11-09; 0004 had 4 consent lines fixed)
-- docs/spec.md (sections 1-16; 16 = Operations and maintenance; open questions Q1-Q19 in section 15)
-- docs/wireframes/01-07 (06 admin updated: audit month selector, Config jobs and backups)
+- docs/adr/0001 to 0005 (Accepted 2026-11-09). Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
+- docs/spec.md (sections 1-16; 5.6 subject; 12.1 measured times; 13.1 slice 5 contents; Q1-Q24 in section 15)
+- docs/wireframes/01-07 (02 now holds preview card and prompt card)
 
 ## Owner decisions in force
-- D15: ONE Apps Script project (topology 1a). 1b (two projects) rejected. Add-on code runs as user; web app deployment of same project runs as owner (USER_DEPLOYING, DOMAIN). Add-on calls its own /exec.
-- Near-zero maintenance (BRIEF 1 Operations): only recurring human task = deploy. Housekeeping on triggers. Fewest moving parts.
+- D15 one Apps Script project. Add-on runs as user, web app deployment runs as owner (USER_DEPLOYING, DOMAIN).
+- D18 admins see private folders in the library; `sidebar.home` hides other users' private folders (spec 2).
+- D21 template subject applied in v1, slice 5.
+- D22 (2026-11-10) Gmail web is the only acceptance client; Android and iOS best effort, untested. Spike S4 closed on web.
+- Near-zero maintenance: only recurring human task = deploy.
 
-## Decisions (Proposed)
-- 0001: option 1 topology 1a. One manifest, 8 scopes everyone sees at self-install; admin domain install skips consent [R4 S60]. Pilot editors on DEV project only; code only via clasp push from owner; deploy script drift check (clasp pull vs last push hash); pilot editors removed after 2.5b.
-- 0002: Drive JSON only (option 2). index.json {schemaVersion, rev, folders, grants, items, pendingAudit}; favorites.json; usage.json; members.json; bodies/<id>.v<n>.json immutable with appProperties (history via files.list); audit/YYYY-MM.jsonl; backups/YYYY-MM-DD 14 kept. Advanced Drive v3 (DriveApp needs `drive`, A9). Script Property STORE (IDs) and INDEX_REV. Cache keys idx:<rev>:<n>. Save: body file outside lock, lock, check rev+version, write index with audit event in same write (commit point), set INDEX_REV. Sizes: 750 B/item, index 0.85 MB at 1k, 8.4 MB at 10k. Budgets: coldest sidebar 2.7 s (Sheets was 4.3 s), save 2.1 s, lock hold 1.3 s. Shard into 16 items files above 3 MB. drive.file binds data to owner + OAuth client: prod switch to standard GCP before setup(); owner change = export/setup/import.
-- 0003: Pattern A unchanged except target is same project's /exec. Shared stores table: add-on never touches Script Cache/Properties/Drive; server never uses getUserCache (would be owner's). Boundary test + ESLint. Trust boundary is the code. Triggers: tick 5 min, refreshMembers 15 min, daily 02:00. setup() idempotent, auto-rerun on first request after deploy when TRIGGERS_VERSION changes. ~27 min/day. Job health in Script Properties job:<name>:lastOk, shown in admin Config. Audit in JSONL monthly, 24 months.
-- 0004: unchanged except admin.directory.user.readonly now on everyone's consent list.
-- 0005: one bundle src/entry.ts, one appsscript.json, deploy/dev.json + deploy/prod.json (scriptId, deploymentId, execUrl, mode). execUrl baked into bundle. `npm run deploy -- <env>`, `npm run rollback -- <env> [version]`. Dev uses /dev (0 versions) if spike S2(d) passes. Maintenance table. Version pruning manual: Apps Script API versions has no delete (A11). Prod 1 version per deploy, prune at 150.
+## Decisions
+- 0001: topology 1a. Amendment 2026-11-10: D22.
+- 0002: Drive JSON only. index.json, favorites.json, usage.json, members.json, bodies/<id>.v<n>.json (now with `subject`, missing = ""), audit/YYYY-MM.jsonl, backups 14. NOT yet amended: lock-free reader rule from 4b (readers take no lock, never set INDEX_REV; setup publishes it). Candidate for next errata run.
+- 0003: Pattern A (add-on UrlFetch to own /exec). Triggers tick 5 min, refreshMembers 15 min, daily. Trigger version check runs in doGet and tick, reads TRIGGERS_VERSION live in the lock (spec 16).
+- 0004: grammar, sanitizer allowlist, ProseMirror atoms. Amendments 2026-11-10: (errata) no sanitize-on-paste, schema normalizes; setRequiredWidgets untried. (S4) web F1-F9 inserted, F7 204,837 bytes; allowlist unchanged; cap 100 KB final; harness removal slice 5; F9 mid-line hand check open. (subject, Proposed) option 3: replace on Insert, opt-out "Insert body only" on preview card and "Replace the subject" switch on prompt card; same grammar, prompts shared; not HTML-escaped, control chars -> space; SUBJ_TOO_LONG (200), SUBJ_LINEBREAK; search weight 2.
+- 0005: esbuild, vitest, one bundle. Amendment 2026-11-10: bundle ships as JSON string literal, `/` before `/` or `*` written as `\/`, `(0, eval)(literal)`; HtmlService cut `//` after template literals on 43f10de; sandbox frame sets no CSP.
 
-## Final default scope list (8)
-gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Conditional: openid (Q7, or Q6 API deployment), drive.readonly (Q6 last resort), admin.directory.group.member.readonly (directory resolver), directory.readonly (Q9). spreadsheets removed.
+## Scopes (10, unchanged)
+gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, script.projects.readonly, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Subject expected to need none extra (unverified, Q20). Any new scope needs owner approval.
 
-## Facts I verified (not in R4)
-- A1 tanaike: token calls to web apps need a Drive scope; sharing note (2018). Spike S2.
-- A9 DriveApp createFile/createFolder need `drive`; getFileById needs drive or drive.readonly. No drive.file.
-- A10 consent texts (oauth2/scopes page): spreadsheets "See, edit, create, and delete all your Google Sheets spreadsheets"; drive.file "...only the specific Google Drive files you use with this app"; groups "View and manage your Google Groups"; admin.directory.user.readonly "See info about users on your domain"; userinfo.email "See your primary Google Account email address".
-- A11 Apps Script API projects.versions: create, get, list only.
-- A12 web app guide: Execute as and access chosen per deployment (Deploy > New deployment); manifest webapp = defaults. One project can have UI (DOMAIN) + API (ANYONE_ANONYMOUS, ID token) deployments.
-- getIdentityToken needs openid. Compose recipients are email strings. 200 versions per script.
+## Facts I verified
+- A1 tanaike token note; A9 DriveApp needs drive; A10 consent texts; A11 versions API has no delete; A12 per-deployment web app settings.
+- A13 (2026-11-10) event-objects: Gmail event has accessToken, messageId, threadId, to/cc/bccRecipients; NO subject. commonEventObject.platform WEB/IOS/ANDROID.
+- A14 extending-compose-ui: subject example `setUpdateDraftSubjectAction(newUpdateDraftSubjectAction().addUpdateSubject(s))`; one action per example; scopes not listed; no mobile note.
+- A15 UpdateDraftActionResponseBuilder: setters body, subject, To, Cc, Bcc, chainable; combining not documented.
+- A16 gmail scopes page: action.compose non-sensitive, "Manage drafts and send emails when you interact with the Google Workspace add-on".
+
+## Measured (spec 12.1, dev 9bbd262, before 4b cuts)
+First sidebar open 4.064 s add-on (6 s on screen); apply first use 4.07 s add-on, handler 1314 ms; prompt Insert 2.1-2.3 s; doPost 0.6-1.1 s outside handler; save about 10 s observed. All targets missed. 4b numbers pending (smoke 4b step 8).
+
+## Slice plan
+- Slice 5 (spec 13.1): spike S5 first (body+subject one response, reply fields), subject, sidebar search, favorites, recent, web search incl. search.body, S4 harness removal, Q24 one-liner.
+- Slice 6: Trash view and template.restoreFromTrash (with admin, folder delete, trash.purge), Q23 trigger create-then-delete.
+
+## Open questions added this run
+- Q20 subject+body in one response, per-action scope. Rec: spike S5; fallback second button "Set subject".
+- Q21 reply drafts (subject change may split thread; threadId presence undocumented). Rec: S5 logs presence boolean.
+- Q22 targets missed. Rec: wait for 4b numbers, owner decides on ADR-0003.
+- Q23 installTriggers delete-before-create. Rec: create first, slice 6.
+- Q24 recipientEmailIfInternal on followUp. Rec: ignore it, slice 5.
 
 ## Conventions
-- External sources [A1]..[A11]; A9, A10 in ADR-0002, A11 in ADR-0005, A7/A8 in ADR-0005.
-- Question IDs Q1-Q19 global. Q2 decided (one project). New: Q16 Advanced Drive on drive.file, Q17 S2b thresholds (0.85 MB read and write under 2 s), Q18 My Drive vs shared drive, Q19 dev /dev vs /exec.
-- Spikes: S2 (a)-(e), S2b (latencies incl. Drive 0.85/8.4 MB), S4 (insert).
-
-## Open for next run
-- Owner answers Q1, Q3-Q19; then status Accepted.
-- Orchestrator must rewrite BRIEF 2.5a (still says server project, topology 1b, storage folder by hand) -> Q13.
-- After spike S2/S2b: update ADR-0002 numbers, maybe reopen Sheets if thresholds fail; update ADR-0003 identity mode.
-- After spike S4: ADR-0004 allowlist and size cap.
+- External sources [A1]..[A16]. Question IDs global Q1-Q24. Spikes S2, S2b, S4 (closed), S5 (slice 5).
+- Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
 - One manifest = every scope on every user's consent screen at self-install.
-- Script editors can read Script Cache and Properties; keep prod editors to owner + backup admin.
-- In execute-as-me web app, getUserCache is the owner's: never use server-side.
-- drive.file files created by hand are invisible to the app; setup() must create the folder.
-- All server work counts against the owner's 30 simultaneous executions.
+- Script editors can read Script Cache and Properties.
+- In execute-as-me web app, getUserCache is the owner's: never server-side.
+- drive.file files created by hand are invisible to the app.
+- Owner's 30 simultaneous executions cap all server work.
+- Do not invent mechanism details: read the source (e.g. scripts/lib/html.mjs) before writing an amendment.
