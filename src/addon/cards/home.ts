@@ -1,6 +1,8 @@
 import { BUILD_INFO } from "../../shared/buildInfo";
 import type { SidebarHome, SidebarTemplate } from "../../shared/model/sidebar";
+import type { Entry } from "../event";
 import { s6Sections } from "../spikeS6";
+import { s7Sections } from "../spikeS7";
 import { folderItem, folderPath, templateItem } from "./folder";
 import {
   SEARCH_INPUT,
@@ -53,8 +55,12 @@ function searchSection(query: string): SectionSpec {
 }
 
 /** A template row with its folder path below the title (wireframe 01, Favorites and Recent). */
-function listed(view: SidebarHome, template: SidebarTemplate): Widget {
-  return templateItem(template, folderPath(view, template.folderId));
+function listed(
+  view: SidebarHome,
+  template: SidebarTemplate,
+  entry: Entry,
+): Widget {
+  return templateItem(template, entry, folderPath(view, template.folderId));
 }
 
 function byIds(view: SidebarHome, ids: readonly string[]): SidebarTemplate[] {
@@ -62,7 +68,7 @@ function byIds(view: SidebarHome, ids: readonly string[]): SidebarTemplate[] {
   return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
-function favoritesSection(view: SidebarHome): SectionSpec {
+function favoritesSection(view: SidebarHome, entry: Entry): SectionSpec {
   const favorites = byIds(view, view.favorites);
   return {
     header: "Favorites",
@@ -74,40 +80,56 @@ function favoritesSection(view: SidebarHome): SectionSpec {
               text: "Star templates in the library to pin them here.",
             },
           ]
-        : favorites.map((template) => listed(view, template)),
+        : favorites.map((template) => listed(view, template, entry)),
   };
 }
 
-function recentSections(view: SidebarHome): SectionSpec[] {
+function recentSections(view: SidebarHome, entry: Entry): SectionSpec[] {
   const recent = byIds(view, view.recent);
   return recent.length === 0
     ? []
     : [
         {
           header: "Recent",
-          widgets: recent.map((template) => listed(view, template)),
+          widgets: recent.map((template) => listed(view, template, entry)),
         },
       ];
 }
 
-function homeSections(view: SidebarHome): SectionSpec[] {
+function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
   // Spec section 7 "no visible templates": an empty private folder still counts as empty.
   if (view.templates.length === 0) return [emptySection()];
   return [
     searchSection(""),
-    favoritesSection(view),
-    ...recentSections(view),
+    favoritesSection(view, entry),
+    ...recentSections(view, entry),
     { header: "Folders", widgets: view.folders.map(folderItem) },
     { widgets: [openLibraryButton] },
   ];
 }
 
-export function homeCard(view: SidebarHome): CardSpec {
+/** Spec 7.2 footer hint. */
+export const TOOLBAR_HINT =
+  "Writing an email? Open Migway Templates from the toolbar at the bottom of the draft to insert at the cursor.";
+
+/** The side panel cannot insert (interim fix of spec 13.7), so its home card ends with the way to insert. */
+function hintSections(entry: Entry): SectionSpec[] {
+  return entry === "compose"
+    ? []
+    : [{ widgets: [{ kind: "text", text: TOOLBAR_HINT }] }];
+}
+
+export function homeCard(view: SidebarHome, entry: Entry): CardSpec {
   return {
     name: HOME_CARD,
     title: HOME_TITLE,
-    // TEMPORARY (spike S6): dev build only.
-    sections: [...homeSections(view), ...s6Sections(BUILD_INFO.env)],
+    sections: [
+      ...homeSections(view, entry),
+      ...hintSections(entry),
+      // TEMPORARY (spikes S6 and S7): dev build only.
+      ...s6Sections(BUILD_INFO.env),
+      ...s7Sections(BUILD_INFO.env, entry),
+    ],
   };
 }
 
@@ -116,6 +138,7 @@ export function searchCard(
   view: SidebarHome,
   query: string,
   results: readonly SidebarTemplate[],
+  entry: Entry,
 ): CardSpec {
   const list: SectionSpec =
     results.length === 0
@@ -129,7 +152,7 @@ export function searchCard(
         }
       : {
           header: "Results",
-          widgets: results.map((template) => listed(view, template)),
+          widgets: results.map((template) => listed(view, template, entry)),
         };
   return {
     name: HOME_CARD,

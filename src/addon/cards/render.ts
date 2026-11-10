@@ -17,6 +17,7 @@ import {
 type Card = GoogleAppsScript.Card_Service.Card;
 type ActionResponse = GoogleAppsScript.Card_Service.ActionResponse;
 type DraftResponse = GoogleAppsScript.Card_Service.UpdateDraftActionResponse;
+type ComposeResponse = GoogleAppsScript.Card_Service.ComposeActionResponse;
 
 function markup(text: string): string {
   return escapeText(text).replace(/\n/g, "<br>");
@@ -30,9 +31,14 @@ function toAction(spec: ActionSpec): GoogleAppsScript.Card_Service.Action {
 }
 
 function toButton(spec: ButtonSpec): GoogleAppsScript.Card_Service.TextButton {
-  let button = CardService.newTextButton()
-    .setText(spec.text)
-    .setOnClickAction(toAction(spec.action));
+  const text = CardService.newTextButton().setText(spec.text);
+  let button =
+    spec.compose === undefined
+      ? text.setOnClickAction(toAction(spec.action))
+      : text.setComposeAction(
+          toAction(spec.action),
+          CardService.ComposedEmailType[spec.compose],
+        );
   if (spec.alt !== undefined) button = button.setAltText(spec.alt);
   if (spec.disabled === true) button = button.setDisabled(true);
   if (spec.filled === true)
@@ -173,7 +179,9 @@ function s6Response(draft: S6Draft): DraftResponse {
   return response.build();
 }
 
-export function renderReply(reply: Reply): ActionResponse | DraftResponse {
+export function renderReply(
+  reply: Reply,
+): ActionResponse | DraftResponse | ComposeResponse {
   switch (reply.kind) {
     case "push":
       return navigate((nav) => nav.pushCard(renderCard(reply.card)));
@@ -210,5 +218,16 @@ export function renderReply(reply: Reply): ActionResponse | DraftResponse {
           text: `S6 build failed: ${error instanceof Error ? error.message : String(error)}`,
         });
       }
+    case "s7":
+      return CardService.newComposeActionResponseBuilder()
+        .setGmailDraft(reply.draft)
+        .build();
+    case "s7Error":
+      return CardService.newActionResponseBuilder()
+        .setNotification(CardService.newNotification().setText(reply.text))
+        .setNavigation(
+          CardService.newNavigation().pushCard(renderCard(reply.card)),
+        )
+        .build();
   }
 }

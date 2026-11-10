@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as addon from "../../../src/addon/entry";
+import { TOOLBAR_HINT } from "../../../src/addon/cards/home";
 import { CALLBACKS } from "../../../src/addon/cards/spec";
 import {
   callServer,
@@ -236,6 +237,18 @@ describe("add-on entry points", () => {
     expect(argsOf("build")).toHaveLength(2);
   });
 
+  it("side panel (homepage, message open) shows no Insert and ends with the toolbar hint; compose shows Insert", () => {
+    serve({ "sidebar.home": { ...HOME, recent: ["T1"] } });
+    addon.onMessageOpen({ gmail: { messageId: "m1", accessToken: "t" } });
+    addon.onHomepage({ gmail: { accessToken: "t" } });
+    expect(argsOf("setAltText")).toEqual([]);
+    expect(argsOf("setText").filter((t) => t === TOOLBAR_HINT)).toHaveLength(2);
+    calls.length = 0;
+    addon.onComposeOpen({ draftMetadata: { toRecipients: [] } });
+    expect(argsOf("setAltText")).toEqual(["Insert Welcome"]);
+    expect(argsOf("setText")).not.toContain(TOOLBAR_HINT);
+  });
+
   it("Insert returns UpdateDraftActionResponse with IN_PLACE_INSERT and MUTABLE_HTML", () => {
     serve({
       "template.apply": {
@@ -332,6 +345,7 @@ describe("add-on guard (ENTRY_POINTS surface addon)", () => {
   const entries = [
     "onComposeOpen",
     "onHomepage",
+    "onMessageOpen",
     "onOpenLibrary",
     ...CALLBACKS,
   ];

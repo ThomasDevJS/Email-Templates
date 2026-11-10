@@ -8,7 +8,7 @@ import { renderCard, renderReply } from "./cards/render";
 import type { Reply } from "./cards/spec";
 import { waitSeconds } from "./cards/states";
 import { callServer } from "./client/serverClient";
-import { draftInfo, paramsOf, type AddonEvent } from "./event";
+import { draftInfo, entryOf, paramsOf, type AddonEvent } from "./event";
 import {
   folderFlow,
   homeFlow,
@@ -22,12 +22,20 @@ import {
 } from "./flows";
 import { requireAddonSession } from "./guard";
 import { s6ApplyFlow, s6CardFlow } from "./spikeS6";
+import {
+  s7CardFlow,
+  s7ComposeFlow,
+  s7Failure,
+  s7NotifyFlow,
+  s7Visible,
+} from "./spikeS7";
 import { clearView } from "./view";
 
 type Card = GoogleAppsScript.Card_Service.Card;
 type Response =
   | GoogleAppsScript.Card_Service.ActionResponse
-  | GoogleAppsScript.Card_Service.UpdateDraftActionResponse;
+  | GoogleAppsScript.Card_Service.UpdateDraftActionResponse
+  | GoogleAppsScript.Card_Service.ComposeActionResponse;
 type Params = Readonly<Record<string, string>>;
 
 /** Every server call of this execution carries the event's draft diagnostics (names, counts, `hasSubject`). */
@@ -39,6 +47,7 @@ function ports(event: AddonEvent | undefined): Ports {
     nowMs: () => Date.now(),
     userEmail: Session.getActiveUser().getEmail(),
     execUrl: BUILD_INFO.execUrl,
+    entry: entryOf(event),
   };
 }
 
@@ -71,6 +80,12 @@ export function onComposeOpen(event?: AddonEvent): Card {
 /** Add-on homepage (`addOns.common.homepageTrigger`). */
 export function onHomepage(event?: AddonEvent): Card {
   requireAddonSession("onHomepage");
+  return renderCard(homeFlow(ports(event)));
+}
+
+/** Gmail contextual trigger `unconditional`: the side panel with a message open (ADR-0007 section 4). */
+export function onMessageOpen(event?: AddonEvent): Card {
+  requireAddonSession("onMessageOpen");
   return renderCard(homeFlow(ports(event)));
 }
 
@@ -137,4 +152,30 @@ export function onS6Apply(event?: AddonEvent): Response {
   return respond("onS6Apply", event, (context, params) =>
     s6ApplyFlow(BUILD_INFO.env, event, params, started, () => context.nowMs()),
   );
+}
+
+/** TEMPORARY (spike S7): guard, then flow and render; any exception after the guard shows on the tester's screen. */
+function s7Respond(name: string, run: () => Reply): Response {
+  requireAddonSession(name);
+  return s7Visible(
+    () => renderReply(run()),
+    (error) => renderReply(s7Failure(error)),
+  );
+}
+
+/** TEMPORARY (spike S7): harness card, dev build and side panel only. */
+export function onS7Card(event?: AddonEvent): Response {
+  return s7Respond("onS7Card", () => s7CardFlow(BUILD_INFO.env, event));
+}
+
+/** TEMPORARY (spike S7): New email, Reply, Reply all as compose actions. */
+export function onS7Compose(event?: AddonEvent): Response {
+  return s7Respond("onS7Compose", () =>
+    s7ComposeFlow(BUILD_INFO.env, event, paramsOf(event), GmailApp),
+  );
+}
+
+/** TEMPORARY (spike S7): compose-action button whose callback returns a notification. */
+export function onS7Notify(): Response {
+  return s7Respond("onS7Notify", () => s7NotifyFlow(BUILD_INFO.env));
 }

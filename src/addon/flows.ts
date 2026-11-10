@@ -40,6 +40,7 @@ import {
   internalRecipient,
   draftHasSubject,
   type AddonEvent,
+  type Entry,
 } from "./event";
 import {
   MAX_FIELDS,
@@ -70,6 +71,8 @@ export interface Ports {
   nowMs(): number;
   readonly userEmail: string;
   readonly execUrl: string;
+  /** `entryOf` of the callback's own event; decides the row and preview buttons and the hint. */
+  readonly entry: Entry;
 }
 
 type Loaded<T> =
@@ -112,7 +115,7 @@ const notFound: Failure = {
 export function homeFlow(ports: Ports): CardSpec {
   const loaded = loadView(ports);
   return loaded.ok
-    ? homeCard(loaded.data)
+    ? homeCard(loaded.data, ports.entry)
     : stateCard(loaded.failure, {
         retry: action("onRefresh"),
         canGoBack: false,
@@ -129,14 +132,15 @@ export function searchFlow(ports: Ports, event: AddonEvent | undefined): Reply {
   const retry = action("onRefresh");
   const view = loadView(ports);
   if (!view.ok) return failed(ports, view.failure, retry);
-  if (query === "") return { kind: "update", card: homeCard(view.data) };
+  if (query === "")
+    return { kind: "update", card: homeCard(view.data, ports.entry) };
   const found = load<{ results: SidebarTemplate[] }>(ports, "search", {
     query,
   });
   if (!found.ok) return failed(ports, found.failure, retry);
   return {
     kind: "update",
-    card: searchCard(view.data, query, found.data.results),
+    card: searchCard(view.data, query, found.data.results, ports.entry),
   };
 }
 
@@ -156,6 +160,7 @@ export function folderFlow(
     loaded.data,
     params["folderId"] ?? "",
     params["page"] ?? "1",
+    ports.entry,
   );
   if (card === null) return failed(ports, notFound, retry);
   return { kind: params["nav"] === "page" ? "update" : "push", card };
@@ -194,6 +199,7 @@ export function previewFlow(
       previewText(html),
       subjectPreview(subject),
       draftHasSubject(event),
+      ports.entry,
     ),
   };
 }

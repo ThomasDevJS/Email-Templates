@@ -10,7 +10,7 @@ vi.mock("../../../src/shared/buildInfo", () => ({
   APP_VERSION: "x",
 }));
 
-const headers = () => homeCard(view()).sections.map((s) => s.header);
+const headers = () => homeCard(view(), "compose").sections.map((s) => s.header);
 
 describe("home card spike S6 section", () => {
   it("is absent in a prod build", () => {

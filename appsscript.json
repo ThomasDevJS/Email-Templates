@@ -59,6 +59,12 @@
       ]
     },
     "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onMessageOpen"
+        }
+      ],
       "composeTrigger": {
         "selectActions": [
           {

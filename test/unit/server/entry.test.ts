@@ -518,14 +518,24 @@ describe("entry point allowlist (ADR-0003 Part C, revised in slice 2)", () => {
       ...manifest.addOns.gmail.composeTrigger.selectActions.map(
         (a) => a.runFunction,
       ),
+      ...manifest.addOns.gmail.contextualTriggers.map(
+        (t) => t.onTriggerFunction,
+      ),
     ];
+    expect(addon).toContain("onMessageOpen");
     for (const name of addon)
       expect(ENTRY_POINTS[name as keyof typeof ENTRY_POINTS]).toBe("addon");
     const addonEntries = Object.entries(ENTRY_POINTS).filter(
       ([, surface]) => surface === "addon",
     );
     expect(addonEntries.map(([name]) => name).sort()).toEqual(
-      ["onComposeOpen", "onHomepage", "onOpenLibrary", ...CALLBACKS].sort(),
+      [
+        "onComposeOpen",
+        "onHomepage",
+        "onMessageOpen",
+        "onOpenLibrary",
+        ...CALLBACKS,
+      ].sort(),
     );
   });
 

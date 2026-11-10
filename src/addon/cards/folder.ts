@@ -3,6 +3,7 @@ import type {
   SidebarHome,
   SidebarTemplate,
 } from "../../shared/model/sidebar";
+import type { Entry } from "../event";
 import {
   action,
   type ButtonSpec,
@@ -34,9 +35,13 @@ export function folderItem(folder: SidebarFolder): Widget {
   };
 }
 
-/** Title, "n fields to fill", a line below (the snippet in folders, the folder path elsewhere), Insert. */
+/**
+ * Title, "n fields to fill", a line below (the snippet in folders, the folder path elsewhere), and Insert in the
+ * compose toolbar only: from the side panel a draft response does nothing (ADR-0007, interim fix of spec 13.7).
+ */
 export function templateItem(
   template: SidebarTemplate,
+  entry: Entry,
   below = template.snippet,
 ): Widget {
   const prompts = template.prompts.length;
@@ -46,7 +51,7 @@ export function templateItem(
     ...(prompts > 0 ? { topLabel: fieldsLabel(prompts) } : {}),
     ...(below === "" ? {} : { bottomLabel: below }),
     onClick: action("onPreview", { id: template.id }),
-    button: insertButton(template),
+    ...(entry === "compose" ? { button: insertButton(template) } : {}),
   };
 }
 
@@ -107,13 +112,14 @@ function templateSections(
   folderId: string,
   templates: SidebarTemplate[],
   page: number,
+  entry: Entry,
 ): SectionSpec[] {
   if (templates.length === 0)
     return [{ widgets: [{ kind: "text", text: `No templates in ${path}.` }] }];
   const pages = pageCount(templates.length);
   const shown = templates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const list: SectionSpec = {
-    widgets: shown.map((template) => templateItem(template)),
+    widgets: shown.map((template) => templateItem(template, entry)),
   };
   return pages > 1 ? [list, pager(folderId, page, pages)] : [list];
 }
@@ -123,6 +129,7 @@ export function folderCard(
   view: SidebarHome,
   folderId: string,
   rawPage: string,
+  entry: Entry,
 ): CardSpec | null {
   const path = folderPath(view, folderId);
   if (path === "") return null;
@@ -132,7 +139,7 @@ export function folderCard(
   const list =
     templates.length === 0 && children.length > 0
       ? []
-      : templateSections(path, folderId, templates, page);
+      : templateSections(path, folderId, templates, page, entry);
   return {
     name: `folder-${folderId}`,
     title: path,
