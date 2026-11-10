@@ -8,10 +8,7 @@
 
 ## Lessons
 - Always prove the lock file with `rm -rf node_modules && npm ci` before reporting. Slice 1 failed review on that. Run `prettier --write` before every commit.
-- Boundary checks must match path segments (`../server`, `server/x`), not only `/server/`.
-- Test ID generators: an LCG's low bits cycle fast; use high bits (`Math.floor(seq / 65536) % n`), or IDs collide.
 - Real runtime uses `Date.now()`; entry tests need `vi.useFakeTimers({ now, toFake: ["Date"] })`.
-- `tick` order matters: cache upkeep before anything that calls `loadIndex`, or upkeep never sees a miss.
 - Lint traps: `no-unnecessary-type-parameters` (generic used once), `no-confusing-void-expression` (arrow shorthand returning void), `no-dynamic-delete`, `no-misused-spread` on class instances.
 
 ## Toolchain decisions (slice 1)
@@ -42,8 +39,6 @@
 
 ## Lessons (slice 3)
 - PM DOMParser reads `element.style` and DOMSerializer writes `style.cssText`: colors become `rgb()`. Parse the `style` attribute text and serialize by hand.
-- PM parse collapses trailing whitespace; `<p>Hi </p>` becomes `Hi`.
-- htmlparser2 implied closes regroup tags after unwrapping, so one pass is not idempotent; loop until stable.
 - `<base target="_top">` in HtmlService sends `#` links to the top window; handle nav in script.
 - Lighthouse `label-content-name-mismatch`: aria-label must contain the visible text. Scrollable `pre` needs `tabindex=0`.
 
@@ -55,13 +50,9 @@
 - Tests: test/unit/addon/flows.test.ts wires `Ports.call` to `world.call(..., "addon")` (real server); fixtures.ts holds view data (never import one test file from another: its tests run twice).
 
 ## Lessons (slice 4)
-- `CacheService.getUserCache()` is typed non-null; a null check fails lint.
-- A recording CardService fake needs every enum the code reads (`ContentType`, `UpdateDraftBodyType`, `TextButtonStyle`).
-- `vi.mock` of src/shared/buildInfo in its own test file covers the blank execUrl branch.
 - Slice 4 review FAIL: empty state keyed on folders, but every caller owns a private folder. Key empty states on the content the spec names ("no visible templates"), and test with a private folder present.
 - Every server-checked action needs a server call right before it acts; cached bodies alone skip the permission check. `template.apply` `followUp: true` = re-check without a second event.
 - Payload fields need a reader; review flags unused ones as dead.
-- When a feature is removed, grep docs/ops for its UI text (Ping lingered in smoke.md).
 
 ## Code map (after slice 4b)
 - `src/shared/requestId.ts`: `newRequestId`, `requestIdNow` (`XXXXXXXX-XXXXXX`), used by web, add-on, `web.open`, rpc fallback.
@@ -70,14 +61,11 @@
 - `loadIndex` is lock-free; `maintain` runs in `doGet` only. Body cache `bd:<bodyFileId>` in handlers/body.ts (`readStoredBody`, `cacheBody`).
 - Web: views/rowActions.ts (row menu), grid "Actions" column, `AppContext.pushRoute`, library selects folders in place, `openDialog({ returnFocus })`.
 
-
 ## Lessons (slices 4b to 6b, merged)
 - Snapshots break read-check-write; re-read live in the lock.
 - Old-code check: `git checkout <base> -- src`, run, `git reset -q; git checkout HEAD -- src` (base-only files: `git rm -f`).
-- Call counts: scratch test with Proxy counters or `appendFileSync` of `world.lines`; delete before commit.
 - `handleRpc` enforces `REQUEST_ID_PATTERN` (tests send `TESTREQ0-000001`); every client string in a log needs a server format check and an upper bound.
 
-- Prettier may reformat after other edits; run `prettier --write` before every commit.
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
 - Old data: `readIndexDoc`, `withSubject`, `Unmigrated<T>` in shared/model/data.ts (driveStore read + `cachedIndex`).
@@ -88,7 +76,6 @@
 
 ## Lessons (slice 5)
 - Worktree guard rejects bash heredocs with python edits; use scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>` blocks) written with the Write tool, or the Edit tool.
-- New side-file reads need a published rev property, else readers never cache (warm counter test catches it).
 
 ## Code map (after slice 5b)
 - D24 (slice 5c): `DRAFT_FIELDS`, `requestDraft` with `hasSubject` (protocol.ts); `draftInfo`, `draftHasSubject` (addon/event.ts); truth table `replacesSubject`, `WITH_SUBJECT` (cards/spec.ts). Gmail compose events carry no threadId/messageId. `ports(event)` sends `draft` on every call; server logs `draft` only when valid, else VALIDATION.
@@ -97,7 +84,6 @@
 
 ## Lessons (slice 5b)
 - Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
-
 
 ## Code map (after slice 6a)
 - Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
@@ -111,10 +97,8 @@
 
 ## Lessons (slice 6b)
 - Dialog actions close in a microtask (focus asserts need `until`). First admin call after `setupWorld` reads `members.json` (cold `gm:*`).
-- Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
 ## Lessons kept from 5b to 6b
-- `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines.
 - `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines. jsdom: `vi.stubEnv("TZ", ...)` changes Date local time.
 - A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
 
@@ -141,6 +125,13 @@
 - Worktree guard refuses `cmd && python3 - <<EOF`; scratchpad `ed8c.py` (@@@/<<</===/>>>) run alone works. Screens: scratchpad `shoot8c.cjs`, dev server on a fixed port, rebuild by restart.
 - Count harness calls in jsdom: wrap `window.google.script.run` (host reads `script.run` per call).
 
+## Slice 8d (web minors, 2026-11-10)
+- `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
+- `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
+- Focus ring rule: on the active item (`outline-offset: -2px`), never around a listbox. Stacked labels `content: attr(data-label) / ""`.
+- CSS-only fixes get a text test in test/unit/web/styles.test.ts. Old-code check: copy src/web to scratchpad, `git checkout HEAD -- src/web`, run, copy back.
+- Trash `load()` returns boolean; purge result needs the reloaded list.
+
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
@@ -152,6 +143,6 @@
 - Doc rule: quote UI text from src; mark "not yet verified on dev" (6b not deployed at fb97d9a) and "not yet exercised" (2.5b, recovery, handover).
 
 ## Open items handed forward
-- Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` used only by the harness; `membership.refresh` does not clear `prof:*`.
+- Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
 - Smoke step with a 4.9 MB import (spec 13.5) not written.
 - Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check vs Apps Script reformatting.
