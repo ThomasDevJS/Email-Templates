@@ -4,7 +4,7 @@
 
 1. Gmail, compose: the Migway Templates home card shows within 3 s (since slice 4: Folders, or the empty state).
 2. (Removed in slice 4 with the Ping button. Slice 4 step 1 covers the add-on to server round trip.)
-3. Open the `execUrl` from `deploy/dev.json`: page shows "Migway Templates" and "Signed in as <your email>"; Ping server shows "Ping ok".
+3. Open the `execUrl` from `deploy/dev.json`: page shows "Migway Templates", "Signed in as <your email>" and the library (folder tree and template list, since slice 3).
 4. Open the same URL in a window signed in to a non-Migway account: Google's access page or "Cannot identify your Migway account" appears, never the app shell.
 5. Editor, Executions: each step above logged one JSON line with `level`, `action`, `result`, `durationMs`, `appVersion`, and no template body or token.
 
