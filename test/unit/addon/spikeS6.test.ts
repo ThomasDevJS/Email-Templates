@@ -6,6 +6,7 @@ import {
   S6_SUBJECT,
   s6ApplyFlow,
   s6Card,
+  s6Shape,
   s6CardFlow,
   s6Draft,
   s6Recipients,
@@ -138,7 +139,35 @@ describe("dev gate", () => {
     );
     expect(
       s6ApplyFlow("dev", undefined, { b: "toString" }, 0, () => 0),
-    ).toEqual({ kind: "pop" });
+    ).toEqual({
+      kind: "notify",
+      text: "S6: no button parameter. Parameters: b",
+    });
+    expect(s6ApplyFlow("dev", undefined, {}, 0, () => 0)).toEqual({
+      kind: "notify",
+      text: "S6: no button parameter. Parameters: (none)",
+    });
+  });
+
+  it("the card names event keys and value types, never a value", () => {
+    const event = {
+      gmail: { subject: "secret subject" },
+      draftMetadata: { toRecipients: ["a@example.com"], ccRecipients: "x" },
+    };
+    const shape = s6Shape("dev", event);
+    expect(shape).toBe(
+      [
+        "env: dev",
+        "event: gmail, draftMetadata",
+        "gmail: subject",
+        "gmail types: To undefined, Cc undefined, Bcc undefined",
+        "draftMetadata: toRecipients, ccRecipients",
+        "draftMetadata types: To array(1 of string), Cc string, Bcc undefined",
+      ].join("\n"),
+    );
+    expect(shape).not.toContain("a@example.com");
+    expect(shape).not.toContain("secret");
+    expect(s6Shape("dev", undefined)).toContain("event: (none)");
   });
 });
 
@@ -157,6 +186,8 @@ describe("s6Card", () => {
         w.bottomLabel,
       ]),
     ).toEqual([
+      ["Body only", { b: "body" }, "body"],
+      ["Body and subject", { b: "bs" }, "body, subject"],
       ["New only", { b: "new" }, "body, subject, To 1, Cc 1, Bcc 1"],
       ["Draft plus new", { b: "plus" }, "body, subject, To 2, Cc 3, Bcc 1"],
       ["Raw Cc again", { b: "raw" }, "Cc 1"],

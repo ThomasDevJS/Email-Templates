@@ -140,6 +140,7 @@ Spec 14.1, about 20 min, one Gmail web session. Needs: the dev deployment of thi
 
 The compose card is modal. In every step, type the recipients first, click into the draft body, then open the add-on, tap "Open S6 harness" and the named button. The harness card shows the draft's To, Cc and Bcc strings as Gmail sent them, and under each button the actions its response holds. The card cannot change after a tap: the draft is the result. "New only" and "Draft plus new" add a second body line with the action list and the callback time in ms.
 
+0. Diagnostic run (added after the first run on dev-c1c7f16 changed no draft and showed "(missing)" for every list). New draft, To A typed, click into the body, open the harness. Copy the whole "Event shape (names and types only)" text. Tap "Body only": record whether "S6 body" appears. New draft, same start, tap "Body and subject": record body and Subject. Record whether the harness card stays open after each tap, and any notification text ("S6: no button parameter..." or "S6 build failed: ...").
 1. New draft, no recipients. Button "New only". Record y/n for each: body "S6 body", Subject `S6 test`, To, Cc, Bcc set; the Bcc line opens by itself; the callback ms from the body line.
 2. New draft, To A, Cc B typed. Button "New only". Record: A and B still there (add) or gone (replace). Copy the card's "Draft recipients as received" text for step 8.
 3. Same as step 2, fresh draft. Button "Draft plus new". Record: all 5 addresses present once (y/n); A or B present twice (y/n).

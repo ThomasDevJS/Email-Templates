@@ -35,6 +35,8 @@ const LABELS: Readonly<Record<S6Field, string>> = {
 };
 
 export const S6_BUTTONS = {
+  body: "Body only",
+  bs: "Body and subject",
   new: "New only",
   plus: "Draft plus new",
   raw: "Raw Cc again",
@@ -80,6 +82,16 @@ export function s6Draft(button: S6Button, draft: S6Recipients): S6Draft {
     S6_ADDRESSES[field],
   ];
   switch (button) {
+    case "body":
+      return { body: S6_BODY, subject: null, to: null, cc: null, bcc: null };
+    case "bs":
+      return {
+        body: S6_BODY,
+        subject: S6_SUBJECT,
+        to: null,
+        cc: null,
+        bcc: null,
+      };
     case "new":
       return {
         body: S6_BODY,
@@ -154,7 +166,40 @@ export function s6Sections(env: string): SectionSpec[] {
       ];
 }
 
-export function s6Card(draft: S6Recipients): CardSpec {
+function typeOf(value: unknown): string {
+  if (Array.isArray(value)) {
+    const kinds = [...new Set(value.map((item) => typeof item))].join("|");
+    return `array(${String(value.length)}${kinds === "" ? "" : ` of ${kinds}`})`;
+  }
+  return value === null ? "null" : typeof value;
+}
+
+/**
+ * Key names and value types of the event, never a value: the first S6 run showed "(missing)" for every list and
+ * no draft change, with no way to tell why.
+ */
+export function s6Shape(env: string, event: AddonEvent | undefined): string {
+  const record = (value: unknown): Record<string, unknown> =>
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {};
+  const keys = (value: unknown) =>
+    value === undefined ? "(none)" : Object.keys(record(value)).join(", ");
+  const types = (value: unknown) =>
+    S6_FIELDS.map(
+      (field) => `${LABELS[field]} ${typeOf(record(value)[EVENT_KEYS[field]])}`,
+    ).join(", ");
+  return [
+    `env: ${env}`,
+    `event: ${keys(event)}`,
+    `gmail: ${keys(event?.gmail)}`,
+    `gmail types: ${types(event?.gmail)}`,
+    `draftMetadata: ${keys(event?.draftMetadata)}`,
+    `draftMetadata types: ${types(event?.draftMetadata)}`,
+  ].join("\n");
+}
+
+export function s6Card(draft: S6Recipients, shape = ""): CardSpec {
   const received = S6_FIELDS.map((field) => {
     const list = draft[field];
     return `${LABELS[field]}: ${list === undefined ? "(missing)" : JSON.stringify(list)}`;
@@ -167,6 +212,14 @@ export function s6Card(draft: S6Recipients): CardSpec {
         header: "Draft recipients as received",
         widgets: [{ kind: "text", text: received }],
       },
+      ...(shape === ""
+        ? []
+        : [
+            {
+              header: "Event shape (names and types only)",
+              widgets: [{ kind: "text" as const, text: shape }],
+            },
+          ]),
       {
         header: "Buttons",
         widgets: [
@@ -193,7 +246,10 @@ export function s6Card(draft: S6Recipients): CardSpec {
 export function s6CardFlow(env: string, event: AddonEvent | undefined): Reply {
   return env !== S6_ENV
     ? { kind: "pop" }
-    : { kind: "push", card: s6Card(s6Recipients(event)) };
+    : {
+        kind: "push",
+        card: s6Card(s6Recipients(event), s6Shape(env, event)),
+      };
 }
 
 /** `onS6Apply`: one draft response, timed from `startedMs` (callback start). */
@@ -205,7 +261,13 @@ export function s6ApplyFlow(
   nowMs: () => number,
 ): Reply {
   const button = params["b"];
-  if (env !== S6_ENV || !isButton(button)) return { kind: "pop" };
+  if (env !== S6_ENV) return { kind: "pop" };
+  // A silent pop hid this case in the first S6 run.
+  if (!isButton(button))
+    return {
+      kind: "notify",
+      text: `S6: no button parameter. Parameters: ${Object.keys(params).join(", ") || "(none)"}`,
+    };
   const draft = s6Draft(button, s6Recipients(event));
   return { kind: "s6", draft: s6Timed(draft, button, nowMs() - startedMs) };
 }

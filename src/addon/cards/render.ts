@@ -201,6 +201,14 @@ export function renderReply(reply: Reply): ActionResponse | DraftResponse {
     case "insert":
       return insertResponse(reply.html, reply.subject);
     case "s6":
-      return s6Response(reply.draft);
+      // Spike only: a failed build must be visible on the tester's screen.
+      try {
+        return s6Response(reply.draft);
+      } catch (error) {
+        return renderReply({
+          kind: "notify",
+          text: `S6 build failed: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
   }
 }
