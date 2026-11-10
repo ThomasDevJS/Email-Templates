@@ -181,12 +181,12 @@ describe("export, import and config helpers (slice 6b)", () => {
       subjectsFlattened: 0,
     };
     expect(importSummary(counts)).toBe(
-      "Validate: would create 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing.",
+      "Validated. Import would create 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing.",
     );
     expect(
       importSummary({ ...counts, dryRun: false, subjectsFlattened: 2 }),
     ).toBe(
-      "Imported: 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing. 2 subjects had line breaks, replaced by a space.",
+      "Imported 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing. 2 subjects had line breaks, replaced by a space.",
     );
   });
 });
