@@ -226,17 +226,25 @@ function parseValues(raw: string): Record<string, string> {
   }
 }
 
-/** Body for the prompt card's Insert: the cached copy of that version, else `template.getBody`. */
+/**
+ * Body for the prompt card's Insert. `template.apply` with `followUp: true` re-checks `use` on the server (a removed
+ * grant gives DENIED) and buffers no second event. The body travels only when the cached copy is gone or stale.
+ */
 function bodyFor(ports: Ports, id: string, version: number): Loaded<BodyReply> {
   const cached = readBody(ports.cache, id);
-  if (cached?.version === version) return { ok: true, data: { id, ...cached } };
-  const body = load<BodyReply>(ports, "template.getBody", { id });
-  if (body.ok)
-    writeBody(ports.cache, id, {
-      version: body.data.version,
-      html: body.data.html,
-    });
-  return body;
+  const usable = cached?.version === version ? cached : null;
+  const applied = load<ApplyResult>(ports, "template.apply", {
+    id,
+    knownVersion: usable?.version ?? 0,
+    recipientEmailIfInternal: "",
+    followUp: true,
+  });
+  if (!applied.ok) return applied;
+  const html = applied.data.html ?? usable?.html;
+  if (html === undefined) return { ok: false, failure: notFound };
+  if (applied.data.html !== null)
+    writeBody(ports.cache, id, { version: applied.data.version, html });
+  return { ok: true, data: { id, version: applied.data.version, html } };
 }
 
 /**

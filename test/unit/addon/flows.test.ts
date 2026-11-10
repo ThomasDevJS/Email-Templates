@@ -328,13 +328,38 @@ describe("prompt card Insert (wireframe 02)", () => {
       values,
     });
 
-  it("inserts escaped values, newlines as <br>, without a server call when the body is cached", () => {
+  it("inserts escaped values, newlines as <br>; re-checks use without the body or a second event", () => {
     expect(
       htmlOf(submit({ "p-1": 'Q3 <plan> & "x"', "p-2": "one\ntwo" })),
     ).toBe(
       "<p>Ana Lima: Q3 &lt;plan&gt; &amp; &quot;x&quot; / one<br>two / Q3 &lt;plan&gt; &amp; &quot;x&quot;</p>",
     );
-    expect(sent).toEqual([]);
+    expect(sent).toEqual([
+      {
+        op: "template.apply",
+        args: {
+          id: item.id,
+          knownVersion: 1,
+          recipientEmailIfInternal: "",
+          followUp: true,
+        },
+      },
+    ]);
+    const applies = readBuffer(world.cache).events.filter(
+      (event) => event.kind === "apply",
+    );
+    expect(applies).toHaveLength(1);
+  });
+
+  it("blocks the insert with DENIED when the grant was removed while the card was open", () => {
+    const grantId = world.services
+      .store()
+      .readIndex()
+      .grants.find((g) => g.principalKey === ANA)?.id;
+    world.ok(OWNER, "grant.remove", { grantId });
+    const reply = submit({ "p-1": "a", "p-2": "b" });
+    expect(reply.kind).toBe("push");
+    expect(texts(cardOf(reply))[0]).toContain("You don't have access");
   });
 
   it("blocks a blank field: no insert, card updated with the error line and the field first", () => {
@@ -365,7 +390,7 @@ describe("prompt card Insert (wireframe 02)", () => {
     expect(texts(card).at(-1)).toBe(
       "(!) The template changed. Check the fields and insert again.",
     );
-    expect(sent.map((s) => s.op)).toEqual(["template.getBody"]);
+    expect(sent.map((s) => s.op)).toEqual(["template.apply"]);
     expect(card.footer?.primary.action.params?.["version"]).toBe("2");
   });
 
@@ -377,7 +402,26 @@ describe("prompt card Insert (wireframe 02)", () => {
       { id: item.id, version: "1", values: "{broken" },
     );
     expect(htmlOf(reply)).toBe("<p>N: a / b / a</p>");
-    expect(sent.map((s) => s.op)).toEqual(["template.getBody"]);
+    expect(sent).toMatchObject([
+      { op: "template.apply", args: { knownVersion: 0, followUp: true } },
+    ]);
+  });
+
+  it("reports a removed template when the server omits a body the cache lost", () => {
+    cache.removeAll([`body:${item.id}`]);
+    const stale: Ports = {
+      ...ports(),
+      call: (op, args) =>
+        ports().call(op, { ...(args as object), knownVersion: 1 }),
+    };
+    const reply = promptInsertFlow(stale, formEvent({}), {
+      id: item.id,
+      version: "1",
+      values,
+    });
+    expect(texts(cardOf(reply))).toEqual([
+      "This template was removed or moved.",
+    ]);
   });
 
   it("shows the error state when the body cannot load", () => {

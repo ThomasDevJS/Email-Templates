@@ -15,7 +15,7 @@ import {
 import { atLeast } from "../../shared/permissions/levels";
 import { domainOf } from "../../shared/permissions/principals";
 import { bufferEvent } from "../audit/buffer";
-import { optString, reqInt, reqString } from "../dispatch/args";
+import { optBool, optString, reqInt, reqString } from "../dispatch/args";
 import type { HandlerContext } from "../dispatch/context";
 import { lookupProfile } from "../directory/profile";
 import { DOMAIN_KEY } from "../guards";
@@ -157,6 +157,8 @@ export function recipientFirstName(context: HandlerContext): string {
 /**
  * Apply (spec 4.1 step 3). Dispatch re-checked `use` on the item's folder. The body travels only when the
  * add-on's copy is stale. The apply event goes to the `evt:*` buffer (500 ms lock at most, spec section 10).
+ * `followUp: true` is the prompt card's Insert: the same `use` check, no second event, because the Insert tap
+ * that opened the card buffered one already. One user action, one event.
  */
 export function templateApply(context: HandlerContext): ApplyResult {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
@@ -176,11 +178,12 @@ export function templateApply(context: HandlerContext): ApplyResult {
     sender: senderOf(context),
     recipientFirstName: recipientFirstName(context),
   };
-  bufferEvent(context.services.cache, context.services.lock, {
-    kind: "apply",
-    itemId: item.id,
-    actor: context.caller.email,
-    ts: nowIso(context.services),
-  });
+  if (!optBool(context.args, "followUp"))
+    bufferEvent(context.services.cache, context.services.lock, {
+      kind: "apply",
+      itemId: item.id,
+      actor: context.caller.email,
+      ts: nowIso(context.services),
+    });
   return result;
 }

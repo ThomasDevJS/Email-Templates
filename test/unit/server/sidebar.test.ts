@@ -237,6 +237,23 @@ describe("template.apply (spec 4.1 step 3)", () => {
     ]);
   });
 
+  it("followUp (prompt card Insert) re-checks use but buffers no second event", () => {
+    grant(sales.id, ANA, "use");
+    apply(ANA, { id: item.id, knownVersion: 0 });
+    apply(ANA, { id: item.id, knownVersion: 1, followUp: true });
+    expect(
+      readBuffer(world.cache).events.filter((e) => e.kind === "apply"),
+    ).toHaveLength(1);
+    expect(
+      errorOf(
+        EVE,
+        "template.apply",
+        { id: item.id, knownVersion: 1, followUp: true },
+        true,
+      ).code,
+    ).toBe("DENIED");
+  });
+
   it("never looks up an external or blank recipient", () => {
     grant(sales.id, ANA, "use");
     for (const recipientEmailIfInternal of [OUTSIDER, "", "  "]) {

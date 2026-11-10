@@ -229,7 +229,17 @@ describe("add-on entry points", () => {
     expect(argsOf("pushCard")).toHaveLength(3);
   });
 
-  it("the prompt card Insert renders the cached body", () => {
+  it("the prompt card Insert re-checks with template.apply and renders the cached body", () => {
+    const ops = serve({
+      "template.apply": {
+        id: "T1",
+        title: "X",
+        version: 2,
+        html: null,
+        sender: { name: "", title: "", phone: "", department: "" },
+        recipientFirstName: "",
+      },
+    });
     cache.put(
       "body:T1",
       JSON.stringify({ version: 2, html: "<p>{{ask:X}}</p>" }),
@@ -241,7 +251,7 @@ describe("add-on entry points", () => {
     expect(calls.find((c) => c.method === "addUpdateContent")?.args[0]).toBe(
       "<p>filled</p>",
     );
-    expect(fetchApp.requests).toHaveLength(0);
+    expect(ops).toEqual(["template.apply"]);
   });
 
   it("a spike fixture insert goes through spike.s4", () => {
