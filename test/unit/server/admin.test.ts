@@ -15,6 +15,7 @@ import {
 } from "../../../src/shared/model/validate";
 import { readBuffer } from "../../../src/server/audit/buffer";
 import { handleRpc } from "../../../src/server/dispatch/handle";
+import { PURGE_FILES_MAX, runDaily } from "../../../src/server/jobs/daily";
 import { WRITE_LOCK_MS } from "../../../src/server/lock";
 import { ADMIN_EMAILS_KEY } from "../../../src/server/membership/snapshot";
 import type { Surface } from "../../../src/shared/log/logger";
@@ -652,6 +653,28 @@ describe("trash", () => {
       targetId: gone.id,
     });
     expect(world.ok<{ purged: number }>(OWNER, "trash.purge").purged).toBe(0);
+  });
+
+  it(`trashes at most ${String(PURGE_FILES_MAX)} body files per purge and leaves the rest to the daily orphan cleanup`, () => {
+    const sales = folder("Sales");
+    const items = Array.from({ length: PURGE_FILES_MAX + 3 }, (_, n) =>
+      template(sales.id, `T${String(n)}`),
+    );
+    for (const item of items)
+      world.ok(OWNER, "template.delete", { id: item.id });
+    const files = () =>
+      items.filter(
+        (item) => world.drive.files.get(item.bodyFileId)?.trashed === true,
+      ).length;
+    expect(world.ok(OWNER, "trash.purge")).toEqual({
+      purged: PURGE_FILES_MAX + 3,
+      filesTrashed: PURGE_FILES_MAX,
+      itemsPending: 3,
+    });
+    expect(files()).toBe(PURGE_FILES_MAX);
+    world.clock.now += 2 * 60 * 60 * 1000;
+    runDaily(world.services);
+    expect(files()).toBe(PURGE_FILES_MAX + 3);
   });
 
   it("re-checks the admin inside the lock: an admin removed meanwhile purges nothing", () => {

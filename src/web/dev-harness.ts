@@ -558,7 +558,15 @@ const OPS: Readonly<Record<string, Op>> = {
   "trash.purge": () => {
     const gone = [...items.values()].filter((entry) => entry.deletedAt !== "");
     for (const entry of gone) items.delete(entry.id);
-    return { purged: gone.length };
+    // `?pending=<n>` shows the message for templates whose files wait for the daily job.
+    const pending = Number(
+      new URLSearchParams(window.location.search).get("pending") ?? "0",
+    );
+    return {
+      purged: gone.length,
+      filesTrashed: gone.length,
+      itemsPending: pending,
+    };
   },
   "version.list": (args) => {
     const found = item(str(args, "id"));

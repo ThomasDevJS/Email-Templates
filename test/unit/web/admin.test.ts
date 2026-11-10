@@ -447,6 +447,20 @@ describe("trash", () => {
     expect(text()).toContain("Trash is empty.");
   });
 
+  it("says when the nightly job deletes the stored versions of purged templates", async () => {
+    await boot("/?latency=0&pending=2#/trash");
+    await until(() => {
+      expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
+    });
+    button("Empty trash now...").click();
+    button("Empty trash", dialog()).click();
+    await until(() => {
+      expect(status()).toContain(
+        "Removed 1 items for good. The nightly job deletes the stored versions of 2 of them.",
+      );
+    });
+  });
+
   it("hides Empty trash from callers who are not admins", async () => {
     await boot("/?latency=0&admin=0#/trash");
     await until(() => {

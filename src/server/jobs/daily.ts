@@ -64,21 +64,54 @@ export interface Purged {
   readonly goneItems: readonly string[];
 }
 
+/** Body files one purge trashes after its commit; the daily orphan cleanup trashes the rest (no item owns them). */
+export const PURGE_FILES_MAX = 50;
+
+export interface PurgeReport {
+  /** Templates and folders removed from the index. */
+  readonly count: number;
+  readonly filesTrashed: number;
+  /** Purged templates whose body files are left to the daily orphan cleanup. */
+  readonly itemsPending: number;
+}
+
+function trashBodies(
+  services: Services,
+  itemIds: readonly string[],
+): Omit<PurgeReport, "count"> {
+  const store = services.store();
+  let filesTrashed = 0;
+  let itemsPending = 0;
+  for (const itemId of itemIds) {
+    const room = PURGE_FILES_MAX - filesTrashed;
+    if (room === 0) {
+      itemsPending += 1;
+      continue;
+    }
+    const bodies = store.listBodies(itemId);
+    for (const body of bodies.slice(0, room)) store.trash(body.fileId);
+    filesTrashed += Math.min(room, bodies.length);
+    if (bodies.length > room) itemsPending += 1;
+  }
+  return { filesTrashed, itemsPending };
+}
+
 /** Index writer for a purge: `mutateIndex` for the trigger, `commit` (with the in-lock re-check) for a request. */
 export type PurgeWrite = (mutation: Mutation<Purged>) => Purged;
 
 /**
  * Items and folders soft-deleted before `cutoffMs` leave the index in one committed write; only then do their body
  * files go to the Drive trash. An item restored before the commit keeps its files; files left by a crash after the
- * commit belong to no item and the orphan cleanup trashes them. Returns the number of records removed.
+ * commit belong to no item and the orphan cleanup trashes them; so do files over PURGE_FILES_MAX.
  */
 export function purgeDeleted(
   services: Services,
   cutoffMs: number,
   source: EventSource,
   write: PurgeWrite = (mutation) => mutateIndex(services, mutation),
-): number {
-  if (purgeEvents(source, loadIndex(services), cutoffMs).length === 0) return 0;
+): PurgeReport {
+  if (purgeEvents(source, loadIndex(services), cutoffMs).length === 0)
+    return { count: 0, filesTrashed: 0, itemsPending: 0 };
   const purged = write((current) => {
     const events = purgeEvents(source, current, cutoffMs);
     const goneFolders = new Set(
@@ -99,10 +132,7 @@ export function purgeDeleted(
     };
     return { doc, events, result: { count: events.length, goneItems } };
   });
-  const store = services.store();
-  for (const itemId of purged.goneItems)
-    for (const body of store.listBodies(itemId)) store.trash(body.fileId);
-  return purged.count;
+  return { count: purged.count, ...trashBodies(services, purged.goneItems) };
 }
 
 /** Daily step: everything soft-deleted over 30 days ago. */
@@ -111,7 +141,7 @@ export function purgeTrash(services: Services): number {
     services,
     services.nowMs() - TRASH_DAYS * DAY_MS,
     systemSource(services),
-  );
+  ).count;
 }
 
 /** Body files older than 1 h whose item is unknown or whose version is above the item's current version. */

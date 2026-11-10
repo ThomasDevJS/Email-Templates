@@ -91,14 +91,25 @@ export function membershipRefresh(context: HandlerContext): MembershipView {
   );
 }
 
-/** "Empty trash now" (admin): every soft-deleted template and folder leaves the index, then its body files. */
-export function trashPurge(context: HandlerContext): { purged: number } {
+/**
+ * "Empty trash now" (admin): every soft-deleted template and folder leaves the index, then up to PURGE_FILES_MAX
+ * body files go to the Drive trash; `itemsPending` templates keep theirs until the daily orphan cleanup.
+ */
+export function trashPurge(context: HandlerContext): {
+  purged: number;
+  filesTrashed: number;
+  itemsPending: number;
+} {
   const { services } = context;
-  const purged = purgeDeleted(
+  const report = purgeDeleted(
     services,
     services.nowMs() + 1,
     eventSource(context),
     (mutation) => commit(context, mutation),
   );
-  return { purged };
+  return {
+    purged: report.count,
+    filesTrashed: report.filesTrashed,
+    itemsPending: report.itemsPending,
+  };
 }

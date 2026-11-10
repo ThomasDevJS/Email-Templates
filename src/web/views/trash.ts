@@ -130,9 +130,13 @@ export function trashView(
             status.textContent = "Emptying the trash...";
             app.api
               .purgeTrash()
-              .then(async ({ purged }) => {
+              .then(async ({ purged, itemsPending }) => {
                 await load();
-                status.textContent = `Removed ${String(purged)} items for good.`;
+                status.textContent = `Removed ${String(purged)} items for good.${
+                  itemsPending > 0
+                    ? ` The nightly job deletes the stored versions of ${String(itemsPending)} of them.`
+                    : ""
+                }`;
                 heading.focus();
               })
               .catch(async (error: unknown) => {

@@ -123,7 +123,12 @@ export interface Api {
   /** Trashed templates the caller may edit; `canPurge` when the caller is an admin. */
   trash(): Promise<{ items: TrashRow[]; canPurge: boolean }>;
   restoreFromTrash(id: string, folderId: string): Promise<Item>;
-  purgeTrash(): Promise<{ purged: number }>;
+  /** `itemsPending`: purged templates whose stored versions the daily job removes. */
+  purgeTrash(): Promise<{
+    purged: number;
+    filesTrashed: number;
+    itemsPending: number;
+  }>;
   /** Admin view entry: DENIED for callers who manage no folder. */
   adminFolders(): Promise<{ isAdmin: boolean; folders: FolderRow[] }>;
   createFolder(parentId: string, name: string): Promise<Folder>;
