@@ -1,5 +1,4 @@
 import { escapeText } from "../../shared/html/escape";
-import type { S6Draft } from "../spikeS6";
 import {
   SWITCH_ON,
   type ActionSpec,
@@ -145,40 +144,6 @@ function insertResponse(html: string, subject: string | null): DraftResponse {
   return response.build();
 }
 
-/** TEMPORARY (spike S6): one action per non-null part of `draft`; never `setSendStatus`. */
-function s6Response(draft: S6Draft): DraftResponse {
-  const response = CardService.newUpdateDraftActionResponseBuilder();
-  if (draft.body !== null)
-    response.setUpdateDraftBodyAction(
-      CardService.newUpdateDraftBodyAction()
-        .addUpdateContent(draft.body, CardService.ContentType.MUTABLE_HTML)
-        .setUpdateType(CardService.UpdateDraftBodyType.IN_PLACE_INSERT),
-    );
-  if (draft.subject !== null)
-    response.setUpdateDraftSubjectAction(
-      CardService.newUpdateDraftSubjectAction().addUpdateSubject(draft.subject),
-    );
-  if (draft.to !== null)
-    response.setUpdateDraftToRecipientsAction(
-      CardService.newUpdateDraftToRecipientsAction().addUpdateToRecipients([
-        ...draft.to,
-      ]),
-    );
-  if (draft.cc !== null)
-    response.setUpdateDraftCcRecipientsAction(
-      CardService.newUpdateDraftCcRecipientsAction().addUpdateCcRecipients([
-        ...draft.cc,
-      ]),
-    );
-  if (draft.bcc !== null)
-    response.setUpdateDraftBccRecipientsAction(
-      CardService.newUpdateDraftBccRecipientsAction().addUpdateBccRecipients([
-        ...draft.bcc,
-      ]),
-    );
-  return response.build();
-}
-
 export function renderReply(
   reply: Reply,
 ): ActionResponse | DraftResponse | ComposeResponse {
@@ -208,16 +173,6 @@ export function renderReply(
         .build();
     case "insert":
       return insertResponse(reply.html, reply.subject);
-    case "s6":
-      // Spike only: a failed build must be visible on the tester's screen.
-      try {
-        return s6Response(reply.draft);
-      } catch (error) {
-        return renderReply({
-          kind: "notify",
-          text: `S6 build failed: ${error instanceof Error ? error.message : String(error)}`,
-        });
-      }
     case "s7":
       return CardService.newComposeActionResponseBuilder()
         .setGmailDraft(reply.draft)

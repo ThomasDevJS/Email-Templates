@@ -134,36 +134,6 @@ Needs: the dev deployment of this build, the owner account (admin) and the secon
 9. Dev data only. Restore from backup, pick the newest date: the dialog names the date and has Cancel focused. Confirm: "Restored the backup of <date>." This overwrites `index.json`, `favorites.json` and `usage.json` with the copies of that night, so `Smoke 6b` and everything made after the backup leave the library. Audit log: a `backup.restore` row with your address.
 10. Apps Script editor, Executions: the `import`, `export.folder` and `backup.restore` lines carry `action`, `actor`, `targetId` (the folder ID for import and export, empty for the restore), result, timing and calls; no title, subject, body or file content.
 
-## Spike S6
-
-Spec 14.1, about 20 min, one Gmail web session. Needs: the dev deployment of this build (`npm run deploy -- dev`, reopen the sidebar). The section "Spike S6 (temporary)" sits at the end of the home card in the dev build only. Nothing is sent: discard every draft after its step. A and B below are two addresses of your choice; the harness adds `s6-to@migway.com`, `s6-cc@migway.com`, `s6-bcc@migway.com`.
-
-The compose card is modal. In every step, type the recipients first, click into the draft body, then open the add-on, tap "Open S6 harness" and the named button. The harness card shows the draft's To, Cc and Bcc strings as Gmail sent them, and under each button the actions its response holds. The card cannot change after a tap: the draft is the result. "New only" and "Draft plus new" add a second body line with the action list and the callback time in ms.
-
-0. Diagnostic run (added after the first run on dev-c1c7f16 changed no draft and showed "(missing)" for every list). New draft, To A typed, click into the body, open the harness. Copy the whole "Event shape (names and types only)" text. Tap "Body only": record whether "S6 body" appears. New draft, same start, tap "Body and subject": record body and Subject. Record whether the harness card stays open after each tap, and any notification text ("S6: no button parameter..." or "S6 build failed: ...").
-1. New draft, no recipients. Button "New only". Record y/n for each: body "S6 body", Subject `S6 test`, To, Cc, Bcc set; the Bcc line opens by itself; the callback ms from the body line.
-2. New draft, To A, Cc B typed. Button "New only". Record: A and B still there (add) or gone (replace). Copy the card's "Draft recipients as received" text for step 8.
-3. Same as step 2, fresh draft. Button "Draft plus new". Record: all 5 addresses present once (y/n); A or B present twice (y/n).
-4. New draft, Cc `s6-cc@migway.com` typed. Button "Raw Cc again". Record: one `s6-cc` chip or two.
-5. Open a received message, Reply. Button: "New only" if step 2 kept A and B, else "Draft plus new". Record: To kept, Cc and Bcc added, Subject kept, the reply stays in its conversation (send nothing; check the draft sits under the message). Copy the card's received text for step 8.
-6. Open a received message, Forward. Same button as step 5. Record: To added (a forward has an empty To).
-7. Account with no earlier consent run, or after Google Account, Security, "Remove access" for the add-on and re-authorizing. New draft, no recipients. Button "New only". Record: any permission or consent prompt and the scopes it names. A prompt stops D26 work: no manifest change.
-8. No button. From the texts of steps 2 and 5, record the format of each string (for example `Name <address>` or the address alone).
-
-If a response fails (error toast, nothing changes) in step 1, repeat it with "Recipients only" (fallback F1) and record the result.
-
-| Step | Draft                    | Button          | Result | Callback ms | Notes |
-| ---- | ------------------------ | --------------- | ------ | ----------- | ----- |
-| 1    | New, empty               | New only        |        |             |       |
-| 1 F1 | New, empty               | Recipients only |        |             |       |
-| 2    | New, To A, Cc B          | New only        |        |             |       |
-| 3    | New, To A, Cc B          | Draft plus new  |        |             |       |
-| 4    | New, Cc `s6-cc`          | Raw Cc again    |        |             |       |
-| 5    | Reply                    |                 |        |             |       |
-| 6    | Forward                  |                 |        |             |       |
-| 7    | New, fresh consent       | New only        |        |             |       |
-| 8    | Event strings of 2 and 5 | none            |        |             |       |
-
 ## Spike S7
 
 Open the add-on from Gmail's right side panel for this test, never from a draft's toolbar.

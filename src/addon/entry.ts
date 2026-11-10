@@ -21,7 +21,6 @@ import {
   type Ports,
 } from "./flows";
 import { requireAddonSession } from "./guard";
-import { s6ApplyFlow, s6CardFlow } from "./spikeS6";
 import {
   s7CardFlow,
   s7ComposeFlow,
@@ -139,19 +138,6 @@ export function onBack(event?: AddonEvent): Response {
 
 export function onOpenLink(event?: AddonEvent): Response {
   return respond("onOpenLink", event, openLinkFlow);
-}
-
-/** TEMPORARY (spike S6): harness card, dev build only. */
-export function onS6Card(event?: AddonEvent): Response {
-  return respond("onS6Card", event, () => s6CardFlow(BUILD_INFO.env, event));
-}
-
-/** TEMPORARY (spike S6): one draft response, dev build only. */
-export function onS6Apply(event?: AddonEvent): Response {
-  const started = Date.now();
-  return respond("onS6Apply", event, (context, params) =>
-    s6ApplyFlow(BUILD_INFO.env, event, params, started, () => context.nowMs()),
-  );
 }
 
 /** TEMPORARY (spike S7): guard, then flow and render; any exception after the guard shows on the tester's screen. */

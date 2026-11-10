@@ -3,7 +3,6 @@
  * return these values; render.ts is the only code that turns them into Card Service objects. All text is plain
  * text: the renderer escapes it.
  */
-import type { S6Draft } from "../spikeS6";
 
 /** Top-level add-on callbacks a card may name. Each one is an export of src/entry.ts and an ENTRY_POINTS row. */
 export const CALLBACKS = [
@@ -15,9 +14,6 @@ export const CALLBACKS = [
   "onBack",
   "onOpenLink",
   "onSearch",
-  // TEMPORARY (spike S6)
-  "onS6Card",
-  "onS6Apply",
   // TEMPORARY (spike S7)
   "onS7Card",
   "onS7Compose",
@@ -131,8 +127,6 @@ export type Reply =
       readonly html: string;
       readonly subject: string | null;
     }
-  /** TEMPORARY (spike S6): one `UpdateDraftActionResponse` with the actions of `draft`. */
-  | { readonly kind: "s6"; readonly draft: S6Draft }
   /** TEMPORARY (spike S7): one `ComposeActionResponse` that opens `draft` in a compose window. */
   | { readonly kind: "s7"; readonly draft: GoogleAppsScript.Gmail.GmailDraft }
   /** TEMPORARY (spike S7): a failed harness callback, as a notification and a pushed card. */
