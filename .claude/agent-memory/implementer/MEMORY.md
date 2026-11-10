@@ -100,9 +100,7 @@
 ## Lessons (slice 5b)
 - Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
 - Prettier renumbers markdown lists; a non-list sentence keeps old step references honest.
-- `cat > file` with no input hangs the shell; `python3 /dev/stdin <<'EOF'` works for edits, alone in one command.
 - jsdom: `vi.stubEnv("TZ", ...)` changes Date local time at runtime.
-- Old-code check of the whole slice: `git checkout <base> -- src`, run, `git checkout HEAD -- src`.
 
 ## Code map (after slice 6a)
 - Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
@@ -123,7 +121,6 @@
 - Tests: test/unit/server/adminReports.test.ts, test/unit/web/adminReports.test.ts.
 
 ## Lessons (slice 6b)
-- Worktree guard refuses `cat >> file <<EOF` plus other commands and python with `git`/many quotes; write .py to the scratchpad and run it alone.
 - Dialog actions close in a microtask (focus asserts need `until`). First admin call after `setupWorld` reads `members.json` (cold `gm:*`).
 - Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
