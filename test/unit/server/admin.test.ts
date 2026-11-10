@@ -587,6 +587,57 @@ describe("trash", () => {
     });
   });
 
+  it("refuses an admin's restore, move, duplicate or create into another user's private folder (D11)", () => {
+    const anas = world
+      .ok<{ folders: Folder[] }>(ANA, "folder.list")
+      .folders.find((entry) => entry.kind === "private") as Folder;
+    const sales = folder("Sales");
+    const item = template(sales.id);
+    world.ok(OWNER, "template.delete", { id: item.id });
+    const into = { folderId: anas.id };
+    expect(
+      codeOf(OWNER, "template.restoreFromTrash", { id: item.id, ...into }),
+    ).toBe("VALIDATION");
+    world.ok(OWNER, "template.restoreFromTrash", { id: item.id });
+    expect(codeOf(OWNER, "template.move", { id: item.id, ...into })).toBe(
+      "VALIDATION",
+    );
+    expect(codeOf(OWNER, "template.duplicate", { id: item.id, ...into })).toBe(
+      "VALIDATION",
+    );
+    expect(
+      codeOf(OWNER, "template.create", { ...into, title: "X", html: "" }),
+    ).toBe("VALIDATION");
+    expect(
+      codeOf(OWNER, "template.update", {
+        id: item.id,
+        baseVersion: 1,
+        title: "T",
+        html: "",
+        ...into,
+      }),
+    ).toBe("VALIDATION");
+    expect(fileIndex().items.filter((i) => i.folderId === anas.id)).toEqual([]);
+  });
+
+  it("lets the owner and an admin keep a template inside the owner's private tree", () => {
+    const anas = world
+      .ok<{ folders: Folder[] }>(ANA, "folder.list")
+      .folders.find((entry) => entry.kind === "private") as Folder;
+    const own = world.ok<Item>(ANA, "template.create", {
+      folderId: anas.id,
+      title: "Mine",
+      html: "",
+    });
+    world.ok(ANA, "template.delete", { id: own.id });
+    expect(
+      world.ok<Item>(OWNER, "template.restoreFromTrash", { id: own.id }),
+    ).toMatchObject({ folderId: anas.id });
+    expect(
+      world.ok<Item>(OWNER, "template.duplicate", { id: own.id }).folderId,
+    ).toBe(anas.id);
+  });
+
   it("purges every trashed template now, with audit events by the admin", () => {
     const sales = folder("Sales");
     const kept = template(sales.id, "Kept");
