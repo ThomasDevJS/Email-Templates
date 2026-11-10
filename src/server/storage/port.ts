@@ -61,7 +61,10 @@ export interface StorePort {
   /** Copies `index.json`, `favorites.json` and `usage.json` to `backups/<dateKey>/`; skips copies already there. */
   copyToBackup(dateKey: string): void;
   listBackups(): NamedRef[];
-  /** The copies of one backup date, or null when the folder or one of its 3 files is missing. */
+  /**
+   * The copies of one backup date, or null when the folder is missing. A missing, unparsable or damaged copy
+   * throws VALIDATION naming the file.
+   */
   readBackup(dateKey: string): BackupDocs | null;
   /** Appends events to `audit/<month>.jsonl`, skipping IDs already in the file. Returns the number appended. */
   appendAudit(month: string, events: readonly AuditEvent[]): number;

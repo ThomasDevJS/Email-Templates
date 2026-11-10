@@ -6,6 +6,11 @@ import {
   type StoredIndex,
   type Unmigrated,
 } from "../../shared/model/data";
+import {
+  favoritesProblem,
+  indexProblem,
+  usageProblem,
+} from "../../shared/model/shape";
 import { appendUnique } from "../audit/lines";
 import {
   FOLDER_MIME,
@@ -73,12 +78,36 @@ const sized = (file: DriveFile): SizedRef => ({
   size: file.size,
 });
 
-function parseJson(text: string, what: string): unknown {
+function parseJson(
+  text: string,
+  what: string,
+  code: ErrorCode = ErrorCode.INTERNAL,
+): unknown {
   try {
     return JSON.parse(text);
   } catch {
-    throw new AppError(ErrorCode.INTERNAL, `${what} is not valid JSON`);
+    throw new AppError(code, `${what} is not valid JSON`);
   }
+}
+
+/** Shape check per stored file (src/shared/model/shape.ts); `members.json` is written by the job alone. */
+const PROBLEM: Readonly<Record<string, (doc: unknown) => string>> = {
+  [FILE_NAMES.index]: indexProblem,
+  [FILE_NAMES.favorites]: favoritesProblem,
+  [FILE_NAMES.usage]: usageProblem,
+};
+
+/** Parses a stored file and checks its shape; a damaged file throws `code` naming the file and the problem. */
+function readChecked(
+  text: string,
+  name: string,
+  code: ErrorCode = ErrorCode.INTERNAL,
+): unknown {
+  const doc = parseJson(text, name, code);
+  const problem = PROBLEM[name]?.(doc) ?? "";
+  if (problem !== "")
+    throw new AppError(code, `${name} is damaged: ${problem}`);
+  return doc;
 }
 
 export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
@@ -90,7 +119,10 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
   return {
     readIndex: () =>
       readIndexDoc(
-        parseJson(drive.readText(ids.indexId), "index.json") as StoredIndex,
+        readChecked(
+          drive.readText(ids.indexId),
+          FILE_NAMES.index,
+        ) as StoredIndex,
       ),
     readIndexRev: () =>
       Number(drive.getMeta(ids.indexId).appProperties["rev"] ?? "0"),
@@ -100,7 +132,10 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
       });
     },
     readSide: <K extends SideName>(name: K) =>
-      parseJson(drive.readText(sideId(ids, name)), name) as SideDocs[K],
+      readChecked(
+        drive.readText(sideId(ids, name)),
+        FILE_NAMES[name],
+      ) as SideDocs[K],
     writeSide: (name, doc) => {
       drive.updateFile(sideId(ids, name), JSON.stringify(doc));
     },
@@ -159,12 +194,25 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
       const files = new Map(
         drive.list(childQuery(folder.id)).map((f) => [f.name, f.id]),
       );
+      // Every copy is read and checked before the caller takes the lock; any problem names the file.
       const read = (name: string): unknown => {
         const id = files.get(name);
-        return id === undefined ? null : parseJson(drive.readText(id), name);
+        if (id === undefined)
+          throw new AppError(
+            ErrorCode.VALIDATION,
+            `This backup cannot be read: ${name} is missing`,
+          );
+        try {
+          return readChecked(drive.readText(id), name, ErrorCode.VALIDATION);
+        } catch (error: unknown) {
+          if (!(error instanceof AppError)) throw error;
+          throw new AppError(
+            ErrorCode.VALIDATION,
+            `This backup cannot be read: ${error.message}`,
+          );
+        }
       };
       const [index, favorites, usage] = BACKUP_NAMES.map(read);
-      if (index === null || favorites === null || usage === null) return null;
       return {
         index: readIndexDoc(index as StoredIndex),
         favorites,

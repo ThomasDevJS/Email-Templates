@@ -1,9 +1,14 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import { TRIGGER_JOBS, type TriggerJob } from "../../shared/entryPoints";
+import type { IndexDoc } from "../../shared/model/data";
 import { utf8Length } from "../../shared/text";
 import { auditEvent } from "../audit/events";
-import { INDEX_REV_KEY } from "../cache/indexCache";
-import { CACHED_SIDES, writeSideLocked } from "../cache/sideCache";
+import { INDEX_REV_KEY, loadIndexForWrite } from "../cache/indexCache";
+import {
+  CACHED_SIDES,
+  writeSideLocked,
+  type CachedSide,
+} from "../cache/sideCache";
 import { optString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { DOMAIN_KEY } from "../guards";
@@ -17,6 +22,7 @@ import { WRITE_LOCK_MS, withLock } from "../lock";
 import { ADMIN_GROUP_KEY, RESOLVER_KEY } from "../membership/snapshot";
 import { resolverId } from "../membership/resolver";
 import type { Services } from "../services";
+import type { BackupDocs, SideDocs } from "../storage/port";
 import { commitLocked } from "../storage/writer";
 
 /**
@@ -123,10 +129,69 @@ export function backupList(context: HandlerContext): { dates: string[] } {
 }
 
 /**
- * Restore from backup (admin, ADR-0002 Backup): the copies of `date` replace `index.json`, `favorites.json` and
- * `usage.json` under the script lock. The index takes `rev = current + 1` and keeps the current `pendingAudit`, so
- * no audit event is lost and the restore itself is one more. `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` and their
- * cache sets are published, so readers see the restored data at once. The admin check runs again inside the lock.
+ * Templates live in the backup but gone from the index now: emptied from the trash after the backup date, so their
+ * body files are trashed. Restoring them would list templates that do not open.
+ */
+function purgedSince(current: IndexDoc, backup: IndexDoc): number {
+  const known = new Set(current.items.map((item) => item.id));
+  return backup.items.filter(
+    (item) => item.deletedAt === "" && !known.has(item.id),
+  ).length;
+}
+
+/** The backup index without trashed templates that were purged since: their files are gone and they were due anyway. */
+function restorable(current: IndexDoc, backup: IndexDoc): IndexDoc {
+  const known = new Set(current.items.map((item) => item.id));
+  return {
+    ...backup,
+    items: backup.items.filter(
+      (item) => item.deletedAt === "" || known.has(item.id),
+    ),
+  };
+}
+
+function refusePurged(current: IndexDoc, backup: IndexDoc, date: string): void {
+  const lost = purgedSince(current, backup);
+  if (lost > 0)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      `${String(lost)} templates of the ${date} backup were emptied from the trash after that date and would not open. Pick a newer backup.`,
+    );
+}
+
+type Replaced = { name: CachedSide; doc: SideDocs[CachedSide] }[];
+
+/** Writes the backup copies of the side files; records each live copy in `replaced` before it writes, for an undo. */
+function writeSides(
+  services: Services,
+  backup: BackupDocs,
+  replaced: Replaced,
+): void {
+  for (const name of CACHED_SIDES) {
+    const live = services.store().readSide(name);
+    replaced.push({ name, doc: live });
+    const copy = backup[name];
+    writeSideLocked(services, name, {
+      ...copy,
+      rev: Math.max(live.rev, copy.rev) + 1,
+    });
+  }
+}
+
+/** Puts the replaced side files back with a new rev, so caches move forward. */
+function undoSides(services: Services, replaced: Readonly<Replaced>): void {
+  for (const { name, doc } of replaced) {
+    const now = services.store().readSide(name);
+    writeSideLocked(services, name, { ...doc, rev: now.rev + 1 });
+  }
+}
+
+/**
+ * Restore from backup (admin, ADR-0002 Backup). The 3 copies are read and shape-checked before the lock (a damaged
+ * copy answers VALIDATION naming the file). Under the lock: admin re-check, refusal when templates of the backup
+ * were emptied from the trash since, then `favorites.json` and `usage.json`, then `index.json` as the commit point
+ * (`rev = current + 1`, current `pendingAudit` kept, one `backup.restore` event). A failure before the index write
+ * puts the replaced side files back. Revs and cache sets are published, so readers see the restored data at once.
  */
 export function backupRestore(context: HandlerContext): {
   date: string;
@@ -141,29 +206,31 @@ export function backupRestore(context: HandlerContext): {
     throw new AppError(ErrorCode.NOT_FOUND, "This backup was removed.");
   const source = eventSource(context);
   return withLock(services.lock, WRITE_LOCK_MS, () => {
-    const rev = commitLocked(services, (current) => {
-      context.recheck(current);
-      const event = auditEvent(source, {
-        action: "backup.restore",
-        targetType: "library",
-        targetId: "",
-        before: { rev: current.rev, items: current.items.length },
-        after: { date, rev: current.rev + 1, items: backup.index.items.length },
+    const current = loadIndexForWrite(services);
+    context.recheck(current);
+    refusePurged(current, backup.index, date);
+    const replaced: Replaced = [];
+    try {
+      writeSides(services, backup, replaced);
+      const rev = commitLocked(services, (latest) => {
+        const restored = restorable(latest, backup.index);
+        const event = auditEvent(source, {
+          action: "backup.restore",
+          targetType: "library",
+          targetId: "",
+          before: { rev: latest.rev, items: latest.items.length },
+          after: { date, rev: latest.rev + 1, items: restored.items.length },
+        });
+        return {
+          doc: { ...restored, pendingAudit: latest.pendingAudit },
+          events: [event],
+          result: latest.rev + 1,
+        };
       });
-      return {
-        doc: { ...backup.index, pendingAudit: current.pendingAudit },
-        events: [event],
-        result: current.rev + 1,
-      };
-    });
-    for (const name of CACHED_SIDES) {
-      const live = services.store().readSide(name);
-      const copy = backup[name];
-      writeSideLocked(services, name, {
-        ...copy,
-        rev: Math.max(live.rev, copy.rev) + 1,
-      });
+      return { date, rev };
+    } catch (error: unknown) {
+      undoSides(services, replaced);
+      throw error;
     }
-    return { date, rev };
   });
 }

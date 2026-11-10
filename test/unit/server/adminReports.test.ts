@@ -33,6 +33,7 @@ import {
   IMPORT_MAX_BYTES,
 } from "../../../src/shared/model/validate";
 import type { Surface } from "../../../src/shared/log/logger";
+import { requireStoreIds } from "../../../src/server/storage/setupStore";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
@@ -791,6 +792,114 @@ describe("backups", () => {
       action: "backup.restore",
       targetId: "",
     });
+  });
+
+  /** The fake Drive files of the one backup folder, by name. */
+  function backupCopies(): Map<string, { content: string; trashed: boolean }> {
+    const folderId = world.services.store().listBackups()[0]?.id ?? "";
+    return new Map(
+      [...world.drive.files.values()]
+        .filter((file) => file.parents.includes(folderId))
+        .map((file) => [file.name, file]),
+    );
+  }
+
+  /** Text of the live `index.json`, `favorites.json` and `usage.json`. */
+  function liveFiles(): string[] {
+    const ids = requireStoreIds(world.props);
+    return [ids.indexId, ids.favoritesId, ids.usageId].map((id) =>
+      world.drive.text(id),
+    );
+  }
+
+  const today = () => new Date(world.clock.now).toISOString().slice(0, 10);
+
+  it.each([
+    [
+      "index.json",
+      '{"schemaVersion":1,"rev":3,"items":[]}',
+      "folders must be a list",
+    ],
+    ["favorites.json", "{}", "rev must be an integer"],
+    [
+      "usage.json",
+      '{"rev":2,"items":[],"recent":{}}',
+      "items must be a record",
+    ],
+    ["index.json", "{not json", "is not valid JSON"],
+  ])(
+    "refuses a damaged %s copy with VALIDATION and leaves the live files alone",
+    (name, content, problem) => {
+      const sales = folder("Sales");
+      const kept = template(sales.id, "Kept");
+      world.ok(OWNER, "favorite.set", { id: kept.id });
+      runDaily(world.services);
+      const copy = backupCopies().get(name);
+      if (copy === undefined) throw new Error(`no copy ${name}`);
+      copy.content = content;
+      const live = liveFiles();
+      const response = world.call(OWNER, "backup.restore", { date: today() });
+      expect(response).toMatchObject({
+        ok: false,
+        error: { code: "VALIDATION" },
+      });
+      const message = response.ok ? "" : response.error.message;
+      expect(message).toContain(`This backup cannot be read: ${name}`);
+      expect(message).toContain(problem);
+      expect(liveFiles()).toEqual(live);
+      expect(codeOf(OWNER, "template.list")).toBe("ok");
+      expect(codeOf(OWNER, "sidebar.home", {}, "addon")).toBe("ok");
+    },
+  );
+
+  it("refuses a backup with a missing copy, naming the file", () => {
+    runDaily(world.services);
+    const copy = backupCopies().get("favorites.json");
+    if (copy !== undefined) copy.trashed = true;
+    expect(errorOf(OWNER, "backup.restore", { date: today() })).toBe(
+      "This backup cannot be read: favorites.json is missing",
+    );
+  });
+
+  it("puts the side files back when the index write fails after them", () => {
+    const sales = folder("Sales");
+    const kept = template(sales.id, "Kept");
+    runDaily(world.services);
+    world.ok(OWNER, "favorite.set", { id: kept.id });
+    const favoritesBefore = world.services.store().readSide("favorites");
+    const indexBefore = fileIndex();
+    const update = world.drive.Files.update.bind(world.drive.Files);
+    let updates = 0;
+    world.drive.Files.update = ((...args: Parameters<typeof update>) => {
+      updates += 1;
+      if (updates === 3) throw new Error("Drive update failed");
+      return update(...args);
+    }) as typeof update;
+    expect(codeOf(OWNER, "backup.restore", { date: today() })).toBe("INTERNAL");
+    world.drive.Files.update = update;
+    expect(world.services.store().readSide("favorites").byUser).toEqual(
+      favoritesBefore.byUser,
+    );
+    expect(fileIndex()).toEqual(indexBefore);
+    expect(
+      world.ok<{ favorites: string[] }>(OWNER, "template.list").favorites,
+    ).toEqual([kept.id]);
+  });
+
+  it("refuses a backup whose live templates were emptied from the trash since, and drops purged trash", () => {
+    const sales = folder("Sales");
+    const live = template(sales.id, "Live then purged");
+    const trashed = template(sales.id, "Trashed then purged");
+    world.ok(OWNER, "template.delete", { id: trashed.id });
+    runDaily(world.services);
+    world.ok(OWNER, "trash.purge");
+    expect(errorOf(OWNER, "backup.restore", { date: today() })).toBe("ok");
+    expect(fileIndex().items.map((i) => i.id)).toEqual([live.id]);
+    world.ok(OWNER, "template.delete", { id: live.id });
+    world.ok(OWNER, "trash.purge");
+    expect(errorOf(OWNER, "backup.restore", { date: today() })).toBe(
+      `1 templates of the ${today()} backup were emptied from the trash after that date and would not open. Pick a newer backup.`,
+    );
   });
 
   it("refuses a malformed or missing date", () => {
