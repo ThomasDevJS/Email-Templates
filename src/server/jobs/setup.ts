@@ -5,6 +5,7 @@ import { resolverId } from "../membership/resolver";
 import { nowIso, type Services } from "../services";
 import { ensureStore } from "../storage/setupStore";
 import { rebuildIndexLocked } from "../cache/indexCache";
+import { CACHED_SIDES, publishSide } from "../cache/sideCache";
 import { WRITE_LOCK_MS, withLock } from "../lock";
 import { installAndRecord } from "./triggers";
 
@@ -16,7 +17,8 @@ export interface SetupResult {
 
 /**
  * Once per environment, from the editor (spec section 16). Records the owner and domain, seeds `ADMIN_EMAILS`
- * with the owner when unset, creates the data folder and files idempotently, publishes the index cache, installs the 3 triggers.
+ * with the owner when unset, creates the data folder and files idempotently, publishes the index, favorites and
+ * usage caches, installs the 3 triggers.
  */
 export function runSetup(services: Services): SetupResult {
   const owner = services.session.effectiveEmail().trim().toLowerCase();
@@ -32,8 +34,12 @@ export function runSetup(services: Services): SetupResult {
     nowIso(services),
     resolver,
   );
-  // Publishes INDEX_REV from the file under the lock; readers never set it.
-  withLock(services.lock, WRITE_LOCK_MS, () => rebuildIndexLocked(services));
+  // Publishes INDEX_REV, FAVORITES_REV and USAGE_REV from the files under the lock; readers never set them.
+  withLock(services.lock, WRITE_LOCK_MS, () => {
+    rebuildIndexLocked(services);
+    for (const name of CACHED_SIDES)
+      publishSide(services, name, services.store().readSide(name));
+  });
   installAndRecord(services);
   return {
     domain,

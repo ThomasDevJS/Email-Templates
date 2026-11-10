@@ -13,7 +13,16 @@ import {
 } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
-import { cacheBody, prepareFor, readStoredBody, readableBody } from "./body";
+import { parseQuery, rank } from "../../shared/search/match";
+import {
+  bodyTexts,
+  cacheBody,
+  cacheText,
+  prepareFor,
+  readStoredBody,
+  readableBody,
+} from "./body";
+import { callerLists, callerRecent, type CallerLists } from "./favorites";
 import { commit } from "./commit";
 import {
   findItem,
@@ -53,25 +62,76 @@ export function templateEvent(
   });
 }
 
-/** Live templates in folders where the caller holds `use`; with `trash: true`, deleted ones where the caller holds `edit`. */
-export function templateList(context: HandlerContext): {
-  items: ItemView[];
-  rev: number;
-} {
-  const trash = optBool(context.args, "trash");
-  const folderId = optString(context.args, "folderId");
+/** Live templates in folders where the caller holds `use`; with `trash`, deleted ones where the caller holds `edit`. */
+function listed(
+  context: HandlerContext,
+  trash: boolean,
+  folderId: string,
+): ItemView[] {
   const { index, levelOf } = context.access();
   const live = new Set(
     index.folders.filter((f) => f.deletedAt === "").map((f) => f.id),
   );
   const need: AccessLevel = trash ? "edit" : "use";
-  const items = index.items
+  return index.items
     .filter((item) => (item.deletedAt !== "") === trash)
     .filter((item) => live.has(item.folderId))
     .filter((item) => folderId === "" || item.folderId === folderId)
     .map((item) => ({ ...item, level: levelOf(item.folderId) }))
     .filter((item) => atLeast(item.level, need));
-  return { items, rev: index.rev };
+}
+
+/**
+ * The library list (`trash: true` for the trash) with the caller's Favorites and Recent among the listed items
+ * (web app star, filter and "last used" sort, spec 4.4).
+ */
+export function templateList(context: HandlerContext): {
+  items: ItemView[];
+  rev: number;
+} & CallerLists {
+  const items = listed(
+    context,
+    optBool(context.args, "trash"),
+    optString(context.args, "folderId"),
+  );
+  const lists = callerLists(
+    context.services,
+    context.caller.email,
+    new Set(items.map((item) => item.id)),
+  );
+  return { items, rev: context.access().index.rev, ...lists };
+}
+
+/**
+ * Body text matches for the web app (spec 4.4): IDs of live templates the caller can use whose body text matches
+ * every query term, best first. `skipped` counts templates whose text was neither cached nor read in this call.
+ */
+export function searchBody(context: HandlerContext): {
+  ids: string[];
+  skipped: number;
+} {
+  const query = parseQuery(optString(context.args, "query"));
+  if (query.terms.length === 0) return { ids: [], skipped: 0 };
+  const items = listed(context, false, "");
+  const { texts, skipped } = bodyTexts(context.services, items);
+  const recent = callerRecent(
+    context.services,
+    context.caller.email,
+    new Set(items.map((item) => item.id)),
+  );
+  const found = rank(
+    items.filter((item) => texts.has(item.bodyFileId)),
+    { ...query, folders: [], tags: [] },
+    (item) => ({
+      title: "",
+      subject: "",
+      tags: [],
+      folder: "",
+      body: texts.get(item.bodyFileId) ?? "",
+    }),
+    recent,
+  );
+  return { ids: found.map((item) => item.id), skipped };
 }
 
 /** Item (with its subject) and body for the editor. The body is sanitized again on read, like `template.getBody`. */
@@ -157,6 +217,7 @@ export function writeBody(
   };
   const fileId = context.services.store().createBody(body);
   cacheBody(context.services, fileId, prepared.html);
+  cacheText(context.services, fileId, prepared.plainText);
   return { version, fileId, sha256 };
 }
 
