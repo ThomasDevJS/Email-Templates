@@ -1,6 +1,8 @@
 # Review: slice 4b (smoke defects and performance)
 
-Verdict: FAIL. One blocker: the server does not enforce the request ID format on client-supplied IDs (review item f, AC 4). All 8 commands pass. The rest is accepted, with 5 minors.
+Final verdict: PASS (retry 1, head 20bd55a). Gaps 1 to 4 fixed; see "Retry 1" at the end. First review below.
+
+First review verdict (78a3d34): FAIL. One blocker: the server does not enforce the request ID format on client-supplied IDs (review item f, AC 4). All 8 commands pass. The rest is accepted, with 5 minors.
 
 Reviewed: `git diff 43f10de..slice/04b-smoke-fixes -- . ':!docs/handoffs' ':!PLAN.md'`, 45 files, +1679 / -236. Head 714adf0. Includes hotfix 9bbd262.
 
@@ -62,3 +64,35 @@ Probes ran in a scratch copy (`git archive HEAD`), deleted afterwards. No file u
 ## To pass
 
 Fix blocker 1 with tests. Minors 2 and 3 are one-line fixes and a deploy.md step; fix them in the same retry or record them in PLAN.
+
+## Retry 1
+
+Verdict: PASS. Diff `78a3d34..slice/04b-smoke-fixes`: d8d25a6, 2e72af4, c59624c, 20bd55a; 18 files, +287 / -82.
+
+1. Gap 1, fixed. `REQUEST_ID_PATTERN` `^[0-9A-Z]{8}-[0-9A-Z]{6}$` and `isRequestId` sit in src/shared/requestId.ts next to the generator. `handleRpc` (src/server/dispatch/handle.ts) checks the ID for both surfaces before parsing, and `rpc` no longer has its own pattern. Probe, both surfaces, the 5,000-character ID with a newline: the reply is VALIDATION "Request ID must have the format XXXXXXXX-XXXXXX" and does not echo the ID. The log line is 884 characters long, carries a server-made ID (e.g. `MWARO9CA-YG9VT8`) and none of the client text. `action` is logged only for ops in the policy table (`hasOwnProperty`): an unknown op of 3,000 characters with a newline logs `"action":""`, errorCode UNKNOWN_OP; `__proto__` logs "". The UNKNOWN_OP reply message still quotes the op back to the same caller; it never reaches the log (pre-existing, accepted).
+2. Gap 2, fixed. `ensureTriggers(services, live)` re-checks `TRIGGERS_VERSION` from live Script Properties inside the lock (src/server/jobs/triggers.ts); `maintain` passes `PropertiesService.getScriptProperties()`. Implementer test: 2 stale executions, 1 reinstall.
+3. Gap 3, fixed. `runTick` ends with `ensureTriggers` on live properties (trigger surface). Probe: version set to "0", tick 1 reinstalls (3 triggers: tick, refreshMembers, daily), ticks 2 and 3 do nothing, count stays 3. No loop: the reinstall records `TRIGGERS_VERSION` and the next check is not stale. Failure probe: `newTrigger` throws after the delete step. Result: 0 triggers, `TRIGGERS_VERSION` stays stale, lock released, the error propagates. `runJob` then writes the tick `lastError` health key and Apps Script mails the owner; the next web app page load reinstalls. Residual (minor 7, below): with 0 triggers no tick retries until that page load; the delete-then-create order in `installTriggers` predates this slice.
+4. Gap 4, fixed. `loadIndex` never sets `INDEX_REV`; it puts chunks only when the file `rev` equals the published one. `runSetup` publishes under the lock. Dependents checked: after setup `INDEX_REV` = 1; chunk eviction leaves `INDEX_REV` set, so the next reader re-puts the chunks; with `INDEX_REV` deleted, readers serve Drive (`cache: "miss"`) until `tick` `upkeepIndex` rebuilds it (probe: 1 after tick, next reader `hit`). `tick` already rebuilt when `INDEX_REV` lagged the file, so environments set up before this change recover within 5 min.
+
+Old-code checks from the retry handoff cover defects 4 (2 failing), 5 (7) and 6 (14). Not re-run here.
+
+### Open minors after retry 1
+
+- 5 and 6 from the first review stay accepted.
+- 7. A failed trigger reinstall can leave fewer than 3 triggers until a web app page load (`installTriggers` deletes first). Health and the failure mail make it visible. Proposal: create the new set before deleting the old one, or record a health entry the admin Config tab flags.
+- 8. docs/ops/deploy.md and spec 16 still say "first web app request"; the trigger check now runs in `doGet` and `tick`. Spec edit is for the architect.
+
+### Commands (retry 1, clean install, 2026-11-10)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0, added 559 packages, audited 560; 16 advisories (14 moderate, 2 high), dev tree |
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run format:check` | exit 0, "All matched files use Prettier code style!" |
+| `npm run test:coverage` | exit 0, Test Files 42 passed (42), Tests 891 passed (891). All files: statements 95.28, branches 88.68, functions 93.9, lines 96.27. Lines: addon 100, server 99.31, shared 100, web 95.12 |
+| `npm run build -- --env dev` | exit 0, Code.js 266.5 KB of 800 KB, index.html 278.2 KB of 400 KB |
+| `npm run scopes:check` | exit 0, "Scope check passed: 10 scopes, all approved." |
+| `npm run lighthouse` | exit 0, accessibility library 100, editor 100, history 100 |
+
+Secret scan of `78a3d34..slice/04b-smoke-fixes`: 0 hits, 0 email addresses, 0 URLs added. No change to appsscript.json, scripts/, package.json or package-lock.json. No new `UrlFetchApp` or `fetch`. Probes ran in a scratch copy, deleted afterwards.

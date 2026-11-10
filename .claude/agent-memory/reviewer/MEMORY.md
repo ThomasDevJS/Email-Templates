@@ -36,7 +36,8 @@
   - Accepted: unset DOMAIN -> NOT_CONFIGURED; sidebar hides others' private folders from admins (server filter, library still shows); apply event buffered at prompt card open (spec 4.1 step 3).
   - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Spike S4 harness TEMPORARY (spike.s4, onSpikeCard, onSpikeInsert, src/shared/spike).
 
-- Slice 4b (2026-11-10): FAIL (review on 714adf0). 42 files, 879 tests, lines 96.27% (addon 100, server 99.31, shared 100, web 95.12), Code.js 265.8 KB, index.html 278.2 KB, 10 scopes, Lighthouse 100x3.
+- Slice 4b (2026-11-10): FAIL (78a3d34), retry 1 PASS (20bd55a, 891 tests, Code.js 266.5 KB). Retry: shared REQUEST_ID_PATTERN enforced in handleRpc (VALIDATION, server ID logged), action logged only for policy ops, ensureTriggers live re-check, tick runs ensureTriggers, readers never set INDEX_REV (setup publishes). Open: failed reinstall can leave <3 triggers (delete-first); spec 16 wording.
+  First review (714adf0): 42 files, 879 tests, lines 96.27% (addon 100, server 99.31, shared 100, web 95.12), Code.js 265.8 KB, index.html 278.2 KB, 10 scopes, Lighthouse 100x3.
   - Blocker: client requestId not format-checked on server. doPost logs any non-empty string (handle.ts:107, protocol.ts:69); rpc accepts [A-Za-z0-9-]{8,64} (entry.ts:123). Fix: shared XXXXXXXX-XXXXXX pattern, replace non-matching IDs on both surfaces.
   - Minors: snapshotProps breaks ensureTriggers double-check (reinstalls twice); maintain only in doGet, deploy.md lacks "open /exec after deploy"; loadIndex sets INDEX_REV when unset from pre-read snapshot (race before first tick); bd:* shares Script Cache capacity; admin can duplicate others' private templates (D11).
   - Accepted: 9bbd262 bundle as JSON literal + (0, eval) (fuzzed 191k strings, round-trips); lock-free loadIndex; body cache bd:<bodyFileId> behind dispatch; requestTiming bounds 0..600000 ints.
@@ -47,7 +48,7 @@
 - Slice 5: Recent counts cancelled prompt cards; search/favorites into homeSections; remove spike S4 harness after owner runs.
 - Import (slice 6) must call prepareBody.
 - Code.js parse cost unmeasured; slice 4b logs startupMs/totalMs, compare with execution duration.
-- 4b retry: request ID pattern enforced in handleRpc for both surfaces; `action` logged raw (pre-existing).
+- Slice 5: UNKNOWN_OP reply quotes the op back to the caller (not logged). Spec 11 lacks calls/timing fields.
 
 ## Recurring lessons
 - Server props are a per-request snapshot since 4b (runtime.ts snapshotProps, triggers live). Any read-check-write across executions under a lock must read live.
