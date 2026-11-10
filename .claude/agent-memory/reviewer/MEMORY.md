@@ -49,12 +49,18 @@
   - Minors: spec 4.4 snippet wording; subject-only prompts asked with switch off; 2 Drive reads per home until first tick on pre-5 data; crash between writeSide and setProperty serves stale set; Q21 threadId boolean not in smoke step 1; spec 6 status line and 5.6 property list stale.
   - Spike S5 unverified (owner smoke Slice 5 step 1).
 
+- Slice 5b (2026-11-10): PASS (c50c953). 46 files, 983 tests, lines 96.41 (addon 100, server 99.31, shared 100, web 95.52), Code.js 279.8 KB, index.html 284.9 KB, 10 scopes, Lighthouse 100x3. New tests on old src: 38 fail.
+  - Q21: DRAFT_FIELDS/requestDraft in shared/model/protocol.ts (null -> VALIDATION, not logged), draftInfo/isReplyDraft in addon/event.ts, replacesSubject in cards/spec.ts, "Insert with subject" = subject "use".
+  - Owner label: folderLabel in server/handlers/folders.ts (folder.list only; sidebar filters others' privates).
+  - Minors: smoke 5b step 9 needs 2 versions; admin folder.rename stores labelled name (no UI yet); stale search.body error toasts; "Searching text..." not announced; spec 5.6/11 and wireframe 02 lack reply rule and `draft` field.
+
 ## Check in slice 6
 - Import must call prepareBody with subject; export must carry subject; import replaces line breaks and reports count (spec 5.6).
 - Q23 trigger reinstall order (create first, then delete). Trash view and template.restoreFromTrash.
 - Admin can duplicate others' private templates (D11, open since 4b).
 - UNKNOWN_OP reply quotes the op back (not logged). Spec 11 lacks calls/timing fields.
-- If S5 failed: Q20 fallback "Set subject" button; recheck one-response builder.
+- Smoke 5b step 5 result: reply rule (threadId/messageId) confirmed or replaced.
+- Admin UI rename must start from the stored name, not folder.list `name`.
 
 ## Recurring lessons
 - Probe files: never use Python splitlines() on files with U+2028; it splits there. Use split("\n").
