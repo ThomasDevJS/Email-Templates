@@ -1,8 +1,8 @@
 import { h, uid } from "./dom";
 
 /**
- * Modal dialog (spec section 8): `role="dialog"`, `aria-modal`, focus trapped inside, Esc closes, focus returns
- * to the element that had it when the dialog opened.
+ * Modal dialog (spec section 8): `role="dialog"`, `aria-modal`, the page behind inert, focus trapped inside, Esc
+ * closes, focus returns to the element that had it when the dialog opened.
  */
 export interface DialogAction {
   readonly label: string;
@@ -56,6 +56,26 @@ export function trapTab(root: HTMLElement, event: KeyboardEvent): void {
   }
 }
 
+/** Makes `element` inert and hidden from assistive technology, or undoes it (dialogs and the narrow-screen panel). */
+export function setInert(element: Element, inert: boolean): void {
+  element.toggleAttribute("inert", inert);
+  // `aria-hidden` for browsers without `inert`.
+  if (inert) element.setAttribute("aria-hidden", "true");
+  else element.removeAttribute("aria-hidden");
+}
+
+/** Makes every body child but `keep` and the toasts inert; returns the undo. Already inert ones stay so. */
+function inertBehind(keep: Element): () => void {
+  const behind = [...document.body.children].filter(
+    (child) =>
+      child !== keep && child.id !== "toasts" && !child.hasAttribute("inert"),
+  );
+  for (const child of behind) setInert(child, true);
+  return () => {
+    for (const child of behind) setInert(child, false);
+  };
+}
+
 export function openDialog(options: DialogOptions): OpenDialog {
   const opener = document.activeElement as HTMLElement | null;
   const titleId = uid("dialog-title");
@@ -93,10 +113,13 @@ export function openDialog(options: DialogOptions): OpenDialog {
     h("div", { class: "dialog-actions" }, ...buttons),
   );
   const backdrop = h("div", { class: "backdrop" }, panel);
+  let restore: () => void = () => undefined;
   const close = () => {
     if (closed) return;
     closed = true;
     backdrop.remove();
+    // Inert elements take no focus, so the page wakes up before the opener gets it back.
+    restore();
     (options.returnFocus ?? opener)?.focus();
   };
   const cancel = () => {
@@ -115,6 +138,7 @@ export function openDialog(options: DialogOptions): OpenDialog {
     }
   });
   document.body.append(backdrop);
+  restore = inertBehind(backdrop);
   const initial = buttons[options.actions.findIndex((a) => a.autofocus)];
   (initial ?? focusables(panel)[0] ?? panel).focus();
   return { element: panel, close };
