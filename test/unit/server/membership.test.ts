@@ -233,7 +233,7 @@ describe("refresh job and admin determination", () => {
           principalKey: "sales@example.com",
           level: "use",
         },
-        requestId: "r-1",
+        requestId: "TESTREQ0-000001",
         clientVersion: "t",
       },
       "webapp",

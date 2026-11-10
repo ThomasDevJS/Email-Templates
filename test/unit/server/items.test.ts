@@ -184,7 +184,7 @@ describe("template create, get, update (save sequence)", () => {
       {
         op: "template.update",
         args: { id: item.id, baseVersion: 1, title: "T", html: "" },
-        requestId: "r",
+        requestId: "TESTREQ0-000001",
         clientVersion: "t",
       },
       "webapp",
@@ -490,5 +490,149 @@ describe("template list, move, delete, restore", () => {
         folderId: b.id,
       }).folderId,
     ).toBe(b.id);
+  });
+});
+
+describe("template.duplicate (level edit on source and target)", () => {
+  it("copies title, tags and body into a new template at version 1 with an audit event", () => {
+    const folder = sharedFolder();
+    grant(folder.id, ANA, "edit");
+    const item = create(OWNER, folder.id, "<p>Hi {{ask:Product}}</p>");
+    const copy = world.ok<Item>(ANA, "template.duplicate", { id: item.id });
+    expect(copy).toMatchObject({
+      folderId: folder.id,
+      title: "Copy of Welcome",
+      tags: ["intro"],
+      version: 1,
+      currentVersion: 1,
+      prompts: ["Product"],
+      createdBy: ANA,
+    });
+    expect(copy.id).not.toBe(item.id);
+    expect(copy.bodyFileId).not.toBe(item.bodyFileId);
+    expect(world.services.store().readBody(copy.bodyFileId).html).toBe(
+      "<p>Hi {{ask:Product}}</p>",
+    );
+    expect(fileIndex().pendingAudit.at(-1)).toMatchObject({
+      action: "template.duplicate",
+      actor: ANA,
+      targetId: copy.id,
+      targetPath: "/Sales",
+    });
+  });
+
+  it("copies into another folder only with edit there, and never a deleted template", () => {
+    const a = sharedFolder("A");
+    const b = sharedFolder("B");
+    grant(a.id, ANA, "edit");
+    grant(b.id, ANA, "use");
+    const item = create(OWNER, a.id);
+    expect(
+      errorOf(ANA, "template.duplicate", { id: item.id, folderId: b.id }).code,
+    ).toBe("DENIED");
+    grant(b.id, ANA, "edit");
+    expect(
+      world.ok<Item>(ANA, "template.duplicate", { id: item.id, folderId: b.id })
+        .folderId,
+    ).toBe(b.id);
+    world.ok(OWNER, "template.delete", { id: item.id });
+    expect(errorOf(ANA, "template.duplicate", { id: item.id }).code).toBe(
+      "NOT_FOUND",
+    );
+  });
+
+  it("cuts long titles to 120 characters", () => {
+    const folder = sharedFolder();
+    const item = world.ok<Item>(OWNER, "template.create", {
+      folderId: folder.id,
+      title: "x".repeat(120),
+      html: "<p>a</p>",
+    });
+    expect(
+      world.ok<Item>(OWNER, "template.duplicate", { id: item.id }).title,
+    ).toHaveLength(120);
+  });
+});
+
+describe("row actions by role (ADR-0003 role matrix, default deny)", () => {
+  const cases: [string, string | null, boolean][] = [
+    ["no grant", null, false],
+    ["use", "use", false],
+    ["edit", "edit", true],
+    ["manage", "manage", true],
+  ];
+  it.each(cases)(
+    "duplicate, move and delete with %s: allowed %s",
+    (_name, level, allowed) => {
+      const a = sharedFolder("A");
+      const b = sharedFolder("B");
+      if (level !== null) {
+        grant(a.id, ANA, level);
+        grant(b.id, ANA, level);
+      }
+      const ops: [string, Record<string, unknown>][] = [
+        ["template.duplicate", { id: create(OWNER, a.id).id }],
+        ["template.move", { id: create(OWNER, a.id).id, folderId: b.id }],
+        ["template.delete", { id: create(OWNER, a.id).id }],
+      ];
+      for (const [op, args] of ops) {
+        const response = world.call(ANA, op, args);
+        expect(response.ok, op).toBe(allowed);
+        if (!response.ok) expect(response.error.code).toBe("DENIED");
+      }
+    },
+  );
+
+  it("lets an admin act anywhere and refuses the add-on surface", () => {
+    const a = sharedFolder("A");
+    const b = sharedFolder("B");
+    const item = create(OWNER, a.id);
+    expect(
+      world.ok<Item>(OWNER, "template.duplicate", { id: item.id }).title,
+    ).toBe("Copy of Welcome");
+    expect(
+      world.ok<Item>(OWNER, "template.move", { id: item.id, folderId: b.id })
+        .folderId,
+    ).toBe(b.id);
+    for (const op of [
+      "template.duplicate",
+      "template.move",
+      "template.delete",
+    ]) {
+      const response = world.call(
+        OWNER,
+        op,
+        { id: item.id, folderId: a.id },
+        "addon",
+      );
+      expect(response.ok ? "" : response.error.code, op).toBe("DENIED");
+    }
+  });
+});
+
+describe("body cache (Script Cache bd:<bodyFileId>)", () => {
+  it("serves template.get from the cache the save filled, and refills it from Drive", () => {
+    const folder = sharedFolder();
+    const item = create(OWNER, folder.id, "<p>cached</p>");
+    world.drive.calls.length = 0;
+    expect(
+      world.ok<{ html: string }>(OWNER, "template.get", { id: item.id }).html,
+    ).toBe("<p>cached</p>");
+    expect(world.drive.calls).toEqual([]);
+    world.cache.remove(`bd:${item.bodyFileId}`);
+    expect(
+      world.ok<{ html: string }>(OWNER, "template.get", { id: item.id }).html,
+    ).toBe("<p>cached</p>");
+    expect(world.cache.get(`bd:${item.bodyFileId}`)).toBe("<p>cached</p>");
+  });
+
+  it("does not cache bodies over 90 KB", () => {
+    const folder = sharedFolder();
+    const html = `<p>${"a".repeat(95 * 1024)}</p>`;
+    const item = create(OWNER, folder.id, html);
+    expect(world.cache.get(`bd:${item.bodyFileId}`)).toBeNull();
+    expect(
+      world.ok<{ html: string }>(OWNER, "template.get", { id: item.id }).html,
+    ).toBe(html);
   });
 });

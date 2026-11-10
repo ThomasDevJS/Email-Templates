@@ -1,9 +1,15 @@
 import type { TriggerJob } from "../../shared/entryPoints";
-import type { Services, TimeTriggerBuilder, TriggerApp } from "../services";
+import type {
+  PropertyStore,
+  Services,
+  TimeTriggerBuilder,
+  TriggerApp,
+} from "../services";
 
 /**
- * Time-driven triggers (spec section 16). `setup` installs them; the first web app request after a deploy
- * reinstalls them when Script Property `TRIGGERS_VERSION` differs from this constant. Bump it when the set changes.
+ * Time-driven triggers (spec section 16). `setup` installs them; the first web app page load or the next `tick`
+ * after a deploy reinstalls them when Script Property `TRIGGERS_VERSION` differs from this constant. Bump it when
+ * the set changes.
  */
 export const TRIGGERS_VERSION = "1";
 export const TRIGGERS_VERSION_KEY = "TRIGGERS_VERSION";
@@ -32,16 +38,22 @@ export function installAndRecord(
   services.props.setProperty(TRIGGERS_VERSION_KEY, TRIGGERS_VERSION);
 }
 
-/** Reinstalls under the script lock when the stored version is stale. Returns true when it reinstalled. */
+/**
+ * Reinstalls under the script lock when the stored version is stale. Returns true when it reinstalled. The check
+ * inside the lock reads `live` (Script Properties read now): a request's once-per-execution copy would miss the
+ * reinstall another execution just recorded.
+ */
 export function ensureTriggers(
   services: Pick<Services, "triggers" | "props" | "lock">,
+  live: PropertyStore = services.props,
 ): boolean {
-  const stale = () =>
-    services.props.getProperty(TRIGGERS_VERSION_KEY) !== TRIGGERS_VERSION;
-  if (!stale() || !services.lock.tryLock(REINSTALL_LOCK_MS)) return false;
+  const stale = (props: PropertyStore) =>
+    props.getProperty(TRIGGERS_VERSION_KEY) !== TRIGGERS_VERSION;
+  if (!stale(services.props) || !services.lock.tryLock(REINSTALL_LOCK_MS))
+    return false;
   try {
-    if (!stale()) return false;
-    installAndRecord(services);
+    if (!stale(live)) return false;
+    installAndRecord({ triggers: services.triggers, props: live });
     return true;
   } finally {
     services.lock.releaseLock();

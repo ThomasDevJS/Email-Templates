@@ -7,6 +7,7 @@
 import { APP_VERSION } from "../shared/buildInfo";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { RpcResponse } from "../shared/model/protocol";
+import { requestIdNow } from "../shared/requestId";
 import { loadIndex } from "./cache/indexCache";
 import { handleRpc } from "./dispatch/handle";
 import {
@@ -29,11 +30,14 @@ import type { Services } from "./services";
 
 const APP_TITLE = "Migway Templates";
 
-/** First web app request after a deploy reinstalls triggers when `TRIGGERS_VERSION` changed (spec section 16). */
+/**
+ * The first web app page load after a deploy reinstalls triggers when `TRIGGERS_VERSION` changed (spec section 16).
+ * `doGet` and `tick` run it; ops (`rpc`, `doPost`) skip the check and its property reads.
+ */
 function maintain(services: Services): void {
   if ((services.props.getProperty(OWNER_EMAIL_KEY) ?? "") === "") return;
   try {
-    ensureTriggers(services);
+    ensureTriggers(services, PropertiesService.getScriptProperties());
   } catch (error: unknown) {
     services.logger.error({
       surface: services.stats.surface,
@@ -58,10 +62,12 @@ function identified(email: string, services: Services): boolean {
 export function doGet(): GoogleAppsScript.HTML.HtmlOutput {
   const services = createServices("webapp");
   const caller = currentCaller();
+  const requestId = requestIdNow();
   if (!identified(caller.email, services)) {
     services.logger.warn({
       surface: "webapp",
       action: "web.open",
+      requestId,
       result: "denied",
       actor: caller.email,
       errorCode:
@@ -77,6 +83,7 @@ export function doGet(): GoogleAppsScript.HTML.HtmlOutput {
   services.logger.info({
     surface: "webapp",
     action: "web.open",
+    requestId,
     result: "ok",
     actor: caller.email,
   });
@@ -104,7 +111,6 @@ export function doPost(
   event: GoogleAppsScript.Events.DoPost,
 ): GoogleAppsScript.Content.TextOutput {
   const services = createServices("addon");
-  maintain(services);
   const response = handleRpc(currentCaller(), parseJsonBody(event), "addon", {
     services,
   });
@@ -113,12 +119,9 @@ export function doPost(
   );
 }
 
-/** Client request IDs the server accepts for its log line; anything else gets a server UUID. */
-const CLIENT_REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
-
 /**
  * Web app `google.script.run.rpc(op, args, requestId)`. The web app sends its own request ID so the error toast
- * and the server log line show the same value; a missing or malformed ID is replaced by a UUID.
+ * and the server log line show the same value; `handleRpc` answers VALIDATION to a missing or malformed ID and logs a server ID instead.
  */
 export function rpc(
   op: unknown,
@@ -126,14 +129,10 @@ export function rpc(
   requestId?: unknown,
 ): RpcResponse {
   const services = createServices("webapp");
-  maintain(services);
   const request = {
     op,
     args,
-    requestId:
-      typeof requestId === "string" && CLIENT_REQUEST_ID.test(requestId)
-        ? requestId
-        : Utilities.getUuid(),
+    requestId,
     clientVersion: APP_VERSION,
   };
   return handleRpc(currentCaller(), request, "webapp", { services });

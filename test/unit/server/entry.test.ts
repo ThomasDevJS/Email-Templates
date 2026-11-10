@@ -13,6 +13,7 @@ import {
 } from "../../../src/server/entry";
 import { CALLBACKS } from "../../../src/addon/cards/spec";
 import { ENTRY_POINTS, TRIGGER_JOBS } from "../../../src/shared/entryPoints";
+import type { Folder, Item } from "../../../src/shared/model/data";
 import { DOMAIN_KEY, OWNER_EMAIL_KEY } from "../../../src/server/guards";
 import { lastErrorKey, lastOkKey } from "../../../src/server/jobs/health";
 import {
@@ -60,10 +61,17 @@ function post(body: string): Record<string, unknown> {
   ) as Record<string, unknown>;
 }
 
+const REQUEST_ID = "TESTREQ0-000001";
+
+/** `rpc` as the web app calls it, with a well-formed request ID. */
+function webRpc(op: string, args: unknown): unknown {
+  return rpc(op, args, REQUEST_ID);
+}
+
 const PING = JSON.stringify({
   op: "ping",
   args: {},
-  requestId: "r1",
+  requestId: "TESTREQ0-000001",
   clientVersion: "x",
 });
 
@@ -218,6 +226,7 @@ describe("web app and add-on entry points", () => {
       result: "ok",
       actor: USER,
     });
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });
 
   it.each([
@@ -228,6 +237,7 @@ describe("web app and add-on entry points", () => {
     const page = doGet() as unknown as FakeHtmlOutput;
     expect(page.title).toBe("Cannot identify your account");
     expect(lastLog()).toMatchObject({ result: "denied", errorCode: code });
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });
 
   it("reinstalls triggers on the first request after TRIGGERS_VERSION changed", () => {
@@ -239,8 +249,94 @@ describe("web app and add-on entry points", () => {
     );
     expect(world.scriptApp.triggers).toHaveLength(3);
     expect(world.scriptApp.triggers.map((t) => t.id)).not.toEqual(before);
-    rpc("ping", {});
+    webRpc("ping", {});
     expect(world.scriptApp.triggers).toHaveLength(3);
+  });
+
+  it("ops skip the trigger check and read Script Properties with one call", () => {
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    webRpc("template.list", {});
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+    expect(lastLog()).toMatchObject({
+      action: "template.list",
+      cache: "hit",
+      calls: { props: 1, lock: 0, dir: 0 },
+    });
+    post(PING);
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+  });
+
+  it("keeps warm reads to one property read, no Drive call and no lock but the apply buffer", () => {
+    asCaller(OWNER);
+    world.directory.users.set(OWNER, { name: { fullName: "Owner" } });
+    const folder = (webRpc("folder.create", { name: "S" }) as { data: Folder })
+      .data;
+    const item = (
+      webRpc("template.create", {
+        folderId: folder.id,
+        title: "T",
+        html: "<p>Hi</p>",
+      }) as { data: Item }
+    ).data;
+    const callsOf = (op: string, args: unknown) => {
+      post(
+        JSON.stringify({
+          op,
+          args,
+          requestId: "TESTREQ0-000001",
+          clientVersion: "x",
+        }),
+      );
+      return lastLog()["calls"];
+    };
+    expect(callsOf("sidebar.home", {})).toEqual({
+      props: 1,
+      cache: 4,
+      drive: 0,
+      lock: 0,
+      dir: 0,
+    });
+    expect(
+      callsOf("template.apply", { id: item.id, knownVersion: 0 }),
+    ).toMatchObject({ props: 1, drive: 0, lock: 1 });
+    expect(
+      callsOf("template.apply", { id: item.id, knownVersion: 1 }),
+    ).toMatchObject({ props: 1, drive: 0, lock: 1, dir: 0 });
+  });
+
+  it("logs startup, total and service phase times plus the add-on's valid timing fields", () => {
+    post(
+      JSON.stringify({
+        op: "ping",
+        args: {},
+        requestId: "MW9UU758-QWCE26",
+        clientVersion: "x",
+        timing: {
+          addonPreMs: 120,
+          addonTokenMs: 30,
+          prevFetchMs: -1,
+          prevTotalMs: 1.5,
+          note: 7,
+        },
+      }),
+    );
+    const timing = lastLog()["timing"] as Record<string, number>;
+    expect(Object.keys(timing).sort()).toEqual(
+      [
+        "addonPreMs",
+        "addonTokenMs",
+        "cacheMs",
+        "dirMs",
+        "driveReadMs",
+        "driveWriteMs",
+        "lockMs",
+        "propsMs",
+        "startupMs",
+        "totalMs",
+      ].sort(),
+    );
+    expect(timing).toMatchObject({ addonPreMs: 120, addonTokenMs: 30 });
+    expect(timing["totalMs"]).toBeGreaterThanOrEqual(timing["startupMs"] ?? 0);
   });
 
   it("doPost answers ping with the JSON envelope", () => {
@@ -251,7 +347,7 @@ describe("web app and add-on entry points", () => {
     expect(lastLog()).toMatchObject({
       surface: "addon",
       action: "ping",
-      requestId: "r1",
+      requestId: "TESTREQ0-000001",
     });
   });
 
@@ -276,27 +372,73 @@ describe("web app and add-on entry points", () => {
     expect(JSON.parse(output.content)).toMatchObject({ ok: false });
   });
 
-  it("rpc dispatches with a server-assigned request ID", () => {
-    expect(rpc("ping", {})).toMatchObject({ ok: true, data: { pong: true } });
-    expect(lastLog()).toMatchObject({ surface: "webapp", requestId: "uuid-1" });
-    expect(rpc(42, {})).toMatchObject({
+  it("rpc answers BAD_REQUEST to a malformed op", () => {
+    expect(rpc(42, {}, REQUEST_ID)).toMatchObject({
       ok: false,
       error: { code: "BAD_REQUEST" },
     });
+    expect(lastLog()).toMatchObject({ action: "", requestId: REQUEST_ID });
   });
 
   it("rpc logs the web app's request ID when it is well formed", () => {
-    rpc("ping", {}, "MW9UU758-QWCE26");
-    expect(lastLog()).toMatchObject({ requestId: "MW9UU758-QWCE26" });
-    rpc("ping", {}, "bad id <x>");
-    expect(lastLog()["requestId"]).not.toBe("bad id <x>");
-    rpc("ping", {}, 7);
-    expect(lastLog()["requestId"]).toMatch(/^uuid-/);
+    expect(rpc("ping", {}, "MW9UU758-QWCE26")).toMatchObject({ ok: true });
+    expect(lastLog()).toMatchObject({
+      surface: "webapp",
+      requestId: "MW9UU758-QWCE26",
+    });
+  });
+
+  const BAD_IDS: [string, unknown][] = [
+    ["long", `MW9UU758-QWCE26${"x".repeat(5000)}`],
+    ["newline", 'MW9UU758-QWCE26\n{"level":"error"}'],
+    ["UUID", "123e4567-e89b-12d3-a456-426614174000"],
+    ["empty", ""],
+    ["lower case", "mw9uu758-qwce26"],
+    ["missing", undefined],
+    ["number", 7],
+  ];
+
+  it.each(BAD_IDS)(
+    "answers VALIDATION to a %s request ID on both surfaces and logs a server ID",
+    (_name, id) => {
+      expect(rpc("ping", {}, id)).toMatchObject({
+        ok: false,
+        error: { code: "VALIDATION" },
+      });
+      const web = lastLog();
+      expect(web["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
+      expect(web["requestId"]).not.toBe(id);
+      expect(
+        post(
+          JSON.stringify({
+            op: "ping",
+            args: {},
+            requestId: id,
+            clientVersion: "x",
+          }),
+        ),
+      ).toMatchObject({ ok: false });
+      const addon = lines.at(-1) ?? "";
+      expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
+      if (typeof id === "string" && id !== "") expect(addon).not.toContain(id);
+    },
+  );
+
+  it("logs an unknown op as an empty action", () => {
+    post(
+      JSON.stringify({
+        op: "secret text",
+        args: {},
+        requestId: REQUEST_ID,
+        clientVersion: "x",
+      }),
+    );
+    expect(lastLog()).toMatchObject({ action: "", errorCode: "UNKNOWN_OP" });
   });
 
   it("rpc runs a full create through the real runtime services", () => {
     asCaller(OWNER);
-    const folder = rpc("folder.create", { name: "Sales" });
+    const folder = webRpc("folder.create", { name: "Sales" });
     expect(folder).toMatchObject({ ok: true, data: { name: "Sales" } });
     expect(world.drive.byName("index.json")[0]?.content).toContain(
       '"name":"Sales"',
@@ -305,10 +447,10 @@ describe("web app and add-on entry points", () => {
 
   it("hashes bodies with Utilities SHA-256 and reads profiles through AdminDirectory", () => {
     asCaller(OWNER);
-    const folder = rpc("folder.create", { name: "Sales" }) as {
+    const folder = webRpc("folder.create", { name: "Sales" }) as {
       data: { id: string };
     };
-    const item = rpc("template.create", {
+    const item = webRpc("template.create", {
       folderId: folder.data.id,
       title: "T",
       html: "<p>hi</p>",
@@ -322,7 +464,7 @@ describe("web app and add-on entry points", () => {
       createHash("sha256").update("<p>hi</p>").digest("hex"),
     );
     world.directory.users.set(OWNER, { name: { fullName: "Owner Name" } });
-    expect(rpc("profile.me", {})).toMatchObject({
+    expect(webRpc("profile.me", {})).toMatchObject({
       ok: true,
       data: { name: "Owner Name" },
     });
@@ -332,11 +474,11 @@ describe("web app and add-on entry points", () => {
     asCaller(OWNER);
     vi.stubGlobal("Drive", undefined);
     vi.stubGlobal("AdminDirectory", undefined);
-    expect(rpc("folder.list", {})).toMatchObject({
+    expect(webRpc("folder.list", {})).toMatchObject({
       ok: false,
       error: { code: "NOT_CONFIGURED" },
     });
-    expect(rpc("profile.me", {})).toMatchObject({
+    expect(webRpc("profile.me", {})).toMatchObject({
       ok: true,
       data: { name: "" },
     });
@@ -346,7 +488,7 @@ describe("web app and add-on entry points", () => {
     asCaller(OWNER);
     world.props.setProperty("DRIVE_CLIENT", "rest");
     world.fetchApp.respondWith(() => ({ status: 500, body: "" }));
-    expect(rpc("folder.list", {})).toMatchObject({
+    expect(webRpc("folder.list", {})).toMatchObject({
       ok: false,
       error: { code: "INTERNAL" },
     });

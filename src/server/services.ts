@@ -1,5 +1,6 @@
 import type { CacheStore } from "../shared/cache/store";
-import type { CacheState, Logger, Surface } from "../shared/log/logger";
+import type { Logger } from "../shared/log/logger";
+import type { RequestStats } from "./metrics";
 import type { DriveClient } from "./storage/driveClient";
 import type { StorePort } from "./storage/port";
 
@@ -54,12 +55,6 @@ export interface DirectoryUsers {
   get(userKey: string, options: object): unknown;
 }
 
-/** Per-request record of how the index was served, for the `cache` log field. */
-export interface RequestStats {
-  cache: CacheState;
-  readonly surface: Surface;
-}
-
 /** Everything server code touches outside pure logic. Built in runtime.ts from Apps Script globals, from fakes in tests. */
 export interface Services {
   readonly props: PropertyStore;
@@ -76,7 +71,10 @@ export interface Services {
   readonly directoryUsers: () => DirectoryUsers;
   readonly triggers: TriggerApp;
   readonly appVersion: string;
+  /** How the index was served, call counts and phase times, for the request log line. */
   readonly stats: RequestStats;
+  /** Clock value when the execution loaded the script; the log line's `startupMs` and `totalMs` count from it. */
+  readonly startedMs: number;
 }
 
 export function nowIso(services: Pick<Services, "nowMs">): string {

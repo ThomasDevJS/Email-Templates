@@ -71,6 +71,28 @@
 - When a feature is removed, grep docs/ops for its UI text (Ping lingered in smoke.md).
 - Worktree guard: put multi-edit python in a temp .py file inside the worktree, run it, delete it.
 
+## Code map (after slice 4b)
+- `src/shared/requestId.ts`: `newRequestId`, `requestIdNow` (`XXXXXXXX-XXXXXX`), used by web, add-on, `web.open`, rpc fallback.
+- `src/server/metrics.ts`: `newStats`, `meterProps/Cache/Lock/Drive/Directory` (method table `Record<keyof T, true>`, method looked up per call so test monkeypatches work), `snapshotProps` (one `getProperties` per request; triggers live). `Services.startedMs`; `RequestStats` has `calls` and `ms`.
+- Log line: `calls`, `timing` (numbers only); add-on sends `timing` (`requestTiming` in protocol.ts filters keys and ranges).
+- `loadIndex` is lock-free; `maintain` runs in `doGet` only. Body cache `bd:<bodyFileId>` in handlers/body.ts (`readStoredBody`, `cacheBody`).
+- Web: views/rowActions.ts (row menu), grid "Actions" column, `AppContext.pushRoute`, library selects folders in place, `openDialog({ returnFocus })`.
+
+## Lessons (slice 4b)
+- Verify "fails on old code" by `git diff src > patch; git checkout src; run; git apply patch`.
+- Call counts: a scratch vitest file with Proxy counters on the fake globals, run on base and head; delete before commit.
+- The worktree guard rejects `python3 - <<EOF` combined with other commands; write the .py to the scratchpad and run it alone.
+- Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
+
+## Slice 4b retry 1 (review FAIL: request ID not enforced)
+- `handleRpc` enforces `REQUEST_ID_PATTERN` (src/shared/requestId.ts) on both surfaces: bad ID = VALIDATION, log gets a server ID. Tests must send valid IDs (`TESTREQ0-000001`; world.call does).
+- Log `action` only for ops in the policy table.
+- `ensureTriggers(services, live)`: re-check inside the lock reads live properties; `tick` runs it too.
+- Readers never set `INDEX_REV`; `runSetup` publishes it under the lock.
+- Lesson: every client-supplied string that reaches a log line needs a format check at the server boundary, not only in the client.
+- Lesson: a per-execution property snapshot breaks any read-check-write across executions; re-read live inside the lock.
+- Old-code check of earlier commits: `git checkout <testCommit> -- test; git checkout <oldCommit> -- src; run; git checkout HEAD -- src test`.
+
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.

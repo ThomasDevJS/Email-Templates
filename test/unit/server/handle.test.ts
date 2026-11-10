@@ -7,7 +7,7 @@ import { OWNER, setupWorld, type World } from "../../fakes/world";
 const PING = {
   op: "ping",
   args: {},
-  requestId: "r1",
+  requestId: "TESTREQ0-000001",
   clientVersion: "test-sha",
 };
 let world: World;
@@ -36,7 +36,7 @@ describe("handleRpc", () => {
     expect(lastLog()).toMatchObject({
       level: "info",
       action: "ping",
-      requestId: "r1",
+      requestId: "TESTREQ0-000001",
       result: "ok",
       cache: "",
     });
@@ -75,11 +75,8 @@ describe("handleRpc", () => {
       ok: false,
       error: { code: "BAD_REQUEST" },
     });
-    expect(lastLog()).toMatchObject({
-      action: "",
-      requestId: "",
-      result: "error",
-    });
+    expect(lastLog()).toMatchObject({ action: "", result: "error" });
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });
 
   it("logs a CONFLICT as result conflict with details in the response", () => {
@@ -131,7 +128,24 @@ describe("handleRpc", () => {
     });
   });
 
+  it("logs the template or folder ID as targetId, and only well-formed IDs", () => {
+    const id = "01JC8ABCDEFGHJKMNPQRSTVWXY";
+    const target = (args: unknown) => {
+      handleRpc({ email: OWNER }, { ...PING, args }, "webapp", {
+        services: world.services,
+      });
+      return lastLog()["targetId"];
+    };
+    expect(target({ id, folderId: "01JC7ABCDEFGHJKMNPQRSTVWXY" })).toBe(id);
+    expect(target({ folderId: id })).toBe(id);
+    expect(target({ id: "<p>body text</p>" })).toBe("");
+    expect(target("text")).toBe("");
+    handleRpc({ email: OWNER }, null, "webapp", { services: world.services });
+    expect(lastLog()["targetId"]).toBe("");
+  });
+
   it("reports the cache state of the request in the log line", () => {
+    world.cache.removeAll(["idx:meta"]);
     world.call(OWNER, "template.list");
     expect(lastLog()).toMatchObject({
       action: "template.list",

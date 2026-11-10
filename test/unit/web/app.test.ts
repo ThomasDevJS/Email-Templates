@@ -56,6 +56,35 @@ function button(label: string, root: ParentNode = document): HTMLButtonElement {
   return found;
 }
 
+interface HarnessRun {
+  withSuccessHandler(handler: (value: unknown) => void): {
+    rpc(op: string, args: unknown, id: string): void;
+  };
+}
+
+/** One server op straight through the harness, as another tab or another user would send it. */
+function harnessCall(op: string, args: unknown): Promise<{ ok: boolean }> {
+  const run = (window as unknown as { google: { script: { run: HarnessRun } } })
+    .google.script.run;
+  return new Promise((resolve) => {
+    run
+      .withSuccessHandler((value) => {
+        resolve(value as { ok: boolean });
+      })
+      .rpc(op, args, "other-tab");
+  });
+}
+
+/** A save of version `base + 1` with the body "theirs" from a second tab. */
+function otherTabSave(id: string, base: number): Promise<{ ok: boolean }> {
+  return harnessCall("template.update", {
+    id,
+    baseVersion: base,
+    title: "Other tab",
+    html: "<p>theirs</p>",
+  });
+}
+
 describe("library (screen 3)", () => {
   it("shows 8 skeleton rows with aria-busy, then the grid, header and tree", async () => {
     await boot("/?latency=30#/library");
@@ -135,6 +164,8 @@ describe("library (screen 3)", () => {
       expect(text()).toContain("No templates in HR.");
     });
     expect(window.location.hash).toBe("#/library?folder=F-EMPTY");
+    expect(document.activeElement?.textContent).toBe("HR");
+    expect(document.activeElement?.getAttribute("aria-selected")).toBe("true");
     button(
       "+ New template",
       main().querySelector(".empty") as HTMLElement,
@@ -143,6 +174,31 @@ describe("library (screen 3)", () => {
       expect(main().querySelector(".editor-title")?.textContent).toBe(
         "New template",
       );
+    });
+  });
+
+  it("keeps focus in the tree after a click or Enter, so arrows and Enter go on working (smoke defect 7)", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    const items = () => [...main().querySelectorAll('[role="treeitem"]')];
+    const support = items().find((item) => item.textContent === "Support");
+    (support as HTMLElement).click();
+    expect(document.activeElement?.textContent).toBe("Support");
+    expect(window.location.hash).toBe("#/library?folder=F-SUPPORT");
+    expect(main().querySelector("#list-heading")?.textContent).toBe("Support");
+    key(document.activeElement as Element, "ArrowDown");
+    key(document.activeElement as Element, "Enter");
+    expect(document.activeElement?.textContent).toBe("My templates");
+    expect(main().querySelector("#list-heading")?.textContent).toBe(
+      "My templates",
+    );
+    key(document.activeElement as Element, "ArrowUp");
+    expect(document.activeElement?.textContent).toBe("Support");
+    window.history.back();
+    await until(() => {
+      expect(window.location.hash).toBe("#/library?folder=F-SUPPORT");
     });
   });
 
@@ -157,10 +213,160 @@ describe("library (screen 3)", () => {
     expect(document.activeElement?.textContent).toBe("Price quote 2026");
     key(document.activeElement as Element, "End");
     key(document.activeElement as Element, "Enter");
+    const menu = document.querySelector('[role="menu"]') as HTMLElement;
+    expect(menu.getAttribute("aria-label")).toBe(
+      "Actions for Price quote 2026",
+    );
+    key(menu, "ArrowDown");
+    key(menu, "ArrowDown");
+    key(menu, "ArrowDown");
+    expect(document.activeElement?.textContent).toBe("History");
+    key(menu, "Enter");
     await until(() => {
       expect(text()).toContain("Price quote 2026 - History");
     });
     expect(window.location.hash).toBe("#/history/T-QUOTE");
+  });
+});
+
+describe("row menu (wireframe 03, smoke defect 6)", () => {
+  const rows = () => [...main().querySelectorAll("tbody tr")];
+  const titles = () => rows().map((row) => row.children[1]?.textContent);
+  const titleCell = (title: string) =>
+    rows()
+      .map((row) => row.children[1] as HTMLElement)
+      .find((cell) => cell.textContent === title) as HTMLElement;
+  const menuLabels = () =>
+    [...document.querySelectorAll('[role="menuitem"]')].map(
+      (item) => item.textContent,
+    );
+  const status = () => main().querySelector(".templates .status")?.textContent;
+
+  async function library(): Promise<void> {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(rows()).toHaveLength(4);
+    });
+  }
+
+  it("opens with Shift+F10, moves with arrows, and Esc returns focus to the cell", async () => {
+    await library();
+    const cell = titleCell("Discount approval");
+    cell.focus();
+    key(cell, "F10", { shiftKey: true });
+    expect(menuLabels()).toEqual([
+      "Edit",
+      "Duplicate",
+      "Move...",
+      "History",
+      "Delete...",
+    ]);
+    expect(document.activeElement?.textContent).toBe("Edit");
+    const menu = document.querySelector('[role="menu"]') as HTMLElement;
+    key(menu, "ArrowUp");
+    expect(document.activeElement?.textContent).toBe("Delete...");
+    key(menu, "Escape");
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(cell);
+    expect(cell.tabIndex).toBe(0);
+  });
+
+  it("shows no menu on a row where the caller holds only use", async () => {
+    await library();
+    const cell = titleCell("Ticket received");
+    expect(
+      cell.parentElement?.querySelector('[aria-haspopup="menu"]'),
+    ).toBeNull();
+    key(cell, "F10", { shiftKey: true });
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("duplicates and focuses the copy", async () => {
+    await library();
+    (
+      main().querySelector(
+        '[aria-label="Actions for Welcome email"]',
+      ) as HTMLButtonElement
+    ).click();
+    (
+      [...document.querySelectorAll('[role="menuitem"]')].find(
+        (item) => item.textContent === "Duplicate",
+      ) as HTMLElement
+    ).click();
+    await until(() => {
+      expect(status()).toBe('Duplicated as "Copy of Welcome email".');
+    });
+    expect(titles()).toContain("Copy of Welcome email");
+    expect(document.activeElement?.textContent).toBe("Copy of Welcome email");
+  });
+
+  it("moves only to folders with edit, after the dialog", async () => {
+    await library();
+    const cell = titleCell("Welcome email");
+    cell.focus();
+    key(cell, "ContextMenu");
+    key(document.querySelector('[role="menu"]') as Element, "ArrowDown");
+    key(document.querySelector('[role="menu"]') as Element, "ArrowDown");
+    key(document.querySelector('[role="menu"]') as Element, "Enter");
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    const select = dialog.querySelector("select") as HTMLSelectElement;
+    expect([...select.options].map((option) => option.text)).toEqual([
+      "HR",
+      "My templates",
+      "Sales",
+      "Sales / Quotes",
+    ]);
+    select.value = "F-EMPTY";
+    button("Move", dialog).click();
+    await until(() => {
+      expect(status()).toBe('Moved "Welcome email" to HR.');
+    });
+    expect(
+      titleCell("Welcome email").parentElement?.children[2]?.textContent,
+    ).toBe("HR");
+    expect(document.activeElement?.textContent).toBe("Welcome email");
+  });
+
+  it("deletes after confirmation, and Cancel keeps the template", async () => {
+    await library();
+    const cell = titleCell("Discount approval");
+    cell.focus();
+    const pickDelete = () => {
+      key(document.activeElement as Element, "F10", { shiftKey: true });
+      key(document.querySelector('[role="menu"]') as Element, "End");
+      key(document.querySelector('[role="menu"]') as Element, "Enter");
+      return document.querySelector('[role="dialog"]') as HTMLElement;
+    };
+    const first = pickDelete();
+    expect(first.textContent).toContain(
+      'Delete "Discount approval"? Deleted templates stay in the trash for 30 days.',
+    );
+    button("Cancel", first).click();
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+    expect(document.activeElement).toBe(cell);
+    button("Delete", pickDelete()).click();
+    await until(() => {
+      expect(status()).toBe('Deleted "Discount approval".');
+    });
+    expect(titles()).not.toContain("Discount approval");
+    expect(rows()).toHaveLength(3);
+  });
+
+  it("reports a server refusal in the status line", async () => {
+    await boot("/?latency=0&fail=DENIED&failOp=template.duplicate#/library");
+    await until(() => {
+      expect(rows()).toHaveLength(4);
+    });
+    const cell = titleCell("Welcome email");
+    cell.focus();
+    key(cell, "F10", { shiftKey: true });
+    key(document.querySelector('[role="menu"]') as Element, "ArrowDown");
+    key(document.querySelector('[role="menu"]') as Element, "Enter");
+    await until(() => {
+      expect(status()).toContain("You don't have access");
+    });
   });
 });
 
@@ -271,35 +477,7 @@ describe("editor (screen 4, flow 4.2)", () => {
     await until(() => {
       expect(main().querySelector(".ph")).not.toBeNull();
     });
-    const other = await new Promise<{ ok: boolean }>((resolve) => {
-      (
-        window as unknown as {
-          google: {
-            script: {
-              run: {
-                withSuccessHandler(f: (v: unknown) => void): {
-                  rpc(op: string, args: unknown, id: string): void;
-                };
-              };
-            };
-          };
-        }
-      ).google.script.run
-        .withSuccessHandler((value) => {
-          resolve(value as { ok: boolean });
-        })
-        .rpc(
-          "template.update",
-          {
-            id: "T-DISCOUNT",
-            baseVersion: 1,
-            title: "Other tab",
-            html: "<p>theirs</p>",
-          },
-          "other-tab",
-        );
-    });
-    expect(other.ok).toBe(true);
+    expect((await otherTabSave("T-DISCOUNT", 1)).ok).toBe(true);
     const save = button("Save");
     save.focus();
     save.click();
@@ -340,6 +518,48 @@ describe("editor (screen 4, flow 4.2)", () => {
     });
     expect(main().querySelector(".version")?.textContent).toBe("Version 2");
   });
+
+  it("opens their version of a template created in this tab (smoke defect 1)", async () => {
+    await boot("/?latency=0#/new?folder=F-QUOTES");
+    await until(() => {
+      expect(main().querySelector(".ProseMirror")).not.toBeNull();
+    });
+    (document.getElementById("title") as HTMLInputElement).value = "Mine";
+    button("Save").click();
+    await until(() => {
+      expect(main().querySelector(".version")?.textContent).toBe("Version 1");
+    });
+    const id = window.location.hash.replace("#/edit/", "");
+    expect((await otherTabSave(id, 1)).ok).toBe(true);
+    button("Save").click();
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    });
+    button("Open their version").click();
+    await until(() => {
+      expect(main().querySelector(".ProseMirror")?.textContent).toBe("theirs");
+    });
+    expect(main().querySelector(".version")?.textContent).toBe("Version 2");
+    expect(main().querySelector(".status")?.textContent).toBe(
+      "Loaded the latest version. Your changes were discarded.",
+    );
+  });
+
+  it("returns focus to Save when the conflict dialog closes after Ctrl+S in the body (smoke defect 2)", async () => {
+    await boot("/?latency=0#/edit/T-WELCOME");
+    await until(() => {
+      expect(main().querySelector(".ph")).not.toBeNull();
+    });
+    expect((await otherTabSave("T-WELCOME", 1)).ok).toBe(true);
+    const body = main().querySelector(".ProseMirror") as HTMLElement;
+    body.focus();
+    key(body, "s", { ctrlKey: true });
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    });
+    key(document.querySelector('[role="dialog"]') as Element, "Escape");
+    expect(document.activeElement).toBe(button("Save"));
+  });
 });
 
 describe("history (screen 5)", () => {
@@ -366,6 +586,12 @@ describe("history (screen 5)", () => {
     const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
     expect(dialog.textContent).toContain("Create version 3 from version 1?");
     button("Restore", dialog).click();
+    await Promise.resolve();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(main().querySelector(".status")?.textContent).toBe(
+      "Restoring version 1...",
+    );
+    expect(list.getAttribute("aria-busy")).toBe("true");
     await until(() => {
       expect(main().querySelector(".status")?.textContent).toBe(
         "Restored as version 3.",

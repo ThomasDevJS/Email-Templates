@@ -13,7 +13,8 @@ import {
   type ItemRow,
   type Profile,
 } from "./rpc/api";
-import { createClient, newRequestId } from "./rpc/client";
+import { requestIdNow } from "../shared/requestId";
+import { createClient } from "./rpc/client";
 import {
   authPage,
   banner,
@@ -38,9 +39,7 @@ export function startApp(host: Host): AppContext {
   const main = element("main");
   const toasts = element("toasts");
   const signedIn = element("signed-in");
-  const client = createClient(host.runner, () =>
-    newRequestId(Date.now(), Math.random),
-  );
+  const client = createClient(host.runner, requestIdNow);
   const api = createApi(client);
   let folders: FolderRow[] = [];
   let items: ItemRow[] = [];
@@ -110,6 +109,9 @@ export function startApp(host: Host): AppContext {
     },
     replaceRoute: (route) => {
       host.navigate(routeHash(route), true);
+    },
+    pushRoute: (route) => {
+      host.navigate(routeHash(route), false);
     },
     fail: (error, retry) => {
       const rpc = toRpcError(error);

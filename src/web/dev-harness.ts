@@ -177,6 +177,23 @@ function item(id: string): Item {
   return found;
 }
 
+function live(id: string): Item {
+  const found = item(id);
+  if (found.deletedAt !== "")
+    throw new AppError(
+      ErrorCode.NOT_FOUND,
+      "This template was removed or moved.",
+    );
+  return found;
+}
+
+/** Metadata change without a new body version, like the server's `template.move` and `template.delete`. */
+function change(found: Item, fields: Partial<Item>): Item {
+  const next = { ...found, ...fields, updatedAt: NOW, updatedBy: ME };
+  items.set(found.id, next);
+  return next;
+}
+
 function checkBase(found: Item, base: number): void {
   if (found.version !== base)
     throw new AppError(ErrorCode.CONFLICT, "Changed", {
@@ -226,6 +243,7 @@ const OPS: Readonly<Record<string, Op>> = {
   "folder.list": () => ({ folders }),
   "template.list": () => ({
     items: [...items.values()]
+      .filter((entry) => entry.deletedAt === "")
       .filter((entry) => levelOf(entry.folderId) !== "none")
       .map((entry) => ({ ...entry, level: levelOf(entry.folderId) })),
   }),
@@ -259,6 +277,32 @@ const OPS: Readonly<Record<string, Op>> = {
       tags(args),
       str(args, "html"),
     );
+  },
+  "template.duplicate": (args) => {
+    const found = live(str(args, "id"));
+    needLevel(found.folderId, "edit");
+    seq += 1;
+    return store(
+      `T-${String(seq)}`,
+      found.folderId,
+      `Copy of ${found.title}`,
+      [...found.tags],
+      versions.get(found.id)?.at(-1)?.html ?? "",
+    );
+  },
+  "template.move": (args) => {
+    const found = live(str(args, "id"));
+    const folderId = str(args, "folderId");
+    needLevel(found.folderId, "edit");
+    needLevel(folderId, "edit");
+    checkBase(found, num(args, "baseVersion"));
+    return change(found, { folderId });
+  },
+  "template.delete": (args) => {
+    const found = live(str(args, "id"));
+    needLevel(found.folderId, "edit");
+    checkBase(found, num(args, "baseVersion"));
+    return change(found, { deletedAt: NOW, deletedBy: ME });
   },
   "version.list": (args) => {
     const found = item(str(args, "id"));

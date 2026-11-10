@@ -7,6 +7,8 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
 export type Surface = "addon" | "webapp" | "trigger";
 export type LogResult = "ok" | "denied" | "conflict" | "error";
 export type CacheState = "hit" | "miss" | "rebuild" | "";
+/** Named counts or milliseconds. Numbers only, so no text from a request can land here. */
+export type Numbers = Readonly<Record<string, number>>;
 
 export interface LogFields {
   readonly surface: Surface;
@@ -18,6 +20,10 @@ export interface LogFields {
   readonly errorCode?: string;
   readonly durationMs?: number;
   readonly cache?: CacheState;
+  /** Service calls of the request (props, cache, drive, lock, dir). */
+  readonly calls?: Numbers;
+  /** Phase times in ms: startup, total, per service, and the add-on's own phases. */
+  readonly timing?: Numbers;
   readonly error?: unknown;
 }
 
@@ -34,6 +40,8 @@ export interface LogEntry {
   readonly durationMs: number;
   readonly cache: CacheState;
   readonly appVersion: string;
+  readonly calls?: Numbers;
+  readonly timing?: Numbers;
   readonly errorName?: string;
   readonly stack?: readonly string[];
 }
@@ -101,6 +109,8 @@ export function buildEntry(
     durationMs: fields.durationMs ?? 0,
     cache: fields.cache ?? "",
     appVersion: options.appVersion,
+    ...(fields.calls === undefined ? {} : { calls: fields.calls }),
+    ...(fields.timing === undefined ? {} : { timing: fields.timing }),
     ...errorFields(fields.error),
   };
 }

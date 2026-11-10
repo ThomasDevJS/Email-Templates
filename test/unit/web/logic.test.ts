@@ -7,6 +7,8 @@ import {
   filterItems,
   fold,
   folderPath,
+  moveTargets,
+  rowActions,
   subtreeIds,
   visibleNodes,
 } from "../../../src/web/library/model";
@@ -20,7 +22,6 @@ import {
 import {
   RpcError,
   createClient,
-  newRequestId,
   settle,
   transportError,
   type Runner,
@@ -184,6 +185,28 @@ describe("library model", () => {
     ]);
   });
 
+  it("offers row actions by level and move targets with edit only", () => {
+    const quote = item("1", "Price quote", "Q");
+    expect(moveTargets(quote, FOLDERS).map((option) => option.id)).toEqual([
+      "M",
+      "S",
+    ]);
+    expect(rowActions(quote, FOLDERS)).toEqual([
+      "edit",
+      "duplicate",
+      "move",
+      "history",
+      "delete",
+    ]);
+    expect(rowActions(quote, [FOLDERS[1] as FolderRow])).toEqual([
+      "edit",
+      "duplicate",
+      "history",
+      "delete",
+    ]);
+    expect(rowActions({ ...quote, level: "use" }, FOLDERS)).toEqual([]);
+  });
+
   it("filters by title, folder path and tags, case and accent insensitive", () => {
     const items = [
       item("1", "Price quote", "Q", ["pricing"]),
@@ -214,10 +237,6 @@ function envelope(data: unknown) {
 }
 
 describe("rpc client", () => {
-  it("makes request IDs from time and a random part", () => {
-    expect(newRequestId(1000, () => 0.5)).toMatch(/^RS-[0-9A-Z]{6}$/);
-  });
-
   it("returns data and maps error envelopes, malformed replies and transport failures", () => {
     expect(settle(envelope(3), "r")).toBe(3);
     const denied = {

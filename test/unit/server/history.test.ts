@@ -192,6 +192,10 @@ describe("version.restore (level edit)", () => {
       actor: ANA,
       targetId: item.id,
     });
+    expect(JSON.parse(world.lines.at(-1) ?? "{}")).toMatchObject({
+      action: "version.restore",
+      targetId: item.id,
+    });
     const list = world.ok<VersionList>(ANA, "version.list", { id: item.id });
     expect(list.versions[0]).toMatchObject({ version: 4, restoredFrom: 1 });
   });

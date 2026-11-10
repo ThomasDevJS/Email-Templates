@@ -6,6 +6,41 @@ export interface RpcRequest {
   readonly args: unknown;
   readonly requestId: string;
   readonly clientVersion: string;
+  /** Add-on phase times; the server copies them into its log line. */
+  readonly timing?: ClientTiming;
+}
+
+/**
+ * Add-on phase times in ms (slice 4b): add-on start to the fetch, the OAuth token call, and the fetch and total of
+ * the previous server call in the same execution.
+ */
+export const CLIENT_TIMING_KEYS = [
+  "addonPreMs",
+  "addonTokenMs",
+  "prevFetchMs",
+  "prevTotalMs",
+] as const;
+export type ClientTiming = Partial<
+  Record<(typeof CLIENT_TIMING_KEYS)[number], number>
+>;
+const TIMING_MAX_MS = 600000;
+
+/** The known timing keys of a raw request whose values are whole ms from 0 to 10 min; anything else is dropped. */
+export function requestTiming(raw: unknown): ClientTiming {
+  const timing = isRecord(raw) ? raw["timing"] : undefined;
+  if (!isRecord(timing)) return {};
+  const out: Record<string, number> = {};
+  for (const key of CLIENT_TIMING_KEYS) {
+    const value = timing[key];
+    if (
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 0 &&
+      value <= TIMING_MAX_MS
+    )
+      out[key] = value;
+  }
+  return out;
 }
 
 interface ResponseMeta {

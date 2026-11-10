@@ -260,14 +260,16 @@ export function editorView(
     replace(body, toolbar.element, mount);
   };
 
+  /** A new template keeps its `start` route after the first save, so the saved ID wins over `start`. */
   const load = async () => {
     await loading;
-    if ("id" in start) {
-      const { item, html } = await app.api.template(start.id);
-      show(fromItem(item, html));
-    } else {
+    const id = current.id !== "" ? current.id : "id" in start ? start.id : "";
+    if (id === "") {
       show(current);
+      return;
     }
+    const { item, html } = await app.api.template(id);
+    show(fromItem(item, html));
   };
 
   const conflict = (details: unknown) => {
@@ -280,14 +282,20 @@ export function editorView(
     openDialog({
       title: "This template changed",
       body: h("p", {}, text),
+      returnFocus: saveButton,
       actions: [
         {
           label: "Open their version",
           primary: true,
           run: () => {
-            void load().catch((error: unknown) => app.fail(error));
-            status.textContent =
-              "Loaded the latest version. Your changes were discarded.";
+            status.textContent = "Loading the latest version...";
+            load().then(
+              () => {
+                status.textContent =
+                  "Loaded the latest version. Your changes were discarded.";
+              },
+              (error: unknown) => app.fail(error),
+            );
             return true;
           },
         },

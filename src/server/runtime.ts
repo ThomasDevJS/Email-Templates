@@ -8,6 +8,15 @@ import {
   type Surface,
 } from "../shared/log/logger";
 import type { Caller } from "./dispatch/context";
+import {
+  meterCache,
+  meterDirectory,
+  meterDrive,
+  meterLock,
+  meterProps,
+  newStats,
+  snapshotProps,
+} from "./metrics";
 import type { DirectoryUsers, PropertyStore, Services } from "./services";
 import { advancedDriveClient } from "./storage/advancedDrive";
 import type { DriveClient } from "./storage/driveClient";
@@ -89,28 +98,38 @@ function directoryUsers(): DirectoryUsers {
   return requireService(admin.Users, "AdminDirectory.Users");
 }
 
-/** Services for one request or job run, from Apps Script globals. Drive and the store are built on first use. */
+/** Clock value when this execution evaluated the bundle: the closest point to execution start that code sees. */
+const LOADED_MS = Date.now();
+
+/**
+ * Services for one request or job run, from Apps Script globals, each service metered for the log line. Drive and
+ * the store are built on first use. Requests read Script Properties once (`snapshotProps`); triggers read them live.
+ */
 export function createServices(surface: Surface): Services {
-  const props = PropertiesService.getScriptProperties();
-  const drive = memo(() => driveClientFor(props));
+  const stats = newStats(surface);
+  const now = () => Date.now();
+  const live = meterProps(PropertiesService.getScriptProperties(), stats, now);
+  const props = surface === "trigger" ? live : snapshotProps(live);
+  const drive = memo(() => meterDrive(driveClientFor(props), stats, now));
   return {
     props,
-    cache: CacheService.getScriptCache(),
-    lock: LockService.getScriptLock(),
+    cache: meterCache(CacheService.getScriptCache(), stats, now),
+    lock: meterLock(LockService.getScriptLock(), stats, now),
     session: {
       activeEmail: () => Session.getActiveUser().getEmail(),
       effectiveEmail: () => Session.getEffectiveUser().getEmail(),
     },
     logger: serverLogger(props),
-    nowMs: () => Date.now(),
+    nowMs: now,
     newId: () => makeId(Date.now(), (n) => Math.floor(Math.random() * n)),
     sha256,
     drive,
     store: memo(() => driveStore(drive(), requireStoreIds(props))),
     groups: () => GroupsApp,
-    directoryUsers,
+    directoryUsers: memo(() => meterDirectory(directoryUsers(), stats, now)),
     triggers: ScriptApp,
     appVersion: APP_VERSION,
-    stats: { cache: "", surface },
+    stats,
+    startedMs: LOADED_MS,
   };
 }
