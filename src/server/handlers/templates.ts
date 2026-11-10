@@ -27,7 +27,6 @@ import { commit } from "./commit";
 import {
   findItem,
   folderPath,
-  chainOf,
   liveFolder,
   liveItem,
   replaceById,
@@ -262,35 +261,8 @@ export function bodyFields(prepared: PreparedBody, body: BodyRef) {
 export function templateCreate(context: HandlerContext): Item {
   const folderId = reqString(context.args, "folderId");
   const draft = readDraft(context);
-  targetFolder(context, context.access().index, folderId, "");
-  return addTemplate(context, folderId, "", draft, "template.create");
-}
-
-/** Owner of the private tree the folder sits in, or "" for a shared folder. */
-function privateOwner(index: IndexDoc, folderId: string): string {
-  const root = chainOf(index, folderId).find((f) => f.kind === "private");
-  return root === undefined ? "" : root.ownerEmail.toLowerCase();
-}
-
-/**
- * Live target folder of a template write. Another user's private folder accepts no template (D11), admins
- * included, unless the template already lives in that owner's private tree (`fromFolderId`).
- */
-function targetFolder(
-  context: HandlerContext,
-  index: IndexDoc,
-  folderId: string,
-  fromFolderId: string,
-): void {
-  liveFolder(index, folderId);
-  const owner = privateOwner(index, folderId);
-  if (owner === "" || owner === context.caller.email.toLowerCase()) return;
-  if (fromFolderId !== "" && privateOwner(index, fromFolderId) === owner)
-    return;
-  throw new AppError(
-    ErrorCode.VALIDATION,
-    "Only its owner can put templates into a private folder",
-  );
+  liveFolder(context.access().index, folderId);
+  return addTemplate(context, folderId, draft, "template.create");
 }
 
 /** "Copy of <title>", cut to the title limit. */
@@ -306,27 +278,20 @@ export function templateDuplicate(context: HandlerContext): Item {
   const { index } = context.access();
   const source = liveItem(index, reqString(context.args, "id"));
   const folderId = optString(context.args, "folderId") || source.folderId;
-  targetFolder(context, index, folderId, source.folderId);
+  liveFolder(index, folderId);
   const stored = readStoredBody(context.services, source);
   const draft: Draft = {
     title: copyTitle(source.title),
     tags: [...source.tags],
     body: prepareFor(context.services.props, stored, source.subject),
   };
-  return addTemplate(
-    context,
-    folderId,
-    source.folderId,
-    draft,
-    "template.duplicate",
-  );
+  return addTemplate(context, folderId, draft, "template.duplicate");
 }
 
 /** Body file of version 1 outside the lock, then the index commit with the new item and its audit event. */
 function addTemplate(
   context: HandlerContext,
   folderId: string,
-  fromFolderId: string,
   draft: Draft,
   action: string,
 ): Item {
@@ -336,7 +301,7 @@ function addTemplate(
   const now = nowIso(context.services);
   const email = context.caller.email;
   return commit(context, (current) => {
-    targetFolder(context, current, folderId, fromFolderId);
+    liveFolder(current, folderId);
     const item: Item = {
       id,
       kind: "template",
@@ -375,7 +340,7 @@ export function templateUpdate(context: HandlerContext): Item {
     const before = liveItem(current, id);
     checkBaseVersion(before, baseVersion);
     const folderId = moveTo || before.folderId;
-    targetFolder(context, current, folderId, before.folderId);
+    liveFolder(current, folderId);
     const after: Item = {
       ...before,
       ...bodyFields(draft.body, body),
@@ -437,7 +402,7 @@ export function templateMove(context: HandlerContext): Item {
   const folderId = reqString(context.args, "folderId");
   return changeItem(context, "template.move", (item, current) => {
     requireLive(item);
-    targetFolder(context, current, folderId, item.folderId);
+    liveFolder(current, folderId);
     return { ...item, folderId };
   });
 }
@@ -466,7 +431,7 @@ export function templateRestoreFromTrash(context: HandlerContext): Item {
         "This template is not in the trash",
       );
     const folderId = target || item.folderId;
-    targetFolder(context, current, folderId, item.folderId);
+    liveFolder(current, folderId);
     return { ...item, folderId, deletedAt: "", deletedBy: "" };
   });
 }
