@@ -2,7 +2,6 @@
 
 ## Environment facts (2026-11-09)
 - Worktrees may start at an old commit. Reset to the orchestrator branch `claude/gracious-franklin-3n8zbq` first (task prompt gives the command).
-- Bash hook rejects commands with "git" outside plain git commands (`.gitkeep`, `.github`, `gitleaks`).
 - Worktree guard rejects some heredocs and multi-command scripts it cannot verify (cat > file heredoc, `git` plus python in one command, backslash-heavy python). `python3 - <<'EOF'` edits alone usually pass; new files go through the Write tool; fall back to the Edit tool.
 - Write tool may turn `\u0300` into a literal; use `\p{M}` with `u`.
 - Chromium for browser checks: /opt/pw-browsers/chromium. puppeteer-core and chrome-launcher arrive with lighthouse (dev dep). Scratch scripts that import repo code must live inside the worktree (delete before commit).
@@ -21,8 +20,7 @@
 - Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
 - Build constants `__APP_ENV__`, `__EXEC_URL__`, `__GIT_SHA__`. Stubs `function name(...args) { return App.name(...args); }`.
 
-## clasp 3.4.1 facts
-- Global `--json`, `-P <dir>`; `.clasp.json` `rootDir` relative to itself; `push --force` overwrites the manifest.
+- clasp 3.4.1: global `--json`, `-P <dir>`; `.clasp.json` `rootDir` relative to itself; `push --force` overwrites the manifest.
 
 ## Code map (after slice 2)
 - `src/shared/permissions/`: principals.ts, effective.ts (`levelResolver`, `PRIVATE_OWNER_LEVEL`), levels.ts, matrix.ts (`ROLE_MATRIX` 17 rows, `checkNeed`, `ROOT`, `ANY_CALLER`).
@@ -81,7 +79,7 @@
 - The worktree guard rejects `python3 - <<EOF` combined with other commands; write the .py to the scratchpad and run it alone.
 - Prettier may reformat a file differently after other edits; run `prettier --write` before every commit.
 
-## Slice 4b retry 1
+## Lessons (slice 4b retry 1)
 - `handleRpc` enforces `REQUEST_ID_PATTERN`; tests send `TESTREQ0-000001`. Every client string in a log line needs a server format check. Snapshots break read-check-write; re-read live in the lock.
 
 ## Code map (after slice 5)
@@ -139,11 +137,12 @@
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
 - Server code never nests the script lock; tests assert `lock.nestedAcquisitions === 0`.
 
+## Slice 7 (docs, 2026-11-10)
+- Guides in docs/guide (Prettier-ignored), runbook in docs/ops (Prettier-formatted). test/unit/docs/links.test.ts checks relative links of README and the 4 docs.
+- D25: prod owned by a dedicated owner account (generic `templates-owner@migway.com`); dev stays; prod starts empty.
+- Doc rule: quote UI text from src; mark "not yet verified on dev" (6b not deployed at fb97d9a) and "not yet exercised" (2.5b, recovery, handover).
+
 ## Open items handed forward
-- Slice 3: import handler must call `prepareBody`; spec 6 lacks `template.getBody`; google.script.url/history and clipboard unverified in the real iframe.
-- Slice 5: `ft:*` warm-up in tick; spec 6 needs FAVORITES_REV/USAGE_REV (architect).
-- Slice 6a: spec 6 lacks `admin.folders`, `membership.status`; spec 5.1 lacks depth (FOLDER_DEPTH_MAX 5 assumed).
-- Slice 6b: spec 5.5 `usage.json` `days`; private folders left out of `export.library`; import skips grants; 5 MB `google.script.run` arg unverified; restore orphans newer body versions.
-- Not verified against Google: Advanced Drive on drive.file, `alt: 'media'` return type, `getActiveUser` in triggers, triggerUid values, 5 MB multipart limit.
-- `membership.refresh` should clear `prof:*` (still open after 6b).
-- Drift check behaviour against real Apps Script reformatting: unverified.
+- Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` used only by the harness; `membership.refresh` does not clear `prof:*`.
+- Smoke step with a 4.9 MB import (spec 13.5) not written.
+- Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check vs Apps Script reformatting.
