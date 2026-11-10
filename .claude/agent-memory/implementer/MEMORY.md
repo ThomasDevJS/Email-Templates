@@ -77,7 +77,6 @@
 - Call counts: scratch test with Proxy counters or `appendFileSync` of `world.lines`; delete before commit.
 - `handleRpc` enforces `REQUEST_ID_PATTERN` (tests send `TESTREQ0-000001`); every client string in a log needs a server format check and an upper bound.
 - Prettier may reformat after other edits; run `prettier --write` before every commit.
-
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
 - Old data: `readIndexDoc`, `withSubject`, `Unmigrated<T>` in shared/model/data.ts (driveStore read + `cachedIndex`).
@@ -96,7 +95,7 @@
 
 ## Lessons (slice 5b)
 - Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
-- jsdom: `vi.stubEnv("TZ", ...)` changes Date local time at runtime.
+
 
 ## Code map (after slice 6a)
 - Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
@@ -113,7 +112,7 @@
 - Fake cache has no `clear`; remove `bd:<fileId>` keys to force body reads.
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
 ## Lessons kept from 5b to 6b
-- `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines.
+- `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines. jsdom: `vi.stubEnv("TZ", ...)` changes Date local time.
 - A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
 
 ## Slice 8a (UI shell, 2026-11-10)
