@@ -40,18 +40,26 @@ describe("resultTag", () => {
 
 describe("purgeText", () => {
   it("counts templates like the dialog and names deleted folders apart", () => {
-    expect(purgeText(4, 0, 4)).toBe("Removed 4 templates for good.");
-    expect(purgeText(1, 0, 1)).toBe("Removed 1 template for good.");
+    expect(purgeText(4, 0, 4)).toBe(
+      "Emptied the trash: 4 templates removed for good.",
+    );
+    expect(purgeText(1, 0, 1)).toBe(
+      "Emptied the trash: 1 template removed for good.",
+    );
     expect(purgeText(4, 0, 5)).toBe(
-      "Removed 4 templates and 1 deleted folder for good.",
+      "Emptied the trash: 4 templates and 1 deleted folder removed for good.",
     );
     expect(purgeText(0, 0, 2)).toBe(
-      "Removed 0 templates and 2 deleted folders for good.",
+      "Emptied the trash: 0 templates and 2 deleted folders removed for good.",
     );
   });
 
   it("never counts more templates than the server removed", () => {
-    expect(purgeText(3, 0, 2)).toBe("Removed 2 templates for good.");
-    expect(purgeText(1, 2, 0)).toBe("Removed 0 templates for good.");
+    expect(purgeText(3, 0, 2)).toBe(
+      "Emptied the trash: 2 templates removed for good.",
+    );
+    expect(purgeText(1, 2, 0)).toBe(
+      "Emptied the trash: 0 templates removed for good.",
+    );
   });
 });

@@ -125,7 +125,7 @@ export function trashView(
       body: h(
         "p",
         {},
-        `Remove all ${String(before)} templates in the trash for good? Deleted folders go too. This cannot be undone.`,
+        `Empty the trash? All ${String(before)} templates in it are removed for good, and deleted folders go too. This cannot be undone.`,
       ),
       actions: [
         {
@@ -136,8 +136,11 @@ export function trashView(
             app.api
               .purgeTrash()
               .then(async ({ purged, itemsPending }) => {
-                await load();
-                status.textContent = `${purgeText(before, rows.length, purged)}${
+                // The split into templates and folders comes from the list, so it needs the reloaded one.
+                const result = (await load())
+                  ? purgeText(before, rows.length, purged)
+                  : "Emptied the trash. The list could not be refreshed.";
+                status.textContent = `${result}${
                   itemsPending > 0
                     ? ` The nightly job deletes the stored versions of ${String(itemsPending)} of them.`
                     : ""
@@ -226,11 +229,13 @@ export function trashView(
     );
   };
 
-  const load = (): Promise<void> =>
+  /** Resolves false when the list could not be loaded (the failure is shown). */
+  const load = (): Promise<boolean> =>
     app.api.trash().then(
       (data) => {
         rows = data.items;
         draw(data.canPurge);
+        return true;
       },
       (error: unknown) => {
         list.setAttribute("aria-busy", "false");
@@ -243,6 +248,7 @@ export function trashView(
               "The trash could not be loaded. Use Retry in the message, or reload the page.",
             ),
         );
+        return false;
       },
     );
 
