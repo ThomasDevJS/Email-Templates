@@ -1,6 +1,8 @@
 # Review: slice 8a (UI shell, library, trash, history)
 
-Verdict: FAIL. Two must-fix items: focus escapes behind the narrow-screen panel, and the pressed star is under 3:1 in the light theme. Everything else holds: 1256 tests green, Lighthouse 100 on 11 runs, no server change, no injection, no external request.
+Verdict: PASS after retry 1 (5b0aa2c). Both must-fix items and minors 3, 4 and 6 are fixed; see "Retry 1" at the end.
+
+First review (08f9786): FAIL. Two must-fix items: focus escapes behind the narrow-screen panel, and the pressed star is under 3:1 in the light theme. Everything else holds: 1256 tests green, Lighthouse 100 on 11 runs, no server change, no injection, no external request.
 
 Reviewed: `slice/08a-ui-shell` at 23bf981, base adeeefe, commits 6caa3ee, e401b06, 8b11621, 23bf981. Reviewer 2026-11-10.
 
@@ -119,3 +121,37 @@ Visual defects in the screenshots: history heading shows the full address (minor
 | `npm run scopes:check` | 10 scopes, all approved |
 | `npm run format:check` | clean |
 | `npm run lighthouse` | 100 on library, editor, history, 6 admin tabs, trash, library dark (11 runs) |
+
+## Retry 1 (20b891f, 3ce7670, 5623fe2, b9a3ef0, 5b0aa2c): PASS
+
+Diff `08f9786..slice/08a-ui-shell`: app.ts, styles.css, dialog.ts, history.ts, 3 test files, screenshots, handoff. `git diff --stat adeeefe..slice/08a-ui-shell -- src/server src/addon src/shared appsscript.json scripts/lib/html.mjs` is still empty. Secret scan of the retry diff: 0 hits; only email is dev.user@example.com.
+
+1. Narrow panel (Chromium, 390 px, dev harness):
+   - Open: `aria-expanded` true, `main` has `inert` and `aria-hidden="true"`.
+   - Tab x10 cycles All templates, Favorites, tree, Trash, Admin, Menu, then wraps. Shift+Tab x4 wraps back to Menu. Focus never reaches `main`.
+   - Esc closes, removes `inert` and `aria-hidden`, focus on the menu button.
+   - Press outside (below the panel) closes; press inside on the "Folders" heading keeps it open.
+   - Nav pick (Trash) closes and goes to `#/trash`.
+   - Resize 390 to 1440 with the panel open: closed, `main` not inert.
+   - 1440 px: nothing inert; Tab from the skip link reaches All templates, Favorites, tree, Trash, Admin, search, grid.
+   - 6 new tests replace the old single panel test; every old assertion is still present.
+2. Shared focus trap (`a[href]` in place of `[href]`): row menu opens on Edit, Esc returns to the cell. Move dialog: Tab cycles select, Move, Cancel; Shift+Tab wraps; Esc returns to the cell. Delete dialog: Cancel focused, Tab cycles Cancel and Delete, Esc returns to the cell.
+3. Star ratios (paper, canvas, hover, select): light `--star` #a87400 4.07, 3.73, 3.46, 3.45; `--star-off` #78838b 3.88, 3.55, 3.30, 3.29. Dark `--star` #e6a700 8.09, 7.38, 6.59, 5.98; `--star-off` #7f8b94 4.92, 4.50, 4.01, 3.64. All match the handoff and pass 3:1.
+4. `--field-line`: light #7f8b93 3.49 on paper, 3.20 on canvas (default button hover fill); dark #7c8a94 4.84, 4.42. It is 2.97 on `--hover` and 2.96 on `--select`, but no bordered field or default button sits on those fills: a runtime scan of library, trash, history, editor and 4 admin tabs found every `--field-line` border on white. `--line-strong` remains only on kbd, dividers, banners, table rules, menus, dialogs, toasts, toolbar, editor frame and JSON block; no input, select, search field or default button uses it.
+5. Owner label on hovered and selected rows uses `--ink-2`: 6.52 and 6.50 light, 7.41 and 6.72 dark. History heading reads "Version 4, Nov 9, 2:05 PM, Ben K. (ben.kowalski@example.com)" as its accessible name; the visible part is "Ben K." with `title` holding the address.
+6. `test/unit/web/contrast.test.ts`: 40 pairs per theme cover every pair from the first review except the exempt disabled buttons; every token is paired or listed in `NOT_PAIRED`. Mutations in a scratch copy, each failed the test: `--star` back to #c58a00 (3 pairs fail), `--field-line` set to #c8cfd4 (2 fail), `--ink-3` set to #5a6670 (2 fail). Limit: the test checks token pairs, not which pairs the CSS uses. A new rule placing `--ink-3` on `--select` would pass it.
+
+Still open, agreed: minor 5 (admin 390 px width, slice 8c), minor 7 (disabled buttons, exempt).
+
+Commands (clean install):
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | 559 packages, 16 audit findings (unchanged) |
+| `npm run lint` | clean |
+| `npm run typecheck` | clean |
+| `npm run test:coverage` | 53 files, 1265 passed; lines 96.41% |
+| `npm run build -- --env dev` | Code.js 318.9 KB, index.html 340.6 KB of 400 |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 100 on all 11 runs, library dark included |

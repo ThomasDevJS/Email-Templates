@@ -81,7 +81,8 @@
   - Minors: Recent "about 5 min" is up to 15 (tick + 10 min view cache); forward subject unverified; grid "By" column; QUOTA Retry not disabled (notice); image width fixed 600; quick start 1,087 words.
   - Confirmed spec/ADR errata: spec 7 NOT_CONFIGURED/AUTH/SERVER texts, spec 8/12 4 vs 10 Lighthouse views, NOT_IMPLEMENTED dead in status.ts, ADR-0004 profile clear not built.
 
-- Slice 8a UI (2026-11-10): FAIL (review on 23bf981). 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
+- Slice 8a UI (2026-11-10): FAIL (23bf981), retry 1 PASS (5b0aa2c, 1265 tests, index.html 340.6 KB). Retry: panel modal (main inert + aria-hidden, trapTab exported, matchMedia close), focus selector a[href] (SVG use href was counted), --star #a87400, --star-off #78838b, --field-line #7f8b93/#7c8a94 for field and button borders, contrast.test.ts token pairs (does not check CSS usage).
+  First review 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
   - Must fix: 390 px panel (`.side.open .side-panel` absolute) lets Tab reach search/grid under it; no outside-click close (app.ts:74-86). `--star` #c58a00 2.99 on paper, 2.74 on canvas; star-off 2.80 on `--select` (button hover).
   - Minors: `.owner` on tree hover 4.19; history.ts:113 full address; admin 390 px width 665 (base 506), 8c; input borders 1.58 (design system); disabled buttons exempt.
   - Accepted all 17 mockup differences (17 deferred to 8b). XSS probe via patched harness data clean.
