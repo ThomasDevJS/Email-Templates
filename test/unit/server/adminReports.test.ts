@@ -660,6 +660,83 @@ describe("import", () => {
     );
   });
 
+  it("names the template and keeps the code when a body write fails; nothing enters the library", () => {
+    const target = folder("Imports");
+    const before = fileIndex();
+    world.drive.failNext("create");
+    const response = world.call(OWNER, "import", {
+      folderId: target.id,
+      file: importFile({
+        items: [
+          { meta: { title: "First" }, html: "<p>1</p>" },
+          { meta: { title: "Second" }, html: "<p>2</p>" },
+        ],
+      }),
+    });
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "INTERNAL",
+        message:
+          "Nothing was imported: the template First could not be saved. Run the import again.",
+      },
+    });
+    expect(fileIndex()).toEqual(before);
+  });
+
+  it("keeps BUSY when the lock is taken and says nothing was imported", () => {
+    const target = folder("Imports");
+    world.lock.tryLock = () => false;
+    expect(
+      world.call(OWNER, "import", {
+        folderId: target.id,
+        file: importFile({
+          items: [{ meta: { title: "A" }, html: "<p>a</p>" }],
+        }),
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: {
+        code: "BUSY",
+        message:
+          "Nothing was imported: the library could not be written: Busy, try again. Run the import again.",
+      },
+    });
+  });
+
+  it("refuses duplicate folder ids in Validate", () => {
+    const target = folder("Imports");
+    const file = importFile({
+      folders: [
+        { id: "A", parentId: "", name: "One" },
+        { id: "A", parentId: "", name: "Two" },
+      ],
+    });
+    expect(
+      errorOf(OWNER, "import", { folderId: target.id, file, dryRun: true }),
+    ).toBe("Folders #1 and #2 of the file have the same id");
+  });
+
+  it("refuses a private folder as the import target", () => {
+    const mine = world
+      .ok<{ folders: Folder[] }>(ANA, "folder.list")
+      .folders.find((f) => f.kind === "private") as Folder;
+    const own = world
+      .ok<{ folders: Folder[] }>(OWNER, "folder.list")
+      .folders.find(
+        (f) => f.kind === "private" && f.ownerEmail === OWNER,
+      ) as Folder;
+    const file = importFile({
+      items: [{ meta: { title: "A" }, html: "<p>a</p>" }],
+    });
+    for (const target of [mine, own])
+      expect(
+        errorOf(OWNER, "import", { folderId: target.id, file, dryRun: true }),
+      ).toBe(
+        "Templates cannot be imported into a private folder. Pick a shared folder.",
+      );
+  });
+
   it("logs no title, subject or body of the import file", () => {
     const target = folder("Imports");
     world.lines.length = 0;

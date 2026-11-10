@@ -162,8 +162,24 @@ export function parseImportFile(text: string): ImportFile {
     throw invalid(
       `Unsupported schema version: this app reads version ${String(EXPORT_SCHEMA_VERSION)}`,
     );
+  const folders = list(file, "folders", IMPORT_FOLDERS_MAX).map(parseFolder);
+  refuseDuplicateIds(folders);
   return {
-    folders: list(file, "folders", IMPORT_FOLDERS_MAX).map(parseFolder),
+    folders,
     items: list(file, "items", IMPORT_ITEMS_MAX).map(parseItem),
   };
+}
+
+/** Two folders with one ID would split their templates; the file is refused, naming both by position. */
+function refuseDuplicateIds(folders: readonly Parsed<ExportFolder>[]): void {
+  const seen = new Map<string, number>();
+  for (const [n, record] of folders.entries()) {
+    if (!record.ok) continue;
+    const first = seen.get(record.value.id);
+    if (first !== undefined)
+      throw invalid(
+        `Folders #${String(first + 1)} and #${String(n + 1)} of the file have the same id`,
+      );
+    seen.set(record.value.id, n);
+  }
 }

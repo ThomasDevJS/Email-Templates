@@ -1,5 +1,5 @@
 import type { PreparedBody } from "../../shared/body/prepare";
-import { AppError } from "../../shared/errors/codes";
+import { AppError, ErrorCode, toErrorBody } from "../../shared/errors/codes";
 import type { Folder, IndexDoc, Item } from "../../shared/model/data";
 import { tagList, templateTitle } from "../../shared/model/validate";
 import { inPrivateTree } from "../../shared/permissions/effective";
@@ -323,6 +323,11 @@ export function importTemplates(context: HandlerContext): ImportReport {
   const file = parseImportFile(optString(context.args, "file"));
   const { index } = context.access();
   liveFolder(index, targetId);
+  if (inPrivateTree(chainOf(index, targetId)))
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "Templates cannot be imported into a private folder. Pick a shared folder.",
+    );
   const prepared = prepareItems(context, file);
   const flattened = file.items.filter(
     (record) => record.ok && controlIndex(record.value.meta.subject) >= 0,
@@ -340,10 +345,59 @@ export function importTemplates(context: HandlerContext): ImportReport {
   const bodies = new Map(
     before.placed.map(({ ready }) => [
       ready.id,
-      writeBody(context, ready.id, 1, ready.body),
+      nothingImported(`the template ${ready.label} could not be saved`, () =>
+        writeBody(context, ready.id, 1, ready.body),
+      ),
     ]),
   );
   const source = eventSource(context, targetId);
+  return nothingImported("the library could not be written", () =>
+    commitImport(context, {
+      targetId,
+      file,
+      prepared,
+      make,
+      bodies,
+      source,
+      flattened,
+    }),
+  );
+}
+
+/**
+ * Runs `work`; a failure keeps its error code and says that nothing entered the library (body files already
+ * written are orphans the daily cleanup removes). The message names `what` failed, never "Internal error".
+ */
+function nothingImported<T>(what: string, work: () => T): T {
+  try {
+    return work();
+  } catch (error: unknown) {
+    const body = toErrorBody(error);
+    const reason =
+      body.code === ErrorCode.INTERNAL
+        ? what
+        : `${what}: ${body.message.replace(/\.$/, "")}`;
+    throw new AppError(
+      body.code,
+      `Nothing was imported: ${reason}. Run the import again.`,
+      body.details,
+    );
+  }
+}
+
+interface ImportRun {
+  readonly targetId: string;
+  readonly file: ImportFile;
+  readonly prepared: readonly Prepared[];
+  readonly make: MakeFolder;
+  readonly bodies: ReadonlyMap<string, BodyRef>;
+  readonly source: EventSource;
+  readonly flattened: number;
+}
+
+/** Places again on the index read inside the lock and commits folders, templates and their audit events. */
+function commitImport(context: HandlerContext, run: ImportRun): ImportReport {
+  const { targetId, file, prepared, make, bodies, source, flattened } = run;
   return commit(context, (current) => {
     liveFolder(current, targetId);
     const placement = place(current, targetId, file, prepared, make);
