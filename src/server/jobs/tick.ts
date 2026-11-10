@@ -1,6 +1,7 @@
 import type { AuditEvent } from "../../shared/model/data";
 import { utf8Length } from "../../shared/text";
 import { clearBuffer, readBuffer, type BufferedEvent } from "../audit/buffer";
+import { auditEvent } from "../audit/events";
 import { rollAudit } from "../audit/roll";
 import { applyUsage, type ApplyEvent } from "../audit/usage";
 import {
@@ -25,6 +26,7 @@ import { WRITE_LOCK_MS, withLock } from "../lock";
 import { MEMBERS_PREFIX, putMembersCache } from "../membership/snapshot";
 import type { Services } from "../services";
 import { commitLocked } from "../storage/writer";
+import { systemSource } from "./daily";
 import { ensureTriggers } from "./triggers";
 
 /** `pendingAudit` above this size is rolled to the month file by `tick`, not only by `daily` (bulk imports). */
@@ -33,6 +35,8 @@ export const EARLY_FLUSH_BYTES = 200 * 1024;
 export interface TickResult {
   readonly applies: number;
   readonly denied: number;
+  /** Events the full buffer refused since the last run; one `audit.dropped` event records the count. */
+  readonly dropped: number;
   readonly rolled: number;
   readonly indexCache: "fresh" | "reput" | "rebuilt";
   readonly membersCache: "fresh" | "reput";
@@ -50,12 +54,31 @@ function denials(events: readonly BufferedEvent[]): AuditEvent[] {
   );
 }
 
+/** The count of events the full buffer refused, as one audit event; none when nothing was dropped. */
+function droppedEvents(services: Services, dropped: number): AuditEvent[] {
+  if (dropped === 0) return [];
+  return [
+    auditEvent(systemSource(services), {
+      action: "audit.dropped",
+      targetType: "library",
+      targetId: "",
+      after: { dropped },
+      result: "error",
+    }),
+  ];
+}
+
 /** Buffered events to their files under the lock; the buffer is cleared only after both writes. */
-function flushBuffer(services: Services): { applies: number; denied: number } {
+function flushBuffer(
+  services: Services,
+): Pick<TickResult, "applies" | "denied" | "dropped"> {
   return withLock(services.lock, WRITE_LOCK_MS, () => {
     const buffered = readBuffer(services.cache);
     const applied = applies(buffered.events);
-    const denied = denials(buffered.events);
+    const denied = [
+      ...denials(buffered.events),
+      ...droppedEvents(services, buffered.dropped),
+    ];
     if (applied.length > 0)
       writeSideLocked(
         services,
@@ -73,7 +96,11 @@ function flushBuffer(services: Services): { applies: number; denied: number } {
       });
     }
     clearBuffer(services.cache, buffered);
-    return { applies: applied.length, denied: denied.length };
+    return {
+      applies: applied.length,
+      denied: denied.length - Math.min(1, buffered.dropped),
+      dropped: buffered.dropped,
+    };
   });
 }
 

@@ -15,7 +15,15 @@ import {
   type DriveClient,
   type DriveFile,
 } from "./driveClient";
-import type { BodyRef, NamedRef, SideDocs, SideName, StorePort } from "./port";
+import type {
+  BackupDocs,
+  BodyRef,
+  NamedRef,
+  SideDocs,
+  SideName,
+  SizedRef,
+  StorePort,
+} from "./port";
 
 /** Folder and file IDs kept in Script Property `STORE` (ADR-0002 Layout). */
 export interface StoreIds {
@@ -60,6 +68,10 @@ function toBodyRef(file: DriveFile): BodyRef {
 }
 
 const named = (file: DriveFile): NamedRef => ({ id: file.id, name: file.name });
+const sized = (file: DriveFile): SizedRef => ({
+  ...named(file),
+  size: file.size,
+});
 
 function parseJson(text: string, what: string): unknown {
   try {
@@ -141,7 +153,26 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
       else drive.updateFile(existing.id, text);
       return added;
     },
-    listAuditFiles: () => drive.list(childQuery(ids.auditId)).map(named),
+    readBackup: (dateKey) => {
+      const folder = findChild(ids.backupsId, dateKey);
+      if (folder === undefined) return null;
+      const files = new Map(
+        drive.list(childQuery(folder.id)).map((f) => [f.name, f.id]),
+      );
+      const read = (name: string): unknown => {
+        const id = files.get(name);
+        return id === undefined ? null : parseJson(drive.readText(id), name);
+      };
+      const [index, favorites, usage] = BACKUP_NAMES.map(read);
+      if (index === null || favorites === null || usage === null) return null;
+      return {
+        index: readIndexDoc(index as StoredIndex),
+        favorites,
+        usage,
+      } as BackupDocs;
+    },
+    listAuditFiles: () => drive.list(childQuery(ids.auditId)).map(sized),
+    readText: (fileId) => drive.readText(fileId),
     trash: (fileId) => {
       drive.trash(fileId);
     },

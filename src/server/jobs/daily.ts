@@ -14,7 +14,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const SYSTEM_ACTOR = "system";
 
-function systemSource(services: Services): EventSource {
+/** Audit source of trigger work: actor `system`, no request ID. */
+export function systemSource(services: Services): EventSource {
   return {
     actor: SYSTEM_ACTOR,
     actorRoles: "admin",
