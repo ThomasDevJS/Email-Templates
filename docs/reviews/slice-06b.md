@@ -1,6 +1,8 @@
 # Review: slice 6b (Audit log, Usage, Export and import, Config)
 
-Verdict: FAIL. One blocker: `backup.restore` writes a parseable backup without a shape check, and one bad copy makes the library unusable, the next restore included.
+Verdict: PASS after retry 1 (head f6b567f). The blocker is fixed. The new shape check accepts the data of all 9 builds from slice 2 to 6a.
+
+First review (ffd3957): FAIL. `backup.restore` wrote a parseable backup without a shape check, and one bad copy made the library unusable, the next restore included.
 
 Reviewed: branch `slice/06b-admin-audit`, head ffd3957, base 292d7ad, 4 commits (e3bb4c8, 8d83177, 337f2cb, ffd3957). Reviewer 2026-11-10.
 
@@ -92,3 +94,47 @@ i. 5 MB upload: unverified on Apps Script. If `google.script.run` refuses the ar
 ## Result
 
 FAIL on blocker 1. Retry scope: shape check of the 3 backup copies before the lock, one test per copy, plus minor 1 if cheap.
+
+## Retry 1 (head f6b567f, commits fef39eb, bb5e4b2, da80113, da45862, aafa61e, f6b567f)
+
+Verdict: PASS.
+
+### Commands (reviewer, clean install)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0, 559 packages, 16 advisories (14 moderate, 2 high), unchanged |
+| `npm run lint`, `format:check`, `typecheck` | exit 0 each |
+| `npm run test:coverage` | 51 files, 1238 tests passed, 0 failed. Lines 96.68 (addon 100, server 99.31, shared 100, web 95.47), branches 89.01 |
+| `npm run build -- --env dev` | Code.js 318.9 KB of 800 KB, index.html 316.5 KB of 400 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run lighthouse` | 10 views at 100 |
+
+Secret scan of lines added since f472d18: 0 hits. Emails: `missing@example.com`, `x@example.com` (tests). URLs: 0. appsscript.json, package files and scripts unchanged. No `UrlFetchApp`, `fetch(` or `console.*` added.
+
+### Fixes
+
+1. Blocker: fixed. src/shared/model/shape.ts runs on all 3 backup copies before the lock (src/server/storage/driveStore.ts readBackup). Probes, each with the live files byte-identical afterwards and `template.list` and `sidebar.home` still ok:
+   - index without `folders`: VALIDATION "This backup cannot be read: index.json is damaged: folders must be a list".
+   - `favorites.json` of `{}`: VALIDATION "... favorites.json is damaged: rev must be an integer".
+   - unparsable `usage.json` and `index.json`: VALIDATION "... is not valid JSON".
+   - missing `favorites.json`: VALIDATION "... favorites.json is missing".
+   - good copy afterwards: restore ok.
+2. Live check on every Drive read: no false rejection found. Fixture: the probe ran folder create, nested folder, 2 templates, update, user and domain grants, private folder, apply, favorite, denied call, template delete, folder delete, duplicate, 2 ticks and daily on 9 builds (64078b8, 41575e3, 054129a, 20bd55a, b534836, c50c953, 1611869, bb53d6c, 292d7ad), each with its own code and fakes. The dumped `index.json`, `favorites.json` and `usage.json` were put into a current world with caches and revs cleared. Result: `indexProblem`, `favoritesProblem`, `usageProblem` all "", and `template.list`, `folder.list`, `sidebar.home` (owner and add-on user), `config.get`, `usage.report`, `audit.query`, `export.library`, `backup.list` all ok. The fixture covers usage entries without `days`, favorites and usage at rev 1 from before `FAVORITES_REV`, soft-deleted items and folders, private folders, `pendingAudit` from every build, and `schemaVersion` 1. Required fields (folder `id, parentId, name, kind, ownerEmail, deletedAt, version`; item `id, folderId, title, tags, currentVersion, bodyFileId, deletedAt, version`; grant `id, folderId, principalType, principalKey, level`; event `id, ts`) are in the `Folder`, `Item`, `Grant` types since 468d6a4 (slice 2). `subject`, `days` and unknown fields are not checked.
+   - When the live check fails, every op that loads the index answers INTERNAL "index.json is damaged: <problem>" (probe). `backup.list` still answers. `backup.restore` does not: dispatch loads the index first. Recovery from a damaged live index needs the owner to copy a backup file in Drive. Before the retry the same file crashed every op as well, so this is no regression. Slice 7 runbook should hold the step (minor R1).
+3. Minor 6: fixed with limits. Order: favorites, usage, then index as commit point. Probes: failed first side write leaves favorites as before; failed index write puts favorites back (rev moves on); index unchanged.
+   - A failure inside the undo (probe: updates 3 and 4 fail) leaves backup favorites with the live index and answers "Internal error"; the undo error replaces the first error (minor R2).
+   - Readers take no lock, so between the side writes and the index write a reader can see restored favorites and usage with the pre-restore index. Favorites and Recent are filtered by visible IDs (slice 5), so the effect is a missing or extra star for under a second. Accepted.
+4. Minor 5: fixed. A template that was live in the backup and has since been purged is refused (probe: "1 templates of the 2026-11-09 backup were emptied from the trash after that date and would not open. Pick a newer backup."). Trashed templates purged since are dropped from the restored index. The dialog names both risks (src/web/views/adminConfig.ts). The automatic purge needs 30 days in trash and backups go back 14 days, so only a manual `trash.purge` can trigger the refusal.
+5. Minors 1, 2, 3: fixed. A failed body write answers INTERNAL "Nothing was imported: the template First could not be saved. Run the import again." Duplicate folder IDs fail Validate ("Folders #1 and #2 of the file have the same id"). Own and another user's private folder as target: VALIDATION; the picker lists shared folders only.
+6. Smoke defects: fixed. `lineText` (src/web/ui/status.ts) replaces `app.fail(error)?.textContent` at 11 call sites; 0 old call sites remain. "Back to the library" stays in the full-page banner (status.ts:138), the admin no-access page (admin.ts:76) and trash (trash.ts:266). `foldersChanged` after every folder write in adminFolders.ts:89 makes the next library, trash or editor view reload.
+
+### Open minors
+
+- R1. A damaged live `index.json` blocks `backup.restore`; needs a runbook step (slice 7).
+- R2. An undo failure in restore loses the first error and leaves backup side files with the live index (src/server/handlers/config.ts undoSides).
+- R3. Grant writes in the admin view do not call `foldersChanged`; a manage holder who removes a grant they depend on sees the old tree until reload.
+- R4. "1 templates" in the refusal text.
+- Carried: first-review minors 4, 7, 8, 9, 10 and the architect item on the owner-change path.
+
+Result: PASS on f6b567f.
