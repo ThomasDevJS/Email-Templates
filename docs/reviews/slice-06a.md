@@ -1,6 +1,6 @@
 # Review: slice 6a (admin view: Folders and grants, Memberships, Trash)
 
-Verdict: FAIL
+Verdict: PASS (retry 1, reviewed at bb53d6c). First review at 2b6b30f: FAIL, kept below.
 
 Branch `slice/06a-admin-folders`, commits ad1980f, 7ebd41e, 5b7cdf0, 2b6b30f, base a7e5abb. Reviewed 2026-11-10.
 
@@ -90,3 +90,35 @@ h. Top-level `folder.create` re-check: accept. 2 extra property reads and 2 extr
 - Blocker 1: `PRINCIPAL_KEY_MAX`, server check and input `maxlength`, tests per principal type.
 - Blocker 2: denied audit event for a refused `admin.folders`, test on the `evt:*` buffer.
 - Rerun all commands above.
+
+## Retry 1
+
+Verdict: PASS. Commits efad596, d82cc3e, e00d34e, 5a179ec, 5c5ce65, eece656, 956e1ce, 675e145 (revert of 5c5ce65), bb53d6c. Diff `7a9ab77..bb53d6c`.
+
+### Commands (clean install, this worktree)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | added 559 packages, audited 560; 16 advisories (14 moderate, 2 high), unchanged |
+| `npm run lint` | exit 0 |
+| `npm run format:check` | "All matched files use Prettier code style!" |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 49 files, 1132 tests passed. Lines 96.56 (addon 100, server 99.31, shared 100, web 95.90), statements 95.63, branches 89.06, functions 94.18 |
+| `npm run build -- --env dev` | Code.js 286.0 KB of 800 KB, index.html 301.5 KB of 400 KB |
+| `npm run scopes:check` | "Scope check passed: 10 scopes, all approved." |
+| `npm run lighthouse` | accessibility library, editor, history, admin, admin memberships, trash: 100 each |
+
+The retry changes no appsscript.json, scripts/, package.json, lock or lint/ts/vitest config. Secret scan of 383 added lines: 0 hits. Emails: `sales@example.com` (fixture). URLs: none. New network calls: none.
+
+### Fixes
+
+1. Blocker 1 fixed. `PRINCIPAL_KEY_MAX = 254` (src/shared/model/validate.ts:7), checked in `principalKeyFor` (src/server/handlers/grants.ts:87) on the trimmed, lowercased key, the stored form, before the format checks and before the group read. Probe: 20,004-character keys of all 4 types answer VALIDATION. A 254-character domain is ok, 255 is VALIDATION, 254 with 3 spaces each side and upper case is ok. Input `maxlength` 254 (adminFolders.ts:330). Other 6a string args: folder `name` has `FOLDER_NAME_MAX`; `principalType` and `level` are enums; ID args are only matched against existing records. No unbounded string reaches storage.
+2. Blocker 2 fixed. dispatch.ts:236 buffers the denied event for a DENIED thrown after `authorize`. Probe (rows in the `evt:*` buffer per call): refused `admin.folders` 1, `membership.status` (policy denial) 1, `grant.list` by a non-manager 1, `grant.add` without `folderId` (VALIDATION) 0, unknown folder ID (NOT_FOUND) 0, allowed `admin.folders` 0. A policy denial throws before the handler `try`, so one call never writes 2 rows. An in-lock re-check denial is buffered after `withLock` released the lock: no nested lock. The buffer has no count cap; a refused `admin.folders` costs the same as every other refused op (one `tryLock` of at most 500 ms, one cache entry, drained by `tick` every 5 min, early flush above 200 KB). No new flood path.
+3. Minor 1 fixed. Probe, Ana with `manage` on Quotes, `grant.list` on Q1: sources `/Quotes`, `/Quotes`, and `""` for the grant on Sales; "Sales" appears nowhere in the response. The web shows "a parent folder (inherited)". Admin: `/Sales/Quotes`, `/Sales`.
+4. Minor 2 fixed. `PURGE_FILES_MAX = 50` (daily.ts). The index commit runs first, then the files: an item leaves the index before its files, so no listed item can lose its body. Probe with 53 trashed templates: `{"purged":53,"filesTrashed":50,"itemsPending":3}`, 3 orphan bodies left, 0 index items without a body. `cleanOrphans` trashes the 3 (files older than 1 h, item unknown); the implementer's test covers it after `runDaily`.
+5. Revert accepted. ADR-0003 Part C line 113 gives admins `manage` on every folder, private ones included, so an admin restoring, moving or duplicating into another user's private folder follows the Accepted ADR. Minor 3 of the first review is withdrawn: no defect. Probe: admin `template.move` into Bob's private folder ok; admin `folder.list` lists it labelled "(bob@example.com)". Ana (edit on Sales, not owner, not admin): create, move, duplicate into it DENIED; her `folder.list` (source of the Move and Restore pickers) lists only her own "My templates". src has no trace of the reverted `targetFolder`. admin.test.ts pins both sides.
+
+### Open minors
+
+- First review minors 4, 5 and 6 stay open (trigger delete failure, spec rows and depth number, web error-branch coverage).
+- The handoff "Left for later" paragraph still says the server refuses admins with "Only its owner can put templates into a private folder". That text predates the revert 675e145 and is wrong now; the server allows it.

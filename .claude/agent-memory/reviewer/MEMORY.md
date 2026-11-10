@@ -59,24 +59,27 @@
   - DraftInfo.hasSubject boolean, requestDraft requires 5 keys. folder.rename strips " (owner)" on private folders; only admins can rename private folders (owner gets DENIED).
   - Minor: strip also hits admin's own folder.
 
-- Slice 6a (2026-11-10): FAIL (2b6b30f). 49 files, 1120 tests, lines 96.54 (addon 100, server 99.31, shared 100, web 95.89), Code.js 284.7 KB, index.html 301.4 KB, 10 scopes, Lighthouse 100x6. New tests on old src: 58 fail.
+- Slice 6a (2026-11-10): FAIL (2b6b30f), retry 1 PASS (bb53d6c, 1132 tests, lines 96.56, Code.js 286.0 KB). Retry: PRINCIPAL_KEY_MAX 254 on trimmed lowercased key; dispatch buffers denied event for handler or in-lock DENIED (no double rows); grant.list sourcePath hidden above visible part; PURGE_FILES_MAX 50 after commit. Admin into others' private folders is ADR-0003 C (line 113), not a defect; my minor 3 withdrawn.
+  First review: 49 files, 1120 tests, lines 96.54 (addon 100, server 99.31, shared 100, web 95.89), Code.js 284.7 KB, index.html 301.4 KB, 10 scopes, Lighthouse 100x6. New tests on old src: 58 fail.
   - Blocker 1: grant.add principalKey unbounded (grants.ts:73 principalKeyFor); manage holder stored a 20,004-char domain key.
   - Blocker 2: refused admin.folders (handler DENIED, admin.ts:34) writes no denied audit row; ADR-0003 Part C line 144 requires one.
   - Accepted: escalation probes all DENIED (above, sibling, root, private, foreign move); FOLDER_DEPTH_MAX 5; restoreTargets (purged folder = ROOT, admin only); Q23 create-then-delete; in-lock admin re-check (props are snapshot reads in prod).
   - Minors: grant.list sourcePath leaks ancestor names; trash.purge body loop unbounded; admin restore into others' private folders; failed old-trigger delete leaves 6; spec 6 rows for admin.folders, membership.status.
   - New ops: admin.folders (grant.manage list op), membership.status (admin.ops). Trash: template.list {trash:true} adds folderLive, folderPath, canPurge.
 
-## Check in slice 6a retry and 6b
-- Retry: PRINCIPAL_KEY_MAX on server and input; denied event buffered for admin.folders.
+## Check in slice 6b
+- evt:* buffer has no count cap (pre-existing); tick drains it.
 - Import must call prepareBody with subject; export must carry subject; import replaces line breaks and reports count (spec 5.6).
 - Admin can duplicate others' private templates (D11, open since 4b).
 - UNKNOWN_OP reply quotes the op back (not logged). Spec 11 lacks calls/timing fields.
 - audit.query (6b) must show denied rows; check who reads grant principals in before/after.
 
 ## Recurring lessons
+- Read the Accepted ADR before calling an admin right a defect (ADR-0003 C: admin = manage everywhere, private included).
 - Handler-level DENIED (list ops) bypasses dispatch recordDenied; check the audit row for every DENIED path.
 - Check length bounds on every stored client string (principal keys had none for 4 slices).
-- Probe files: never use Python splitlines() on files with U+2028; it splits there. Use split("\n").
+- Probe files: never use Python splitlines() on files with U+2028; it splits there. Use split("
+").
 - Side files under a rev property: check missing-property behaviour on old data and the writer order (file, then property).
 - Server props are a per-request snapshot since 4b (runtime.ts snapshotProps, triggers live). Any read-check-write across executions under a lock must read live.
 - Log fields from clients (requestId, op, timing): check format and length on the server, both surfaces.
