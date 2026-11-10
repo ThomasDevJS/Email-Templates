@@ -95,3 +95,24 @@ Scripts and docs: scripts/{lighthouse,dev-web}.mjs, docs/ops/smoke.md.
 ## Commands
 
 `npm ci`, `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build -- --env dev`, `npm run scopes:check`, `npm run format:check`, `npm run lighthouse`. Local look: `npm run dev:web`, then `#/admin/audit`, `#/admin/usage`, `#/admin/transfer`, `#/admin/config`; `?admin=0` for a manage holder; `?fail=QUOTA&failOp=usage.report`.
+
+## Retry 1 (review FAIL f472d18, owner smoke dev-292d7ad)
+
+Commits fef39eb and bb5e4b2 (restore), da80113 (import), da45862 (web). Each fix has a test that fails on the code before it (web: 4 of 4 checked by swapping src back; server tests answer ok or "Internal error" on the old code).
+
+| Item | Change | Test |
+|---|---|---|
+| Blocker | src/shared/model/shape.ts: `indexProblem` (schemaVersion 1, integer rev, folders, grants, items, pendingAudit as lists of records with typed fields), `favoritesProblem`, `usageProblem`. driveStore runs them on every Drive read of the 3 live files (INTERNAL "<file> is damaged: ...") and on the 3 backup copies before the lock (VALIDATION "This backup cannot be read: <file> ..."). Unparsable or missing copies answer VALIDATION naming the file. The live files are untouched. | adminReports.test.ts: damaged index.json, favorites.json, usage.json, unparsable index.json, missing favorites.json; live files byte-identical and `template.list`, `sidebar.home` still ok. storage.test.ts: damaged live files refused |
+| Minor 6 | Order under the lock: admin re-check and purge guard, then `favorites.json`, then `usage.json`, then `index.json` as the commit point. Each live side file is kept in memory before it is overwritten. A failure before or during the index write puts the kept copies back with a new rev. State after a mid-way failure: index and both side files as before the restore. Left open: a failure inside the undo itself, or a failure of the `INDEX_REV` property write after the index file was written, leaves a mixed state. | index write made to fail on the 3rd Drive update: favorites and index unchanged |
+| Minor 5 | Guard chosen: refuse. A template live in the backup and absent from the index now was emptied from the trash after the backup date; the restore answers VALIDATION "<n> templates of the <date> backup were emptied from the trash after that date and would not open. Pick a newer backup." Trashed templates of the backup that were purged since are dropped from the restored index (their files are gone). Dialog: "Every change made after <date> is lost ... Templates emptied from the trash after <date> cannot come back; the server refuses the restore if the backup holds any." | refusal text with count 1; trashed-and-purged template dropped |
+| Minor 1 | Body writes and the commit run inside `nothingImported`: the error keeps its code, the message is "Nothing was imported: the template <title> could not be saved. Run the import again." or "... the library could not be written: Busy, try again. Run the import again." | Drive create failure (INTERNAL, names "First"), lock busy (BUSY) |
+| Minor 2 | `parseImportFile` refuses duplicate folder IDs: VALIDATION "Folders #1 and #2 of the file have the same id", also on Validate. | dryRun test |
+| Minor 3 | `import` refuses a target inside a private tree (VALIDATION "Templates cannot be imported into a private folder. Pick a shared folder."). The target picker lists only folders outside private trees (`sharedFolders`). | own and another user's private folder; picker has no "My templates" |
+| Defect A | `lineText` (src/web/ui/status.ts): the code's message as one sentence with a final period, no banner link; empty when a toast showed the error. Replaces `app.fail(error)?.textContent` in 11 places (admin tabs, memberships, trash, library). | grant form: "Group missing@example.com was not found or its members are not visible." and no "Back to the library"; status.test.ts |
+| Defect B | `AppContext.foldersChanged()`; the admin folder write calls it; the next library, trash or editor view loads folders and templates again. Import and restore already call `app.reload()`. | create "Legal" in admin, click Library: the tree shows Legal |
+
+Results from a clean install: npm ci 559 packages, 16 advisories (unchanged). lint 0, typecheck 0. 51 files, 1238 tests. Lines 96.68 (addon 100, server 99.31, shared 100, web 95.47), statements 95.63, branches 89.01, functions 94.48. Code.js 318.9 KB, index.html 316.5 KB. 10 scopes. Format clean. Lighthouse 100 on 10 views.
+
+Cost: each Drive read of `index.json`, `favorites.json` and `usage.json` now runs a shape check (one pass over the records). Cache hits skip it.
+
+Left for later: review minors 4 (buffer drops applies with denials), 7 (near-5 MB smoke step), 8 (month file over the cache), 9 (offset paging), 10 (spec and ADR text).
