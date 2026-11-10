@@ -11,11 +11,11 @@ Owner: thomas@migway.com. Orchestrator keeps this file current. Brief: docs/BRIE
 | 2 Spec and ADRs | G2 | DONE 2026-11-09 | Revised for one project and Drive-only storage. Self-audit passed (one fix: per-deployment web app access). ADR-0001 to 0005 Accepted |
 | 2.5a Owner dev env | G2.5a | DONE 2026-11-09 | Dev script deployed from the cloud session. Sidebar card, Ping through the server, web app identity, setup folder and triggers all verified by the owner |
 | 2.5b Admin domain install | G2.5b | pending | Can wait until slices 1 to 7 PASS |
-| 3 Build | G3 per slice | IN PROGRESS 2026-11-09 | Slices 1, 2, 3 PASS and merged (151b4c2, 5ed2c19, add8e5a). Spikes S2 and S2b resolved. Next: slice 4 apply to compose |
+| 3 Build | G3 per slice | IN PROGRESS 2026-11-10 | Slices 1 to 4 PASS and merged (151b4c2, 5ed2c19, add8e5a, 6293264). Spikes S2 and S2b resolved. Spike S4 harness deployed, results wanted from the owner. Next: slice 5 search, favorites, recent |
 
 ## Next action
 
-Session boundary (owner switches model). New session: read docs/BRIEF.md, PLAN.md, docs/adr/, docs/handoffs/2026-11-09-orchestrator-to-orchestrator-session3.md. Re-authorize clasp (handoff step 2), deploy dev, have the owner run docs/ops/smoke.md Slice 3, then launch slice 4. Carry-overs from the slice 3 review are listed in the handoff. D7 facts still wanted.
+Owner: run docs/ops/smoke.md "Slice 3" (if not done) and "Slice 4" on the dev deployment, and fill in docs/spikes/slice-04-insert.md (F1 to F9 on Gmail web, then Android and iOS). Orchestrator: after the spike results, architect errata run (list in docs/handoffs/2026-11-10-orchestrator-to-orchestrator-session4.md), implementer trims the allowlist, sets the size cap and removes the S4 harness, then slice 5. Slice 5 may start before the spike results; it does not depend on them. D7 facts still wanted.
 
 ## Open decisions
 
@@ -68,3 +68,4 @@ Session boundary (owner switches model). New session: read docs/BRIEF.md, PLAN.m
 - 2026-11-09 Slice 2: implementer 4 commits, review FAIL (write authorized before lock, no in-lock re-check), retry fixed with in-lock re-check and 9 race tests, review PASS. 439 tests, 99.39% lines. Merged.
 - 2026-11-09 Spike S2 (a) resolved: the web app front door needs a token that can read the script project; `script.projects.readonly` works, `drive.file` and `drive.metadata.readonly` do not. Final scope list 10. Spike S2b: Drive read 0.5 to 0.8 s, write 1.1 s for 821 KB, Drive-only storage stands. Advanced Drive returns parsed JSON for alt=media.
 - 2026-11-09 Slice 3: placeholders, sanitizer (41 fixtures plus 10 adversarial), web app library, editor, history. Review PASS first time, 7 minor gaps carried to slice 4. 745 tests, Lighthouse 100 x3. Merged add8e5a. Dev deployed. Session 2 ends; owner switches model.
+- 2026-11-10 Session 3: clasp re-authorized through the pasted redirect URL, dev deployed at 05ed21f. Slice 4: implementer 7 commits, review FAIL (sidebar empty state never shown because of the private folder), retry fixed 4 gaps (empty state, server re-check on the prompt card Insert through `template.apply` `followUp`, unused payload fields, stale smoke step), review PASS. 846 tests, 95.96% lines, 10 scopes, Code.js 259.2 KB. Merged 6293264. Dev deployed. Unset `DOMAIN` now answers NOT_CONFIGURED. `sidebar.home` hides other users' private folders from admins; the library still shows them (D18 holds).
