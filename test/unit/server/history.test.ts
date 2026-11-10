@@ -75,6 +75,10 @@ describe("template.getBody (level use)", () => {
         html: "<p>plain</p>",
         placeholders: [],
         prompts: [],
+        to: [],
+        cc: [],
+        bcc: [],
+        blocked: [],
       });
     }
     expect(errorOf(BOB, "template.getBody", { id: item.id }).code).toBe(

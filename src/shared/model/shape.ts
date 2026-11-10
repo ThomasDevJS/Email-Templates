@@ -27,6 +27,12 @@ function records(
   return "";
 }
 
+const stringList = (value: unknown) =>
+  Array.isArray(value) && value.every(isString);
+/** Recipient lists (spec 5.7): absent in items saved before slice 9. */
+const optStringList = (value: unknown) =>
+  value === undefined || stringList(value);
+
 export function indexProblem(doc: unknown): string {
   if (!isRecord(doc)) return "not a record";
   if (doc["schemaVersion"] !== 1) return "schemaVersion must be 1";
@@ -53,6 +59,9 @@ export function indexProblem(doc: unknown): string {
       folderId: isString,
       title: isString,
       tags: Array.isArray,
+      to: optStringList,
+      cc: optStringList,
+      bcc: optStringList,
       currentVersion: isInt,
       bodyFileId: isString,
       deletedAt: isString,
@@ -74,9 +83,6 @@ function mapOf(
   const bad = Object.keys(value).find((key) => !ok(value[key]));
   return bad === undefined ? "" : `${name} has a bad entry`;
 }
-
-const stringList = (value: unknown) =>
-  Array.isArray(value) && value.every(isString);
 
 export function favoritesProblem(doc: unknown): string {
   if (!isRecord(doc)) return "not a record";

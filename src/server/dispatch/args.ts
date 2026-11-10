@@ -55,3 +55,9 @@ export function optStringArray(args: unknown, field: string): string[] {
     throw invalid(field, "a list of strings");
   return value;
 }
+
+/** A list of strings, or null when the field is absent (an update that keeps the stored value). */
+export function keptStringArray(args: unknown, field: string): string[] | null {
+  const value = record(args)[field];
+  return value === undefined ? null : optStringArray(args, field);
+}

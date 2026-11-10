@@ -41,6 +41,10 @@ export interface Item {
   readonly title: string;
   readonly subject: string;
   readonly tags: readonly string[];
+  /** D26 (slice 9): fixed recipients, normalized. Absent in items saved before; read with `recipientsOf`. */
+  readonly to?: readonly string[];
+  readonly cc?: readonly string[];
+  readonly bcc?: readonly string[];
   readonly status: "published" | "draft";
   readonly currentVersion: number;
   readonly bodyFileId: string;
@@ -97,6 +101,10 @@ export interface BodyFile {
   readonly version: number;
   /** Added 2026-11-10 (D21). Files written before read as "" (`withSubject`). */
   readonly subject: string;
+  /** D26 (slice 9): the recipients of this version. Absent in files written before; read with `recipientsOf`. */
+  readonly to?: readonly string[];
+  readonly cc?: readonly string[];
+  readonly bcc?: readonly string[];
   readonly html: string;
   readonly plainText: string;
   readonly savedAt: string;

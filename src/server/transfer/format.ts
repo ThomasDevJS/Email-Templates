@@ -35,6 +35,10 @@ export interface ExportItem {
     readonly title: string;
     readonly subject: string;
     readonly tags: readonly string[];
+    /** D26 (slice 9); files exported before read as `[]`. */
+    readonly to: readonly string[];
+    readonly cc: readonly string[];
+    readonly bcc: readonly string[];
   };
   readonly html: string;
 }
@@ -116,6 +120,11 @@ function parseItem(raw: unknown, position: number): Parsed<ExportItem> {
   const tags = stringList(meta["tags"]);
   if (title === null || tags === null)
     return { ok: false, reason: "Template needs a title and text tags", label };
+  const to = stringList(meta["to"]);
+  const cc = stringList(meta["cc"]);
+  const bcc = stringList(meta["bcc"]);
+  if (to === null || cc === null || bcc === null)
+    return { ok: false, reason: "To, Cc and Bcc must be lists of text", label };
   return {
     ok: true,
     value: {
@@ -125,6 +134,9 @@ function parseItem(raw: unknown, position: number): Parsed<ExportItem> {
         title,
         subject: str(meta, "subject") ?? "",
         tags,
+        to,
+        cc,
+        bcc,
       },
       html,
     },

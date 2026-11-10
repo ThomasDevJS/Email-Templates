@@ -1,5 +1,6 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Item } from "../../shared/model/data";
+import { recipientsOf, type Recipients } from "../../shared/model/recipients";
 import { reqInt, reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
@@ -80,12 +81,13 @@ export function versionList(context: HandlerContext): {
 export function versionGet(context: HandlerContext): {
   version: number;
   subject: string;
+
   html: string;
   savedAt: string;
   savedBy: string;
   restoredFrom: number;
   prompts: string[];
-} {
+} & Recipients {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   const ref = findVersion(context, item, reqInt(context.args, "version"));
   const body = context.services.store().readBody(ref.fileId);
@@ -97,6 +99,8 @@ export function versionGet(context: HandlerContext): {
   return {
     version: body.version,
     subject: body.subject,
+    // The recipients of this version, `[]` in files written before slice 9.
+    ...recipientsOf(body),
     html: readable.html,
     savedAt: body.savedAt,
     savedBy: body.savedBy,
@@ -105,7 +109,10 @@ export function versionGet(context: HandlerContext): {
   };
 }
 
-/** Restore creates version N+1 from subject and body of version K (linear history) through the save write path, plus an audit row. */
+/**
+ * Restore creates version N+1 from subject, recipients and body of version K (linear history) through the save write
+ * path, so K's recipients are validated again (`deny` refuses outside addresses), plus an audit row.
+ */
 export function versionRestore(context: HandlerContext): Item {
   const id = reqString(context.args, "id");
   const from = reqInt(context.args, "version");
@@ -115,7 +122,12 @@ export function versionRestore(context: HandlerContext): Item {
   const old = context.services
     .store()
     .readBody(findVersion(context, known, from).fileId);
-  const prepared = prepareFor(context.services.props, old.html, old.subject);
+  const prepared = prepareFor(
+    context.services.props,
+    old.html,
+    old.subject,
+    recipientsOf(old),
+  );
   const body = writeBody(context, id, baseVersion + 1, prepared, from);
   const source = eventSource(context, known.folderId);
   return commit(context, (current) => {
