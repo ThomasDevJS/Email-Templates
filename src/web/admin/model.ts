@@ -75,7 +75,7 @@ export function accessRows(grants: readonly GrantRow[]): AccessRow[] {
     grant,
     principal: `${PRINCIPAL_LABEL[grant.principalType]} ${grant.principalKey}`,
     source: grant.inherited
-      ? `${displayPath(grant.sourcePath)} (inherited)`
+      ? `${displayPath(grant.sourcePath) || "a parent folder"} (inherited)`
       : "this folder",
     note: grant.active
       ? ""

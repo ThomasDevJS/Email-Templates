@@ -8,7 +8,7 @@ import type {
 } from "../../shared/model/data";
 import { PRINCIPAL_KEY_MAX } from "../../shared/model/validate";
 import { inPrivateTree } from "../../shared/permissions/effective";
-import { isLevel } from "../../shared/permissions/levels";
+import { atLeast, isLevel } from "../../shared/permissions/levels";
 import { auditEvent, type EventSource } from "../audit/events";
 import { reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
@@ -42,13 +42,19 @@ function validation(message: string): AppError {
   return new AppError(ErrorCode.VALIDATION, message);
 }
 
-function view(index: IndexDoc, grant: Grant, inherited: boolean): GrantView {
-  return {
-    ...grant,
-    active: grant.principalType !== "ou",
-    inherited,
-    sourcePath: folderPath(index, grant.folderId),
-  };
+/**
+ * Path of a grant's folder as the caller may read it: admins the full path, others only the folders they can
+ * see, from the top of the visible part down. "" when the folder itself is hidden (the UI says "a parent folder").
+ */
+function visiblePath(context: HandlerContext, folderId: string): string {
+  const { index, levelOf, subject } = context.access();
+  if (subject.isAdmin) return folderPath(index, folderId);
+  const names: string[] = [];
+  for (const folder of chainOf(index, folderId)) {
+    if (!atLeast(levelOf(folder.id), "use")) break;
+    names.unshift(folder.name);
+  }
+  return names.length === 0 ? "" : `/${names.join("/")}`;
 }
 
 /** Grants on the folder, then grants inherited from its ancestors. */
@@ -59,7 +65,12 @@ export function grantList(context: HandlerContext): { grants: GrantView[] } {
   const grants = chain.flatMap((id) =>
     index.grants
       .filter((grant) => grant.folderId === id)
-      .map((grant) => view(index, grant, id !== folderId)),
+      .map((grant) => ({
+        ...grant,
+        active: grant.principalType !== "ou",
+        inherited: id !== folderId,
+        sourcePath: visiblePath(context, id),
+      })),
   );
   return { grants };
 }

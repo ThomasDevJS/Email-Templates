@@ -95,6 +95,7 @@ describe("admin model", () => {
       grant({ inherited: true, sourcePath: "/Sales/Quotes" }),
       grant({ principalType: "ou", principalKey: "/field", active: false }),
       grant({ principalType: "domain", principalKey: "example.com" }),
+      grant({ inherited: true, sourcePath: "" }),
     ]);
     expect(rows.map((row) => [row.principal, row.source, row.note])).toEqual([
       ["group sales@example.com", "this folder", ""],
@@ -105,6 +106,7 @@ describe("admin model", () => {
         "Inactive: OU resolution needs the Directory resolver",
       ],
       ["domain example.com", "this folder", ""],
+      ["group sales@example.com", "a parent folder (inherited)", ""],
     ]);
   });
 

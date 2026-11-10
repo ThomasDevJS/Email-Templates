@@ -57,7 +57,10 @@ export interface SaveArgs {
   readonly html: string;
 }
 
-/** `grant.list` row: `inherited` grants sit on an ancestor, `sourcePath` names it. `active` is false for OU (D17). */
+/**
+ * `grant.list` row: `inherited` grants sit on an ancestor, `sourcePath` names it as far as the caller sees it ("" when
+ * hidden). `active` is false for OU (D17).
+ */
 export interface GrantRow {
   readonly id: string;
   readonly folderId: string;

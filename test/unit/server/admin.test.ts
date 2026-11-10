@@ -387,6 +387,31 @@ describe("grants", () => {
     ]);
   });
 
+  it("names parent folders only as far as a manage holder can see them; admins see the full path", () => {
+    const sales = folder("Sales");
+    const quotes = folder("Quotes", sales.id);
+    const deals = folder("Deals", quotes.id);
+    grant(sales.id, BOB, "use");
+    grant(quotes.id, ANA, "manage");
+    const sources = (caller: string) =>
+      world
+        .ok<{ grants: { principalKey: string; sourcePath: string }[] }>(
+          caller,
+          "grant.list",
+          { folderId: deals.id },
+        )
+        .grants.map((g) => [g.principalKey, g.sourcePath]);
+    expect(sources(ANA)).toEqual([
+      [ANA, "/Quotes"],
+      [BOB, ""],
+    ]);
+    expect(JSON.stringify(sources(ANA))).not.toContain("Sales");
+    expect(sources(OWNER)).toEqual([
+      [ANA, "/Sales/Quotes"],
+      [BOB, "/Sales"],
+    ]);
+  });
+
   it("validates a group through the resolver and logs the folder, not the principal", () => {
     const sales = folder("Sales");
     world.lines.length = 0;
