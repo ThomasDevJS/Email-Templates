@@ -19,6 +19,7 @@ import { WRITE_LOCK_MS, withLock } from "../lock";
 import { MEMBERS_PREFIX, putMembersCache } from "../membership/snapshot";
 import type { Services } from "../services";
 import { commitLocked } from "../storage/writer";
+import { ensureTriggers } from "./triggers";
 
 /** `pendingAudit` above this size is rolled to the month file by `tick`, not only by `daily` (bulk imports). */
 export const EARLY_FLUSH_BYTES = 200 * 1024;
@@ -29,6 +30,8 @@ export interface TickResult {
   readonly rolled: number;
   readonly indexCache: "fresh" | "reput" | "rebuilt";
   readonly membersCache: "fresh" | "reput";
+  /** True when this run reinstalled the triggers after a deploy changed `TRIGGERS_VERSION`. */
+  readonly triggers: boolean;
 }
 
 function applies(events: readonly BufferedEvent[]): ApplyEvent[] {
@@ -105,12 +108,13 @@ function pendingBytes(services: Services): number {
   return utf8Length(JSON.stringify(loadIndex(services).pendingAudit));
 }
 
-/** Every 5 min (spec section 16). */
+/** Every 5 min (spec section 16). Also the trigger version check, so add-on-only use after a deploy reinstalls too. */
 export function runTick(services: Services): TickResult {
   const flushed = flushBuffer(services);
   const indexCache = upkeepIndex(services);
   const membersCache = upkeepMembers(services);
   const rolled =
     pendingBytes(services) > EARLY_FLUSH_BYTES ? rollAudit(services) : 0;
-  return { ...flushed, rolled, indexCache, membersCache };
+  const triggers = ensureTriggers(services);
+  return { ...flushed, rolled, indexCache, membersCache, triggers };
 }

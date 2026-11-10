@@ -23,8 +23,10 @@ import {
 import { runTick } from "../../../src/server/jobs/tick";
 import {
   ensureTriggers,
+  TRIGGERS_VERSION,
   TRIGGERS_VERSION_KEY,
 } from "../../../src/server/jobs/triggers";
+import { snapshotProps } from "../../../src/server/metrics";
 import { MEMBERS_PREFIX } from "../../../src/server/membership/snapshot";
 import { childQuery } from "../../../src/server/storage/driveClient";
 import { requireStoreIds } from "../../../src/server/storage/setupStore";
@@ -412,6 +414,32 @@ describe("trigger reinstall", () => {
     expect(ensureTriggers(world.services)).toBe(true);
     expect(world.scriptApp.triggers).toHaveLength(3);
     expect(ensureTriggers(world.services)).toBe(false);
+  });
+
+  it("reinstalls once when 2 executions both read the stale version before either took the lock", () => {
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    const first = snapshotProps(world.props);
+    const second = snapshotProps(world.props);
+    expect(first.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+    expect(second.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+    const created = () => world.scriptApp.triggers.map((t) => t.id);
+    expect(
+      ensureTriggers({ ...world.services, props: first }, world.props),
+    ).toBe(true);
+    const afterFirst = created();
+    expect(
+      ensureTriggers({ ...world.services, props: second }, world.props),
+    ).toBe(false);
+    expect(created()).toEqual(afterFirst);
+  });
+
+  it("tick reinstalls after a deploy changed TRIGGERS_VERSION", () => {
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    expect(runTick(world.services).triggers).toBe(true);
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe(
+      TRIGGERS_VERSION,
+    );
+    expect(runTick(world.services).triggers).toBe(false);
   });
 });
 

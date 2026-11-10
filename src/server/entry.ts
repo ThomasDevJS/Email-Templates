@@ -32,12 +32,12 @@ const APP_TITLE = "Migway Templates";
 
 /**
  * The first web app page load after a deploy reinstalls triggers when `TRIGGERS_VERSION` changed (spec section 16).
- * Only `doGet` runs it: ops (`rpc`, `doPost`) skip the check and its property reads.
+ * `doGet` and `tick` run it; ops (`rpc`, `doPost`) skip the check and its property reads.
  */
 function maintain(services: Services): void {
   if ((services.props.getProperty(OWNER_EMAIL_KEY) ?? "") === "") return;
   try {
-    ensureTriggers(services);
+    ensureTriggers(services, PropertiesService.getScriptProperties());
   } catch (error: unknown) {
     services.logger.error({
       surface: services.stats.surface,
