@@ -81,6 +81,11 @@
   - Minors: Recent "about 5 min" is up to 15 (tick + 10 min view cache); forward subject unverified; grid "By" column; QUOTA Retry not disabled (notice); image width fixed 600; quick start 1,087 words.
   - Confirmed spec/ADR errata: spec 7 NOT_CONFIGURED/AUTH/SERVER texts, spec 8/12 4 vs 10 Lighthouse views, NOT_IMPLEMENTED dead in status.ts, ADR-0004 profile clear not built.
 
+- Slice 8a UI (2026-11-10): FAIL (review on 23bf981). 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
+  - Must fix: 390 px panel (`.side.open .side-panel` absolute) lets Tab reach search/grid under it; no outside-click close (app.ts:74-86). `--star` #c58a00 2.99 on paper, 2.74 on canvas; star-off 2.80 on `--select` (button hover).
+  - Minors: `.owner` on tree hover 4.19; history.ts:113 full address; admin 390 px width 665 (base 506), 8c; input borders 1.58 (design system); disabled buttons exempt.
+  - Accepted all 17 mockup differences (17 deferred to 8b). XSS probe via patched harness data clean.
+
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -105,3 +110,7 @@
 - Destructive restore paths: probe parseable-but-wrong-shape files, then check the next restore still works.
 - New read-path validation: replay old builds (git archive per slice commit, probe test with setupWorld, dump files) and feed the dumps to the new check.
 - Call counts from test/fakes/world.ts skip snapshotProps; compare with entry.test.ts warm-read test.
+- UI slices: Playwright at /opt/node-tools/node_modules/playwright (require by absolute path), `chromium.launch()` works. Dev harness `node scripts/dev-web.mjs --port N`. Base comparison: git archive base into scratchpad, symlink node_modules, serve on another port.
+- Harness data injection: page.route the HTML and replace `\"literal\"` strings in the JSON-escaped bundle; wrapping google.script.run after load does not work (runner captured at start).
+- Contrast: compute every token pair incl. hover (`--hover`), `--select`, button hover fills, disabled at 55% opacity; check overrides for hover as well as selected.
+- Overlay panels: Tab past the last item and check where focus lands; check outside click.
