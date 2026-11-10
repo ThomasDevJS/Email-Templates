@@ -1,6 +1,6 @@
 # Review: slice 4 (apply to compose, add-on sidebar)
 
-Verdict: FAIL
+Verdict: PASS (retry 1, head 054129a). First review: FAIL on 2ac580f.
 
 Reviewed 2026-11-10 by the reviewer agent. Branch `slice/04-apply`, head 2ac580f, base `claude/gracious-franklin-3n8zbq` (05ed21f). 7 commits, 67 files, +3,974 / -537.
 
@@ -77,3 +77,39 @@ Probes ran in a scratch copy (`git archive HEAD`), one vitest file, deleted afte
 ## Next
 
 Implementer fixes gap 1 (one condition, one test). Reviewer reruns the test suite and the home card probe. Gaps 2 to 5 may go with that fix or into slice 5.
+
+## Retry 1
+
+Verdict: PASS. Reviewed 2026-11-10 on head 054129a. 4 commits after c89203e: 76dee46, 662f264, 2b6a9c8, 054129a. 12 files, +150 / -53.
+
+### Commands (clean install, Node 22.23.4)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules dist coverage && npm ci` | exit 0, "added 559 packages, and audited 560 packages in 9s", 16 advisories, dev tree |
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run format:check` | exit 0, "All matched files use Prettier code style!" |
+| `npm run test:coverage` | exit 0, "Test Files 40 passed (40)", "Tests 846 passed (846)". Lines 95.96% (addon 100, shared 100, server 99.08, web 93.75) |
+| `npm run build -- --env dev` | exit 0, "Code.js: 259.2 KB of 800 KB", "index.html: 271.1 KB of 400 KB" |
+| `npm run scopes:check` | exit 0, "Scope check passed: 10 scopes, all approved." |
+
+Secret scan of the 4 commits: 0 key or token hits, 0 emails, 0 URLs added. `appsscript.json` and scripts/approved-scopes.json unchanged.
+
+### Gaps from the first review
+
+1. Fixed. home.ts:55 now tests `view.templates.length === 0`. Probe: a second account after `folder.list` (private folder at count 0) gets "No templates shared with you yet.", the private folder line and Open library. Smoke "Slice 4" step 8 holds.
+2. Fixed. The prompt card Insert calls `template.apply` with `followUp: true` (flows.ts `bodyFor`). Probes:
+   - Insert tap, then a blocked prompt Insert, then a good one: 3 server calls, 1 apply event in the buffer.
+   - Grant removed while the card is open: the next Insert returns the DENIED card, no `insert` reply, draft unchanged.
+   - `followUp` of `"yes"`, `1` or `"true"` gives VALIDATION "followUp: expected true or false" (`optBool`).
+   - A caller without `use` gets DENIED with `followUp: true`.
+   - A first call with `followUp: true` returns the body, the caller's sender values and an internal recipient's first name, and buffers no apply event. The body is the one `template.getBody` already returns without an event, under the same `use` check. The sender values are the caller's own. The first name is the `domain_public` field any domain user can read. The only loss is the caller's own `applyCount` and Recent entry, which Q14 treats as analytics. Each call still writes one request log line with `action` and `actor` (5 lines for 5 calls, none with body text or recipient address). Acceptable.
+3. Fixed. `rev`, `own` and `placeholders` are gone from src/shared/model/sidebar.ts and the handler payload. `own` stays inside sidebar.ts only to sort the private folder last. No reader or comment remains in src/addon.
+4. Fixed. Smoke Slice 1 step 3 expects "Migway Templates", "Signed in as <your email>" and the library.
+5. Open, minor: `Action.setRequiredWidgets` not tried.
+
+### New minor notes
+
+- `template.apply` accepts `recipientEmailIfInternal` together with `followUp: true`. The add-on sends "" there. The server could ignore it on follow-ups to drop an event-free name lookup. Not blocking.
+- Spec 4.1 step 5 should name the `followUp` re-check (architect, listed in the handoff).
