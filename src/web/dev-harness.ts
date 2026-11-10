@@ -12,6 +12,7 @@ import type { GoogleScript, ScriptLocation } from "./host";
 
 interface Version {
   readonly version: number;
+  readonly subject: string;
   readonly html: string;
   readonly savedAt: string;
   readonly savedBy: string;
@@ -57,6 +58,7 @@ const folders = [
 
 const items = new Map<string, Item>();
 const versions = new Map<string, Version[]>();
+const favorites = new Set<string>(["T-QUOTE"]);
 let seq = 100;
 
 function levelOf(folderId: string): AccessLevel {
@@ -82,12 +84,14 @@ function store(
   html: string,
   by = ME,
   restoredFrom = 0,
+  subject = "",
 ): Item {
-  const body = prepareBody(html);
+  const body = prepareBody(html, {}, subject);
   const list = versions.get(id) ?? [];
   const version = list.length + 1;
   list.push({
     version,
+    subject: body.subject,
     html: body.html,
     savedAt: new Date(Date.parse(NOW) + version * 60000).toISOString(),
     savedBy: by,
@@ -99,7 +103,7 @@ function store(
     kind: "template",
     folderId,
     title,
-    subject: "",
+    subject: body.subject,
     tags,
     status: "published",
     currentVersion: version,
@@ -134,6 +138,8 @@ store(
   ["pricing", "quotes"],
   '<p>Hi {{recipient.first_name|there}},</p><p>Thanks for your interest in {{ask:Product name}}. Our quote for {{ask:Meeting date}} is below.</p><table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse"><tbody><tr><th>Item</th><th>Price</th></tr><tr><td>Plan</td><td>10</td></tr></tbody></table><p><strong>{{sender.name}}</strong><br>{{sender.title}}</p>',
   "ben@example.com",
+  0,
+  "Quote for {{ask:Product name}}",
 );
 store(
   "T-DISCOUNT",
@@ -246,7 +252,28 @@ const OPS: Readonly<Record<string, Op>> = {
       .filter((entry) => entry.deletedAt === "")
       .filter((entry) => levelOf(entry.folderId) !== "none")
       .map((entry) => ({ ...entry, level: levelOf(entry.folderId) })),
+    favorites: [...favorites],
+    recent: ["T-DISCOUNT"],
   }),
+  "favorite.set": (args) => {
+    favorites.add(live(str(args, "id")).id);
+    return { id: str(args, "id"), favorite: true };
+  },
+  "favorite.unset": (args) => {
+    favorites.delete(str(args, "id"));
+    return { id: str(args, "id"), favorite: false };
+  },
+  "search.body": (args) => {
+    const words = str(args, "query").toLowerCase().split(/\s+/);
+    const ids = [...items.values()]
+      .filter((entry) => entry.deletedAt === "")
+      .filter((entry) => {
+        const text = (versions.get(entry.id)?.at(-1)?.html ?? "").toLowerCase();
+        return words.every((word) => text.includes(word));
+      })
+      .map((entry) => entry.id);
+    return { ids, skipped: 0 };
+  },
   "template.get": (args) => {
     const found = item(str(args, "id"));
     needLevel(found.folderId, "use");
@@ -262,6 +289,9 @@ const OPS: Readonly<Record<string, Op>> = {
       title(args),
       tags(args),
       str(args, "html"),
+      ME,
+      0,
+      str(args, "subject"),
     );
   },
   "template.update": (args) => {
@@ -276,6 +306,9 @@ const OPS: Readonly<Record<string, Op>> = {
       title(args),
       tags(args),
       str(args, "html"),
+      ME,
+      0,
+      str(args, "subject"),
     );
   },
   "template.duplicate": (args) => {
@@ -288,6 +321,9 @@ const OPS: Readonly<Record<string, Op>> = {
       `Copy of ${found.title}`,
       [...found.tags],
       versions.get(found.id)?.at(-1)?.html ?? "",
+      ME,
+      0,
+      found.subject,
     );
   },
   "template.move": (args) => {
@@ -329,7 +365,10 @@ const OPS: Readonly<Record<string, Op>> = {
       ?.find((candidate) => candidate.version === num(args, "version"));
     if (entry === undefined)
       throw new AppError(ErrorCode.NOT_FOUND, "Version not found");
-    return { ...entry, prompts: scanBody(entry.html).prompts };
+    return {
+      ...entry,
+      prompts: scanBody(entry.html, [], entry.subject).prompts,
+    };
   },
   "version.restore": (args) => {
     const found = item(str(args, "id"));
@@ -349,6 +388,7 @@ const OPS: Readonly<Record<string, Op>> = {
       entry.html,
       ME,
       from,
+      entry.subject,
     );
   },
 };

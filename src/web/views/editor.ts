@@ -1,9 +1,10 @@
 import { ErrorCode } from "../../shared/errors/codes";
 import type { Item } from "../../shared/model/data";
 import { TAGS_MAX, TAG_MAX, TITLE_MAX } from "../../shared/model/validate";
+import { SUBJECT_MAX } from "../../shared/placeholders/subject";
 import { scanBody } from "../../shared/placeholders/validate";
 import { insertNode, newTable, setLink } from "../editor/commands";
-import { pickerItems } from "../editor/picker";
+import { pickerItems, subjectPickerItems } from "../editor/picker";
 import { safeHref, schema } from "../editor/schema";
 import { backslashProblems } from "../editor/serialize";
 import { createEditor, type Editor } from "../editor/setup";
@@ -15,18 +16,20 @@ import { openMenu } from "../ui/menu";
 import { toRpcError } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { problemList, type ListedProblem } from "./problems";
-import { previewAsMe } from "./preview";
+import { previewAsMe, subjectAsMe } from "./preview";
 import { tagEditor } from "./tags";
 
 /**
- * Editor (screen 4, flow 4.2 save): title, folder, tags, toolbar, ProseMirror body, preview as me, problems
- * (role alert) and status (role status). Save by button or Ctrl+S; disabled while saving. A stale base version
- * opens the conflict dialog with three choices; nothing is overwritten silently.
+ * Editor (screen 4, flow 4.2 save): title, subject, folder, tags, toolbar, ProseMirror body, preview as me,
+ * problems (role alert) and status (role status). Save by button or Ctrl+S; disabled while saving. A stale base
+ * version opens the conflict dialog with three choices; nothing is overwritten silently. The subject is a plain
+ * input: tokens are typed as text, and the Placeholder menu inserts token text there while it has focus.
  */
 interface Loaded {
   readonly id: string;
   readonly version: number;
   readonly title: string;
+  readonly subject: string;
   readonly folderId: string;
   readonly tags: readonly string[];
   readonly html: string;
@@ -35,7 +38,15 @@ interface Loaded {
 const EDITOR_ID = "editor-body";
 
 function blank(folderId: string): Loaded {
-  return { id: "", version: 0, title: "", folderId, tags: [], html: "" };
+  return {
+    id: "",
+    version: 0,
+    title: "",
+    subject: "",
+    folderId,
+    tags: [],
+    html: "",
+  };
 }
 
 function fromItem(item: Item, html: string): Loaded {
@@ -43,25 +54,32 @@ function fromItem(item: Item, html: string): Loaded {
     id: item.id,
     version: item.version,
     title: item.title,
+    subject: item.subject,
     folderId: item.folderId,
     tags: item.tags,
     html,
   };
 }
 
+/** Problems in the subject name the field (wireframe 04): "Subject: Unknown placeholder ...". */
+function fieldMessage(problem: { message?: unknown; field?: unknown }) {
+  const message = String(problem.message);
+  return problem.field === "subject" ? `Subject: ${message}` : message;
+}
+
 function serverProblems(details: unknown): ListedProblem[] {
   const problems = (details as { problems?: unknown } | undefined)?.problems;
   if (!Array.isArray(problems)) return [];
-  return problems.map((problem: { message?: unknown }) => ({
+  return problems.map((problem: { message?: unknown; field?: unknown }) => ({
     kind: "error",
-    message: String(problem.message),
+    message: fieldMessage(problem),
   }));
 }
 
-function warningsOf(html: string): ListedProblem[] {
-  return scanBody(html).warnings.map((warning) => ({
+function warningsOf(html: string, subject: string): ListedProblem[] {
+  return scanBody(html, [], subject.trim()).warnings.map((warning) => ({
     kind: "warning",
-    message: warning.message,
+    message: fieldMessage(warning),
   }));
 }
 
@@ -83,6 +101,16 @@ export function editorView(
     required: true,
     autocomplete: "off",
   });
+  const subjectInput = h("input", {
+    type: "text",
+    id: "subject",
+    maxlength: SUBJECT_MAX,
+    autocomplete: "off",
+    "aria-describedby": "subject-count",
+  });
+  const subjectCount = h("span", { id: "subject-count", class: "hint" });
+  /** True while the subject input was the last field in focus, so the Placeholder menu targets it. */
+  let subjectActive = false;
   const folderSelect = h("select", { id: "folder" });
   const tags = tagEditor(TAGS_MAX, TAG_MAX);
   const heading = h("h1", { class: "editor-title" }, "New template");
@@ -104,6 +132,7 @@ export function editorView(
     "aria-live": "polite",
   });
   const preview = h("div", { class: "preview-body" });
+  const previewSubject = h("p", { class: "preview-subject" });
   const mount = h("div", { class: "editor-mount" });
   const body = h(
     "div",
@@ -118,9 +147,16 @@ export function editorView(
   const updatePreview = () => {
     window.clearTimeout(previewTimer);
     previewTimer = window.setTimeout(() => {
+      const subject = subjectInput.value.trim();
+      previewSubject.textContent =
+        subject === "" ? "" : `Subject: ${subjectAsMe(subject, app.profile())}`;
       if (editor !== null)
         preview.innerHTML = previewAsMe(editor.html(), app.profile());
     }, 250);
+  };
+
+  const showSubjectCount = () => {
+    subjectCount.textContent = `${String(subjectInput.value.length)}/${String(SUBJECT_MAX)} (optional)`;
   };
 
   const fillFolders = () => {
@@ -148,6 +184,17 @@ export function editorView(
   };
 
   const openPicker = (anchor: HTMLElement, onDismiss?: () => void) => {
+    if (subjectActive) {
+      openMenu({
+        label: "Placeholders",
+        anchor,
+        items: subjectPickerItems(subjectInput),
+        returnFocus: () => {
+          subjectInput.focus();
+        },
+      });
+      return;
+    }
     if (editor === null) return;
     const target = editor;
     openMenu({
@@ -252,6 +299,8 @@ export function editorView(
   const show = (loaded: Loaded) => {
     current = loaded;
     titleInput.value = loaded.title;
+    subjectInput.value = loaded.subject;
+    showSubjectCount();
     tags.set(loaded.tags);
     fillFolders();
     showVersion();
@@ -365,6 +414,7 @@ export function editorView(
     const html = editor.html();
     const args = {
       title: titleInput.value,
+      subject: subjectInput.value,
       folderId: folderSelect.value,
       tags: tags.values(),
       html,
@@ -377,7 +427,7 @@ export function editorView(
       const isNew = current.id === "";
       current = fromItem(item, html);
       showVersion();
-      showProblems(warningsOf(html));
+      showProblems(warningsOf(html, args.subject));
       status.textContent = `Saved as version ${String(item.version)}, ${formatTime(item.updatedAt).slice(11)}`;
       if (isNew) app.replaceRoute({ name: "edit", id: item.id });
       void app.reload();
@@ -390,6 +440,39 @@ export function editorView(
     }
   };
 
+  subjectInput.addEventListener("input", () => {
+    showSubjectCount();
+    updatePreview();
+  });
+  const fields = h(
+    "div",
+    { class: "editor-fields" },
+    h(
+      "div",
+      { class: "field" },
+      h("label", { for: "title" }, "Title"),
+      titleInput,
+    ),
+    h(
+      "div",
+      { class: "field" },
+      h("label", { for: "subject" }, "Subject"),
+      subjectInput,
+      subjectCount,
+    ),
+    h(
+      "div",
+      { class: "field" },
+      h("label", { for: "folder" }, "Folder"),
+      folderSelect,
+    ),
+    tags.element,
+  );
+  // The toolbar and its menu take focus too; only a field or the body changes the Placeholder target.
+  for (const area of [fields, mount])
+    area.addEventListener("focusin", (event) => {
+      subjectActive = event.target === subjectInput;
+    });
   saveButton.addEventListener("click", () => void save());
   historyButton.addEventListener("click", () => {
     app.go({ name: "history", id: current.id });
@@ -426,23 +509,7 @@ export function editorView(
         historyButton,
         saveButton,
       ),
-      h(
-        "div",
-        { class: "editor-fields" },
-        h(
-          "div",
-          { class: "field" },
-          h("label", { for: "title" }, "Title"),
-          titleInput,
-        ),
-        h(
-          "div",
-          { class: "field" },
-          h("label", { for: "folder" }, "Folder"),
-          folderSelect,
-        ),
-        tags.element,
-      ),
+      fields,
       h(
         "div",
         { class: "editor-columns" },
@@ -451,6 +518,7 @@ export function editorView(
           "aside",
           { class: "preview", "aria-labelledby": "preview-heading" },
           h("h2", { id: "preview-heading" }, "Preview as me"),
+          previewSubject,
           preview,
         ),
       ),

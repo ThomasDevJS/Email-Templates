@@ -2,6 +2,8 @@ import {
   FALLBACK_MAX,
   LABEL_MAX,
   collapse,
+  promptToken,
+  variableToken,
 } from "../../shared/placeholders/grammar";
 import { REGISTRY } from "../../shared/placeholders/registry";
 import { promptText } from "../ui/dialog";
@@ -35,7 +37,8 @@ export function fallbackProblem(value: string): string {
     : "";
 }
 
-async function askLabel(editor: Editor): Promise<void> {
+/** The "Ask the user" dialog; null when cancelled. */
+async function askLabel(): Promise<string | null> {
   const label = await promptText({
     title: "Ask the user",
     label: "Question shown when the template is used",
@@ -43,10 +46,13 @@ async function askLabel(editor: Editor): Promise<void> {
     maxLength: LABEL_MAX,
     check: labelProblem,
   });
+  return label === null ? null : collapse(label);
+}
+
+async function askPrompt(editor: Editor): Promise<void> {
+  const label = await askLabel();
   if (label !== null)
-    editor.run(
-      insertPlaceholder({ name: "", label: collapse(label), fallback: null }),
-    );
+    editor.run(insertPlaceholder({ name: "", label, fallback: null }));
   else editor.focus();
 }
 
@@ -68,6 +74,37 @@ async function askFallback(
   else editor.focus();
 }
 
+/** Inserts text at the caret of a plain input and reports the change like typing would. */
+function insertAtCaret(input: HTMLInputElement, text: string): void {
+  const end = input.value.length;
+  input.setRangeText(
+    text,
+    input.selectionStart ?? end,
+    input.selectionEnd ?? end,
+    "end",
+  );
+  input.dispatchEvent(new Event("input"));
+  input.focus();
+}
+
+/** The picker for the plain-text subject input (wireframe 04): token text at the caret, no chips. */
+export function subjectPickerItems(input: HTMLInputElement): MenuItem[] {
+  const ask = async () => {
+    const label = await askLabel();
+    if (label === null) input.focus();
+    else insertAtCaret(input, promptToken(label));
+  };
+  return [
+    ...REGISTRY.map((entry) => ({
+      label: entry.label,
+      run: () => {
+        insertAtCaret(input, variableToken(entry.name, null));
+      },
+    })),
+    { label: "Ask the user...", run: () => void ask() },
+  ];
+}
+
 export function pickerItems(editor: Editor): MenuItem[] {
   const items: MenuItem[] = REGISTRY.map((entry) => ({
     label: entry.label,
@@ -77,7 +114,7 @@ export function pickerItems(editor: Editor): MenuItem[] {
       );
     },
   }));
-  items.push({ label: "Ask the user...", run: () => void askLabel(editor) });
+  items.push({ label: "Ask the user...", run: () => void askPrompt(editor) });
   const chip = selectedPlaceholder(editor.view.state);
   if (chip !== null && chip.attrs.name !== "")
     items.push({

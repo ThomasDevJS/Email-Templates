@@ -1,13 +1,15 @@
 import type { VersionEntry, VersionList } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
+import { escapeText } from "../../shared/html/escape";
 import { formatTime, h, replace } from "../ui/dom";
 import { skeletonRows, toRpcError } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { withChips } from "./preview";
 
 /**
- * History (screen 5): version list (`role="listbox"`, arrows move, Enter previews, R restores), preview with
- * placeholder chips, and Restore with a confirm dialog. Restore creates version N+1 (linear history).
+ * History (screen 5): version list (`role="listbox"`, arrows move, Enter previews, R restores), preview of the
+ * subject line and body with placeholder chips, and Restore with a confirm dialog. Restore creates version N+1
+ * from subject and body (linear history).
  */
 export function historyView(
   app: AppContext,
@@ -30,6 +32,7 @@ export function historyView(
   );
   const previewTitle = h("h2", { id: "version-heading" }, "Version");
   const preview = h("div", { class: "preview-body" });
+  const subject = h("p", { class: "preview-subject" });
   const restoreButton = h(
     "button",
     { type: "button", class: "primary", "aria-keyshortcuts": "R" },
@@ -92,6 +95,10 @@ export function historyView(
     preview.setAttribute("aria-busy", "true");
     try {
       const body = await app.api.version(id, entry.version);
+      subject.innerHTML =
+        body.subject === ""
+          ? ""
+          : `Subject: ${withChips(escapeText(body.subject))}`;
       preview.innerHTML = withChips(body.html);
     } catch (error: unknown) {
       app.fail(error, () => void showVersion());
@@ -215,6 +222,7 @@ export function historyView(
           "section",
           { class: "preview", "aria-labelledby": "version-heading" },
           previewTitle,
+          subject,
           preview,
           restoreButton,
         ),

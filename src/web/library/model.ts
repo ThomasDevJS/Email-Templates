@@ -1,4 +1,5 @@
 import { atLeast } from "../../shared/permissions/levels";
+import { isEmptyQuery, parseQuery, rank } from "../../shared/search/match";
 import type { FolderRow, ItemRow } from "../rpc/api";
 
 /** Pure library logic: folder tree, folder paths and the client-side filter (spec 4.4 web app). */
@@ -84,30 +85,32 @@ export function subtreeIds(
   return ids;
 }
 
-/** Lower case without accents, for matching. */
-export function fold(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-}
-
 /**
- * Items whose title, folder path or tags contain every query word (case and accent insensitive). Slice 5 adds
- * the `folder:` and `tag:` operators, ranking and body matches.
+ * Browser search on the loaded index (spec 4.4): title, subject, folder path and tags with `folder:` and `tag:`,
+ * by relevance, then the caller's last use (`recent`), then title. No query: every item by title. Body text
+ * matches come from `search.body`.
  */
-export function filterItems(
+export function searchItems(
   items: readonly ItemRow[],
   folders: readonly FolderRow[],
   query: string,
+  recent: readonly string[],
 ): ItemRow[] {
-  const words = fold(query)
-    .split(/\s+/)
-    .filter((word) => word !== "");
-  if (words.length === 0) return [...items];
-  return items.filter((item) => {
-    const haystack = fold(
-      [item.title, folderPath(folders, item.folderId), ...item.tags].join(" "),
-    );
-    return words.every((word) => haystack.includes(word));
-  });
+  const parsed = parseQuery(query);
+  if (isEmptyQuery(parsed))
+    return [...items].sort((a, b) => a.title.localeCompare(b.title));
+  return rank(
+    items,
+    parsed,
+    (item) => ({
+      title: item.title,
+      subject: item.subject,
+      tags: item.tags,
+      folder: folderPath(folders, item.folderId),
+      body: "",
+    }),
+    recent,
+  );
 }
 
 export type RowAction = "edit" | "duplicate" | "move" | "history" | "delete";

@@ -260,6 +260,26 @@ h2 {
   padding: 0 4px;
 }
 
+.star[aria-pressed="true"],
+.filter[aria-pressed="true"] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.filter[aria-pressed="true"] {
+  background: var(--selected);
+}
+
+.matches-heading {
+  font-size: 1rem;
+  margin: 16px 0 8px;
+}
+
+.preview-subject {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
 .empty {
   padding: 24px;
   background: var(--surface);

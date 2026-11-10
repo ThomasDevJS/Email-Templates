@@ -43,6 +43,8 @@ export function startApp(host: Host): AppContext {
   const api = createApi(client);
   let folders: FolderRow[] = [];
   let items: ItemRow[] = [];
+  let favorites = new Set<string>();
+  let recent: string[] = [];
   let profile: Profile | null = null;
   let view: View | null = null;
 
@@ -53,6 +55,8 @@ export function startApp(host: Host): AppContext {
     ]);
     folders = folderList.folders;
     items = itemList.items;
+    favorites = new Set(itemList.favorites);
+    recent = itemList.recent;
   };
   let loading: Promise<void> = Promise.resolve();
   /** Resolves true when folders and templates loaded; the failure itself is shown once, as a toast. */
@@ -99,6 +103,13 @@ export function startApp(host: Host): AppContext {
     profile: () => profile,
     folders: () => folders,
     items: () => items,
+    favorites: () => favorites,
+    recent: () => recent,
+    setFavorite: async (id, favorite) => {
+      await api.setFavorite(id, favorite);
+      if (favorite) favorites.add(id);
+      else favorites.delete(id);
+    },
     reload: async () => {
       await load(() => undefined);
     },

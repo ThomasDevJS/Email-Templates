@@ -37,6 +37,7 @@ export interface VersionList {
 
 export interface VersionBody {
   readonly version: number;
+  readonly subject: string;
   readonly html: string;
   readonly savedAt: string;
   readonly savedBy: string;
@@ -45,6 +46,7 @@ export interface VersionBody {
 
 export interface SaveArgs {
   readonly title: string;
+  readonly subject: string;
   readonly folderId: string;
   readonly tags: readonly string[];
   readonly html: string;
@@ -53,7 +55,15 @@ export interface SaveArgs {
 export interface Api {
   profile(): Promise<Profile>;
   folders(): Promise<{ folders: FolderRow[] }>;
-  templates(): Promise<{ items: ItemRow[] }>;
+  /** The library with the caller's Favorites (newest first) and Recent (last used first). */
+  templates(): Promise<{
+    items: ItemRow[];
+    favorites: string[];
+    recent: string[];
+  }>;
+  setFavorite(id: string, favorite: boolean): Promise<unknown>;
+  /** IDs whose body text matches; `skipped` templates were not searched in this call. */
+  searchBody(query: string): Promise<{ ids: string[]; skipped: number }>;
   template(id: string): Promise<{ item: Item; html: string }>;
   create(args: SaveArgs): Promise<Item>;
   update(id: string, baseVersion: number, args: SaveArgs): Promise<Item>;
@@ -73,6 +83,9 @@ export function createApi(client: RpcClient): Api {
     profile: () => call("profile.me"),
     folders: () => call("folder.list"),
     templates: () => call("template.list"),
+    setFavorite: (id, favorite) =>
+      call(favorite ? "favorite.set" : "favorite.unset", { id }),
+    searchBody: (query) => call("search.body", { query }),
     template: (id) => call("template.get", { id }),
     create: (args) => call("template.create", args),
     update: (id, baseVersion, args) =>
