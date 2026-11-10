@@ -140,6 +140,25 @@ describe("folders", () => {
     ).toEqual([]);
   });
 
+  it("never stores the owner label when an admin renames another user's private folder (5b minor 2)", () => {
+    world.ok(ANA, "folder.list");
+    const labelled = world
+      .ok<Listed>(OWNER, "folder.list")
+      .folders.find((f) => f.ownerEmail === ANA);
+    expect(labelled?.name).toBe(`${PRIVATE_FOLDER_NAME} (${ANA})`);
+    const rename = (name: string) =>
+      world.ok<Folder>(OWNER, "folder.rename", { folderId: labelled?.id, name })
+        .name;
+    expect(rename(labelled?.name ?? "")).toBe(PRIVATE_FOLDER_NAME);
+    expect(rename("Ana drafts (ANA@example.com)")).toBe("Ana drafts");
+    expect(rename("Drafts (bob@example.com)")).toBe("Drafts (bob@example.com)");
+    expect(
+      world
+        .ok<Listed>(ANA, "folder.list")
+        .folders.find((f) => f.kind === "private")?.name,
+    ).toBe("Drafts (bob@example.com)");
+  });
+
   it("lets the private folder owner create templates there, nobody else", () => {
     const mine = world.ok<Listed>(ANA, "folder.list").folders[0];
     expect(
