@@ -110,12 +110,38 @@ describe("callServer", () => {
       headers: { Authorization: `Bearer ${FAKE_OAUTH_TOKEN}` },
       muteHttpExceptions: true,
     });
-    expect(JSON.parse(request?.params.payload as string)).toEqual({
+    const payload = JSON.parse(request?.params.payload as string) as Record<
+      string,
+      unknown
+    >;
+    expect(payload).toMatchObject({
       op: "ping",
       args: {},
       requestId: call.requestId,
       clientVersion: "test-testsha",
     });
+    expect(Object.keys(payload["timing"] as object).sort()).toEqual(
+      expect.arrayContaining(["addonPreMs", "addonTokenMs"]),
+    );
+  });
+
+  it("sends the previous call's fetch and total times with the next call", () => {
+    fetchApp.respondWith(() => ({ status: 200, body: ok(null) }));
+    callServer("ping", {});
+    callServer("ping", {});
+    const timing = (
+      JSON.parse(fetchApp.requests.at(-1)?.params.payload as string) as {
+        timing: Record<string, number>;
+      }
+    ).timing;
+    expect(Object.keys(timing).sort()).toEqual([
+      "addonPreMs",
+      "addonTokenMs",
+      "prevFetchMs",
+      "prevTotalMs",
+    ]);
+    for (const value of Object.values(timing))
+      expect(Number.isInteger(value)).toBe(true);
   });
 
   it("follows one 302 by hand with a GET and no Authorization header", () => {

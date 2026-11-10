@@ -13,6 +13,7 @@ import {
 } from "../../../src/server/entry";
 import { CALLBACKS } from "../../../src/addon/cards/spec";
 import { ENTRY_POINTS, TRIGGER_JOBS } from "../../../src/shared/entryPoints";
+import type { Folder, Item } from "../../../src/shared/model/data";
 import { DOMAIN_KEY, OWNER_EMAIL_KEY } from "../../../src/server/guards";
 import { lastErrorKey, lastOkKey } from "../../../src/server/jobs/health";
 import {
@@ -243,6 +244,86 @@ describe("web app and add-on entry points", () => {
     expect(world.scriptApp.triggers.map((t) => t.id)).not.toEqual(before);
     rpc("ping", {});
     expect(world.scriptApp.triggers).toHaveLength(3);
+  });
+
+  it("ops skip the trigger check and read Script Properties with one call", () => {
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    rpc("template.list", {}, "MW9UU758-QWCE26");
+    expect(lastLog()).toMatchObject({ cache: "rebuild", calls: { props: 2 } });
+    rpc("template.list", {}, "MW9UU758-QWCE26");
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+    expect(lastLog()).toMatchObject({
+      action: "template.list",
+      calls: { props: 1, lock: 0, dir: 0 },
+    });
+    post(PING);
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+  });
+
+  it("keeps warm reads to one property read, no Drive call and no lock but the apply buffer", () => {
+    asCaller(OWNER);
+    world.directory.users.set(OWNER, { name: { fullName: "Owner" } });
+    const folder = (rpc("folder.create", { name: "S" }) as { data: Folder })
+      .data;
+    const item = (
+      rpc("template.create", {
+        folderId: folder.id,
+        title: "T",
+        html: "<p>Hi</p>",
+      }) as { data: Item }
+    ).data;
+    const callsOf = (op: string, args: unknown) => {
+      post(JSON.stringify({ op, args, requestId: "r", clientVersion: "x" }));
+      return lastLog()["calls"];
+    };
+    expect(callsOf("sidebar.home", {})).toEqual({
+      props: 1,
+      cache: 4,
+      drive: 0,
+      lock: 0,
+      dir: 0,
+    });
+    expect(
+      callsOf("template.apply", { id: item.id, knownVersion: 0 }),
+    ).toMatchObject({ props: 1, drive: 0, lock: 1 });
+    expect(
+      callsOf("template.apply", { id: item.id, knownVersion: 1 }),
+    ).toMatchObject({ props: 1, drive: 0, lock: 1, dir: 0 });
+  });
+
+  it("logs startup, total and service phase times plus the add-on's valid timing fields", () => {
+    post(
+      JSON.stringify({
+        op: "ping",
+        args: {},
+        requestId: "MW9UU758-QWCE26",
+        clientVersion: "x",
+        timing: {
+          addonPreMs: 120,
+          addonTokenMs: 30,
+          prevFetchMs: -1,
+          prevTotalMs: 1.5,
+          note: 7,
+        },
+      }),
+    );
+    const timing = lastLog()["timing"] as Record<string, number>;
+    expect(Object.keys(timing).sort()).toEqual(
+      [
+        "addonPreMs",
+        "addonTokenMs",
+        "cacheMs",
+        "dirMs",
+        "driveReadMs",
+        "driveWriteMs",
+        "lockMs",
+        "propsMs",
+        "startupMs",
+        "totalMs",
+      ].sort(),
+    );
+    expect(timing).toMatchObject({ addonPreMs: 120, addonTokenMs: 30 });
+    expect(timing["totalMs"]).toBeGreaterThanOrEqual(timing["startupMs"] ?? 0);
   });
 
   it("doPost answers ping with the JSON envelope", () => {

@@ -1,12 +1,10 @@
 import type { IndexDoc } from "../../shared/model/data";
-import { WRITE_LOCK_MS } from "../lock";
 import type { Services } from "../services";
 import { getChunked, putChunked } from "../../shared/cache/chunked";
 
 /**
  * `index.json` through the Script Cache (ADR-0002 Caching). Readers read Script Property `INDEX_REV`, then the
- * `idx:<rev>:*` set. A miss rebuilds the set from Drive under the script lock; if the lock is busy the reader
- * reads Drive directly and leaves the cache alone.
+ * `idx:<rev>:*` set. A miss reads Drive without the script lock (`loadIndex`); writers publish under the lock.
  */
 export const INDEX_REV_KEY = "INDEX_REV";
 export const INDEX_PREFIX = "idx";
@@ -23,9 +21,14 @@ function cachedIndex(services: IndexServices): IndexDoc | null {
   return text === null ? null : (JSON.parse(text) as IndexDoc);
 }
 
-/** Sets `INDEX_REV` and puts the chunk set. A failed cache put only costs the next reader a rebuild. */
+/** Sets `INDEX_REV` and puts the chunk set. */
 export function publishIndex(services: IndexServices, doc: IndexDoc): void {
   services.props.setProperty(INDEX_REV_KEY, String(doc.rev));
+  putIndexChunks(services, doc);
+}
+
+/** Puts the chunk set of `doc.rev`. A failed cache put only costs the next reader a Drive read. */
+function putIndexChunks(services: IndexServices, doc: IndexDoc): void {
   try {
     putChunked(
       services.cache,
@@ -52,26 +55,30 @@ export function rebuildIndexLocked(services: IndexServices): IndexDoc {
   return doc;
 }
 
+/**
+ * Index for readers, without the script lock. A miss reads Drive and puts the `idx:<rev>:*` chunks: every build
+ * of one `rev` holds the same text, so a late put is never wrong, only overwritten. `INDEX_REV` stays with writers
+ * and `tick`; a reader sets it only when it is unset (first read after setup). A miss under a lagging `INDEX_REV`
+ * serves the file and leaves the cache to `tick` (crash between save steps 6 and 7).
+ */
 export function loadIndex(services: IndexServices): IndexDoc {
   const hit = cachedIndex(services);
   if (hit !== null) {
     services.stats.cache = "hit";
     return hit;
   }
-  if (!services.lock.tryLock(WRITE_LOCK_MS)) {
+  const doc = services.store().readIndex();
+  const rev = services.props.getProperty(INDEX_REV_KEY);
+  if (rev === null) {
+    publishIndex(services, doc);
+    services.stats.cache = "rebuild";
+  } else if (rev === String(doc.rev)) {
+    putIndexChunks(services, doc);
+    services.stats.cache = "rebuild";
+  } else {
     services.stats.cache = "miss";
-    return services.store().readIndex();
   }
-  try {
-    const again = cachedIndex(services);
-    if (again !== null) {
-      services.stats.cache = "hit";
-      return again;
-    }
-    return rebuildIndexLocked(services);
-  } finally {
-    services.lock.releaseLock();
-  }
+  return doc;
 }
 
 /**

@@ -11,6 +11,7 @@ import {
 } from "../../shared/errors/codes";
 import {
   parseRpcResponse,
+  type ClientTiming,
   type RpcRequest,
   type RpcResponse,
 } from "../../shared/model/protocol";
@@ -68,13 +69,13 @@ function readHop(response: GoogleAppsScript.URL_Fetch.HTTPResponse): Hop {
  * one-time key. The redirect is followed by hand so the first hop's status is visible in errors and
  * the bearer token is never forwarded to the second host.
  */
-function fetchServer(request: RpcRequest): Hop {
+function fetchServer(request: RpcRequest, token: string): Hop {
   const first = readHop(
     UrlFetchApp.fetch(BUILD_INFO.execUrl, {
       method: "post",
       contentType: "application/json",
       payload: JSON.stringify(request),
-      headers: { Authorization: `Bearer ${ScriptApp.getOAuthToken()}` },
+      headers: { Authorization: `Bearer ${token}` },
       muteHttpExceptions: true,
       followRedirects: false,
     }),
@@ -109,15 +110,42 @@ export function failureOf(requestId: string, error: ErrorBody): Failure {
   return { code: error.code, message: error.message, requestId };
 }
 
-function send(request: RpcRequest): RpcResponse {
+/** Clock value when this execution evaluated the bundle: the add-on's start as far as code can see it. */
+const LOADED_MS = Date.now();
+
+/** Fetch and total ms of the previous server call in this execution, sent with the next call. */
+let previous: ClientTiming = {};
+
+/**
+ * One request with the add-on's phase times (slice 4b): start to this call, the token call, and the previous
+ * call's fetch and total. The server writes them into its log line, because add-on executions show no logs.
+ */
+function send(op: string, args: unknown, requestId: string): RpcResponse {
   if (BUILD_INFO.execUrl === "") {
     return localError(
       ErrorCode.NOT_CONFIGURED,
       "Server URL missing in this build. Set execUrl in deploy/<env>.json and redeploy.",
     );
   }
+  const started = Date.now();
   try {
-    const hop = fetchServer(request);
+    const token = ScriptApp.getOAuthToken();
+    const tokenDone = Date.now();
+    const timing: ClientTiming = {
+      addonPreMs: started - LOADED_MS,
+      addonTokenMs: tokenDone - started,
+      ...previous,
+    };
+    const request: RpcRequest = {
+      op,
+      args,
+      requestId,
+      clientVersion: APP_VERSION,
+      timing,
+    };
+    const hop = fetchServer(request, token);
+    const done = Date.now();
+    previous = { prevFetchMs: done - tokenDone, prevTotalMs: done - started };
     return readResponse(hop.status, hop.body);
   } catch {
     return localError(ErrorCode.NETWORK, "Server unreachable");
@@ -125,11 +153,6 @@ function send(request: RpcRequest): RpcResponse {
 }
 
 export function callServer(op: string, args: unknown): ServerCall {
-  const request: RpcRequest = {
-    op,
-    args,
-    requestId: requestIdNow(),
-    clientVersion: APP_VERSION,
-  };
-  return { requestId: request.requestId, response: send(request) };
+  const requestId = requestIdNow();
+  return { requestId, response: send(op, args, requestId) };
 }

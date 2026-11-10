@@ -105,20 +105,33 @@ describe("index cache", () => {
     expect(world.lock.nestedAcquisitions).toBe(0);
   });
 
-  it("rebuilds on a miss under the lock, then hits", () => {
+  it("rebuilds on a miss without the lock, then hits", () => {
+    world.lock.holdElsewhere();
     const first = loadIndex(world.services);
     expect(world.services.stats.cache).toBe("rebuild");
+    expect(world.services.stats.calls.lock).toBe(0);
     expect(world.props.getProperty(INDEX_REV_KEY)).toBe(String(first.rev));
     expect(loadIndex(world.services)).toEqual(first);
     expect(world.services.stats.cache).toBe("hit");
-    expect(world.lock.hasLock()).toBe(false);
   });
 
-  it("reads Drive without touching the cache when the lock is busy", () => {
-    world.lock.holdElsewhere();
-    const doc = loadIndex(world.services);
-    expect(doc.rev).toBe(1);
+  it("puts the chunks of the published rev but never moves INDEX_REV", () => {
+    const first = loadIndex(world.services);
+    world.cache.removeAll([`${INDEX_PREFIX}:meta`]);
+    world.props.setProperty(INDEX_REV_KEY, String(first.rev));
+    loadIndex(world.services);
+    expect(world.services.stats.cache).toBe("rebuild");
+    expect(readMeta(world.cache, INDEX_PREFIX)?.rev).toBe(String(first.rev));
+  });
+
+  it("serves the file and leaves the cache to tick when INDEX_REV lags the file", () => {
+    loadIndex(world.services);
+    world.cache.removeAll([`${INDEX_PREFIX}:meta`]);
+    const store = world.services.store();
+    store.writeIndex({ ...store.readIndex(), rev: 7 });
+    expect(loadIndex(world.services).rev).toBe(7);
     expect(world.services.stats.cache).toBe("miss");
+    expect(world.props.getProperty(INDEX_REV_KEY)).toBe("1");
     expect(readMeta(world.cache, INDEX_PREFIX)).toBeNull();
   });
 

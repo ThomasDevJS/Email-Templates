@@ -6,7 +6,11 @@ import {
 } from "../../shared/errors/codes";
 import { isId } from "../../shared/ids";
 import type { LogResult, Surface } from "../../shared/log/logger";
-import { parseRpcRequest, type RpcResponse } from "../../shared/model/protocol";
+import {
+  parseRpcRequest,
+  requestTiming,
+  type RpcResponse,
+} from "../../shared/model/protocol";
 import type { Services } from "../services";
 import type { Caller } from "./context";
 import { DEFAULT_TABLES, dispatch, type DispatchTables } from "./dispatch";
@@ -66,6 +70,25 @@ function targetOf(raw: unknown): string {
 }
 
 /**
+ * Measured part of the log line: how the index was served, service call counts, and phase times. `startupMs`
+ * runs from script load to handler start, `totalMs` from script load to now; the add-on adds its own phases.
+ */
+function measured(services: Services, started: number, raw: unknown) {
+  const now = services.nowMs();
+  return {
+    durationMs: now - started,
+    cache: services.stats.cache,
+    calls: services.stats.calls,
+    timing: {
+      startupMs: started - services.startedMs,
+      totalMs: now - services.startedMs,
+      ...services.stats.ms,
+      ...requestTiming(raw),
+    },
+  };
+}
+
+/**
  * Runs one request through dispatch and wraps the result in the response envelope.
  * Never throws: every failure becomes `{ ok: false, error }` and one log line. The log line has the closed
  * field list of spec section 11, so args (bodies, prompt values, recipients) never reach it.
@@ -87,31 +110,30 @@ export function handleRpc(
   };
   try {
     const data = runDispatch(caller, raw, surface, deps);
-    const durationMs = services.nowMs() - started;
-    services.logger.info({
-      ...base,
-      result: "ok",
-      durationMs,
-      cache: services.stats.cache,
-    });
-    return { ok: true, data, serverVersion: services.appVersion, durationMs };
+    const metrics = measured(services, started, raw);
+    services.logger.info({ ...base, result: "ok", ...metrics });
+    return {
+      ok: true,
+      data,
+      serverVersion: services.appVersion,
+      durationMs: metrics.durationMs,
+    };
   } catch (error: unknown) {
     const body = toErrorBody(error);
-    const durationMs = services.nowMs() - started;
+    const metrics = measured(services, started, raw);
     const level = body.code === ErrorCode.INTERNAL ? "error" : "warn";
     services.logger[level]({
       ...base,
       result: resultOf(body),
       errorCode: body.code,
-      durationMs,
-      cache: services.stats.cache,
+      ...metrics,
       error,
     });
     return {
       ok: false,
       error: body,
       serverVersion: services.appVersion,
-      durationMs,
+      durationMs: metrics.durationMs,
     };
   }
 }

@@ -8,6 +8,14 @@ import { createLogger } from "../../src/shared/log/logger";
 import type { Surface } from "../../src/shared/log/logger";
 import { handleRpc } from "../../src/server/dispatch/handle";
 import { runSetup } from "../../src/server/jobs/setup";
+import {
+  meterCache,
+  meterDirectory,
+  meterDrive,
+  meterLock,
+  meterProps,
+  newStats,
+} from "../../src/server/metrics";
 import type { Services } from "../../src/server/services";
 import { advancedDriveClient } from "../../src/server/storage/advancedDrive";
 import { driveStore } from "../../src/server/storage/driveStore";
@@ -82,30 +90,35 @@ export function createWorld(): World {
   const driveClient = memo(() =>
     advancedDriveClient(drive.Files, createUtilities()),
   );
-  const build = (surface: Surface): Services => ({
-    props,
-    cache,
-    lock,
-    session: {
-      activeEmail: () => session.active,
-      effectiveEmail: () => session.effective,
-    },
-    logger,
-    nowMs,
-    newId: () =>
-      makeId(clock.now, (n) => {
-        seq = (seq * 1103515245 + 12345) % 2147483648;
-        return Math.floor(seq / 65536) % n;
-      }),
-    sha256: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
-    drive: driveClient,
-    store: () => driveStore(driveClient(), requireStoreIds(props)),
-    groups: () => groups,
-    directoryUsers: () => directory,
-    triggers: scriptApp,
-    appVersion: "test-testsha",
-    stats: { cache: "", surface },
-  });
+  const build = (surface: Surface): Services => {
+    const stats = newStats(surface);
+    const metered = memo(() => meterDrive(driveClient(), stats, nowMs));
+    return {
+      props: meterProps(props, stats, nowMs),
+      cache: meterCache(cache, stats, nowMs),
+      lock: meterLock(lock, stats, nowMs),
+      session: {
+        activeEmail: () => session.active,
+        effectiveEmail: () => session.effective,
+      },
+      logger,
+      nowMs,
+      newId: () =>
+        makeId(clock.now, (n) => {
+          seq = (seq * 1103515245 + 12345) % 2147483648;
+          return Math.floor(seq / 65536) % n;
+        }),
+      sha256: (text) => createHash("sha256").update(text, "utf8").digest("hex"),
+      drive: metered,
+      store: () => driveStore(metered(), requireStoreIds(props)),
+      groups: () => groups,
+      directoryUsers: () => meterDirectory(directory, stats, nowMs),
+      triggers: scriptApp,
+      appVersion: "test-testsha",
+      stats,
+      startedMs: clock.now,
+    };
+  };
   const world: World = {
     services: build("webapp"),
     clock,

@@ -30,7 +30,10 @@ import type { Services } from "./services";
 
 const APP_TITLE = "Migway Templates";
 
-/** First web app request after a deploy reinstalls triggers when `TRIGGERS_VERSION` changed (spec section 16). */
+/**
+ * The first web app page load after a deploy reinstalls triggers when `TRIGGERS_VERSION` changed (spec section 16).
+ * Only `doGet` runs it: ops (`rpc`, `doPost`) skip the check and its property reads.
+ */
 function maintain(services: Services): void {
   if ((services.props.getProperty(OWNER_EMAIL_KEY) ?? "") === "") return;
   try {
@@ -108,7 +111,6 @@ export function doPost(
   event: GoogleAppsScript.Events.DoPost,
 ): GoogleAppsScript.Content.TextOutput {
   const services = createServices("addon");
-  maintain(services);
   const response = handleRpc(currentCaller(), parseJsonBody(event), "addon", {
     services,
   });
@@ -130,7 +132,6 @@ export function rpc(
   requestId?: unknown,
 ): RpcResponse {
   const services = createServices("webapp");
-  maintain(services);
   const request = {
     op,
     args,
