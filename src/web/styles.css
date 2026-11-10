@@ -1788,6 +1788,12 @@ code,
   width: 200px;
 }
 
+/* Schedule and time stay on one line; the status column takes the rest. */
+.config .admin-table td:nth-child(2),
+.config .admin-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
 .backups {
   margin: 8px 0 0;
   padding: 0;
