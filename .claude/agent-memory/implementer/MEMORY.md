@@ -18,7 +18,6 @@
 - typescript 6.0.3 (typescript-eslint 8.72.2 peer `<6.1.0`). eslint 10.14.0 `defineConfig`. vitest 5.1.0. @types/node 22.20.5 pinned for vitest's peer range.
 - Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
 - Build constants `__APP_ENV__`, `__EXEC_URL__`, `__GIT_SHA__`. Stubs `function name(...args) { return App.name(...args); }`.
-
 - clasp 3.4.1: global `--json`, `-P <dir>`; `.clasp.json` `rootDir` relative to itself; `push --force` overwrites the manifest.
 
 ## Code map (after slice 2)
