@@ -63,6 +63,17 @@ export function toRpcError(error: unknown): RpcError {
   return new RpcError(ErrorCode.INTERNAL, message, "", true);
 }
 
+/**
+ * One sentence for an inline status line. `shown` is what `AppContext.fail` returned: null when it already showed a
+ * toast or the auth page (the line stays empty), else a banner whose message is used alone, ending with a period,
+ * with no "Back to the library" link (smoke 6b defect A).
+ */
+export function lineText(error: unknown, shown: HTMLElement | null): string {
+  if (shown === null) return "";
+  const text = messageOf(toRpcError(error)).trim();
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
 /** QUOTA: spec section 7 allows a retry after 60 s, so Retry stays disabled that long. */
 export const QUOTA_RETRY_MS = 60_000;
 

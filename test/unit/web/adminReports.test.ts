@@ -245,6 +245,11 @@ describe("export and import tab", () => {
     Object.defineProperty(input, "files", {
       value: [new File([content], "export.json")],
     });
+    expect(
+      [...labelled<HTMLSelectElement>("Target folder").options].map(
+        (o) => o.text,
+      ),
+    ).not.toContain("My templates");
     labelled<HTMLSelectElement>("Target folder").value = "F-QUOTES";
     input.dispatchEvent(new Event("change"));
     button("Validate").click();
@@ -333,6 +338,12 @@ describe("config tab", () => {
     restore.click();
     const confirm = dialog() as HTMLElement;
     expect(confirm.textContent).toContain("Restore the backup of 2026-11-08?");
+    expect(confirm.textContent).toContain(
+      "Every change made after 2026-11-08 is lost",
+    );
+    expect(confirm.textContent).toContain(
+      "Templates emptied from the trash after 2026-11-08 cannot come back",
+    );
     expect(document.activeElement?.textContent).toBe("Cancel");
     button("Cancel", confirm).click();
     await until(() => {

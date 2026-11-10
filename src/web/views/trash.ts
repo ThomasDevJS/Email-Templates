@@ -5,7 +5,7 @@ import type { TrashRow } from "../rpc/api";
 import { LIBRARY } from "../router";
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace, uid } from "../ui/dom";
-import { skeletonRows } from "../ui/status";
+import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
 
 /**
@@ -54,7 +54,7 @@ export function trashView(
         focusRow(index);
       })
       .catch(async (error: unknown) => {
-        status.textContent = app.fail(error)?.textContent ?? "";
+        status.textContent = lineText(error, app.fail(error));
         await load();
         focusRow(index);
       });
@@ -140,7 +140,7 @@ export function trashView(
                 heading.focus();
               })
               .catch(async (error: unknown) => {
-                status.textContent = app.fail(error)?.textContent ?? "";
+                status.textContent = lineText(error, app.fail(error));
                 await load();
               });
             return true;

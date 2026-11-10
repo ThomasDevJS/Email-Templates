@@ -271,9 +271,10 @@ describe("folders and grants", () => {
     form.dispatchEvent(new Event("submit"));
     await until(() => {
       expect(status()).toContain(
-        "was not found or its members are not visible",
+        "Group missing@example.com was not found or its members are not visible.",
       );
     });
+    expect(status()).not.toContain("Back to the library");
     expect(input.value).toBe("missing@example.com");
   });
 
@@ -304,6 +305,14 @@ describe("folders and grants", () => {
       expect(main().querySelector(".empty")?.textContent).toBe(
         "Only admins can see this folder. Add a grant to share it.",
       );
+    });
+    (document.querySelector("[data-nav=library]") as HTMLElement).click();
+    await until(() => {
+      expect(
+        [...main().querySelectorAll('[role="treeitem"]')].map((item) =>
+          item.textContent.replace(/^[▸▾]/, ""),
+        ),
+      ).toContain("Legal");
     });
   });
 

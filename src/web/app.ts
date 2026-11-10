@@ -80,6 +80,13 @@ export function startApp(host: Host): AppContext {
       },
     );
   };
+  /** Set by an admin folder write; the next view that shows the library loads it again (smoke 6b defect B). */
+  let stale = false;
+  const fresh = (): Promise<boolean> => {
+    if (!stale) return loaded();
+    stale = false;
+    return load(() => undefined);
+  };
   const rerender = () => {
     void host.location().then((location) => {
       render(startRoute(location));
@@ -98,17 +105,17 @@ export function startApp(host: Host): AppContext {
   const viewOf = (route: Route): View => {
     switch (route.name) {
       case "library":
-        return libraryView(app, main, route.folderId, loaded());
+        return libraryView(app, main, route.folderId, fresh());
       case "history":
         return historyView(app, main, route.id);
       case "trash":
-        return trashView(app, main, loaded());
+        return trashView(app, main, fresh());
       case "admin":
         return adminView(app, main, route.tab);
       case "edit":
-        return editorView(app, main, { id: route.id }, loaded());
+        return editorView(app, main, { id: route.id }, fresh());
       case "new":
-        return editorView(app, main, { folderId: route.folderId }, loaded());
+        return editorView(app, main, { folderId: route.folderId }, fresh());
     }
   };
 
@@ -144,6 +151,9 @@ export function startApp(host: Host): AppContext {
     },
     reload: async () => {
       await load(() => undefined);
+    },
+    foldersChanged: () => {
+      stale = true;
     },
     go: (route) => {
       host.navigate(routeHash(route), false);

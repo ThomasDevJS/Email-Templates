@@ -83,6 +83,16 @@ export function accessRows(grants: readonly GrantRow[]): AccessRow[] {
   }));
 }
 
+/** Folders outside every private tree: the import targets (the server refuses private ones, review 6b minor 3). */
+export function sharedFolders(folders: readonly FolderRow[]): FolderRow[] {
+  const inside = new Set(
+    folders
+      .filter((folder) => folder.kind === "private")
+      .flatMap((folder) => [...subtreeIds(folders, folder.id)]),
+  );
+  return folders.filter((folder) => !inside.has(folder.id));
+}
+
 /** "Sales Quotes!" as "sales-quotes"; "folder" when nothing is left. */
 function slug(name: string): string {
   const cut = name

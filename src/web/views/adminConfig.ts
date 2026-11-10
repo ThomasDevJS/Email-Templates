@@ -2,7 +2,7 @@ import { formatBytes } from "../admin/model";
 import type { ConfigView, JobRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace, uid } from "../ui/dom";
-import { skeletonRows } from "../ui/status";
+import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
 
 /**
@@ -99,7 +99,7 @@ function backupsSection(app: AppContext): HTMLElement {
       body: h(
         "p",
         {},
-        `The library, favorites and usage counts go back to ${date}. Templates, folders, grants and favorites changed after that are lost. The audit log is kept and records the restore.`,
+        `Every change made after ${date} is lost: templates, versions, folders, grants, favorites and usage counts go back to that day. Templates emptied from the trash after ${date} cannot come back; the server refuses the restore if the backup holds any. The audit log is kept and records the restore.`,
       ),
       actions: [
         { label: "Cancel", autofocus: true, run: () => undefined },
@@ -116,7 +116,7 @@ function backupsSection(app: AppContext): HTMLElement {
                 return app.reload();
               })
               .catch((error: unknown) => {
-                status.textContent = app.fail(error)?.textContent ?? "";
+                status.textContent = lineText(error, app.fail(error));
               })
               .finally(() => {
                 restore.disabled = false;

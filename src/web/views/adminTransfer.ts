@@ -2,9 +2,10 @@ import {
   IMPORT_ITEMS_MAX,
   IMPORT_MAX_BYTES,
 } from "../../shared/model/validate";
-import { exportFileName, importSummary } from "../admin/model";
+import { exportFileName, importSummary, sharedFolders } from "../admin/model";
 import { folderPath } from "../library/model";
 import type { FolderRow, ImportReport } from "../rpc/api";
+import { lineText } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
 import type { AdminData } from "./admin";
 import type { AppContext, View } from "./context";
@@ -95,7 +96,7 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
         status.textContent = `Exported ${String(count)} templates to ${name}.`;
       })
       .catch((error: unknown) => {
-        status.textContent = app.fail(error)?.textContent ?? "";
+        status.textContent = lineText(error, app.fail(error));
       })
       .finally(() => {
         run.disabled = false;
@@ -168,7 +169,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
   });
   const result = h("div", { class: "import-report" });
   const input = h("input", { type: "file", accept: "application/json,.json" });
-  const target = h("select", {}, ...folderOptions(data.folders));
+  const target = h("select", {}, ...folderOptions(sharedFolders(data.folders)));
   const validate = h("button", { type: "button" }, "Validate");
   const run = h("button", { type: "button", class: "primary" }, "Import");
   let validated: { text: string; target: string } | null = null;
@@ -208,7 +209,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
         if (!dryRun) void app.reload();
       })
       .catch((error: unknown) => {
-        status.textContent = app.fail(error)?.textContent ?? "";
+        status.textContent = lineText(error, app.fail(error));
       })
       .finally(() => {
         validate.disabled = false;

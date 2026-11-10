@@ -3,7 +3,7 @@ import { localDate, localDayStart } from "../admin/model";
 import type { AuditFilter, AuditPage, AuditRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace, uid } from "../ui/dom";
-import { skeletonRows } from "../ui/status";
+import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
 
 /**
@@ -146,7 +146,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
           details(event, open);
         },
         (error: unknown) => {
-          status.textContent = app.fail(error)?.textContent ?? "";
+          status.textContent = lineText(error, app.fail(error));
         },
       );
     });

@@ -367,7 +367,10 @@ describe("Drive store port", () => {
 
   it("refuses a damaged index.json, favorites.json or usage.json on read", () => {
     const index = store.readIndex();
-    store.writeIndex({ ...index, folders: undefined } as unknown as typeof index);
+    store.writeIndex({
+      ...index,
+      folders: undefined,
+    } as unknown as typeof index);
     expect(() => store.readIndex()).toThrow(
       "index.json is damaged: folders must be a list",
     );
