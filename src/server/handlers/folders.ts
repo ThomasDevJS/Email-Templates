@@ -1,6 +1,10 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Folder, IndexDoc } from "../../shared/model/data";
-import { folderName, uniqueSiblingName } from "../../shared/model/validate";
+import {
+  FOLDER_DEPTH_MAX,
+  folderName,
+  uniqueSiblingName,
+} from "../../shared/model/validate";
 import {
   inPrivateTree,
   levelResolver,
@@ -102,7 +106,7 @@ export interface FolderView extends Folder {
  * Display name: another user's private folder gets its owner, "My templates (name@domain)" (D18: only admins see
  * those folders, so no other user's address reaches a non-admin). The caller's own keeps its name.
  */
-function folderLabel(folder: Folder, callerEmail: string): string {
+export function folderLabel(folder: Folder, callerEmail: string): string {
   const owner = folder.ownerEmail.toLowerCase();
   return folder.kind === "private" && owner !== callerEmail.toLowerCase()
     ? `${folder.name} (${owner})`
@@ -128,6 +132,24 @@ export function folderList(context: HandlerContext): { folders: FolderView[] } {
   return { folders };
 }
 
+/** Levels of the folder's subtree, itself included (a leaf is 1). */
+function subtreeHeight(index: IndexDoc, folderId: string): number {
+  const children = index.folders.filter(
+    (folder) => folder.parentId === folderId && folder.deletedAt === "",
+  );
+  return 1 + Math.max(0, ...children.map((c) => subtreeHeight(index, c.id)));
+}
+
+/** Spec 5.1 depth rule: a subtree of `height` levels under `parentId` stays within FOLDER_DEPTH_MAX. */
+function checkDepth(index: IndexDoc, parentId: string, height: number): void {
+  const depth =
+    (parentId === "" ? 0 : chainOf(index, parentId).length) + height;
+  if (depth > FOLDER_DEPTH_MAX)
+    throw validation(
+      `Folders can be at most ${String(FOLDER_DEPTH_MAX)} levels deep`,
+    );
+}
+
 function siblingCount(index: IndexDoc, parentId: string): number {
   return index.folders.filter(
     (folder) => folder.parentId === parentId && folder.deletedAt === "",
@@ -140,6 +162,7 @@ export function folderCreate(context: HandlerContext): Folder {
   const source = eventSource(context, parentId);
   return commit(context, (current) => {
     if (parentId !== "") liveFolder(current, parentId);
+    checkDepth(current, parentId, 1);
     const folder = newFolder(context, {
       parentId,
       name,
@@ -188,9 +211,11 @@ export function folderRename(context: HandlerContext): Folder {
   const name = folderName(reqString(context.args, "name"));
   return changeFolder(context, "folder.rename", (folder, current) => {
     // `folder.list` shows another user's private folder with " (owner)"; that label is never stored.
-    const label = ` (${folder.ownerEmail.toLowerCase()})`;
+    const label = folderLabel(folder, context.caller.email).slice(
+      folder.name.length,
+    );
     const stored =
-      folder.kind === "private" && name.toLowerCase().endsWith(label)
+      label !== "" && name.toLowerCase().endsWith(label)
         ? name.slice(0, -label.length).trim()
         : name;
     const renamed = { ...folder, name: stored };
@@ -213,6 +238,7 @@ function checkMoveTarget(
     throw validation("A folder cannot move into itself or its subfolders");
   if (inPrivateTree(targetChain))
     throw validation("Shared folders cannot move into a private folder");
+  checkDepth(current, parentId, subtreeHeight(current, folder.id));
 }
 
 export function folderMove(context: HandlerContext): Folder {

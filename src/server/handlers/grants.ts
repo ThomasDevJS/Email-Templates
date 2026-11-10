@@ -33,14 +33,21 @@ export interface GrantView extends Grant {
   /** False for OU grants: `groupsapp_direct` cannot resolve org units (Q4). */
   readonly active: boolean;
   readonly inherited: boolean;
+  /** Path of the folder that holds the grant (`/Sales`), shown as the source of inherited access. */
+  readonly sourcePath: string;
 }
 
 function validation(message: string): AppError {
   return new AppError(ErrorCode.VALIDATION, message);
 }
 
-function view(grant: Grant, inherited: boolean): GrantView {
-  return { ...grant, active: grant.principalType !== "ou", inherited };
+function view(index: IndexDoc, grant: Grant, inherited: boolean): GrantView {
+  return {
+    ...grant,
+    active: grant.principalType !== "ou",
+    inherited,
+    sourcePath: folderPath(index, grant.folderId),
+  };
 }
 
 /** Grants on the folder, then grants inherited from its ancestors. */
@@ -51,7 +58,7 @@ export function grantList(context: HandlerContext): { grants: GrantView[] } {
   const grants = chain.flatMap((id) =>
     index.grants
       .filter((grant) => grant.folderId === id)
-      .map((grant) => view(grant, id !== folderId)),
+      .map((grant) => view(index, grant, id !== folderId)),
   );
   return { grants };
 }
