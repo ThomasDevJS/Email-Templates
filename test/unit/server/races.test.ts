@@ -64,7 +64,7 @@ function racing(
   };
   return handleRpc(
     { email: caller },
-    { op, args, requestId: "race", clientVersion: "t" },
+    { op, args, requestId: "TESTREQ0-000001", clientVersion: "t" },
     "webapp",
     { services: { ...services, lock } },
   );

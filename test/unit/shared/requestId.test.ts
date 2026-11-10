@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { newRequestId, requestIdNow } from "../../../src/shared/requestId";
+import {
+  isRequestId,
+  newRequestId,
+  requestIdNow,
+} from "../../../src/shared/requestId";
 
 const FORMAT = /^[0-9A-Z]{8}-[0-9A-Z]{6}$/;
 
@@ -13,6 +17,19 @@ describe("request IDs (one format on both surfaces)", () => {
   });
 
   it("uses the clock at call time", () => {
-    expect(requestIdNow()).toMatch(FORMAT);
+    expect(isRequestId(requestIdNow())).toBe(true);
+  });
+
+  it("accepts only the one format", () => {
+    expect(isRequestId("MW9UU758-QWCE26")).toBe(true);
+    for (const bad of [
+      "",
+      "MW9UU758-QWCE26\n",
+      "mw9uu758-qwce26",
+      "123e4567-e89b-12d3-a456-426614174000",
+      7,
+      null,
+    ])
+      expect(isRequestId(bad)).toBe(false);
   });
 });

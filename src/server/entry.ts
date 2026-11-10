@@ -119,12 +119,9 @@ export function doPost(
   );
 }
 
-/** Client request IDs the server accepts for its log line; anything else gets a new server ID. */
-const CLIENT_REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
-
 /**
  * Web app `google.script.run.rpc(op, args, requestId)`. The web app sends its own request ID so the error toast
- * and the server log line show the same value; a missing or malformed ID is replaced by a new one.
+ * and the server log line show the same value; `handleRpc` answers VALIDATION to a missing or malformed ID and logs a server ID instead.
  */
 export function rpc(
   op: unknown,
@@ -135,10 +132,7 @@ export function rpc(
   const request = {
     op,
     args,
-    requestId:
-      typeof requestId === "string" && CLIENT_REQUEST_ID.test(requestId)
-        ? requestId
-        : requestIdNow(),
+    requestId,
     clientVersion: APP_VERSION,
   };
   return handleRpc(currentCaller(), request, "webapp", { services });

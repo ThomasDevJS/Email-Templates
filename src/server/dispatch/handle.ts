@@ -11,6 +11,7 @@ import {
   requestTiming,
   type RpcResponse,
 } from "../../shared/model/protocol";
+import { isRequestId, requestIdNow } from "../../shared/requestId";
 import type { Services } from "../services";
 import type { Caller } from "./context";
 import { DEFAULT_TABLES, dispatch, type DispatchTables } from "./dispatch";
@@ -36,7 +37,17 @@ function runDispatch(
   raw: unknown,
   surface: Surface,
   deps: HandleDeps,
+  requestId: string,
 ): unknown {
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    !isRequestId(requestField(raw, "requestId"))
+  )
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "Request ID must have the format XXXXXXXX-XXXXXX",
+    );
   const request = parseRpcRequest(raw);
   if (request === null)
     throw new AppError(ErrorCode.BAD_REQUEST, "Malformed request");
@@ -46,17 +57,31 @@ function runDispatch(
       op: request.op,
       args: request.args,
       surface,
-      requestId: request.requestId,
+      requestId,
     },
     deps.services,
     deps.tables ?? DEFAULT_TABLES,
   );
 }
 
-function requestField(raw: unknown, key: "op" | "requestId"): string {
-  if (typeof raw !== "object" || raw === null) return "";
-  const value = (raw as Record<string, unknown>)[key];
-  return typeof value === "string" ? value : "";
+function requestField(raw: unknown, key: "op" | "requestId"): unknown {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  return (raw as Record<string, unknown>)[key];
+}
+
+/** The client's request ID when it has the shared format, else a new server ID; client text never reaches the log. */
+function requestIdOf(raw: unknown): string {
+  const sent = requestField(raw, "requestId");
+  return isRequestId(sent) ? sent : requestIdNow();
+}
+
+/** The op name for the log line, only when the policy table knows it. */
+function actionOf(raw: unknown, tables: DispatchTables): string {
+  const op = requestField(raw, "op");
+  return typeof op === "string" &&
+    Object.prototype.hasOwnProperty.call(tables.policy, op)
+    ? op
+    : "";
 }
 
 /** Template ID (`id`), else folder ID (`folderId`) of the request, for the log's `targetId`. Well-formed IDs only. */
@@ -101,15 +126,16 @@ export function handleRpc(
 ): RpcResponse {
   const { services } = deps;
   const started = services.nowMs();
+  const requestId = requestIdOf(raw);
   const base = {
     surface,
-    action: requestField(raw, "op"),
-    requestId: requestField(raw, "requestId"),
+    action: actionOf(raw, deps.tables ?? DEFAULT_TABLES),
+    requestId,
     actor: caller.email,
     targetId: targetOf(raw),
   };
   try {
-    const data = runDispatch(caller, raw, surface, deps);
+    const data = runDispatch(caller, raw, surface, deps, requestId);
     const metrics = measured(services, started, raw);
     services.logger.info({ ...base, result: "ok", ...metrics });
     return {

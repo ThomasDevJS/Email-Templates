@@ -7,7 +7,7 @@ import { OWNER, setupWorld, type World } from "../../fakes/world";
 const PING = {
   op: "ping",
   args: {},
-  requestId: "r1",
+  requestId: "TESTREQ0-000001",
   clientVersion: "test-sha",
 };
 let world: World;
@@ -36,7 +36,7 @@ describe("handleRpc", () => {
     expect(lastLog()).toMatchObject({
       level: "info",
       action: "ping",
-      requestId: "r1",
+      requestId: "TESTREQ0-000001",
       result: "ok",
       cache: "",
     });
@@ -75,11 +75,8 @@ describe("handleRpc", () => {
       ok: false,
       error: { code: "BAD_REQUEST" },
     });
-    expect(lastLog()).toMatchObject({
-      action: "",
-      requestId: "",
-      result: "error",
-    });
+    expect(lastLog()).toMatchObject({ action: "", result: "error" });
+    expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });
 
   it("logs a CONFLICT as result conflict with details in the response", () => {

@@ -14,6 +14,13 @@ export function newRequestId(now: number, random: () => number): string {
   return `${time}-${tail}`;
 }
 
+/** The one accepted format. The server logs a client ID only when it matches. */
+export const REQUEST_ID_PATTERN = /^[0-9A-Z]{8}-[0-9A-Z]{6}$/;
+
+export function isRequestId(value: unknown): value is string {
+  return typeof value === "string" && REQUEST_ID_PATTERN.test(value);
+}
+
 /** Request ID from the runtime clock and `Math.random`. */
 export function requestIdNow(): string {
   return newRequestId(Date.now(), Math.random);

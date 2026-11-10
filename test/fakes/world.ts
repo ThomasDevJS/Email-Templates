@@ -135,7 +135,7 @@ export function createWorld(): World {
     call: (caller, op, args = {}, surface = "webapp") =>
       handleRpc(
         { email: caller },
-        { op, args, requestId: `r-${op}`, clientVersion: "t" },
+        { op, args, requestId: "TESTREQ0-000001", clientVersion: "t" },
         surface,
         {
           services: build(surface),

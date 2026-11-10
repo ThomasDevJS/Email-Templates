@@ -184,7 +184,7 @@ describe("template create, get, update (save sequence)", () => {
       {
         op: "template.update",
         args: { id: item.id, baseVersion: 1, title: "T", html: "" },
-        requestId: "r",
+        requestId: "TESTREQ0-000001",
         clientVersion: "t",
       },
       "webapp",
