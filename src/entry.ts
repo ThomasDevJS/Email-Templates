@@ -13,6 +13,8 @@ export {
   onPreview,
   onPromptInsert,
   onRefresh,
+  onS6Apply,
+  onS6Card,
   onSearch,
 } from "./addon/entry";
 export {

@@ -28,6 +28,9 @@ export const ENTRY_POINTS = {
   onBack: "addon",
   onOpenLink: "addon",
   onSearch: "addon",
+  // TEMPORARY (spike S6)
+  onS6Card: "addon",
+  onS6Apply: "addon",
 } as const satisfies Readonly<Record<string, EntrySurface>>;
 
 export type EntryName = keyof typeof ENTRY_POINTS;
