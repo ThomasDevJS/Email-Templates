@@ -127,6 +127,8 @@ export interface FavoritesDoc {
 export interface UsageEntry {
   readonly applyCount: number;
   readonly lastUsedAt: string;
+  /** Applies per UTC day (`YYYY-MM-DD`), last 30 days; added in slice 6b, absent in older entries. */
+  readonly days?: Readonly<Record<string, number>>;
 }
 
 export interface UsageDoc {

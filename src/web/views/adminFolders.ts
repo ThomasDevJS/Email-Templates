@@ -13,7 +13,7 @@ import { folderPath } from "../library/model";
 import type { FolderRow, GrantRow } from "../rpc/api";
 import { openDialog, promptText } from "../ui/dialog";
 import { h, replace, uid } from "../ui/dom";
-import { skeletonRows } from "../ui/status";
+import { lineText, skeletonRows } from "../ui/status";
 import type { AdminData } from "./admin";
 import type { AppContext, View } from "./context";
 import { createFolderTree } from "./tree";
@@ -86,11 +86,12 @@ export function foldersTab(
     status.textContent = pending;
     work()
       .then(async (outcome) => {
+        app.foldersChanged();
         await refresh(outcome.select);
         status.textContent = outcome.text;
       })
       .catch(async (error: unknown) => {
-        status.textContent = app.fail(error)?.textContent ?? "";
+        status.textContent = lineText(error, app.fail(error));
         await refresh(selected).catch(() => undefined);
       })
       .finally(focusHeading);
@@ -216,7 +217,7 @@ export function foldersTab(
         loadGrants(folder.id);
       })
       .catch((error: unknown) => {
-        status.textContent = app.fail(error)?.textContent ?? "";
+        status.textContent = lineText(error, app.fail(error));
         loadGrants(folder.id);
       });
   };
@@ -311,7 +312,7 @@ export function foldersTab(
         access.setAttribute("aria-busy", "false");
         replace(
           access,
-          h("p", { class: "error" }, app.fail(error)?.textContent ?? ""),
+          h("p", { class: "error" }, lineText(error, app.fail(error))),
         );
       },
     );

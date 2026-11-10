@@ -41,7 +41,7 @@ function folderEvent(
   });
 }
 
-function newFolder(
+export function newFolder(
   context: HandlerContext,
   fields: Pick<
     Folder,

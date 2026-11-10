@@ -1,6 +1,6 @@
 import type { Memberships } from "../rpc/api";
 import { formatTime, h, replace } from "../ui/dom";
-import { skeletonRows } from "../ui/status";
+import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
 
 /**
@@ -91,7 +91,7 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
 
   const failed = (error: unknown) => {
     table.setAttribute("aria-busy", "false");
-    status.textContent = app.fail(error)?.textContent ?? "";
+    status.textContent = lineText(error, app.fail(error));
   };
 
   refresh.addEventListener("click", () => {

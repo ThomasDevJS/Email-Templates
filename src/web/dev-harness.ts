@@ -218,6 +218,147 @@ const MEMBERSHIPS = {
   warnings: [],
 };
 
+/** 60 audit events of 2026-11, newest first after sorting, so the Audit log has 2 pages. */
+const AUDIT = Array.from({ length: 60 }, (_, n) => ({
+  id: `E-${String(n).padStart(3, "0")}`,
+  ts: new Date(Date.parse(NOW) - n * 3600000).toISOString(),
+  actor: n % 7 === 3 ? "ben@example.com" : ME,
+  actorRoles: n % 7 === 3 ? "" : "admin",
+  surface: "webapp",
+  action: n % 7 === 3 ? "template.get" : "template.update",
+  targetType: "template",
+  targetId: "T-QUOTE",
+  targetPath: "/Sales/Quotes",
+  result: n % 7 === 3 ? "denied" : "ok",
+  errorCode: n % 7 === 3 ? "DENIED" : "",
+  durationMs: 400 + n,
+  requestId: `MWARO9CA-YG9V${String(n).padStart(2, "0")}`,
+  appVersion: "dev",
+  before: { title: "Price quote 2025" },
+  after: { title: "Price quote 2026" },
+}));
+
+const BACKUPS = ["2026-11-09", "2026-11-08", "2026-11-07"];
+
+function auditQuery(args: Record<string, unknown>) {
+  const id = str(args, "id");
+  if (id !== "") {
+    const event = AUDIT.find((entry) => entry.id === id);
+    if (event === undefined)
+      throw new AppError(ErrorCode.NOT_FOUND, "This event was not found.");
+    return { event };
+  }
+  const page = typeof args["page"] === "number" ? args["page"] : 0;
+  const rows = AUDIT.filter(
+    (entry) =>
+      (str(args, "result") === "" || entry.result === str(args, "result")) &&
+      (str(args, "action") === "" || entry.action === str(args, "action")) &&
+      entry.actor.includes(str(args, "actor").toLowerCase()),
+  );
+  return {
+    month: "2026-11",
+    months: ["2026-11", "2026-10"],
+    actions: ["template.get", "template.update"],
+    page,
+    pageSize: 50,
+    total: rows.length,
+    rows: rows
+      .slice(page * 50, page * 50 + 50)
+      .map((row) => ({ ...row, before: undefined, after: undefined })),
+  };
+}
+
+function exportOp(folderId: string) {
+  const scope = folderId === "" ? "library" : "folder";
+  const inScope = [...items.values()].filter(
+    (entry) =>
+      entry.deletedAt === "" &&
+      (folderId === "" || entry.folderId === folderId),
+  );
+  return {
+    header: {
+      schemaVersion: 1,
+      exportedAt: NOW,
+      exportedBy: ME,
+      scope: {
+        kind: scope,
+        folderId,
+        name: folderId === "" ? "" : devFolder(folderId).name,
+      },
+      folders: [],
+      grants: [],
+    },
+    items: inScope.map((entry) => ({
+      meta: {
+        id: entry.id,
+        folderId: entry.folderId,
+        title: entry.title,
+        subject: entry.subject,
+        tags: entry.tags,
+      },
+      html: versions.get(entry.id)?.at(-1)?.html ?? "",
+    })),
+    total: inScope.length,
+    next: null,
+  };
+}
+
+function importOp(args: Record<string, unknown>) {
+  const folderId = devFolder(str(args, "folderId")).id;
+  let file: {
+    schemaVersion?: unknown;
+    items?: { meta?: { title?: string; subject?: string }; html?: string }[];
+  };
+  try {
+    file = JSON.parse(str(args, "file")) as typeof file;
+  } catch {
+    throw new AppError(ErrorCode.VALIDATION, "The file is not valid JSON");
+  }
+  if (file.schemaVersion !== 1)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "Unsupported schema version: this app reads version 1",
+    );
+  const list = file.items ?? [];
+  const taken = new Set(
+    [...items.values()]
+      .filter((e) => e.folderId === folderId)
+      .map((e) => e.title),
+  );
+  const fresh = list.filter((entry) => !taken.has(entry.meta?.title ?? ""));
+  if (args["dryRun"] !== true)
+    for (const entry of fresh) {
+      seq += 1;
+      store(
+        `T-${String(seq)}`,
+        folderId,
+        entry.meta?.title ?? "Imported",
+        [],
+        entry.html ?? "",
+        ME,
+        0,
+        entry.meta?.subject ?? "",
+      );
+    }
+  return {
+    dryRun: args["dryRun"] === true,
+    created: fresh.length,
+    skipped: list.length - fresh.length,
+    failed: 0,
+    foldersCreated: 0,
+    foldersReused: 0,
+    subjectsFlattened: 0,
+    lines: list
+      .filter((entry) => taken.has(entry.meta?.title ?? ""))
+      .map((entry) => ({
+        kind: "template",
+        name: entry.meta?.title ?? "",
+        outcome: "skipped",
+        reason: "A template with this title is already in this folder",
+      })),
+  };
+}
+
 function isAdmin(): boolean {
   return new URLSearchParams(window.location.search).get("admin") !== "0";
 }
@@ -545,6 +686,62 @@ const OPS: Readonly<Record<string, Op>> = {
       );
     grants.splice(index, 1);
     return { removed: str(args, "grantId") };
+  },
+  "audit.query": auditQuery,
+  "usage.report": () => ({
+    since: "2026-10-11",
+    rows: [...items.values()]
+      .filter((entry) => entry.deletedAt === "")
+      .map((entry, n) => ({
+        id: entry.id,
+        title: entry.title,
+        folderPath: pathOf(entry.folderId),
+        applies30d: n === 0 ? 112 : 0,
+        lastUsedAt: n === 0 ? NOW : "",
+      })),
+  }),
+  "export.folder": (args) => exportOp(str(args, "folderId")),
+  "export.library": () => exportOp(""),
+  import: importOp,
+  "config.get": () => ({
+    domain: "example.com",
+    adminGroup: "admins@example.com",
+    resolver: "groupsapp_direct",
+    callerIdentity: "active_user",
+    indexRev: "42",
+    appVersion: "dev",
+    indexBytes: 870400,
+    indexWarnBytes: 3 * 1024 * 1024,
+    jobs: [
+      {
+        name: "tick",
+        schedule: "every 5 min",
+        lastOk: NOW,
+        status: "ok",
+        lastError: "",
+      },
+      {
+        name: "refreshMembers",
+        schedule: "every 15 min",
+        lastOk: "2026-11-09T10:00:00.000Z",
+        status: "late",
+        lastError: "2026-11-09T10:15:00.000Z Error: GroupsApp unavailable",
+      },
+      {
+        name: "daily",
+        schedule: "daily, 02:00 to 03:00",
+        lastOk: "2026-11-09T02:01:00.000Z",
+        status: "ok",
+        lastError: "",
+      },
+    ],
+    triggersError: "",
+  }),
+  "backup.list": () => ({ dates: BACKUPS }),
+  "backup.restore": (args) => {
+    if (!BACKUPS.includes(str(args, "date")))
+      throw new AppError(ErrorCode.NOT_FOUND, "This backup was removed.");
+    return { date: str(args, "date"), rev: 43 };
   },
   "membership.status": () => MEMBERSHIPS,
   "membership.refresh": () => ({ ...MEMBERSHIPS, refreshedAt: NOW }),

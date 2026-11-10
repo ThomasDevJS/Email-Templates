@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AuditEvent, IndexDoc } from "../../../src/shared/model/data";
-import { bufferEvent, readBuffer } from "../../../src/server/audit/buffer";
+import {
+  BUFFER_MAX,
+  bufferEvent,
+  readBuffer,
+} from "../../../src/server/audit/buffer";
 import {
   auditEvent,
   AUDIT_VALUE_LIMIT_BYTES,
@@ -12,7 +16,12 @@ import {
   monthOf,
 } from "../../../src/server/audit/lines";
 import { rollAudit } from "../../../src/server/audit/roll";
-import { applyUsage, RECENT_MAX } from "../../../src/server/audit/usage";
+import {
+  applyUsage,
+  appliesSince,
+  RECENT_MAX,
+  windowStart,
+} from "../../../src/server/audit/usage";
 import { readMeta } from "../../../src/shared/cache/chunked";
 import { INDEX_PREFIX, loadIndex } from "../../../src/server/cache/indexCache";
 import {
@@ -158,7 +167,11 @@ describe("evt buffer and tick flush", () => {
     const result = runTick(world.services);
     expect(result).toMatchObject({ applies: 2, denied: 1, rolled: 0 });
     const usage = world.services.store().readSide("usage");
-    expect(usage.items["I1"]).toEqual({ applyCount: 2, lastUsedAt: ts });
+    expect(usage.items["I1"]).toEqual({
+      applyCount: 2,
+      lastUsedAt: ts,
+      days: { [ts.slice(0, 10)]: 2 },
+    });
     expect(usage.recent["ana@example.com"]).toEqual(["I1"]);
     expect(fileIndex().pendingAudit.map((e) => e.id)).toEqual(["d1"]);
     expect(readBuffer(world.cache).events).toHaveLength(0);
@@ -400,6 +413,7 @@ describe("usage", () => {
     expect(again.items["I0"]).toEqual({
       applyCount: 2,
       lastUsedAt: "2026-11-09T00:00:00Z",
+      days: { "2026-11-09": 1 },
     });
     expect(again.recent["a@example.com"]?.[0]).toBe("I0");
   });
@@ -470,6 +484,45 @@ describe("trigger reinstall", () => {
     expect(world.lock.hasLock()).toBe(false);
   });
 
+  it("deletes the other old triggers when one delete fails, and the next run leaves 3 (slice 6a minor 4)", () => {
+    const deleteTrigger = world.scriptApp.deleteTrigger.bind(world.scriptApp);
+    const firstOld = world.scriptApp.triggers[0]?.id;
+    world.scriptApp.deleteTrigger = (trigger) => {
+      if (trigger.getUniqueId() === firstOld) throw new Error("Delete refused");
+      deleteTrigger(trigger);
+    };
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    expect(() => ensureTriggers(world.services)).toThrow("Delete refused");
+    expect(world.scriptApp.triggers).toHaveLength(4);
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
+    expect(world.props.getProperty(lastErrorKey("triggers"))).toContain(
+      "Delete refused",
+    );
+    world.scriptApp.deleteTrigger = deleteTrigger;
+    expect(ensureTriggers(world.services)).toBe(true);
+    expect(world.scriptApp.triggers).toHaveLength(3);
+    expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe(
+      TRIGGERS_VERSION,
+    );
+  });
+
+  it("keeps the create error when removing the new triggers also fails", () => {
+    const newTrigger = world.scriptApp.newTrigger.bind(world.scriptApp);
+    world.scriptApp.newTrigger = (handler) =>
+      handler === "daily"
+        ? {
+            timeBased: () => {
+              throw new Error("Trigger quota");
+            },
+          }
+        : newTrigger(handler);
+    world.scriptApp.deleteTrigger = () => {
+      throw new Error("Delete refused");
+    };
+    world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
+    expect(() => ensureTriggers(world.services)).toThrow("Trigger quota");
+  });
+
   it("tick reinstalls after a deploy changed TRIGGERS_VERSION", () => {
     world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
     expect(runTick(world.services).triggers).toBe(true);
@@ -477,6 +530,48 @@ describe("trigger reinstall", () => {
       TRIGGERS_VERSION,
     );
     expect(runTick(world.services).triggers).toBe(false);
+  });
+});
+
+describe("event buffer cap", () => {
+  it(`keeps ${String(BUFFER_MAX)} events, counts the drops and records them as one audit event`, () => {
+    for (let n = 0; n < BUFFER_MAX + 7; n++)
+      bufferEvent(world.cache, world.lock, {
+        kind: "denied",
+        event: denied(`d${String(n)}`),
+      });
+    const buffered = readBuffer(world.cache);
+    expect(buffered.events).toHaveLength(BUFFER_MAX);
+    expect(buffered.dropped).toBe(7);
+    expect(runTick(world.services)).toMatchObject({
+      denied: BUFFER_MAX,
+      dropped: 7,
+    });
+    const pending = fileIndex().pendingAudit;
+    expect(pending).toHaveLength(BUFFER_MAX + 1);
+    expect(pending.at(-1)).toMatchObject({
+      action: "audit.dropped",
+      actor: "system",
+      after: { dropped: 7 },
+    });
+    expect(readBuffer(world.cache).dropped).toBe(0);
+    expect(runTick(world.services)).toMatchObject({ denied: 0, dropped: 0 });
+  });
+});
+
+describe("usage days", () => {
+  it("counts applies per UTC day and sums the 30 days that end today", () => {
+    const usage = applyUsage({ rev: 1, items: {}, recent: {} }, [
+      { itemId: "I", actor: "a@example.com", ts: "2026-10-10T10:00:00Z" },
+      { itemId: "I", actor: "a@example.com", ts: "2026-10-12T10:00:00Z" },
+      { itemId: "I", actor: "a@example.com", ts: "2026-11-09T10:00:00Z" },
+      { itemId: "I", actor: "a@example.com", ts: "2026-11-09T11:00:00Z" },
+    ]);
+    const entry = usage.items["I"];
+    expect(entry?.days).toEqual({ "2026-10-12": 1, "2026-11-09": 2 });
+    expect(windowStart("2026-11-09T23:00:00Z")).toBe("2026-10-11");
+    expect(appliesSince(entry, "2026-10-11")).toBe(3);
+    expect(appliesSince(undefined, "2026-10-11")).toBe(0);
   });
 });
 

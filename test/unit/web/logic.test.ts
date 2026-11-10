@@ -118,7 +118,9 @@ describe("router", () => {
     ["#/trash", { name: "trash" }],
     ["#/admin", { name: "admin", tab: "folders" }],
     ["#/admin/memberships", { name: "admin", tab: "memberships" }],
-    ["#/admin/audit", { name: "admin", tab: "folders" }],
+    ["#/admin/audit", { name: "admin", tab: "audit" }],
+    ["#/admin/config", { name: "admin", tab: "config" }],
+    ["#/admin/nope", { name: "admin", tab: "folders" }],
   ])("parses %j", (hash, route) => {
     expect(parseRoute(hash)).toEqual(route);
   });

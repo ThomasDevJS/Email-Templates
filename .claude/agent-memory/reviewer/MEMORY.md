@@ -67,12 +67,17 @@
   - Minors: grant.list sourcePath leaks ancestor names; trash.purge body loop unbounded; admin restore into others' private folders; failed old-trigger delete leaves 6; spec 6 rows for admin.folders, membership.status.
   - New ops: admin.folders (grant.manage list op), membership.status (admin.ops). Trash: template.list {trash:true} adds folderLive, folderPath, canPurge.
 
-## Check in slice 6b
-- evt:* buffer has no count cap (pre-existing); tick drains it.
-- Import must call prepareBody with subject; export must carry subject; import replaces line breaks and reports count (spec 5.6).
-- Admin can duplicate others' private templates (D11, open since 4b).
-- UNKNOWN_OP reply quotes the op back (not logged). Spec 11 lacks calls/timing fields.
-- audit.query (6b) must show denied rows; check who reads grant principals in before/after.
+- Slice 6b (2026-11-10): FAIL (ffd3957), retry 1 PASS (f6b567f, 1238 tests, lines 96.68, Code.js 318.9 KB). Retry: shared/model/shape.ts on backup copies (VALIDATION) and every live Drive read (INTERNAL); restore writes sides first, index last, undo; purge guard; import "Nothing was imported"; lineText in 11 places. Shape check verified on data from 9 builds (64078b8..292d7ad). Open: damaged live index blocks backup.restore (runbook); undo failure loses first error.
+  First review: FAIL (ffd3957). 51 files, 1225 tests, lines 96.6 (addon 100, server 99.31, shared 100, web 95.16), Code.js 312.6 KB, index.html 316.2 KB, 10 scopes, Lighthouse 100x10.
+  - Blocker: backup.restore casts backup JSON `as BackupDocs` (driveStore.ts readBackup); index without folders bricks every op incl. the next restore (dispatch folderMap); favorites `{}` writes rev null, sidebar.home INTERNAL. Fix: shape check before the lock.
+  - Accepted: import probes (XSS, 2 MB, CR/LF subject, 10k items, proto keys, cycles, existing IDs) all safe; Validate writes nothing; export.folder subtree only, in-scope grants = grant.list visibility; audit drawer is text; config.get has no ADMIN_EMAILS/OWNER_EMAIL/STORE.
+  - Warm props: production 1 (entry.test.ts:293 pins via snapshotProps). world.ts meters live fake props, so world counts (6) are getProperty calls, not service calls.
+  - Minors: import failure says only "Internal error"; dup folder IDs; shared folders inside private tree; buffer flood drops applies; restore dialog silent on post-backup versions and purged bodies; side writes after index commit; no 5 MB smoke step; export offset paging.
+  - Architect: export.library drops privates, import drops grants, 200 cap: ADR-0002 owner-change path does not hold.
+
+## Check next
+- Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
+- Slice 7 runbook: recovery from a damaged live index.json (copy a backup file in Drive).
 
 ## Recurring lessons
 - Read the Accepted ADR before calling an admin right a defect (ADR-0003 C: admin = manage everywhere, private included).
@@ -91,3 +96,6 @@
 - Handoff "Verified" sections go stale after late commits; rerun everything, trust own numbers.
 - Sanitizer probes: use a scratch copy and `sanitizeHtml`; web probes need `// @vitest-environment jsdom` and `--silent=false` to see console output.
 - Lighthouse: `npm run lighthouse` uses /opt/pw-browsers/chromium, about 1 min.
+- Destructive restore paths: probe parseable-but-wrong-shape files, then check the next restore still works.
+- New read-path validation: replay old builds (git archive per slice commit, probe test with setupWorld, dump files) and feed the dumps to the new check.
+- Call counts from test/fakes/world.ts skip snapshotProps; compare with entry.test.ts warm-read test.

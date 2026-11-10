@@ -11,10 +11,7 @@ import {
   dispatch,
   type DispatchTables,
 } from "../../../src/server/dispatch/dispatch";
-import {
-  HANDLERS,
-  LATER_SLICE_OPS,
-} from "../../../src/server/dispatch/handlers";
+import { HANDLERS } from "../../../src/server/dispatch/handlers";
 import { POLICY } from "../../../src/server/dispatch/policy";
 import { DOMAIN_KEY } from "../../../src/server/guards";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
@@ -281,17 +278,6 @@ describe("policy table completeness (ADR-0003 Part C)", () => {
     for (const name of Object.keys(ENTRY_POINTS))
       expect(Object.keys(POLICY)).not.toContain(name);
   });
-
-  it.each([...LATER_SLICE_OPS])(
-    "%s answers NOT_IMPLEMENTED after the policy check",
-    (op) => {
-      const handler = HANDLERS[op];
-      expect(handler).toBeDefined();
-      expect(codeOf(() => handler?.({} as never))).toBe(
-        ErrorCode.NOT_IMPLEMENTED,
-      );
-    },
-  );
 });
 
 /** Required level per op, copied from spec section 6 (`none` = any identified caller). */

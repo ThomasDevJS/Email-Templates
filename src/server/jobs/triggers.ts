@@ -27,9 +27,27 @@ export const SCHEDULES: Readonly<
 /** Health key (`job:triggers:lastError`) of a failed reinstall; the Config tab flags it (spec Q23). */
 export const TRIGGERS_JOB = "triggers";
 
+/** Deletes each trigger; one failed delete does not stop the others. Returns the first error, if any. */
+function deleteAll(
+  app: TriggerApp,
+  triggers: readonly { getUniqueId(): string }[],
+): Error | null {
+  let first: Error | null = null;
+  for (const trigger of triggers) {
+    try {
+      app.deleteTrigger(trigger);
+    } catch (error: unknown) {
+      first ??= error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  return first;
+}
+
 /**
  * Creates the 3 jobs, then deletes the triggers that existed before, so a rerun leaves the same set (spec Q23).
- * A failed create deletes the new ones it made and rethrows: the old set keeps running.
+ * A failed create deletes the new ones it made and rethrows the create error: the old set keeps running. A failed
+ * delete of an old trigger still deletes the others and then throws, so `TRIGGERS_VERSION` stays stale and the
+ * next run deletes every trigger it finds besides the 3 it creates.
  */
 export function installTriggers(app: TriggerApp): void {
   const old = app.getProjectTriggers();
@@ -38,10 +56,11 @@ export function installTriggers(app: TriggerApp): void {
     for (const [handler, schedule] of Object.entries(SCHEDULES))
       created.push(schedule(app.newTrigger(handler).timeBased()).create());
   } catch (error: unknown) {
-    for (const trigger of created) app.deleteTrigger(trigger);
+    deleteAll(app, created);
     throw error;
   }
-  for (const trigger of old) app.deleteTrigger(trigger);
+  const failed = deleteAll(app, old);
+  if (failed !== null) throw failed;
 }
 
 /** Installs and records `TRIGGERS_VERSION`; a failure writes the job health error and leaves the version stale. */

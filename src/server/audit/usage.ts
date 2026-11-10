@@ -2,6 +2,9 @@ import type { UsageDoc, UsageEntry } from "../../shared/model/data";
 
 /** Apply counts and per-user recent lists in `usage.json` (spec section 5.5). */
 export const RECENT_MAX = 20;
+/** Days of per-day counts kept per template, for the Usage tab's "Applies 30 d" (wireframe 06). */
+export const USAGE_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface ApplyEvent {
   readonly itemId: string;
@@ -9,11 +12,43 @@ export interface ApplyEvent {
   readonly ts: string;
 }
 
+/** First UTC day (`YYYY-MM-DD`) of the 30-day window that ends on the day of `ts`. */
+export function windowStart(ts: string): string {
+  const day = Date.parse(ts.slice(0, 10));
+  return new Date(day - (USAGE_DAYS - 1) * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Applies on days from `from` (`YYYY-MM-DD`) on. */
+export function appliesSince(
+  entry: UsageEntry | undefined,
+  from: string,
+): number {
+  return Object.entries(entry?.days ?? {})
+    .filter(([day]) => day >= from)
+    .reduce((sum, [, count]) => sum + count, 0);
+}
+
+/** Counts `ts` on its day and keeps only the 30 days that end on the day of `latest`. */
+function bumpDays(
+  days: Readonly<Record<string, number>>,
+  ts: string,
+  latest: string,
+): Record<string, number> {
+  const from = windowStart(latest);
+  const day = ts.slice(0, 10);
+  const kept = Object.fromEntries(
+    Object.entries(days).filter(([key]) => key >= from),
+  );
+  return day < from ? kept : { ...kept, [day]: (days[day] ?? 0) + 1 };
+}
+
 function bump(entry: UsageEntry | undefined, ts: string): UsageEntry {
   const last = entry?.lastUsedAt ?? "";
+  const latest = ts > last ? ts : last;
   return {
     applyCount: (entry?.applyCount ?? 0) + 1,
-    lastUsedAt: ts > last ? ts : last,
+    lastUsedAt: latest,
+    days: bumpDays(entry?.days ?? {}, ts, latest),
   };
 }
 

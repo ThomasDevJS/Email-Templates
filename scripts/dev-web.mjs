@@ -13,7 +13,7 @@ async function main() {
   const { url } = await servePage(html, Number(values.port));
   console.log(`Web app with dev harness: ${url}`);
   console.log(
-    "Routes: #/library, #/edit/T-QUOTE, #/history/T-QUOTE, #/new?folder=F-QUOTES, #/trash, #/admin, #/admin/memberships",
+    "Routes: #/library, #/edit/T-QUOTE, #/history/T-QUOTE, #/new?folder=F-QUOTES, #/trash, #/admin, #/admin/memberships, #/admin/audit, #/admin/usage, #/admin/transfer, #/admin/config",
   );
   console.log(
     "Failures: ?fail=BUSY&failOp=template.update (any error code and op). Manage holder: ?admin=0. Ctrl+C stops.",

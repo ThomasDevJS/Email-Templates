@@ -15,6 +15,8 @@ export interface AppContext {
   setFavorite(id: string, favorite: boolean): Promise<void>;
   /** Reloads folders and templates from the server. */
   reload(): Promise<void>;
+  /** Folders changed on the server (admin view): the next library, trash or editor view loads them again. */
+  foldersChanged(): void;
   go(route: Route): void;
   /** Changes the URL to `route` without rendering again (a new template that got its ID). */
   replaceRoute(route: Route): void;

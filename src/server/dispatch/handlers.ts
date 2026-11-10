@@ -1,10 +1,12 @@
-import { AppError, ErrorCode } from "../../shared/errors/codes";
 import {
   adminFolders,
   membershipRefresh,
   membershipStatus,
   trashPurge,
+  usageReport,
 } from "../handlers/admin";
+import { auditQuery } from "../handlers/audit";
+import { backupList, backupRestore, configGet } from "../handlers/config";
 import {
   folderCreate,
   folderDelete,
@@ -29,28 +31,12 @@ import {
   templateUpdate,
   searchBody,
 } from "../handlers/templates";
-import type { Handler, HandlerTable } from "./context";
-
-/** Ops whose handlers arrive in slice 6b. They keep a policy row, so dispatch still denies before this runs. */
-export const LATER_SLICE_OPS = [
-  "export.folder",
-  "export.library",
-  "import",
-  "audit.query",
-  "usage.report",
-  "config.get",
-  "backup.list",
-  "backup.restore",
-] as const;
-
-const notImplemented =
-  (op: string): Handler =>
-  () => {
-    throw new AppError(
-      ErrorCode.NOT_IMPLEMENTED,
-      `${op} arrives in a later slice`,
-    );
-  };
+import {
+  exportFolder,
+  exportLibrary,
+  importTemplates,
+} from "../handlers/transfer";
+import type { HandlerTable } from "./context";
 
 /** Op table. Every key needs a row in POLICY and the reverse (policy completeness test). */
 export const HANDLERS: HandlerTable = {
@@ -87,5 +73,12 @@ export const HANDLERS: HandlerTable = {
   "search.body": searchBody,
   "favorite.set": favoriteSet,
   "favorite.unset": favoriteUnset,
-  ...Object.fromEntries(LATER_SLICE_OPS.map((op) => [op, notImplemented(op)])),
+  "export.folder": exportFolder,
+  "export.library": exportLibrary,
+  import: importTemplates,
+  "audit.query": auditQuery,
+  "usage.report": usageReport,
+  "config.get": configGet,
+  "backup.list": backupList,
+  "backup.restore": backupRestore,
 };

@@ -1,9 +1,17 @@
 /**
  * Hash routes of the web app: `#/library`, `#/library?folder=<id>`, `#/edit/<id>`, `#/history/<id>`,
- * `#/new?folder=<id>`, `#/trash`, `#/admin`, `#/admin/memberships`. The OVERLAY form `?view=editor&id=<id>`
+ * `#/new?folder=<id>`, `#/trash`, `#/admin` and `#/admin/<tab>`. The OVERLAY form `?view=editor&id=<id>`
  * (ADR-0001) and `?view=admin` (spec section 2) map onto the same routes.
  */
-export type AdminTab = "folders" | "memberships";
+export const ADMIN_TABS = [
+  "folders",
+  "memberships",
+  "audit",
+  "usage",
+  "transfer",
+  "config",
+] as const;
+export type AdminTab = (typeof ADMIN_TABS)[number];
 
 export type Route =
   | { readonly name: "library"; readonly folderId: string }
@@ -40,8 +48,10 @@ export function parseRoute(hash: string): Route {
   if (section === "library")
     return { name: "library", folderId: queryParam(query, "folder") };
   if (section === "trash") return { name: "trash" };
-  if (section === "admin")
-    return id === "memberships" ? { name: "admin", tab: "memberships" } : ADMIN;
+  if (section === "admin") {
+    const tab = ADMIN_TABS.find((name) => name === id);
+    return tab === undefined ? ADMIN : { name: "admin", tab };
+  }
   return LIBRARY;
 }
 

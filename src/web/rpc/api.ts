@@ -1,4 +1,5 @@
 import type {
+  AuditEvent,
   Folder,
   Item,
   Level,
@@ -99,6 +100,90 @@ export interface NewGrant {
   readonly level: Level;
 }
 
+export interface AuditFilter {
+  readonly month: string;
+  /** ISO instants, "" for open. */
+  readonly from: string;
+  readonly to: string;
+  readonly actor: string;
+  readonly action: string;
+  readonly result: string;
+  readonly target: string;
+  readonly page: number;
+}
+
+export type AuditRow = Omit<AuditEvent, "before" | "after">;
+
+export interface AuditPage {
+  readonly month: string;
+  readonly months: readonly string[];
+  readonly actions: readonly string[];
+  readonly page: number;
+  readonly pageSize: number;
+  readonly total: number;
+  readonly rows: readonly AuditRow[];
+}
+
+export interface UsageRow {
+  readonly id: string;
+  readonly title: string;
+  readonly folderPath: string;
+  readonly applies30d: number;
+  readonly lastUsedAt: string;
+}
+
+/** One page of an export; the browser joins `items` of all pages under `header` (ADR-0002 export format). */
+export interface ExportPage {
+  readonly header: {
+    readonly scope: {
+      readonly kind: "library" | "folder";
+      readonly name: string;
+    };
+  } & Record<string, unknown>;
+  readonly items: readonly unknown[];
+  readonly total: number;
+  readonly next: number | null;
+}
+
+export interface ReportLine {
+  readonly kind: "folder" | "template";
+  readonly name: string;
+  readonly outcome: "skipped" | "failed";
+  readonly reason: string;
+}
+
+export interface ImportReport {
+  readonly dryRun: boolean;
+  readonly created: number;
+  readonly skipped: number;
+  readonly failed: number;
+  readonly foldersCreated: number;
+  readonly foldersReused: number;
+  readonly subjectsFlattened: number;
+  readonly lines: readonly ReportLine[];
+}
+
+export interface JobRow {
+  readonly name: string;
+  readonly schedule: string;
+  readonly lastOk: string;
+  readonly status: "ok" | "late" | "never";
+  readonly lastError: string;
+}
+
+export interface ConfigView {
+  readonly domain: string;
+  readonly adminGroup: string;
+  readonly resolver: string;
+  readonly callerIdentity: string;
+  readonly indexRev: string;
+  readonly appVersion: string;
+  readonly indexBytes: number;
+  readonly indexWarnBytes: number;
+  readonly jobs: readonly JobRow[];
+  readonly triggersError: string;
+}
+
 export interface Api {
   profile(): Promise<Profile>;
   folders(): Promise<{ folders: FolderRow[] }>;
@@ -140,6 +225,19 @@ export interface Api {
   removeGrant(grantId: string): Promise<unknown>;
   memberships(): Promise<Memberships>;
   refreshMemberships(): Promise<Memberships>;
+  audit(filter: AuditFilter): Promise<AuditPage>;
+  auditEvent(month: string, id: string): Promise<{ event: AuditEvent }>;
+  usage(): Promise<{ since: string; rows: UsageRow[] }>;
+  /** `folderId` "" exports the whole library (admin). */
+  exportPage(folderId: string, offset: number): Promise<ExportPage>;
+  importFile(
+    folderId: string,
+    file: string,
+    dryRun: boolean,
+  ): Promise<ImportReport>;
+  config(): Promise<ConfigView>;
+  backups(): Promise<{ dates: string[] }>;
+  restoreBackup(date: string): Promise<{ date: string; rev: number }>;
 }
 
 /** The casts trust the server's documented response shapes; the envelope itself is checked in client.ts. */
@@ -193,5 +291,17 @@ export function createApi(client: RpcClient): Api {
     removeGrant: (grantId) => call("grant.remove", { grantId }),
     memberships: () => call("membership.status"),
     refreshMemberships: () => call("membership.refresh"),
+    audit: (filter) => call("audit.query", filter),
+    auditEvent: (month, id) => call("audit.query", { month, id }),
+    usage: () => call("usage.report"),
+    exportPage: (folderId, offset) =>
+      folderId === ""
+        ? call("export.library", { offset })
+        : call("export.folder", { folderId, offset }),
+    importFile: (folderId, file, dryRun) =>
+      call("import", { folderId, file, dryRun }),
+    config: () => call("config.get"),
+    backups: () => call("backup.list"),
+    restoreBackup: (date) => call("backup.restore", { date }),
   };
 }

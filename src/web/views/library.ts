@@ -3,7 +3,7 @@ import { parseQuery } from "../../shared/search/match";
 import { folderPath, searchItems, subtreeIds } from "../library/model";
 import type { ItemRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
-import { skeletonRows } from "../ui/status";
+import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { focusCell, templateGrid, type GridActions } from "./grid";
 import { rowMenu } from "./rowActions";
@@ -155,7 +155,7 @@ export function libraryView(
         if (row?.cells[0] !== undefined) focusCell(row.cells[0]);
       },
       (error: unknown) => {
-        status.textContent = app.fail(error)?.textContent ?? "";
+        status.textContent = lineText(error, app.fail(error));
       },
     );
   };

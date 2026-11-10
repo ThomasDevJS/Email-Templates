@@ -150,10 +150,12 @@ describe("admin view entry", () => {
     expect(text()).toContain("The admin view could not be loaded.");
   });
 
-  it("gives a manage holder one tab and only the folders they manage", async () => {
+  it("gives a manage holder Folders and grants and Export, only for the folders they manage", async () => {
     await boot("/?latency=0&admin=0#/admin/memberships");
     await until(() => {
-      expect(main().querySelectorAll('[role="tab"]')).toHaveLength(1);
+      expect(
+        [...main().querySelectorAll('[role="tab"]')].map((t) => t.textContent),
+      ).toEqual(["Folders and grants", "Export and import"]);
     });
     expect(main().querySelector('[aria-selected="true"]')?.textContent).toBe(
       "Folders and grants",
@@ -167,10 +169,10 @@ describe("tablist and memberships", () => {
   it("moves between tabs with arrow keys, Home and End, and refreshes memberships", async () => {
     await boot("/?latency=0#/admin");
     await until(() => {
-      expect(main().querySelectorAll('[role="tab"]')).toHaveLength(2);
+      expect(main().querySelectorAll('[role="tab"]')).toHaveLength(6);
     });
     const tabs = [...main().querySelectorAll<HTMLElement>('[role="tab"]')];
-    expect(tabs.map((tab) => tab.tabIndex)).toEqual([0, -1]);
+    expect(tabs.map((tab) => tab.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
     key(tabs[0] as HTMLElement, "ArrowRight");
     expect(document.activeElement).toBe(tabs[1]);
     expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
@@ -200,9 +202,12 @@ describe("tablist and memberships", () => {
     key(tabs[1] as HTMLElement, "Home");
     expect(document.activeElement).toBe(tabs[0]);
     key(tabs[0] as HTMLElement, "End");
-    expect(document.activeElement).toBe(tabs[1]);
-    key(tabs[1] as HTMLElement, "ArrowLeft");
+    expect(document.activeElement).toBe(tabs[5]);
+    expect(window.location.hash).toBe("#/admin/config");
+    key(tabs[5] as HTMLElement, "ArrowRight");
     expect(document.activeElement).toBe(tabs[0]);
+    key(tabs[0] as HTMLElement, "ArrowLeft");
+    expect(document.activeElement).toBe(tabs[5]);
   });
 });
 
@@ -266,9 +271,10 @@ describe("folders and grants", () => {
     form.dispatchEvent(new Event("submit"));
     await until(() => {
       expect(status()).toContain(
-        "was not found or its members are not visible",
+        "Group missing@example.com was not found or its members are not visible.",
       );
     });
+    expect(status()).not.toContain("Back to the library");
     expect(input.value).toBe("missing@example.com");
   });
 
@@ -299,6 +305,14 @@ describe("folders and grants", () => {
       expect(main().querySelector(".empty")?.textContent).toBe(
         "Only admins can see this folder. Add a grant to share it.",
       );
+    });
+    (document.querySelector("[data-nav=library]") as HTMLElement).click();
+    await until(() => {
+      expect(
+        [...main().querySelectorAll('[role="treeitem"]')].map((item) =>
+          item.textContent.replace(/^[▸▾]/, ""),
+        ),
+      ).toContain("Legal");
     });
   });
 

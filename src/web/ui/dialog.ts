@@ -21,6 +21,8 @@ export interface DialogOptions {
   readonly onCancel?: () => void;
   /** Gets focus on close; default: the element that had focus when the dialog opened. */
   readonly returnFocus?: HTMLElement;
+  /** `drawer`: a full-height panel at the right edge (audit details), same focus rules. */
+  readonly variant?: "drawer";
 }
 
 export interface OpenDialog {
@@ -72,7 +74,7 @@ export function openDialog(options: DialogOptions): OpenDialog {
   const panel = h(
     "div",
     {
-      class: "dialog",
+      class: options.variant === "drawer" ? "dialog drawer" : "dialog",
       role: "dialog",
       "aria-modal": "true",
       "aria-labelledby": titleId,

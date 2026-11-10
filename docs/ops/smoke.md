@@ -118,3 +118,18 @@ Needs: the dev deployment of this build, the owner account (admin) in one Chrome
 8. Owner, Admin, `Smoke 6a`: Remove the grant. Second account, reload: `Smoke 6a` is gone; opening the template link answers "You don't have access". This is BRIEF 13 DoD 3.
 9. Owner, library: delete `Smoke 6a secret`. Trash (under the folder tree) lists it with the deleted time in local time and 30 days left. Restore: it is back in `Smoke 6a`. Delete it again, then "Empty trash now..." (Cancel has the focus first), confirm: "Removed n items for good."
 10. Apps Script editor, Executions: the `grant.add` and `grant.remove` lines carry `action`, `actor` and `targetId` (the folder ID for `grant.add`, empty for `grant.remove`), and no group or user address of the grant.
+
+## Slice 6b
+
+Needs: the dev deployment of this build, the owner account (admin) and the second account (not in `ADMIN_EMAILS`), each in its own Chrome profile. Dev data only: step 9 overwrites the dev library.
+
+1. Owner, Admin: 6 tabs, "Folders and grants" to "Config". Left, Right, Home and End move between them. Second account with `manage` on one folder: only "Folders and grants" and "Export and import", and the latter shows only "Export folder".
+2. Owner, library: create folder `Smoke 6b`, template `Smoke 6b quote` in it with subject `Quote for {{ask:Customer}}`. Second account: open a template link of a folder it cannot see ("You don't have access").
+3. Wait 5 min (the `tick` trigger). Owner, Audit log, this month, Apply: the `template.create` row of step 2 with your address, time in local time and result ok. Result filter "denied", Apply: the second account's row from step 2. Details on the create row: the drawer shows before (null) and after JSON, durationMs, request ID and app version; Esc closes it and the focus returns to Details.
+4. Usage: `Smoke 6b quote` appears with 0 applies; insert it once from the sidebar, wait 5 min, reload the tab: 1 apply, last used now.
+5. Export and import: Folder `Smoke 6b`, "Download JSON". The status shows "Exporting..." then the file name `migway-templates-smoke-6b-<date>.json`. Open the file: `schemaVersion` 1 and the subject of step 2.
+6. Create folder `Smoke 6b import`. Import: choose the file, target `Smoke 6b import`, Validate: "would create 1 templates, 0 skipped, 0 failed". Import: "Imported: 1 templates". The library shows `Smoke 6b import / Smoke 6b / Smoke 6b quote` with the subject of step 2. Validate the same file again: "0 templates, 1 skipped".
+7. Config: domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_REV, app version and the index size. The jobs table lists `tick`, `refreshMembers`, `daily` with a Last OK time in local time and status ok (a job without a run for 2 intervals shows "late" in red with its last error).
+8. Config, Backups: at least one date after the first `daily` run (02:00 to 03:00). No date yet: skip step 9.
+9. Dev data only. Restore from backup, pick the newest date: the dialog names the date and has Cancel focused. Confirm: "Restored the backup of <date>." This overwrites `index.json`, `favorites.json` and `usage.json` with the copies of that night, so `Smoke 6b` and everything made after the backup leave the library. Audit log: a `backup.restore` row with your address.
+10. Apps Script editor, Executions: the `import`, `export.folder` and `backup.restore` lines carry `action`, `actor`, `targetId` (the folder ID for import and export, empty for the restore), result, timing and calls; no title, subject, body or file content.

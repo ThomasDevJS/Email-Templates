@@ -706,6 +706,62 @@ button.danger {
   margin-top: 12px;
 }
 
+/* Audit details drawer: full height at the right edge; dialog.ts traps and returns focus. */
+.dialog.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 96vw);
+  overflow-y: auto;
+  border-radius: 0;
+}
+
+.json {
+  max-height: 40vh;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+}
+
+.facts dt {
+  font-weight: 600;
+}
+
+.facts dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  border: none;
+  padding: 0;
+}
+
+.late,
+.admin-table tr.late td {
+  color: var(--error);
+}
+
 @media (max-width: 1023px) {
   .library,
   .admin-folders,

@@ -1,6 +1,8 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { MembersDoc } from "../../shared/model/data";
+import { appliesSince, windowStart } from "../audit/usage";
 import { loadIndex } from "../cache/indexCache";
+import { readSideCached } from "../cache/sideCache";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { purgeDeleted } from "../jobs/daily";
 import {
@@ -9,9 +11,10 @@ import {
   RESOLVER_KEY,
 } from "../membership/snapshot";
 import { createResolver, resolverId } from "../membership/resolver";
-import type { Services } from "../services";
+import { nowIso, type Services } from "../services";
 import { commit } from "./commit";
 import { folderLabel, type FolderView } from "./folders";
+import { folderPath } from "./indexOps";
 
 /**
  * Admin view (wireframe 06). `admin.folders` decides who enters: admins get every live folder, private ones
@@ -112,4 +115,49 @@ export function trashPurge(context: HandlerContext): {
     filesTrashed: report.filesTrashed,
     itemsPending: report.itemsPending,
   };
+}
+
+export interface UsageRow {
+  readonly id: string;
+  readonly title: string;
+  readonly folderPath: string;
+  readonly applies30d: number;
+  readonly lastUsedAt: string;
+}
+
+/**
+ * Usage tab (admin, wireframe 06): every live template with its folder, applies in the last 30 days (UTC days,
+ * today included) and last use, most applied first. Entries written before slice 6b have no per-day counts and
+ * show 0 applies until their next apply. Reads the index and `usage.json` through the cache.
+ */
+export function usageReport(context: HandlerContext): {
+  since: string;
+  rows: UsageRow[];
+} {
+  const { services } = context;
+  const { index } = context.access();
+  const usage = readSideCached(services, "usage");
+  const since = windowStart(nowIso(services));
+  const live = new Set(
+    index.folders.filter((f) => f.deletedAt === "").map((f) => f.id),
+  );
+  const rows = index.items
+    .filter((item) => item.deletedAt === "" && live.has(item.folderId))
+    .map((item) => {
+      const entry = usage.items[item.id];
+      return {
+        id: item.id,
+        title: item.title,
+        folderPath: folderPath(index, item.folderId),
+        applies30d: appliesSince(entry, since),
+        lastUsedAt: entry?.lastUsedAt ?? "",
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.applies30d - a.applies30d ||
+        b.lastUsedAt.localeCompare(a.lastUsedAt) ||
+        a.title.localeCompare(b.title),
+    );
+  return { since, rows };
 }

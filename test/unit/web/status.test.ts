@@ -2,7 +2,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErrorCode } from "../../../src/shared/errors/codes";
 import { RpcError } from "../../../src/web/rpc/client";
-import { QUOTA_RETRY_MS, showToast } from "../../../src/web/ui/status";
+import {
+  lineText,
+  QUOTA_RETRY_MS,
+  showToast,
+} from "../../../src/web/ui/status";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -35,5 +39,26 @@ describe("toast Retry (spec section 7)", () => {
 
   it("BUSY enables Retry at once", () => {
     expect(retryOf(ErrorCode.BUSY, vi.fn()).disabled).toBe(false);
+  });
+});
+
+describe("lineText (smoke 6b defect A)", () => {
+  it("gives the message as one sentence, or nothing when a toast showed it", () => {
+    const refused = new RpcError(
+      ErrorCode.VALIDATION,
+      "Group x@example.com was not found or its members are not visible",
+      "REQ",
+      false,
+    );
+    const shown = document.createElement("div");
+    expect(lineText(refused, shown)).toBe(
+      "Group x@example.com was not found or its members are not visible.",
+    );
+    expect(
+      lineText(new RpcError(ErrorCode.BUSY, "Busy", "R", true), null),
+    ).toBe("");
+    expect(
+      lineText(new RpcError(ErrorCode.DENIED, "x", "R", false), shown),
+    ).toBe("You don't have access to this template. Ask a folder manager.");
   });
 });

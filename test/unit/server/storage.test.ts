@@ -347,13 +347,41 @@ describe("Drive store port", () => {
     const old = { itemId: "ITEM", version: 1, html: "<p>x</p>" };
     const fileId = store.createBody(old as unknown as BodyFile);
     const index = store.readIndex();
-    const item = { id: "I1", title: "Old" };
+    const item = {
+      id: "I1",
+      folderId: "F",
+      title: "Old",
+      tags: [],
+      currentVersion: 1,
+      bodyFileId: fileId,
+      deletedAt: "",
+      version: 1,
+    };
     store.writeIndex({ ...index, items: [item] } as unknown as typeof index);
     const before = drive.calls.length;
     expect(store.readBody(fileId).subject).toBe("");
     expect(store.readIndex().items[0]?.subject).toBe("");
     expect(drive.calls.slice(before)).not.toContain("update");
     expect(drive.calls.slice(before)).not.toContain("create");
+  });
+
+  it("refuses a damaged index.json, favorites.json or usage.json on read", () => {
+    const index = store.readIndex();
+    store.writeIndex({
+      ...index,
+      folders: undefined,
+    } as unknown as typeof index);
+    expect(() => store.readIndex()).toThrow(
+      "index.json is damaged: folders must be a list",
+    );
+    store.writeSide("favorites", {} as never);
+    expect(() => store.readSide("favorites")).toThrow(
+      "favorites.json is damaged: rev must be an integer",
+    );
+    store.writeSide("usage", { rev: 1, items: { a: {} }, recent: {} } as never);
+    expect(() => store.readSide("usage")).toThrow(
+      "usage.json is damaged: items has a bad entry",
+    );
   });
 
   it("appends audit lines per month, skipping IDs already in the file", () => {

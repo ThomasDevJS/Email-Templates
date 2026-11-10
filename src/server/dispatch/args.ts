@@ -33,6 +33,11 @@ export function reqInt(args: unknown, field: string): number {
   return value;
 }
 
+/** Non-negative integer, 0 when absent. */
+export function optInt(args: unknown, field: string): number {
+  return record(args)[field] === undefined ? 0 : reqInt(args, field);
+}
+
 export function optBool(args: unknown, field: string): boolean {
   const value = record(args)[field];
   if (value === undefined || value === null) return false;
