@@ -6,6 +6,7 @@ import { APP_VERSION, BUILD_INFO } from "../../shared/buildInfo";
 import {
   ErrorCode,
   isRetryable,
+  type ErrorBody,
   type ErrorCode as Code,
 } from "../../shared/errors/codes";
 import {
@@ -90,23 +91,44 @@ function fetchServer(request: RpcRequest): Hop {
     : { ...second, body: `${String(second.status)} after redirect` };
 }
 
-export function callServer(op: string, args: unknown): RpcResponse {
+/** One server call: the response and the request ID the error states show (wireframe 07 C). */
+export interface ServerCall {
+  readonly requestId: string;
+  readonly response: RpcResponse;
+}
+
+/** A failed call as the sidebar states use it. */
+export interface Failure {
+  readonly code: Code;
+  readonly message: string;
+  readonly requestId: string;
+}
+
+export function failureOf(requestId: string, error: ErrorBody): Failure {
+  return { code: error.code, message: error.message, requestId };
+}
+
+function send(request: RpcRequest): RpcResponse {
   if (BUILD_INFO.execUrl === "") {
     return localError(
-      ErrorCode.NETWORK,
+      ErrorCode.NOT_CONFIGURED,
       "Server URL missing in this build. Set execUrl in deploy/<env>.json and redeploy.",
     );
   }
-  const request: RpcRequest = {
-    op,
-    args,
-    requestId: Utilities.getUuid(),
-    clientVersion: APP_VERSION,
-  };
   try {
     const hop = fetchServer(request);
     return readResponse(hop.status, hop.body);
   } catch {
     return localError(ErrorCode.NETWORK, "Server unreachable");
   }
+}
+
+export function callServer(op: string, args: unknown): ServerCall {
+  const request: RpcRequest = {
+    op,
+    args,
+    requestId: Utilities.getUuid(),
+    clientVersion: APP_VERSION,
+  };
+  return { requestId: request.requestId, response: send(request) };
 }

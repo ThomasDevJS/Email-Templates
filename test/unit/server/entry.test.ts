@@ -11,6 +11,7 @@ import {
   setup,
   tick,
 } from "../../../src/server/entry";
+import { CALLBACKS } from "../../../src/addon/cards/spec";
 import { ENTRY_POINTS, TRIGGER_JOBS } from "../../../src/shared/entryPoints";
 import { DOMAIN_KEY, OWNER_EMAIL_KEY } from "../../../src/server/guards";
 import { lastErrorKey, lastOkKey } from "../../../src/server/jobs/health";
@@ -373,13 +374,9 @@ describe("entry point allowlist (ADR-0003 Part C, revised in slice 2)", () => {
     const addonEntries = Object.entries(ENTRY_POINTS).filter(
       ([, surface]) => surface === "addon",
     );
-    expect(addonEntries.map(([name]) => name).sort()).toEqual([
-      "onComposeOpen",
-      "onDiag",
-      "onHomepage",
-      "onOpenLibrary",
-      "onPing",
-    ]);
+    expect(addonEntries.map(([name]) => name).sort()).toEqual(
+      ["onComposeOpen", "onHomepage", "onOpenLibrary", ...CALLBACKS].sort(),
+    );
   });
 
   it("marks every installed trigger handler and setup as surface trigger", () => {

@@ -3,11 +3,18 @@
  * stubs scripts/build.mjs appends. Exports are the only callable functions; everything else stays inside the IIFE.
  */
 export {
+  onBack,
   onComposeOpen,
-  onDiag,
   onHomepage,
+  onInsert,
+  onOpenFolder,
   onOpenLibrary,
-  onPing,
+  onOpenLink,
+  onPreview,
+  onPromptInsert,
+  onRefresh,
+  onSpikeCard,
+  onSpikeInsert,
 } from "./addon/entry";
 export {
   daily,

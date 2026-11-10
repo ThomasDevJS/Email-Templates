@@ -1,8 +1,8 @@
-import { utf8CharBytes } from "../../shared/text";
-import type { CacheStore } from "../services";
+import { utf8CharBytes } from "../text";
+import type { CacheStore } from "./store";
 
 /**
- * Chunked values in the Script Cache (ADR-0002 Caching). A set is `<prefix>:<rev>:<n>` chunks of at most 90 KB
+ * Chunked values in the Script Cache (ADR-0002 Caching) and the add-on User Cache (`view:*`). A set is `<prefix>:<rev>:<n>` chunks of at most 90 KB
  * plus `<prefix>:meta` = `{ rev, chunkCount, builtAt }`. Keys carry `rev`, so a reader never mixes two builds;
  * one missing chunk makes the whole set a miss.
  */
@@ -51,6 +51,7 @@ export function putChunked(
   rev: string,
   text: string,
   nowMs: number,
+  ttlSeconds = CACHE_TTL_S,
 ): void {
   const chunks = splitByBytes(text, CHUNK_BYTES);
   const values: Record<string, string> = {};
@@ -58,8 +59,8 @@ export function putChunked(
     values[chunkKey(prefix, rev, n)] = chunk;
   });
   const meta: ChunkMeta = { rev, chunkCount: chunks.length, builtAt: nowMs };
-  cache.putAll(values, CACHE_TTL_S);
-  cache.put(metaKey(prefix), JSON.stringify(meta), CACHE_TTL_S);
+  cache.putAll(values, ttlSeconds);
+  cache.put(metaKey(prefix), JSON.stringify(meta), ttlSeconds);
 }
 
 export function readMeta(cache: CacheStore, prefix: string): ChunkMeta | null {

@@ -3,7 +3,6 @@ import { AppError } from "../../../src/shared/errors/codes";
 import { isId, makeId } from "../../../src/shared/ids";
 import type { Folder } from "../../../src/shared/model/data";
 import {
-  bodySize,
   folderName,
   tagList,
   templateTitle,
@@ -85,19 +84,6 @@ describe("validation (spec section 5)", () => {
       codeOf(() => tagList(Array.from({ length: 11 }, (_, i) => String(i)))),
     ).toBe("VALIDATION");
     expect(codeOf(() => tagList(["x".repeat(31)]))).toBe("VALIDATION");
-  });
-
-  it("caps bodies at 100 KB", () => {
-    expect(
-      codeOf(() => {
-        bodySize(100 * 1024);
-      }),
-    ).toBe("none");
-    expect(
-      codeOf(() => {
-        bodySize(100 * 1024 + 1);
-      }),
-    ).toBe("VALIDATION");
   });
 
   it("keeps sibling names unique among live folders of the same kind and owner", () => {

@@ -8,7 +8,7 @@ import {
   putChunked,
   readChunks,
   readMeta,
-} from "../cache/chunked";
+} from "../../shared/cache/chunked";
 import {
   INDEX_PREFIX,
   INDEX_REV_KEY,

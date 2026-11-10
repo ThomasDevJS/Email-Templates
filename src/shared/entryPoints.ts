@@ -20,8 +20,15 @@ export const ENTRY_POINTS = {
   onComposeOpen: "addon",
   onHomepage: "addon",
   onOpenLibrary: "addon",
-  onPing: "addon",
-  onDiag: "addon",
+  onOpenFolder: "addon",
+  onPreview: "addon",
+  onInsert: "addon",
+  onPromptInsert: "addon",
+  onRefresh: "addon",
+  onBack: "addon",
+  onOpenLink: "addon",
+  onSpikeCard: "addon",
+  onSpikeInsert: "addon",
 } as const satisfies Readonly<Record<string, EntrySurface>>;
 
 export type EntryName = keyof typeof ENTRY_POINTS;

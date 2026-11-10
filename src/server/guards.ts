@@ -65,10 +65,18 @@ export function setupAllowed(
   );
 }
 
-/** Caller email must end with `@` plus Script Property `DOMAIN`; an unset `DOMAIN` denies everyone. */
+/**
+ * Caller email must end with `@` plus Script Property `DOMAIN`. An unset `DOMAIN` (setup not run) denies everyone
+ * with NOT_CONFIGURED, so the sidebar can show its "not set up" state.
+ */
 export function requireDomain(email: string, props: PropertyStore): void {
   const domain = norm(props.getProperty(DOMAIN_KEY) ?? "");
-  if (domain === "" || domainOf(email) !== domain) {
+  if (domain === "")
+    throw new AppError(
+      ErrorCode.NOT_CONFIGURED,
+      "Migway Templates is not set up. The owner runs setup once.",
+    );
+  if (domainOf(email) !== domain) {
     throw new AppError(
       ErrorCode.AUTH_DOMAIN,
       "Your account is not in the Migway domain.",

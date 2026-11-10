@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { emptyMembers, type IndexDoc } from "../../../src/shared/model/data";
-import { readMeta } from "../../../src/server/cache/chunked";
+import { readMeta } from "../../../src/shared/cache/chunked";
 import { loadIndex } from "../../../src/server/cache/indexCache";
+import { handleRpc } from "../../../src/server/dispatch/handle";
 import {
   createResolver,
   groupsAppDirect,
@@ -203,6 +204,44 @@ describe("refresh job and admin determination", () => {
     expect(
       Object.keys(world.services.store().readSide("members").groups).sort(),
     ).toEqual(["admins@example.com", "sales@example.com"]);
+  });
+
+  it("keeps the snapshot when members.json cannot be read during grant.add (no shrink)", () => {
+    refreshSnapshot(world.services, loadIndex(world.services));
+    const before = world.services.store().readSide("members");
+    const folder = world.ok<{ id: string }>(OWNER, "folder.create", {
+      name: "Sales",
+    });
+    const services = world.as("webapp");
+    const failingStore = () => {
+      const store = services.store();
+      return {
+        ...store,
+        readSide: ((name) => {
+          if (name === "members") throw new Error("Drive read failed");
+          return store.readSide(name);
+        }) as typeof store.readSide,
+      };
+    };
+    const response = handleRpc(
+      { email: OWNER },
+      {
+        op: "grant.add",
+        args: {
+          folderId: folder.id,
+          principalType: "group",
+          principalKey: "sales@example.com",
+          level: "use",
+        },
+        requestId: "r-1",
+        clientVersion: "t",
+      },
+      "webapp",
+      { services: { ...services, store: failingStore } },
+    );
+    expect(response.ok).toBe(true);
+    expect(world.services.store().readSide("members")).toEqual(before);
+    expect(world.lines.join("\n")).toContain("grant.add.snapshotMerge");
   });
 
   it("reads the snapshot from members.json when the gm cache is gone, without GroupsApp", () => {

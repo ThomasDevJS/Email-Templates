@@ -193,6 +193,12 @@ describe("PH_BACKSLASH (backslash before a chip)", () => {
     const ed = open("<p>a\\ {{sender.name}} \\{{ {{ask:X}}</p>");
     expect(backslashProblems(ed.view.state.doc)).toEqual([]);
   });
+
+  it("passes a backslash in other marks than the chip: it serializes to a working token", () => {
+    const ed = open("<p><strong>a\\</strong>{{sender.name}}</p>");
+    expect(ed.html()).toBe("<p><strong>a\\</strong>{{sender.name}}</p>");
+    expect(backslashProblems(ed.view.state.doc)).toEqual([]);
+  });
 });
 
 describe("editor commands", () => {
