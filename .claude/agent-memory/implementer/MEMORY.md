@@ -74,9 +74,6 @@
 - Favorites/Recent: handlers/favorites.ts (`callerLists`, `callerRecent`, `favoriteSet/Unset` under lock); cache/sideCache.ts (`FAVORITES_REV`, `USAGE_REV`, `readSideCached`, `publishSide`, `writeSideLocked`); setup and tick publish.
 - Web: `searchItems` (library/model.ts), `AppContext.favorites/recent/setFavorite`, grid star + `GridActions.isFavorite/toggleFavorite`, `subjectPickerItems` (picker.ts).
 
-## Lessons (slice 5)
-- Worktree guard rejects bash heredocs with python edits; use scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>` blocks) written with the Write tool, or the Edit tool.
-
 ## Code map (after slice 5b)
 - D24 (slice 5c): `DRAFT_FIELDS`, `requestDraft` with `hasSubject` (protocol.ts); `draftInfo`, `draftHasSubject` (addon/event.ts); truth table `replacesSubject`, `WITH_SUBJECT` (cards/spec.ts). Gmail compose events carry no threadId/messageId. `ports(event)` sends `draft` on every call; server logs `draft` only when valid, else VALIDATION.
 - `folderLabel` in folders.ts: `folder.list` renames other users' private folders "My templates (owner)".
@@ -131,6 +128,13 @@
 - Focus ring rule: on the active item (`outline-offset: -2px`), never around a listbox. Stacked labels `content: attr(data-label) / ""`.
 - CSS-only fixes get a text test in test/unit/web/styles.test.ts. Old-code check: copy src/web to scratchpad, `git checkout HEAD -- src/web`, run, copy back.
 - Trash `load()` returns boolean; purge result needs the reloaded list.
+
+## Slice 11 (admin settings, D29, 2026-11-11)
+- shared/model/settings.ts: `SETTINGS` list, `settingsOf` (defaults at read, never written), `personalTemplatesOn`, `settingsProblem` (in `indexProblem`), `PERSONAL_OFF_TEXT`. `IndexDoc.settings` optional.
+- Off rule in `levelResolver` before the admin rule; dispatch `deniedError(index, targets)` picks the off text. `recipientPolicy(context)` reads the setting; the property reader is gone.
+- `config.set` in handlers/config.ts (withLock + loadIndexForWrite + recheck, no-op returns before any write). Binary settings: CONFLICT unreachable; client shows the conflict text on `changed: false` with a newer entry.
+- Tests: `setSetting(world, name, value)` in test/fakes/world.ts; D11 tests turn personal templates on in `beforeEach`. Enforcement table in test/unit/server/settings.test.ts. Harness `?personal=off`, `?access=none`.
+- Screens via scratchpad s11/shot.mjs (Playwright, `servePage`); plain chromium `--screenshot` hangs.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
