@@ -1001,7 +1001,7 @@ export function editorView(
       saving = false;
       showSaved();
       if (isNew) app.replaceRoute({ name: "edit", id: item.id });
-      void app.reload();
+      app.itemSaved(item);
       return true;
     } catch (error: unknown) {
       saving = false;

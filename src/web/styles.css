@@ -981,6 +981,44 @@ table {
   }
 }
 
+/* D37: the page loader, a slim moving bar at the top; still under reduced motion. */
+.busy-bar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 30;
+  height: 3px;
+  overflow: hidden;
+  background: var(--select);
+}
+
+.busy-bar::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: var(--slate);
+  animation: busy-slide 1.2s linear infinite;
+  content: "";
+}
+
+@keyframes busy-slide {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .busy-bar::before {
+    width: 100%;
+    animation: none;
+  }
+}
+
 .toasts {
   position: fixed;
   right: 16px;

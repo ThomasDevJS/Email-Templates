@@ -255,6 +255,7 @@ export function foldersTab(
     status.textContent = pending;
     work()
       .then((text) => {
+        folders.grants.delete(folder.id);
         // A grant can change the caller's own levels: the library loads the folders again on its next view.
         app.foldersChanged();
         status.textContent = text;
@@ -326,15 +327,30 @@ export function foldersTab(
     );
   };
 
+  /**
+   * A folder seen before in this Admin page shows its access at once and reads it again in the background (D37);
+   * the fresh answer redraws only when it differs.
+   */
   const loadGrants = (folderId: string) => {
     grantTicket += 1;
     const ticket = grantTicket;
-    access.setAttribute("aria-busy", "true");
-    replace(access, ...skeletonRows(3));
-    app.api.grants(folderId).then(
+    const known = folders.grants.get(folderId);
+    const folderNow = folderOf(folderId);
+    if (known !== undefined && folderNow !== undefined)
+      drawGrants(folderNow, known);
+    else {
+      access.setAttribute("aria-busy", "true");
+      replace(access, ...skeletonRows(3));
+    }
+    (known === undefined ? app.api : app.background).grants(folderId).then(
       ({ grants }) => {
         const folder = folderOf(folderId);
-        if (ticket === grantTicket && folder !== undefined)
+        folders.grants.set(folderId, grants);
+        if (
+          ticket === grantTicket &&
+          folder !== undefined &&
+          JSON.stringify(grants) !== JSON.stringify(known)
+        )
           drawGrants(folder, grants);
       },
       (error: unknown) => {

@@ -94,6 +94,18 @@ describe("styles (slice 8b editor)", () => {
     expect(rule(".tree-toggle::before")).toContain("position: absolute");
   });
 
+  it("draws the page loader as a slate bar that stands still under reduced motion (D37)", () => {
+    expect(rule(".busy-bar::before")).toContain("background: var(--slate)");
+    expect(rule(".busy-bar::before")).toContain("animation: busy-slide");
+    const still = CSS.slice(
+      CSS.indexOf(
+        ".busy-bar::before {",
+        CSS.indexOf("@media (prefers-reduced-motion: reduce) {\n  .busy-bar"),
+      ),
+    );
+    expect(still.slice(0, still.indexOf("}"))).toContain("animation: none");
+  });
+
   it("draws no border around a read-only Title (8b minor 5)", () => {
     expect(rule(".panel-control input[readonly]")).toContain(
       "border-color: transparent",

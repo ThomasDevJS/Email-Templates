@@ -17,6 +17,7 @@ import {
 import { requestIdNow } from "../shared/requestId";
 import { ErrorCode, NOT_SET_UP_TEXT } from "../shared/errors/codes";
 import { createClient } from "./rpc/client";
+import { createBusy } from "./ui/busy";
 import {
   authPage,
   banner,
@@ -41,6 +42,8 @@ declare const google: { readonly script: GoogleScript };
 
 /** The first load may take this long before the page says it failed (test round 1: a blank page until a retry). */
 export const FIRST_LOAD_MS = 15_000;
+/** Calls that never block the page: the text search runs while the user types; the account name is decoration. */
+const QUIET_OPS: ReadonlySet<string> = new Set(["search.body", "profile.me"]);
 const WAITS_FOR_LOAD: ReadonlySet<Route["name"]> = new Set([
   "library",
   "trash",
@@ -69,7 +72,15 @@ export function startApp(host: Host): AppContext {
   const side = element("side");
   const menuButton = element("menu-button");
   const client = createClient(host.runner, requestIdNow);
-  const api = createApi(client);
+  // D37: every call blocks the page while it runs, except searches while typing and background refreshes.
+  const busy = createBusy([main, side]);
+  const api = createApi({
+    call: (op, args) =>
+      QUIET_OPS.has(op)
+        ? client.call(op, args)
+        : busy.track(client.call(op, args)),
+  });
+
   let folders: FolderRow[] = [];
   let items: ItemRow[] = [];
   let favorites = new Set<string>();
@@ -258,6 +269,7 @@ export function startApp(host: Host): AppContext {
 
   const app: AppContext = {
     api,
+    background: createApi(client),
     profile: () => profile,
     folders: () => folders,
     items: () => items,
@@ -270,6 +282,20 @@ export function startApp(host: Host): AppContext {
     },
     reload: async () => {
       await load(() => undefined);
+    },
+    itemSaved: (item) => {
+      const folder = folders.find((entry) => entry.id === item.folderId);
+      // A folder this page does not know: read the lists again.
+      if (folder === undefined) {
+        void load(() => undefined);
+        return;
+      }
+      const row: ItemRow = { ...item, level: folder.level };
+      const known = items.some((entry) => entry.id === item.id);
+      items = known
+        ? items.map((entry) => (entry.id === item.id ? row : entry))
+        : [...items, row];
+      drawSide();
     },
     foldersChanged: () => {
       stale = true;
