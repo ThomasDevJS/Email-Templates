@@ -232,7 +232,12 @@ export function backupRestore(context: HandlerContext): {
           targetType: "library",
           targetId: "",
           before: { rev: latest.rev, items: latest.items.length },
-          after: { date, rev: latest.rev + 1, items: restored.items.length },
+          after: {
+            date,
+            rev: latest.rev + 1,
+            items: restored.items.length,
+            liveSettingsKept: true,
+          },
         });
         return {
           doc: {
@@ -252,32 +257,57 @@ export function backupRestore(context: HandlerContext): {
   });
 }
 
-const SET_ARGS = ["name", "value", "from"];
+const SET_ARGS = ["name", "value", "baseAt", "baseBy"];
+/** Longest part of a client's setting name that the VALIDATION text echoes, in characters. */
+export const NAME_ECHO_MAX = 40;
+/** `baseBy` is an address or "", `baseAt` an ISO time or "". */
+const BASE_MAX = 254;
 
 interface SetRequest {
   readonly name: SettingName;
   readonly value: SettingValue;
-  readonly from: SettingValue;
+  /** The last change the admin saw: `updatedAt` and `updatedBy` from `config.get`, "" for the default. */
+  readonly baseAt: string;
+  readonly baseBy: string;
 }
 
-/** `{ name, value, from }` against the fixed list (spec 5.8); anything else is VALIDATION with the spec 7.3 texts. */
+function echoName(name: unknown): string {
+  return typeof name === "string"
+    ? Array.from(name).slice(0, NAME_ECHO_MAX).join("")
+    : "";
+}
+
+const isBase = (value: unknown): value is string =>
+  typeof value === "string" && value.length <= BASE_MAX;
+
+/** `{ name, value, baseAt, baseBy }` against the fixed list (spec 5.8); anything else is VALIDATION (spec 7.3 texts), old `from` args a reload hint. */
 export function setRequest(args: unknown): SetRequest {
   const record = (args ?? {}) as Readonly<Record<string, unknown>>;
+  // A tab loaded before `baseAt`, `baseBy` replaced `from` (slice 13) sends the old args.
+  if ("from" in record)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "This page is out of date. Reload it and save again.",
+    );
   const name = record["name"];
   if (!isSettingName(name))
     throw new AppError(
       ErrorCode.VALIDATION,
-      `Setting ${typeof name === "string" ? name : ""} does not exist.`,
+      `Setting ${echoName(name)} does not exist.`,
     );
-  const value = record["value"];
-  const from = record["from"];
+  const { value, baseAt, baseBy } = record;
   const extra = Object.keys(record).some((key) => !SET_ARGS.includes(key));
-  if (!isSettingValue(name, value) || !isSettingValue(name, from) || extra)
+  if (
+    !isSettingValue(name, value) ||
+    !isBase(baseAt) ||
+    !isBase(baseBy) ||
+    extra
+  )
     throw new AppError(
       ErrorCode.VALIDATION,
       `Setting ${name} takes ${allowedWords(name)}.`,
     );
-  return { name, value, from };
+  return { name, value, baseAt, baseBy };
 }
 
 export interface SetResult extends SettingEntry {
@@ -287,11 +317,12 @@ export interface SetResult extends SettingEntry {
 
 /**
  * `config.set` (admin, web, ADR-0008 section 2). Under the lock on the fresh index: admin re-check, then the same
- * value answers `changed: false` with no write; a current value other than `from` answers CONFLICT with the current
- * entry. Else one index commit carries the change and its `config.set` event; `INDEX_REV` rises.
+ * value answers `changed: false` with no write; a last change other than the one the admin saw (`baseAt`, `baseBy`)
+ * answers CONFLICT with the current entry, so an A, B, A sequence cannot hide B. Else one index commit carries the
+ * change and its `config.set` event; `INDEX_REV` rises.
  */
 export function configSet(context: HandlerContext): SetResult {
-  const { name, value, from } = setRequest(context.args);
+  const { name, value, baseAt, baseBy } = setRequest(context.args);
   const { services } = context;
   const source = eventSource(context);
   return withLock(services.lock, WRITE_LOCK_MS, () => {
@@ -299,7 +330,7 @@ export function configSet(context: HandlerContext): SetResult {
     context.recheck(current);
     const entry: SettingEntry = settingsOf(current.settings)[name];
     if (entry.value === value) return { name, ...entry, changed: false };
-    if (entry.value !== from)
+    if (entry.updatedAt !== baseAt || entry.updatedBy !== baseBy)
       throw new AppError(
         ErrorCode.CONFLICT,
         // The client adds "on <local time>" from `updatedAt` (spec 7.3); the server has no caller time zone.

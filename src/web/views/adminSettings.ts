@@ -3,13 +3,31 @@ import {
   type SettingEntry,
   type SettingName,
   type SettingValue,
+  isSettingValue,
 } from "../../shared/model/settings";
+import { ErrorCode } from "../../shared/errors/codes";
 import { conflictText, lastChangeText, settingTexts } from "../admin/model";
 import type { ConfigView } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { h, uid } from "../ui/dom";
+import { RpcError } from "../rpc/client";
 import { lineText } from "../ui/status";
 import type { AppContext } from "./context";
+
+/** The current entry a CONFLICT carries in `details` (ADR-0008 section 2), or null for any other error. */
+export function conflictEntry(
+  error: unknown,
+  name: SettingName,
+): SettingEntry | null {
+  if (!(error instanceof RpcError) || error.code !== ErrorCode.CONFLICT)
+    return null;
+  const { value, updatedAt, updatedBy } = error.details ?? {};
+  return isSettingValue(name, value) &&
+    typeof updatedAt === "string" &&
+    typeof updatedBy === "string"
+    ? { value, updatedAt, updatedBy }
+    : null;
+}
 
 /**
  * Config tab, section "Settings" (wireframe 06, spec 7.3, ADR-0008 section 5): per setting a fieldset with the
@@ -33,12 +51,15 @@ function settingBlock(
   });
   const radios = options.map((option) => option.radio);
   const last = h("p", { class: "hint" });
+  // Focusable by script: Save is disabled once the choice is saved, so its focus moves here (never to the body).
   const status = h("p", {
     class: "status",
     role: "status",
     "aria-live": "polite",
+    tabindex: "-1",
   });
   const save = h("button", { type: "button", class: "primary" }, "Save");
+  let busy = false;
 
   const chosen = (): SettingValue =>
     (radios.find((radio) => radio.checked)?.value ??
@@ -52,16 +73,25 @@ function settingBlock(
     last.textContent = lastChangeText(entry);
     sync();
   };
+  const finish = () => {
+    busy = false;
+    save.removeAttribute("aria-disabled");
+    save.textContent = "Save";
+    const hadFocus = document.activeElement === save;
+    sync();
+    if (hadFocus && save.disabled) status.focus();
+  };
 
   const run = (value: SettingValue) => {
-    save.disabled = true;
+    // Save stays enabled while busy (`aria-disabled`): a disabled button drops its focus to the page body.
+    busy = true;
+    save.setAttribute("aria-disabled", "true");
     save.textContent = "Saving...";
     status.textContent = "Saving...";
     app.api
-      .setSetting(name, value, current.value)
+      .setSetting(name, value, current)
       .then((result) => {
-        // Two values only: another admin's change to the same value answers `changed: false` (CONFLICT cannot
-        // happen), so a newer entry than the one shown gets the spec 7.3 conflict text.
+        // A stale page whose choice equals the current value answers `changed: false` with a newer entry.
         const otherAdmin =
           !result.changed && result.updatedAt !== current.updatedAt;
         show(result);
@@ -70,15 +100,19 @@ function settingBlock(
           : texts.saved(result.value);
       })
       .catch((error: unknown) => {
-        status.textContent = lineText(error, app.fail(error));
+        const newer = conflictEntry(error, name);
+        if (newer === null) {
+          status.textContent = lineText(error, app.fail(error));
+          return;
+        }
+        show(newer);
+        status.textContent = conflictText(newer);
       })
-      .finally(() => {
-        save.textContent = "Save";
-        sync();
-      });
+      .finally(finish);
   };
 
   save.addEventListener("click", () => {
+    if (busy) return;
     const value = chosen();
     if (value !== texts.confirm.value) {
       run(value);

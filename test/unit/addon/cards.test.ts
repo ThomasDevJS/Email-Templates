@@ -237,6 +237,16 @@ describe("search card (spec 4.4)", () => {
     );
   });
 
+  it("cuts the echoed query by characters, so an emoji is never split", () => {
+    const text = noMatchText(`${"a".repeat(ECHO_MAX - 1)}😀😀`);
+    expect(text).toContain(`"${"a".repeat(ECHO_MAX - 1)}😀..."`);
+    // No high surrogate without its low half.
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(text)).toBe(false);
+    expect(noMatchText("😀".repeat(ECHO_MAX))).toContain(
+      `"${"😀".repeat(ECHO_MAX)}"`,
+    );
+  });
+
   it("says what was searched and how to widen it when nothing matches", () => {
     expect(texts(searchCard(view(), "zzz", [], "compose"))).toEqual([
       'No templates match "zzz". Try fewer words, or remove folder: and tag: from the search.',

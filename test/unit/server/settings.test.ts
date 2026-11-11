@@ -36,11 +36,13 @@ function errorOf(
   return response.ok ? { code: "ok", message: "" } : response.error;
 }
 
-const set = (value: string, from: string, name = "personalTemplates") => ({
-  name,
-  value,
-  from,
-});
+/** `config.set` args based on the default entry (never changed) unless `baseAt` and `baseBy` are given. */
+const set = (
+  value: string,
+  name = "personalTemplates",
+  baseAt = "",
+  baseBy = "",
+) => ({ name, value, baseAt, baseBy });
 
 describe("defaults and storage", () => {
   it("setup writes no settings, a second setup keeps an admin's choice, reads write nothing", () => {
@@ -76,6 +78,7 @@ describe("defaults and storage", () => {
     expect(fileIndex().settings?.recipientsExternal?.value).toBe("deny");
     expect(fileIndex().pendingAudit.at(-1)).toMatchObject({
       action: "backup.restore",
+      after: { liveSettingsKept: true },
     });
   });
 });
@@ -84,7 +87,7 @@ describe("config.set", () => {
   it("changes a setting with one commit, one audit event and a log line without the value", () => {
     const rev = fileIndex().rev;
     world.lines.length = 0;
-    const result = world.ok(OWNER, "config.set", set("on", "off"));
+    const result = world.ok(OWNER, "config.set", set("on"));
     expect(result).toEqual({
       name: "personalTemplates",
       value: "on",
@@ -122,7 +125,7 @@ describe("config.set", () => {
 
   it("answers changed: false and writes nothing when the value is already set", () => {
     const before = JSON.stringify(fileIndex());
-    expect(world.ok(OWNER, "config.set", set("off", "on"))).toMatchObject({
+    expect(world.ok(OWNER, "config.set", set("off"))).toMatchObject({
       value: "off",
       changed: false,
       updatedBy: "",
@@ -134,11 +137,7 @@ describe("config.set", () => {
     setSetting(world, "personalTemplates", "on");
     const before = JSON.stringify(fileIndex());
     world.lines.length = 0;
-    const error = errorOf(OWNER, "config.set", {
-      ...set("on", "off"),
-      value: "off",
-      from: "off",
-    });
+    const error = errorOf(OWNER, "config.set", set("off"));
     expect(error).toMatchObject({
       code: "CONFLICT",
       message:
@@ -155,22 +154,69 @@ describe("config.set", () => {
     });
   });
 
-  it("answers VALIDATION for an unknown name, value, from, a missing or an extra arg", () => {
+  it("answers CONFLICT on a stale save after an A, B, A sequence of changes", () => {
+    // Admin 1 loads the page: default off, never changed.
+    const seen = set("on");
+    world.clock.now += 1000;
+    setSetting(world, "personalTemplates", "on");
+    world.clock.now += 1000;
+    setSetting(world, "personalTemplates", "off");
+    const before = JSON.stringify(fileIndex());
+    const error = errorOf(OWNER, "config.set", seen);
+    expect(error).toMatchObject({
+      code: "CONFLICT",
+      details: { value: "off", updatedAt: "2026-11-09T12:00:02.000Z" },
+    });
+    expect(JSON.stringify(fileIndex())).toBe(before);
+    const fresh = fileIndex().settings?.personalTemplates;
+    expect(
+      world.ok(
+        OWNER,
+        "config.set",
+        set("on", "personalTemplates", fresh?.updatedAt, fresh?.updatedBy),
+      ),
+    ).toMatchObject({ value: "on", changed: true });
+  });
+
+  it("answers VALIDATION for an unknown name, value, base, a missing or an extra arg", () => {
     const cases: [unknown, string][] = [
-      [set("on", "off", "imgHosts"), "Setting imgHosts does not exist."],
-      [{ value: "on", from: "off" }, "Setting  does not exist."],
-      [set("yes", "off"), "Setting personalTemplates takes on or off."],
-      [set("on", "allow"), "Setting personalTemplates takes on or off."],
+      [set("on", "imgHosts"), "Setting imgHosts does not exist."],
+      [{ value: "on", baseAt: "", baseBy: "" }, "Setting  does not exist."],
+      [
+        set("on", "x".repeat(5000)),
+        `Setting ${"x".repeat(40)} does not exist.`,
+      ],
+      [
+        set("on", "😀".repeat(50)),
+        `Setting ${"😀".repeat(40)} does not exist.`,
+      ],
+      [set("yes"), "Setting personalTemplates takes on or off."],
+      [
+        { ...set("on"), baseAt: 1 },
+        "Setting personalTemplates takes on or off.",
+      ],
+      [
+        set("on", "personalTemplates", "", "a".repeat(255)),
+        "Setting personalTemplates takes on or off.",
+      ],
       [
         { name: "personalTemplates", value: "on" },
         "Setting personalTemplates takes on or off.",
       ],
       [
-        { ...set("on", "off"), extra: 1 },
+        { ...set("on"), extra: 1 },
         "Setting personalTemplates takes on or off.",
       ],
       [
-        set("on", "off", "recipientsExternal"),
+        { ...set("on"), from: "off" },
+        "This page is out of date. Reload it and save again.",
+      ],
+      [
+        { name: "personalTemplates", value: "on", from: "off" },
+        "This page is out of date. Reload it and save again.",
+      ],
+      [
+        set("on", "recipientsExternal"),
         "Setting recipientsExternal takes allow or deny.",
       ],
     ];
@@ -183,8 +229,8 @@ describe("config.set", () => {
   });
 
   it("refuses non-admins and the add-on surface", () => {
-    expect(errorOf(ANA, "config.set", set("on", "off")).code).toBe("DENIED");
-    const response = world.call(OWNER, "config.set", set("on", "off"), "addon");
+    expect(errorOf(ANA, "config.set", set("on")).code).toBe("DENIED");
+    const response = world.call(OWNER, "config.set", set("on"), "addon");
     expect(response.ok ? "ok" : response.error.code).toBe("DENIED");
     expect(fileIndex().settings).toBeUndefined();
   });
@@ -310,8 +356,11 @@ const CASES: Readonly<Record<string, Case>> = {
   ],
   "folder.delete": (f) => ["folder.delete", { folderId: f.sub.id }],
   "grant.list": (f) => ["grant.list", { folderId: f.anas.id }],
-  "export.folder": (f) => ["export.folder", { folderId: f.anas.id }],
-  "export.library": () => ["export.library", {}],
+  "export.folder": (f) => [
+    "export.folder",
+    { folderId: f.anas.id, start: true },
+  ],
+  "export.library": () => ["export.library", { start: true }],
   import: (f) => [
     "import",
     {

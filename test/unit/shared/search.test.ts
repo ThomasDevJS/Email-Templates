@@ -25,6 +25,10 @@ describe("parseQuery", () => {
       terms: ["cafe", "hi"],
       folders: ["sales", "quotes"],
       tags: ["prix", "net"],
+      words: [
+        { text: "cafe", terms: ["cafe"] },
+        { text: "hi", terms: ["hi"] },
+      ],
     });
     expect(isEmptyQuery(parseQuery(" ; "))).toBe(true);
     expect(isEmptyQuery(parseQuery("tag:x"))).toBe(false);
@@ -74,6 +78,38 @@ describe("score (spec 4.4 weights)", () => {
     expect(scoreOf("folder:hr", { folder: "Sales" })).toBe(0);
     expect(scoreOf("tag:pri x", { tags: ["pricing"], title: "x" })).toBe(3);
     expect(scoreOf("tag:pri", { tags: [] })).toBe(0);
+  });
+});
+
+describe("score on addresses (spec 5.7, Q39)", () => {
+  const scoreOf = (query: string, partial: Partial<SearchFields>) =>
+    score(parseQuery(query), indexFields(fields(partial)));
+  const addresses = ["s9-to@migway.com", "Ana.Lima@example.com"];
+
+  it("matches a local part prefix or a full address prefix at weight 1", () => {
+    expect(scoreOf("s9", { addresses })).toBe(1);
+    expect(scoreOf("s9-to", { addresses })).toBe(1);
+    expect(scoreOf("ana.li", { addresses })).toBe(1);
+    expect(scoreOf("s9-to@mig", { addresses })).toBe(1);
+    expect(scoreOf("S9-TO@MIGWAY.COM", { addresses })).toBe(1);
+  });
+
+  it("matches nothing on the domain alone or on a later part of the local part", () => {
+    expect(scoreOf("migway", { addresses })).toBe(0);
+    expect(scoreOf("migway.com", { addresses })).toBe(0);
+    expect(scoreOf("@migway", { addresses })).toBe(0);
+    expect(scoreOf("lima", { addresses })).toBe(0);
+  });
+
+  it("needs every word to match a field or an address, and keeps the field score when higher", () => {
+    expect(scoreOf("quote s9", { title: "Quote", addresses })).toBe(4);
+    expect(scoreOf("quote zzz", { title: "Quote", addresses })).toBe(0);
+    expect(scoreOf("ana", { title: "Ana", addresses })).toBe(3);
+  });
+
+  it("scores like before when an item has no addresses", () => {
+    expect(scoreOf("s9-to", { title: "s9 to" })).toBe(6);
+    expect(scoreOf("s9", {})).toBe(0);
   });
 });
 

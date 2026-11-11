@@ -30,6 +30,19 @@ export interface PreparedBody {
   readonly warnings: Warning[];
 }
 
+/** The VALIDATION error of a save: "n problems to fix" with the problems the editor lists. */
+export function problemsError(
+  problems: readonly unknown[],
+  warnings: readonly Warning[],
+): AppError {
+  const count = problems.length;
+  return new AppError(
+    ErrorCode.VALIDATION,
+    `${String(count)} problem${count === 1 ? "" : "s"} to fix`,
+    { problems, warnings },
+  );
+}
+
 export function prepareBody(
   raw: string,
   options: SanitizeOptions = {},
@@ -47,14 +60,7 @@ export function prepareBody(
     rawRecipients.policy,
   );
   const problems = [...scan.problems, ...recipientProblems];
-  if (problems.length > 0) {
-    const count = problems.length;
-    throw new AppError(
-      ErrorCode.VALIDATION,
-      `${String(count)} problem${count === 1 ? "" : "s"} to fix`,
-      { problems, warnings: scan.warnings },
-    );
-  }
+  if (problems.length > 0) throw problemsError(problems, scan.warnings);
   const plainText = plainTextOf(html);
   return {
     html,

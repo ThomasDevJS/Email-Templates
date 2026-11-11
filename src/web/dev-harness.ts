@@ -1,10 +1,11 @@
 /**
  * Dev harness (`npm run dev:web`, `scripts/lighthouse.mjs`): a fake `google.script` with an in-memory server, so
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
- * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
+ * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code
+ * (`&failSkip=<n>`: not the first n calls; `&failTimes=<n>`: only n calls),
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
  * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
- * with personal templates off (My templates at `use`), `?access=none` shows no folder at all.
+ * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only.
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
@@ -35,6 +36,8 @@ const FREIGHT = PARAMS.get("sample") === "freight";
 const PERSONAL_OFF = PARAMS.get("personal") === "off";
 const MINE_LEVEL: AccessLevel = PERSONAL_OFF ? "use" : "edit";
 const NO_ACCESS = PARAMS.get("access") === "none";
+/** `?access=use`: every shared folder at `use`; with `?personal=off` the caller can create nowhere. */
+const USE_ONLY = PARAMS.get("access") === "use";
 
 function folder(
   id: string,
@@ -48,7 +51,7 @@ function folder(
     name,
     parentId,
     kind,
-    level,
+    level: USE_ONLY && kind === "shared" ? "use" : level,
     ownerEmail: kind === "private" ? ME : "",
     sortOrder: 0,
     createdAt: NOW,
@@ -443,14 +446,14 @@ const settings: Record<SettingName, SettingEntry> = {
   recipientsExternal: { value: "allow", updatedAt: "", updatedBy: "" },
 };
 
-/** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale `from`, no-op on the same value. */
+/** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale base, no-op on the same value. */
 function configSet(args: Record<string, unknown>) {
   const name = args["name"];
   if (!isSettingName(name))
     throw new AppError(ErrorCode.VALIDATION, "Setting does not exist.");
   const entry = settings[name];
   if (entry.value === args["value"]) return { name, ...entry, changed: false };
-  if (entry.value !== args["from"])
+  if (entry.updatedAt !== args["baseAt"] || entry.updatedBy !== args["baseBy"])
     throw new AppError(
       ErrorCode.CONFLICT,
       "Another admin changed this setting.",
@@ -490,13 +493,16 @@ function auditQuery(args: Record<string, unknown>) {
   };
 }
 
-function exportOp(folderId: string) {
+/** `start: true` answers a run token; any other call answers the one page (the harness ignores the token). */
+function exportOp(args: Record<string, unknown>, folderId: string) {
   const scope = folderId === "" ? "library" : "folder";
   const inScope = [...items.values()].filter(
     (entry) =>
       entry.deletedAt === "" &&
       (folderId === "" || entry.folderId === folderId),
   );
+  if (args["start"] === true)
+    return { token: "DEV-EXPORT-RUN", total: inScope.length };
   return {
     header: {
       schemaVersion: 1,
@@ -922,8 +928,8 @@ const OPS: Readonly<Record<string, Op>> = {
         lastUsedAt: n === 0 ? NOW : "",
       })),
   }),
-  "export.folder": (args) => exportOp(str(args, "folderId")),
-  "export.library": () => exportOp(""),
+  "export.folder": (args) => exportOp(args, str(args, "folderId")),
+  "export.library": (args) => exportOp(args, ""),
   import: importOp,
   "config.set": configSet,
   "config.get": () => ({
@@ -988,6 +994,8 @@ const OPS: Readonly<Record<string, Op>> = {
     );
     return {
       purged: gone.length + goneFolders.length,
+      templates: gone.length,
+      folders: goneFolders.length,
       filesTrashed: gone.length,
       itemsPending: pending,
     };
@@ -1045,13 +1053,26 @@ const OPS: Readonly<Record<string, Op>> = {
   },
 };
 
+/** Calls of the failing op and simulated failures so far, for `?failSkip=<n>` and `?failTimes=<n>`. */
+let seen = 0;
+let failed = 0;
+
 function reply(op: string, args: unknown): unknown {
   const params = new URLSearchParams(window.location.search);
   const started = Date.now();
   try {
     const fail = params.get("fail");
-    if (fail !== null && (params.get("failOp") ?? op) === op)
+    const times = Number(params.get("failTimes") ?? "Infinity");
+    const skip = Number(params.get("failSkip") ?? "0");
+    if (
+      fail !== null &&
+      (params.get("failOp") ?? op) === op &&
+      (seen += 1) > skip &&
+      failed < times
+    ) {
+      failed += 1;
       throw new AppError(fail as ErrorCode, `Simulated ${fail}`);
+    }
     const handler = OPS[op];
     if (handler === undefined)
       throw new AppError(

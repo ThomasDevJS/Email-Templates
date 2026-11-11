@@ -23,7 +23,7 @@ import {
   showToast,
   toRpcError,
 } from "./ui/status";
-import { setInert, trapTab } from "./ui/dialog";
+import { cancelDialogs, setInert, trapTab } from "./ui/dialog";
 import { h } from "./ui/dom";
 import { icon, iconSprite } from "./ui/icons";
 import { initials, shortName } from "./ui/person";
@@ -282,7 +282,10 @@ export function startApp(host: Host): AppContext {
     .catch((error: unknown) => app.fail(error));
   host.onBackForward((hash) => {
     favoritesOnly = false;
+    // A dialog or drawer belongs to the page being left; nothing may stay inert behind the new one.
+    cancelDialogs();
     render(parseRoute(hash));
+    if (document.activeElement === document.body) main.focus();
   });
   // `<base target="_top">` would send fragment links to the top window, so both links act in script.
   element("skip").addEventListener("click", (event) => {

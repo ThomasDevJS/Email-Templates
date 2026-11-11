@@ -149,6 +149,8 @@ export function searchItems(
       tags: item.tags,
       folder: folderPath(folders, item.folderId),
       body: "",
+      // Spec 5.7 (Q39): the library also matches To, Cc and Bcc; `template.list` sends them for visible templates.
+      addresses: [...(item.to ?? []), ...(item.cc ?? []), ...(item.bcc ?? [])],
     }),
     recent,
   );

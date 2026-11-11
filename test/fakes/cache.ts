@@ -65,6 +65,11 @@ export class FakeCache {
     this.entries.delete(key);
   }
 
+  /** Every key held now (tests that check what a key may contain). */
+  keys(): string[] {
+    return [...this.entries.keys()];
+  }
+
   removeAll(keys: string[]): void {
     for (const key of keys) this.entries.delete(key);
   }

@@ -1,13 +1,15 @@
 import { atLeast } from "../../shared/permissions/levels";
 import { parseQuery } from "../../shared/search/match";
 import {
+  editableFolders,
   folderPath,
   privateReadOnly,
   searchItems,
   subtreeIds,
 } from "../library/model";
 import type { ItemRow } from "../rpc/api";
-import { h, replace } from "../ui/dom";
+import { openDialog } from "../ui/dialog";
+import { h, replace, uid } from "../ui/dom";
 import { icon } from "../ui/icons";
 import { lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
@@ -22,6 +24,8 @@ import { rowMenu } from "./rowActions";
  * both steps (spec 12: under 1 s after the first load).
  */
 const BODY_SEARCH_DELAY_MS = 300;
+/** Folder of the last New template in this page session; the folder choice preselects it. */
+let lastNewFolder = "";
 const SEARCHING = "Searching text...";
 
 export interface LibraryScope {
@@ -106,11 +110,55 @@ export function libraryView(
       .filter((item) => !onlyFavorites || favorites.has(item.id));
   };
 
+  /** All templates and Favorites have no folder: the caller picks one of the folders they can edit. */
+  const noFolder = () => onlyFavorites || folderId === "";
+
   const canCreate = () => {
+    if (noFolder()) return editableFolders(app.folders()).length > 0;
     const folder = app.folders().find((candidate) => candidate.id === folderId);
-    return (
-      !onlyFavorites && folder !== undefined && atLeast(folder.level, "edit")
+    return folder !== undefined && atLeast(folder.level, "edit");
+  };
+
+  const create = (target: string) => {
+    lastNewFolder = target;
+    app.go({ name: "new", folderId: target });
+  };
+
+  const chooseFolder = () => {
+    const options = editableFolders(app.folders());
+    const id = uid("new-folder");
+    const select = h(
+      "select",
+      { id },
+      ...options.map((option) =>
+        h("option", { value: option.id }, option.label),
+      ),
     );
+    if (options.some((option) => option.id === lastNewFolder))
+      select.value = lastNewFolder;
+    const dialog = openDialog({
+      title: "New template",
+      body: h(
+        "div",
+        { class: "field" },
+        h("label", { for: id }, "Create the template in"),
+        select,
+      ),
+      actions: [
+        {
+          label: "Create",
+          primary: true,
+          run: () => {
+            // Closed first: the page behind is inert while the dialog is open, so the editor could not take focus.
+            dialog.close();
+            create(select.value);
+            return true;
+          },
+        },
+        { label: "Cancel", run: () => true },
+      ],
+    });
+    select.focus();
   };
 
   const newButton = () =>
@@ -120,7 +168,8 @@ export function libraryView(
         type: "button",
         class: "primary",
         onclick: () => {
-          app.go({ name: "new", folderId });
+          if (noFolder()) chooseFolder();
+          else create(folderId);
         },
       },
       icon("plus"),

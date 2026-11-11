@@ -22,7 +22,7 @@ import { driveStore } from "../../src/server/storage/driveStore";
 import { requireStoreIds } from "../../src/server/storage/setupStore";
 import type { RpcResponse } from "../../src/shared/model/protocol";
 import {
-  SETTINGS,
+  settingsOf,
   type SettingName,
   type SettingValue,
 } from "../../src/shared/model/settings";
@@ -169,13 +169,17 @@ export function setupWorld(): World {
   return world;
 }
 
-/** Admin setting through `config.set` as the owner (an admin after setup); `from` is the other value. */
+/** Admin setting through `config.set` as the owner (an admin after setup), based on the stored last change. */
 export function setSetting(
   world: World,
   name: SettingName,
   value: SettingValue,
 ): void {
-  const values: readonly string[] = SETTINGS[name].values;
-  const from = values.find((other) => other !== value);
-  world.ok(OWNER, "config.set", { name, value, from });
+  const entry = settingsOf(world.services.store().readIndex().settings)[name];
+  world.ok(OWNER, "config.set", {
+    name,
+    value,
+    baseAt: entry.updatedAt,
+    baseBy: entry.updatedBy,
+  });
 }

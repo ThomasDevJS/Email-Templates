@@ -1022,6 +1022,95 @@ describe("states (spec section 7, wireframe 07)", () => {
     expect(button("New template").disabled).toBe(false);
   });
 
+  it("New template from All templates asks for the folder, the last used one preselected", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    const create = button("New template");
+    create.focus();
+    create.click();
+    const choice = document.querySelector('[role="dialog"]') as HTMLElement;
+    expect(choice.querySelector("h2")?.textContent).toBe("New template");
+    const select = choice.querySelector("select") as HTMLSelectElement;
+    expect(document.activeElement).toBe(select);
+    // Folders at edit or manage only: Support is `use`.
+    expect([...select.options].map((option) => option.textContent)).toEqual([
+      "HR",
+      "My templates",
+      "Sales",
+      "Sales / Onboarding",
+      "Sales / Quotes",
+    ]);
+    button("Cancel", choice).click();
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+    expect(document.activeElement).toBe(create);
+    create.click();
+    const again = document.querySelector('[role="dialog"]') as HTMLElement;
+    (again.querySelector("select") as HTMLSelectElement).value = "F-QUOTES";
+    button("Create", again).click();
+    await until(() => {
+      expect(main().querySelector(".editor-title")?.textContent).toBe(
+        "New template",
+      );
+    });
+    expect(window.location.hash).toBe("#/new?folder=F-QUOTES");
+    expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+    window.location.hash = "#/library";
+    await until(() => {
+      expect(main().querySelector("#list-heading")?.textContent).toBe(
+        "All templates",
+      );
+    });
+    button("New template").click();
+    const third = document.querySelector('[role="dialog"]') as HTMLElement;
+    expect((third.querySelector("select") as HTMLSelectElement).value).toBe(
+      "F-QUOTES",
+    );
+  });
+
+  it("New template from Favorites asks for the folder too", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    (document.querySelector("[data-nav=favorites]") as HTMLElement).click();
+    await until(() => {
+      expect(main().querySelector("#list-heading")?.textContent).toBe(
+        "Favorites",
+      );
+    });
+    button("New template").click();
+    expect(document.querySelector('[role="dialog"] select')).not.toBeNull();
+  });
+
+  it("personal templates off and no shared folder at edit: no New template anywhere", async () => {
+    await boot("/?latency=0&personal=off&access=use#/library");
+    await until(() => {
+      expect(main().querySelector("#list-heading")?.textContent).toBe(
+        "All templates",
+      );
+    });
+    await until(() => {
+      expect(main().querySelector('[aria-busy="false"]')).not.toBeNull();
+    });
+    expect(() => button("New template")).toThrow();
+    window.location.hash = "#/library?folder=F-MINE";
+    await until(() => {
+      expect(main().querySelector("#list-heading")?.textContent).toBe(
+        "My templates",
+      );
+    });
+    expect(
+      (main().querySelector('[role="note"]') as HTMLElement).textContent,
+    ).toBe(
+      "Personal templates are turned off by your admin. You can still insert these templates.",
+    );
+    expect(() => button("New template")).toThrow();
+  });
+
   it("no folder visible: asks the user to get access, no button", async () => {
     await boot("/?latency=0&access=none#/library");
     await until(() => {

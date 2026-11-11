@@ -1,8 +1,13 @@
-import { prepareBody, type PreparedBody } from "../../shared/body/prepare";
+import {
+  prepareBody,
+  problemsError,
+  type PreparedBody,
+} from "../../shared/body/prepare";
 import { CACHE_TTL_S, CHUNK_BYTES } from "../../shared/cache/chunked";
-import type { Item } from "../../shared/model/data";
+import type { IndexDoc, Item } from "../../shared/model/data";
 import {
   NO_RECIPIENTS,
+  validateRecipients,
   type RecipientPolicy,
   type Recipients,
 } from "../../shared/model/recipients";
@@ -78,12 +83,19 @@ export function bodyTexts(
   return { texts, skipped: Math.max(0, missing.length - TEXT_MISS_BUDGET) };
 }
 
-/** Stored HTML of the item's current version: one cache read, Drive on a miss. */
-export function readStoredBody(services: BodyServices, item: Item): string {
+/**
+ * Stored HTML of the item's current version: one cache read, Drive on a miss. `keep` false leaves a missed body out
+ * of the cache, so a bulk read (export) does not push other entries out of the 1,000-item Script Cache.
+ */
+export function readStoredBody(
+  services: BodyServices,
+  item: Item,
+  keep = true,
+): string {
   const cached = services.cache.get(bodyKey(item.bodyFileId));
   if (cached !== null) return cached;
   const { html } = services.store().readBody(item.bodyFileId);
-  cacheBody(services, item.bodyFileId, html);
+  if (keep) cacheBody(services, item.bodyFileId, html);
   return html;
 }
 
@@ -101,15 +113,31 @@ export function imgHosts(props: PropertyStore): string[] {
  * `DOMAIN` from the request's property snapshot and the admin setting `recipientsExternal` from the request's
  * index (D29, spec 5.8): no extra Properties or Drive call.
  */
-export function recipientPolicy(context: HandlerContext): RecipientPolicy {
+export function recipientPolicy(
+  context: HandlerContext,
+  index: IndexDoc = context.access().index,
+): RecipientPolicy {
   const domain = context.services.props.getProperty(DOMAIN_KEY) ?? "";
   return {
     domain: domain.trim().toLowerCase(),
-    external: settingValue(
-      context.access().index.settings,
-      "recipientsExternal",
-    ),
+    external: settingValue(index.settings, "recipientsExternal"),
   };
+}
+
+/**
+ * In-lock re-check of a write (ADR-0008 section 1): recipients prepared before the lock are checked again under the
+ * setting of the index read inside the lock, so a save that started under `allow` stores no outside address after
+ * `deny`. Same VALIDATION as the save.
+ */
+export function recheckRecipients(
+  context: HandlerContext,
+  current: IndexDoc,
+  recipients: Recipients,
+): void {
+  const policy = recipientPolicy(context, current);
+  if (policy.external === "allow") return;
+  const { problems } = validateRecipients(recipients, policy);
+  if (problems.length > 0) throw problemsError(problems, []);
 }
 
 /**

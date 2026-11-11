@@ -156,6 +156,42 @@ describe("search (sidebar, spec 4.4)", () => {
     expect(search(OWNER, "secret")).toEqual([]);
   });
 
+  it("does not match recipient addresses (spec 5.7, Q39: web app library only)", () => {
+    create(sales.id, "Offer", { to: ["buyer@example.com"] });
+    grant(sales.id, ANA, "use");
+    expect(search(ANA, "buyer")).toEqual([]);
+    expect(search(ANA, "buyer@example.com")).toEqual([]);
+  });
+
+  it("template.list carries To, Cc and Bcc of the visible templates only, [] for templates without lists", () => {
+    create(sales.id, "Offer", { to: ["buyer@example.com"], bcc: [BOB] });
+    create(hr.id, "Hidden", { cc: ["hidden@example.com"] });
+    grant(sales.id, ANA, "use");
+    const legacy = create(sales.id, "Legacy");
+    const index = world.services.store().readIndex();
+    world.services.store().writeIndex({
+      ...index,
+      items: index.items.map((item) => {
+        if (item.id !== legacy.id) return item;
+        // An item written before slice 9: no lists.
+        return Object.fromEntries(
+          Object.entries(item).filter(
+            ([key]) => !["to", "cc", "bcc"].includes(key),
+          ),
+        ) as unknown as Item;
+      }),
+    });
+    world.props.deleteProperty("INDEX_REV");
+    const listed = world.ok<{ items: Item[] }>(ANA, "template.list").items;
+    expect(
+      listed.map(({ title, to, cc, bcc }) => ({ title, to, cc, bcc })),
+    ).toEqual([
+      { title: "Offer", to: ["buyer@example.com"], cc: [], bcc: [BOB] },
+      { title: "Legacy", to: [], cc: [], bcc: [] },
+    ]);
+    expect(JSON.stringify(listed)).not.toContain("hidden@example.com");
+  });
+
   it("does not match names of folders the caller cannot see", () => {
     const quotes = world.ok<Folder>(OWNER, "folder.create", {
       name: "Quotes",

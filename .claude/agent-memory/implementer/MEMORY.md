@@ -1,5 +1,4 @@
 # Implementer memory
-
 ## Environment facts (2026-11-09)
 - Worktrees may start at an old commit. Reset to the orchestrator branch `claude/gracious-franklin-3n8zbq` first (task prompt gives the command).
 - Worktree guard rejects some heredocs and multi-command scripts it cannot verify (cat > file heredoc, `git` plus python in one command, backslash-heavy python). `python3 - <<'EOF'` edits alone usually pass; new files go through the Write tool; fall back to the Edit tool.
@@ -14,8 +13,6 @@
 ## Toolchain decisions (slice 1)
 - typescript 6.0.3 (typescript-eslint 8.72.2 peer `<6.1.0`). eslint 10.14.0 `defineConfig`. vitest 5.1.0. @types/node 22.20.5 pinned for vitest's peer range.
 - Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
-- Build constants `__APP_ENV__`, `__EXEC_URL__`, `__GIT_SHA__`. Stubs `function name(...args) { return App.name(...args); }`.
-- clasp 3.4.1: global `--json`, `-P <dir>`; `.clasp.json` `rootDir` relative to itself; `push --force` overwrites the manifest.
 
 ## Code map (after slice 2)
 - `src/shared/permissions/`: principals.ts, effective.ts (`levelResolver`, `PRIVATE_OWNER_LEVEL`), levels.ts, matrix.ts (`ROLE_MATRIX` 17 rows, `checkNeed`, `ROOT`, `ANY_CALLER`).
@@ -52,7 +49,6 @@
 ## Lessons (slice 4)
 - Slice 4 review FAIL: empty state keyed on folders, but every caller owns a private folder. Key empty states on the content the spec names ("no visible templates"), and test with a private folder present.
 - Every server-checked action needs a server call right before it acts; cached bodies alone skip the permission check. `template.apply` `followUp: true` = re-check without a second event.
-- Payload fields need a reader; review flags unused ones as dead.
 
 ## Code map (after slice 4b)
 - `src/shared/requestId.ts`: `newRequestId`, `requestIdNow` (`XXXXXXXX-XXXXXX`), used by web, add-on, `web.open`, rpc fallback.
@@ -99,8 +95,7 @@
 ## Slice 8a (UI shell, 2026-11-10)
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
 - Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
-- Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire`. Lighthouse dark: Chrome `--force-dark-mode`.
-- Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire` (s11/shot.mjs + `servePage`); plain chromium `--screenshot` hangs. Lighthouse dark: `--force-dark-mode`.
+- Screens: Playwright via `createRequire("/opt/node22/lib/node_modules/")`, `servePage(localPage(webPage({harness:true})))`, context `colorScheme`, `timezoneId: "UTC"` (scratchpad s13/shot.mjs). Plain chromium `--screenshot` hangs. Lighthouse dark: `--force-dark-mode`.
 - The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
@@ -132,20 +127,23 @@
 ## Slice 11 (admin settings, D29, 2026-11-11)
 - shared/model/settings.ts: `SETTINGS` list, `settingsOf` (defaults at read, never written), `personalTemplatesOn`, `settingsProblem` (in `indexProblem`), `PERSONAL_OFF_TEXT`. `IndexDoc.settings` optional.
 - Off rule in `levelResolver` before the admin rule; dispatch `deniedError(index, targets)` picks the off text. `recipientPolicy(context)` reads the setting; the property reader is gone.
-- `config.set` in handlers/config.ts (withLock + loadIndexForWrite + recheck, no-op returns before any write). Binary settings: CONFLICT unreachable; client shows the conflict text on `changed: false` with a newer entry.
 - Tests: `setSetting(world, name, value)` in test/fakes/world.ts; D11 tests turn personal templates on in `beforeEach`. Enforcement table in test/unit/server/settings.test.ts. Harness `?personal=off`, `?access=none`.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
 - Server code never nests the script lock; tests assert `lock.nestedAcquisitions === 0`.
-
-## Slice 7 (docs, 2026-11-10)
-- Guides in docs/guide (Prettier-ignored), runbook in docs/ops (Prettier-formatted). test/unit/docs/links.test.ts checks relative links of README and the 4 docs.
-- D25: prod owned by a dedicated owner account (generic `templates-owner@migway.com`); dev stays; prod starts empty.
-- Doc rule: quote UI text from src; mark "not yet verified on dev" (6b not deployed at fb97d9a) and "not yet exercised" (2.5b, recovery, handover).
+- Docs: guides in docs/guide (Prettier-ignored), runbook in docs/ops (Prettier-formatted); test/unit/docs/links.test.ts checks links; quote UI text from src.
 
 ## Open items handed forward
 - Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
 - Smoke step with a 4.9 MB import (spec 13.5) not written.
 - Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check vs Apps Script reformatting.
+
+## Slice 13 (fix round, 2026-11-11)
+- `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
+- `recheckRecipients` (body.ts) inside every write commit; `problemsError` shared with `prepareBody`. `trash.purge` returns `templates`, `folders`.
+- Retry 2 (replaces retry 1 export design): `export.* { start: true }` commits one event via `commit` and returns `{ token, total }`; token `exp:<id>` in Script Cache, 600 s sliding, bound to caller and scope; pages without it answer VALIDATION `EXPORT_RESTART`. Pages read bodies with `readStoredBody(..., false)` (no cache fill). Buffer: apply|denied only, evicted slot first, `evt:lost` = "<lost> <seen>" in one key. Audit row `exportTemplates`. Web retries any `retryable` error 3 times; harness `&failTimes=n`, `&failSkip=n`. Seed 1,000 templates fast with 5 imports of 200.
+- Old `from` args: reload hint. `RequestStats.target` feeds the log `targetId` when args lack `id`/`folderId`.
+- `prof:<sha256>` keys; `FakeCache.keys()`. `cancelDialogs()` on Back/Forward; backdrop `preventDefault`. Library folder choice for New template (`lastNewFolder`); harness `?access=use`.
+- Search: `SearchFields.addresses` + `Query.words`, web only. Worktree guard: `cd X && python3 - <<EOF` refused; run `python3 - <<'EOF'` alone, cat-heredoc appends refused (use Edit).

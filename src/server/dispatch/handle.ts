@@ -139,18 +139,20 @@ export function handleRpc(
   const { services } = deps;
   const started = services.nowMs();
   const requestId = requestIdOf(raw);
-  const base = {
+  const argsTarget = targetOf(raw);
+  // Args without `id` or `folderId` log the folder dispatch resolved (`grant.remove`), read when the line is written.
+  const base = () => ({
     surface,
     action: actionOf(raw, deps.tables ?? DEFAULT_TABLES),
     requestId,
     actor: caller.email,
-    targetId: targetOf(raw),
+    targetId: argsTarget || services.stats.target,
     ...draftOf(raw),
-  };
+  });
   try {
     const data = runDispatch(caller, raw, surface, deps, requestId);
     const metrics = measured(services, started, raw);
-    services.logger.info({ ...base, result: "ok", ...metrics });
+    services.logger.info({ ...base(), result: "ok", ...metrics });
     return {
       ok: true,
       data,
@@ -162,7 +164,7 @@ export function handleRpc(
     const metrics = measured(services, started, raw);
     const level = body.code === ErrorCode.INTERNAL ? "error" : "warn";
     services.logger[level]({
-      ...base,
+      ...base(),
       result: resultOf(body),
       errorCode: body.code,
       ...metrics,

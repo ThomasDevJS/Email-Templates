@@ -120,8 +120,10 @@ export const ECHO_MAX = 60;
 
 /** "No templates match ...": what was searched and how to widen it (spec section 7). */
 export function noMatchText(query: string): string {
+  // By code point, so an emoji is never split into a lone surrogate.
+  const chars = Array.from(query);
   const shown =
-    query.length > ECHO_MAX ? `${query.slice(0, ECHO_MAX)}...` : query;
+    chars.length > ECHO_MAX ? `${chars.slice(0, ECHO_MAX).join("")}...` : query;
   return `No templates match "${shown}". Try fewer words, or remove folder: and tag: from the search.`;
 }
 

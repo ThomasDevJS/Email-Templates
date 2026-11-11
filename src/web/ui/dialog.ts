@@ -76,6 +76,14 @@ function inertBehind(keep: Element): () => void {
   };
 }
 
+/** Cancel functions of the open dialogs, oldest first. */
+const openCancels: (() => void)[] = [];
+
+/** Cancels every open dialog, newest first, so each undoes its own inert (browser Back and Forward). */
+export function cancelDialogs(): void {
+  for (const cancel of [...openCancels].reverse()) cancel();
+}
+
 export function openDialog(options: DialogOptions): OpenDialog {
   const opener = document.activeElement as HTMLElement | null;
   const titleId = uid("dialog-title");
@@ -117,6 +125,7 @@ export function openDialog(options: DialogOptions): OpenDialog {
   const close = () => {
     if (closed) return;
     closed = true;
+    openCancels.splice(openCancels.indexOf(cancel), 1);
     backdrop.remove();
     // Inert elements take no focus, so the page wakes up before the opener gets it back.
     restore();
@@ -127,7 +136,10 @@ export function openDialog(options: DialogOptions): OpenDialog {
     close();
   };
   backdrop.addEventListener("mousedown", (event) => {
-    if (event.target === backdrop) cancel();
+    if (event.target !== backdrop) return;
+    // The default would move focus to the body after `close` gave it back to the opener.
+    event.preventDefault();
+    cancel();
   });
   panel.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
@@ -138,6 +150,7 @@ export function openDialog(options: DialogOptions): OpenDialog {
     }
   });
   document.body.append(backdrop);
+  openCancels.push(cancel);
   restore = inertBehind(backdrop);
   const initial = buttons[options.actions.findIndex((a) => a.autofocus)];
   (initial ?? focusables(panel)[0] ?? panel).focus();
