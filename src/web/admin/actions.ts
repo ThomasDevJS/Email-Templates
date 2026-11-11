@@ -1,3 +1,5 @@
+import type { ExportPageCounts } from "../../shared/model/data";
+
 /**
  * Audit log wording (design system "Admin"): operation names in words, results as one word. The raw name stays in
  * the details drawer; an unknown name shows as it is.
@@ -51,6 +53,27 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
 
 export function actionWords(action: string): string {
   return ACTION_WORDS.get(action) ?? action;
+}
+
+/** "templates 1 to 20 of 25", "all 3 templates", "no templates (offset 30 of 25)": one export page in words. */
+export function exportPageText(page: ExportPageCounts): string {
+  const { offset, templates, total } = page;
+  if (templates === 0)
+    return `no templates (from ${String(offset + 1)} of ${String(total)})`;
+  if (offset === 0 && templates === total)
+    return `all ${plural(total, "template")}`;
+  return `templates ${String(offset + 1)} to ${String(offset + templates)} of ${String(total)}`;
+}
+
+/** Action words of an audit row; an export page adds its range ("Library exported, templates 21 to 25 of 25"). */
+export function rowActionWords(row: {
+  readonly action: string;
+  readonly exportPage?: ExportPageCounts;
+}): string {
+  const words = actionWords(row.action);
+  return row.exportPage === undefined
+    ? words
+    : `${words}, ${exportPageText(row.exportPage)}`;
 }
 
 /** Result word and tint: the word is the tag, the tint repeats it. */

@@ -68,6 +68,13 @@ export type AuditResult = "ok" | "denied" | "conflict" | "error";
 export type AuditTargetType =
   "template" | "folder" | "grant" | "library" | "config";
 
+/** `after` of an `export.*` page event, which the Audit log row shows in words (one event per page). */
+export interface ExportPageCounts {
+  readonly offset: number;
+  readonly templates: number;
+  readonly total: number;
+}
+
 /** ADR-0003 Part D. `before` and `after` hold metadata only; bodies appear as `{ version, fileId, sha256 }`. */
 export interface AuditEvent {
   readonly id: string;

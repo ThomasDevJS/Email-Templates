@@ -16,7 +16,11 @@ import {
   readBuffer,
   type BufferedEvent,
 } from "../../../src/server/audit/buffer";
-import { AUDIT_PAGE_SIZE, parseLines } from "../../../src/server/audit/query";
+import {
+  AUDIT_PAGE_SIZE,
+  joinExportPages,
+  parseLines,
+} from "../../../src/server/audit/query";
 import { INDEX_REV_KEY } from "../../../src/server/cache/indexCache";
 import type { AuditQueryResult } from "../../../src/server/handlers/audit";
 import {
@@ -467,6 +471,50 @@ describe("export", () => {
       }),
     ]);
     expect(JSON.stringify(events)).not.toContain("Secret");
+    const rows = world
+      .ok<AuditQueryResult>(OWNER, "audit.query", { month: "2026-11" })
+      .rows.filter((entry) => entry.action === "export.folder");
+    expect(rows.map((entry) => entry.exportPage)).toEqual([
+      { offset: 0, templates: total, total },
+    ]);
+  });
+
+  it("joins the pages of one export into one audit row, and only those", () => {
+    let n = 0;
+    const page = (
+      offset: number,
+      templates: number,
+      total = 25,
+      actor = OWNER,
+    ) =>
+      ({
+        id: `E${String((n += 1))}`,
+        ts: `2026-11-11T10:00:${String(n).padStart(2, "0")}.000Z`,
+        actor,
+        action: "export.library",
+        targetId: "",
+        after: { scope: "library", offset, templates, total },
+      }) as unknown as AuditEvent;
+    const rows = joinExportPages([
+      page(0, 20),
+      { ...page(0, 0), action: "grant.add", after: null },
+      page(20, 5),
+      page(0, 20),
+      page(20, 5, 26),
+      page(1, 20),
+      page(21, 4),
+      page(25, 0),
+      page(0, 20, 25, "someone.else@example.com"),
+    ]);
+    expect(rows.map((row) => [row.id, row.exportPage])).toEqual([
+      ["E1", { offset: 0, templates: 25, total: 25 }],
+      ["E2", undefined],
+      ["E4", { offset: 0, templates: 20, total: 25 }],
+      ["E5", { offset: 20, templates: 5, total: 26 }],
+      ["E6", { offset: 1, templates: 24, total: 25 }],
+      ["E8", { offset: 25, templates: 0, total: 25 }],
+      ["E9", { offset: 0, templates: 20, total: 25 }],
+    ]);
   });
 
   it("writes an event for every page whatever offset the client sends (offsets 1 and 21)", () => {

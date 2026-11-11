@@ -1,5 +1,5 @@
 import type { AuditEvent } from "../../shared/model/data";
-import { actionWords, resultTag } from "../admin/actions";
+import { actionWords, resultTag, rowActionWords } from "../admin/actions";
 import { displayPath, localDate, localDayStart } from "../admin/model";
 import type { AuditFilter, AuditPage, AuditRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
@@ -162,7 +162,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
   });
 
   const row = (entry: AuditRow) => {
-    const words = actionWords(entry.action);
+    const words = rowActionWords(entry);
     const open = h(
       "button",
       {

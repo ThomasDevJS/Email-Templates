@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   actionWords,
   emptyTrashQuestion,
+  rowActionWords,
   purgeText,
   resultTag,
 } from "../../../src/web/admin/actions";
@@ -63,6 +64,25 @@ describe("purgeText", () => {
     expect(purgeText(0, 0)).toBe(
       "Emptied the trash: 0 templates removed for good.",
     );
+  });
+});
+
+describe("rowActionWords", () => {
+  it("labels an export page with its range, other rows with the action words", () => {
+    const row = (offset: number, templates: number, total: number) =>
+      rowActionWords({
+        action: "export.library",
+        exportPage: { offset, templates, total },
+      });
+    expect(row(0, 20, 25)).toBe("Library exported, templates 1 to 20 of 25");
+    expect(row(20, 5, 25)).toBe("Library exported, templates 21 to 25 of 25");
+    expect(row(0, 3, 3)).toBe("Library exported, all 3 templates");
+    expect(row(0, 1, 1)).toBe("Library exported, all 1 template");
+    expect(row(30, 0, 25)).toBe(
+      "Library exported, no templates (from 31 of 25)",
+    );
+    expect(rowActionWords({ action: "export.folder" })).toBe("Folder exported");
+    expect(rowActionWords({ action: "grant.add" })).toBe("Grant added");
   });
 });
 

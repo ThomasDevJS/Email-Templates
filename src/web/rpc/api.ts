@@ -1,5 +1,6 @@
 import type {
   AuditEvent,
+  ExportPageCounts,
   Folder,
   Item,
   Level,
@@ -118,7 +119,9 @@ export interface AuditFilter {
   readonly page: number;
 }
 
-export type AuditRow = Omit<AuditEvent, "before" | "after">;
+export type AuditRow = Omit<AuditEvent, "before" | "after"> & {
+  readonly exportPage?: ExportPageCounts;
+};
 
 export interface AuditPage {
   readonly month: string;
