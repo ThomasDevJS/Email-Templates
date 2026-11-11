@@ -14,7 +14,14 @@ import {
   toggleBlockquote,
   toggleList,
 } from "./commands";
-import { ALIGNMENTS, COLORS, FONT_SIZES, HIGHLIGHTS, schema } from "./schema";
+import {
+  ALIGNMENTS,
+  COLORS,
+  FONT_FAMILIES,
+  FONT_SIZES,
+  HIGHLIGHTS,
+  schema,
+} from "./schema";
 
 /**
  * Formatting toolbar (spec section 8, design system "Editor"): icon buttons in groups with dividers, one tab stop,
@@ -42,6 +49,8 @@ interface Tool {
   readonly letter?: string;
   /** A picker shows the current value as its text ("Paragraph"). */
   readonly value?: (state: EditorState) => string;
+  /** Visible text of a picker whose value shows only in its name. */
+  readonly fixed?: string;
   readonly shortcut?: string;
   readonly pressed?: (state: EditorState) => boolean;
   readonly menu?: MenuBuilder;
@@ -79,12 +88,14 @@ function styleMenu(
   attr: string,
   options: readonly { label: string; value: string }[],
   withDefault: boolean,
+  faces = false,
 ): MenuBuilder {
   return (state, host) => {
     const current = currentAttr(state, name, attr);
     const items = options.map((option) => ({
       label: option.label,
       checked: option.value === current,
+      ...(faces ? { font: option.value } : {}),
       run: () => {
         host.run(
           setMark(
@@ -123,6 +134,16 @@ function currentAlign(state: EditorState): string {
 function sizeLabel(state: EditorState): string {
   const size = currentAttr(state, "font_size", "size");
   return FONT_SIZES.find((option) => option.value === size)?.label ?? "Normal";
+}
+
+/** "Default" while the text has no family, the family's name, or "Other font" for one outside the list (pasted). */
+function fontLabel(state: EditorState): string {
+  const family = currentAttr(state, "font_family", "family");
+  if (family === "") return "Default";
+  return (
+    FONT_FAMILIES.find((option) => option.value === family)?.label ??
+    "Other font"
+  );
 }
 
 function listTool(label: string, icon: IconName, name: string): Tool {
@@ -184,6 +205,13 @@ const GROUPS: readonly (readonly Tool[])[] = [
       label: "Text size",
       value: sizeLabel,
       menu: styleMenu("font_size", "size", FONT_SIZES, false),
+    },
+    {
+      label: "Font",
+      // The family shows in the text itself and in the name; a fixed word keeps the toolbar one row wide.
+      fixed: "Font",
+      value: fontLabel,
+      menu: styleMenu("font_family", "family", FONT_FAMILIES, true, true),
     },
   ],
   [
@@ -401,7 +429,7 @@ export function createToolbar(host: ToolbarHost, editorId: string): Toolbar {
         const value = tool.value(state);
         button.setAttribute("aria-label", `${tool.label}: ${value}`);
         const text = button.querySelector(".picker-value");
-        if (text !== null) text.textContent = value;
+        if (text !== null) text.textContent = tool.fixed ?? value;
       });
     },
   };

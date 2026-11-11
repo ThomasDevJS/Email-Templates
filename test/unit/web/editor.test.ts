@@ -24,6 +24,7 @@ import {
   pickerItems,
 } from "../../../src/web/editor/picker";
 import {
+  FONT_FAMILIES,
   chipLabel,
   chipText,
   placeholderAttrs,
@@ -495,6 +496,7 @@ describe("toolbar", () => {
       "Redo",
       "Block style: Paragraph",
       "Text size: Normal",
+      "Font: Default",
       "Bold",
       "Italic",
       "Underline",
@@ -542,6 +544,95 @@ describe("toolbar", () => {
     expect(ed.html()).toBe("<h2>one</h2>");
     (element.querySelector('[aria-label="Redo"]') as HTMLButtonElement).click();
     expect(ed.html()).toBe('<h2><span style="font-size: 18px">one</span></h2>');
+  });
+
+  it("sets and reads back each font family from the Font picker, shown in its own face", () => {
+    const ed = open("<p>word</p>");
+    const toolbar = createToolbar(
+      {
+        state: () => ed.view.state,
+        run: (command) => {
+          ed.run(command);
+        },
+        focus: () => undefined,
+        insertLink: () => undefined,
+        insertImage: () => undefined,
+        insertTable: () => undefined,
+        insertRule: () => undefined,
+        openPicker: () => undefined,
+      },
+      "ed",
+    );
+    document.body.append(toolbar.element);
+    const font = toolbar.element.querySelectorAll<HTMLButtonElement>(
+      ".picker",
+    )[2] as HTMLButtonElement;
+    const pick = (label: string) => {
+      font.click();
+      const items = [
+        ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+      ];
+      const item = items.find((entry) => entry.textContent === label);
+      if (item === undefined) throw new Error(`no item ${label}`);
+      item.click();
+      toolbar.update(ed.view.state);
+      return items;
+    };
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, 1, 5),
+      ),
+    );
+    toolbar.update(ed.view.state);
+    expect(font.textContent).toBe("Font");
+    expect(font.getAttribute("aria-haspopup")).toBe("menu");
+    for (const family of FONT_FAMILIES) {
+      const items = pick(family.label);
+      expect(items.map((entry) => entry.getAttribute("style"))).toEqual(
+        FONT_FAMILIES.map((f) => `font-family: ${f.value}`).concat([null]),
+      );
+      expect(ed.html()).toBe(
+        `<p><span style="font-family: ${family.value}">word</span></p>`,
+      );
+      expect(font.getAttribute("aria-label")).toBe(`Font: ${family.label}`);
+      expect(font.textContent).toBe("Font");
+      font.click();
+      expect(
+        document.querySelector('[role="menuitemradio"][aria-checked="true"]')
+          ?.textContent,
+      ).toBe(family.label);
+      document
+        .querySelector('[role="menu"]')
+        ?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+    }
+    pick("Default");
+    expect(ed.html()).toBe("<p>word</p>");
+    expect(font.getAttribute("aria-label")).toBe("Font: Default");
+    const pasted = open('<p><span style="font-family: Calibri">x</span></p>');
+    pasted.view.dispatch(
+      pasted.view.state.tr.setSelection(
+        TextSelection.create(pasted.view.state.doc, 2),
+      ),
+    );
+    const other = createToolbar(
+      {
+        state: () => pasted.view.state,
+        run: () => undefined,
+        focus: () => undefined,
+        insertLink: () => undefined,
+        insertImage: () => undefined,
+        insertTable: () => undefined,
+        insertRule: () => undefined,
+        openPicker: () => undefined,
+      },
+      "ed",
+    );
+    other.update(pasted.view.state);
+    expect(
+      other.element.querySelectorAll(".picker")[2]?.getAttribute("aria-label"),
+    ).toBe("Font: Other font");
   });
 });
 

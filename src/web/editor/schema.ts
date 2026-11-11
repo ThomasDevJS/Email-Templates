@@ -30,6 +30,14 @@ export const FONT_SIZES = [
   { label: "Large", value: "18px" },
   { label: "Huge", value: "24px" },
 ] as const;
+export const FONT_FAMILIES = [
+  { label: "Arial", value: "Arial, sans-serif" },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Times New Roman", value: "'Times New Roman', serif" },
+  { label: "Verdana", value: "Verdana, sans-serif" },
+  { label: "Courier New", value: "'Courier New', monospace" },
+  { label: "Trebuchet MS", value: "'Trebuchet MS', sans-serif" },
+] as const;
 export const COLORS = [
   { label: "Black", value: "#202124" },
   { label: "Gray", value: "#5f6368" },
