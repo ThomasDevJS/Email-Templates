@@ -1,6 +1,9 @@
 Screen 7: States (empty, no permission, loading, error, trash)
 Slices 3 (web), 4 (sidebar), 6 (admin). Error codes in docs/spec.md section 7. Sidebar cards as built in slice 12:
-no header on any state card. Texts as built at 16df87a (slice 14 wording pass, docs/design/wording.md).
+no header on any state card. Texts as built at 8e82a07 (slice 14 wording pass, docs/design/wording.md).
+Sidebar state cards since slices 21 and 22 follow-up 1 (D35, D36): the first line is an error line, (x) = error
+icon with alt text "Error", text red #b32025, no "(!)" prefix; later lines plain. Every button shows Gmail's
+spinner while it runs, except Back. Gmail's dark theme keeps the card white (owner, 2026-11-11).
 
 A. Sidebar, no templates visible (personal templates on)
 +--------------------------------------+
@@ -23,8 +26,8 @@ You can still insert these templates." No New template button; row menus show no
 
 B. Sidebar, no permission (DENIED)
 +--------------------------------------+
-| You don't have access to this        |
-| template. Ask a folder manager.      |
+| (x) You don't have access to this    |
+|     template. Ask a folder manager.  |
 | [Back]                               |  [Refresh] when there is no card to go back to
 +--------------------------------------+
 The compose card shows this text for every DENIED. Web, admin-only action: "You are no longer an admin, so nothing
@@ -32,18 +35,21 @@ was changed. Ask an admin if you need access." Side panel actions: the sentences
 
 C. Sidebar, error with retry (BUSY, QUOTA, TIMEOUT, SERVER)
 +--------------------------------------+
-| Something went wrong. Press Retry.   |  BUSY: "The library is busy. Try again in a few
-| Request ID MWARO9CA-YG9VT8           |  seconds." QUOTA: "Service is busy. Try again
+| (x) Something went wrong. Press      |  BUSY: "The library is busy. Try again in a few
+|     Retry.                           |  seconds."
+| Request ID MWARO9CA-YG9VT8           |  QUOTA: "Service is busy. Try again
 | [Retry]  [Back]                      |  in a minute." NETWORK adds "Details for your admin: <message>"
 +--------------------------------------+
 Not configured: "Migway Templates is not set up yet." "Ask your admin to finish setup, then press Retry." [Retry]
-Web app, not configured: toast "Something went wrong. Try again." with the request ID (the server text does not
-reach the screen; open for the fix round).
+Web app, not configured (slice 20a): toast "Migway Templates is not set up yet. Ask your admin to finish setup."
+with the request ID. On the first load the banner of E2 shows that sentence, plus one toast with it (Q81).
+Side panel, not configured: Gmail's error card with "Migway Templates is not set up yet. Ask your admin to
+finish setup." (spec 7.2).
 Not found: "This template was deleted or moved. Press Refresh to update the list." [Refresh]
 
 D. Account not identified (AUTH_NO_USER, AUTH_DOMAIN), sidebar and web app
 +--------------------------------------------------------------+
-| Cannot identify your Migway account.                         |
+| (x) Cannot identify your Migway account.                     |
 | This app does not work when several Google accounts are      |
 | signed in. Use a separate Chrome profile for Migway, or an   |
 | incognito window with only your Migway account.              |
@@ -55,6 +61,17 @@ E. Web app loading (skeleton, aria-busy="true")
 | [==========]  [=================]      [====]  [==]     |
 | ... 8 rows                                              |
 +---------------------------------------------------------+
+
+E2. Web app first load (slice 20a)
+  First paint: "Loading..." (role="status") in main, then the skeleton of E.
+  No answer in 15 s, or the first folder.list or template.list fails (library, editor, Trash only):
+  +---------------------------------------------------------+
+  | Templates could not be loaded. Press Reload to try      |  role="alert", no toast; focus on main
+  | again.                                                  |
+  | [Reload]                                                |  -> "Loading..." and one more try
+  +---------------------------------------------------------+
+  Not set up: the banner says "Migway Templates is not set up yet. Ask your admin to finish setup."
+  Admin and History keep their page and show the usual toast. A late answer replaces the banner.
 
 F. Web app empty folder
   No templates in Sales / Quotes.

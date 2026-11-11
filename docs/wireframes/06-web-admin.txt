@@ -5,7 +5,11 @@ Split 2026-11-10 (spec 13.3): 6a builds the shell, Folders and access, Groups an
 Admins see all tabs. manage holders see Folders and access (their subtrees) and Export and import (Export folder only).
 As built 2026-11-10 (slices 6a bb53d6c, 6b f6b567f): routes #/admin, #/admin/memberships, #/admin/audit, #/admin/usage,
 #/admin/transfer, #/admin/config, and #/trash (link under the library tree). Tablist: Left, Right, Home, End, wrap.
-Texts as built at 16df87a (slice 14 wording pass, slice 16 Admins; docs/design/wording.md).
+Texts as built at 8e82a07 (slice 14 wording pass, slice 16 Admins, slice 20a; docs/design/wording.md).
+One folder list (slice 20a, spec 6): Admin loads admin.folders once; every tab reads it. A folder write or an
+import refreshes it with one call; "Export and import" shows the change on its next open with no call of its own;
+a tab opened during the refresh waits for the new list. The tree: same mouse behavior as the library (slice 23,
+in review; wireframe 03).
 Entry: the server op admin.folders decides. Anyone else gets a full page:
   "You don't have access to Admin. It is for admins and folder managers."  [Back to the library]
 
@@ -142,7 +146,7 @@ The tab is admin only (manage holders never see it); config.get and config.set a
   Admins (D32, built in slice 16; spec 5.8, 7.3; ADR-0003 and ADR-0008 Amendments 2026-11-11, Accepted)
   +--------------------------------------------------------------------------------+
   | Admins                                                                         |  fieldset legend
-  | Admins manage every shared folder, grants, settings, imports and backups.      |
+  | Admins manage every shared folder, its access, settings, imports and backups.  |
   | Add people by their migway.com address.                                        |
   |                                                                                |
   | person-a@migway.com                                               [Remove]     |  in-app list (index.json admins)
@@ -158,7 +162,7 @@ The tab is admin only (manage holders never see it); config.get and config.set a
   +--------------------------------------------------------------------------------+
   Empty list: "No admins added here yet." At 20: the add answers "The list holds 20 admins. Remove one first."
   Directory failure: "The address could not be checked. Try again." in the status line, no toast.
-  The "grants" in the explanation is the built text; it is outside the glossary (open for the fix round).
+  Explanation text as built since slice 20a ("grants" became "its access", docs/design/wording.md).
 
   Remove dialog (Cancel has focus):
   +--------------------------------------------------------------------------------+

@@ -1,5 +1,7 @@
 Screen 2: Sidebar details card (preview and pre-fill in one card)
-As built at 16df87a (slice 15 with follow-up 1, D31, spec 7.4, ADR-0009 Accepted 2026-11-11; side panel slice 18).
+As built at 8e82a07 (slice 15 with follow-up 1, D31, spec 7.4, ADR-0009 Accepted 2026-11-11; side panel slice 18;
+hint and error lines slice 22 with follow-up 1, D36, ADR-0009 Amendment 2026-11-12). (i) = info icon, grey #5f6368;
+(x) = error icon with alt text "Error", red #b32025.
 Replaced the preview card and the prompt card of slices 4, 5 and 9: git show 2f6eae3:docs/wireframes/02-sidebar-prompt.txt.
 Opened by a tap on a row (not on its Insert button) in Home, Folder or Search. Pre-fill is optional: the row's
 Insert already inserts in one click; a field left blank is removed from the draft (owner decision 2026-11-11).
@@ -9,8 +11,8 @@ Details card, new draft (To and subject empty), template with fields and recipie
 | < Driver leaving                     |  CardHeader: title; Gmail's back arrow returns to the list
 |--------------------------------------|
 | Fields                               |  section only when a field has no value
-| Fill in now, or leave blank and type |  TextParagraph
-| in the draft.                        |
+| (i) Fill in now, or leave blank and  |  hint line (DecoratedText, info icon, grey; D36)
+|     type in the draft.               |
 | Driver name                          |  TextInput p-1, no asterisk: optional
 | [ ____________________________ ]     |
 | Last day                             |  TextInput p-2; one input per field identity,
@@ -31,8 +33,8 @@ Details card, new draft (To and subject empty), template with fields and recipie
 | Bcc  records@partner.com             |
 |      outside migway.com · hidden     |
 |      from other recipients           |
-| Finish typing addresses in the draft |
-| first: an address still being typed  |
+| Finish typing addresses in the draft |  plain TextParagraph (a grey hint in slice 22, plain
+| first: an address still being typed  |  again in follow-up 1: it warns of a lost address)
 | is lost.                             |
 |--------------------------------------|
 | Plain-text preview, max 600 chars,   |  TextParagraph, tokens shown as [Label]
@@ -46,13 +48,15 @@ out of the draft."
 No fields: no Fields section. No subject: no subject switch. No recipients: no Recipients section.
 
 Error and change lines (first line of the card, after a blocked Insert; the draft does not change):
-| (!) Shorten to 500 characters:       |  those fields move first
+| (x) Shorten to 500 characters:       |  those fields move first
 |     Driver name                      |
-| (!) The template changed. Check the  |  new version; switches back to their defaults
+| (x) The template changed. Check the  |  new version; switches back to their defaults
 |     fields and press Insert again.   |
-| (!) The recipients of this template  |  rh differs, or pushed by a row Insert whose rc differed
+| (x) The recipients of this template  |  rh differs, or pushed by a row Insert whose rc differed
 |     changed. Check them and press    |
 |     Insert again.                    |
+Each is an error line: DecoratedText, error icon (alt text "Error"), red text, no "(!) " prefix since
+slice 22 follow-up 1 (Q83: if Gmail draws no icon, the prefix comes back).
 
 Rules
 - Opening: template.apply with followUp: true (use re-checked, no apply event, no first-name lookup).
@@ -72,7 +76,7 @@ Rules
   the too-many-fields card, the "Review" row button.
 
 Side panel (D27, slice 18; ADR-0007 Acceptance 2026-11-11 section A2 and Amendment 2026-11-11, spec 7.2).
-As built at 16df87a. Part J (owner's Gmail): the boxes and the switch reach the press (Q68), and the footer
+As built at 8e82a07. Part J (owner's Gmail): the boxes and the switch reach the press (Q68), and the footer
 buttons work as compose actions (Q74).
 
 Details card, side panel, message open (entry message), template with fields, To and Cc:
@@ -80,8 +84,8 @@ Details card, side panel, message open (entry message), template with fields, To
 | < Driver leaving                     |  CardHeader: title
 |--------------------------------------|
 | Fields                               |  same inputs as compose (p-1 .. p-20)
-| Fill in now, or leave blank and type |
-| in the draft.                        |
+| (i) Fill in now, or leave blank and  |
+|     type in the draft.               |
 | Driver name                          |
 | [ ____________________________ ]     |
 | Recipient first name                 |
@@ -91,26 +95,29 @@ Details card, side panel, message open (entry message), template with fields, To
 |--------------------------------------|  no "Replace the subject" switch in the panel
 | Recipients                           |
 | Add recipients               [on ]   |  rcpt, only when a press would add one
-| Adds 2 recipients.                   |
+| A reply adds 1 recipient.            |  message entry (slice 20b): To left out, a reply never
+|                                      |  adds it; inbox: "Adds 2 recipients." (Q84: counts a Cc
+|                                      |  already on the email)
 | To   payroll@migway.com              |  lines as for an empty draft (recipientPlan, NO_DRAFT)
 | Cc   safety@migway.com               |  no finish-typing line
 | A reply goes to the sender, so the   |  message entry, template with a To
 | template's To is not added. New      |
 | email adds it.                       |
 |--------------------------------------|
-| Gmail adds your signature to replies |  both panel entries
-| only. In a new email, use "Insert    |
-| signature" in its toolbar.           |
+| (i) Gmail adds your signature to     |  hint line, both panel entries
+|     replies only. In a new email,    |
+|     use "Insert signature" in its    |
+|     toolbar.                         |
 |--------------------------------------|
 | Plain-text preview, max 600 chars    |
 |--------------------------------------|
 | (New email)  (Edit in library)       |  ButtonSet, OUTLINED; New email = STANDALONE_DRAFT;
 |                                      |  Edit in library only at edit or manage
 |--------------------------------------|
-| To insert a template into an email   |  hint, last section
-| you are already writing, use the     |
-| Migway Templates button in that      |
-| email's toolbar.                     |
+| (i) To insert a template into an     |  hint line, last section
+|     email you are already writing,   |
+|     use the Migway Templates button  |
+|     in that email's toolbar.         |
 |--------------------------------------|
 | [Reply]              (Reply all)     |  FixedFooter: primary FILLED slate, secondary OUTLINED;
 +--------------------------------------+  both REPLY_AS_DRAFT, onPromptCompose {id, as, version, values, rh}
@@ -128,5 +135,6 @@ Rules (side panel)
 - No change line and no re-render: a compose action answers with a draft or a thrown sentence only. Box over
   500 characters, new version, other rh: the callback throws the sentence of spec 7.2, no draft.
 - Failures throw one plain sentence (slice 18 follow-up 1); a notification from a compose action is not shown
-  in Gmail. No request ID, no technical text.
+  in Gmail. No request ID, no technical text from the add-on. Gmail wraps the sentence in its own error card
+  ("Error with the add-on. Run time error." ... "[line: n, function: panelAnswer, file: Code]"; Q75 closed).
 - A reply carries the Gmail signature below the text; a new email carries none.
