@@ -1,3 +1,5 @@
+import type { DetailsState } from "../../../src/addon/cards/details";
+import { NO_RECIPIENTS } from "../../../src/shared/model/recipients";
 import type {
   SidebarHome,
   SidebarTemplate,
@@ -36,6 +38,28 @@ export function view(fields: Partial<SidebarHome> = {}): SidebarHome {
     favorites: [],
     recent: [],
     personalTemplates: "on",
+    ...fields,
+  };
+}
+
+/** A freshly opened compose details card of `template("T1")`: no fields, no subject, no recipients. */
+export function details(fields: Partial<DetailsState> = {}): DetailsState {
+  return {
+    template: template("T1"),
+    text: "Body",
+    subject: "",
+    plan: { added: NO_RECIPIENTS, notAdded: [], unknown: NO_RECIPIENTS },
+    domain: "migway.com",
+    version: 1,
+    values: {},
+    fields: [],
+    entered: [],
+    order: [],
+    problem: "",
+    replaceSubject: true,
+    addRecipients: true,
+    rh: "RH",
+    counted: false,
     ...fields,
   };
 }

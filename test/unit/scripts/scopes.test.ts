@@ -97,6 +97,13 @@ describe("manifest settings (ADR-0001, ADR-0003, ADR-0005)", () => {
     ]);
   });
 
+  it("sets the slate button color for outlined buttons (ADR-0009 section 4)", () => {
+    expect(manifest.addOns.common.layoutProperties).toEqual({
+      secondaryColor: "#2a3c49",
+    });
+    expect(manifest.oauthScopes).toHaveLength(10);
+  });
+
   it("wires every manifest function to a bundle export", async () => {
     const entry = (await import("../../../src/entry")) as Record<
       string,

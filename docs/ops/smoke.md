@@ -204,6 +204,40 @@ Needs: the dev deployment of this build; the owner (in `ADMIN_EMAILS`) and the p
 7. Owner restores yesterday's backup (dev only): the Admins list is unchanged; the restore event shows `liveAdminsKept: true`.
 8. Owner checks the Audit log: one "Admin added" and one "Admin removed" for the pilot, none for the refused tries. Executions: the `admin.add` and `admin.remove` log lines carry `targetId` "" and no address.
 
+## Slice 15
+
+One-click insert and the details card (spec 7.4, D31). Gmail web, compose toolbar, dev build (`npm run deploy -- dev`, reload Gmail). Nothing is sent: discard every draft after its step.
+
+Templates to create in the library first, in a folder you can edit:
+
+- T1: no fields, subject "T1 subject", any one-line text.
+- T2: subject `Load {{ask:Load number}}`, text `Hi {{ask:Driver name}}, load {{ask:Load number}} is ready. {{sender.phone}}`.
+- T3: Cc `smoke-cc@<your domain>` and Bcc `smoke-bcc@<your domain>` (test addresses of your domain), no fields.
+- T4: the subject and text of T2 plus the Cc and Bcc of T3.
+- T5: text of 3 paragraphs: "Hi team,", then `{{ask:PS}}` alone, then "Thanks".
+
+1. New draft, cursor in the text. Row Insert on T1: the text at the cursor, subject "T1 subject". Record: the panel closed (y/n).
+2. Row Insert on T2 in a new draft: subject "Load", text "Hi, load is ready." followed by your phone when the directory has one, else nothing. No card, no "{{" left.
+3. The row of T4 reads "Adds Cc 1, Bcc 1 · 2 fields to fill · <folder path>" (the hint counts the fields the sender fills in). Record: the label on one line, wrapped, or cut.
+4. Row Insert on T3 in a new empty draft: Cc and Bcc addresses added, the Bcc line visible. Record: the panel closed (y/n).
+5. Reply to a received message, row Insert on T4: To and the "Re:" subject kept, Cc and Bcc added, the fields left out of the text.
+6. Open the panel (list loaded). In the library add a second Cc to T3. Within 10 minutes, row Insert on T3: the details card with "(!) The recipients of this template changed. Check them and press Insert again.", the draft unchanged. Click "Insert" there: 2 Cc added.
+7. Tap the name of T2: the details card shows 2 or 3 boxes, "Replace the subject" on, the preview. Fill "Driver name" only, click "Insert": "Hi <name>, load is ready."
+8. Details card of T2: 501 characters in "Driver name", click "Insert": "(!) Shorten to 500 characters: Driver name", the draft unchanged. Shorten it, click "Insert". Admin, Usage after the next 5-minute background job: the insert count of T2 rose by 1, not 2.
+9. Details card of T4 in a draft with a subject: "Replace the subject" off. Turn "Add recipients" off, click "Insert": text only, subject and recipients unchanged.
+10. Home: a template that is a favorite and recently inserted shows only under Favorites; no hint under "Search templates"; "Open library" is slate. Record: the color of "Edit in library" on a details card (slate or blue).
+11. In the library remove your access to T1's folder. Row Insert on T1 (list still loaded): "You don't have access to this template. Ask a folder manager.", the draft unchanged.
+12. Side panel (no draft): rows show no Insert; tapping a name opens the details card with no boxes and no Insert; "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." ends the card.
+13. Row Insert on T5. Record: the empty middle paragraph shows as a blank line (y/n). Yes is accepted for v1.
+
+| Step | Record                              | Result |
+| ---- | ----------------------------------- | ------ |
+| 1    | panel closed (y/n)                  |        |
+| 3    | label one line, wrapped or cut      |        |
+| 4    | panel closed (y/n)                  |        |
+| 10   | "Edit in library" color             |        |
+| 13   | empty paragraph as blank line (y/n) |        |
+
 ## Spike S7
 
 Open the add-on from Gmail's right side panel for this test, never from a draft's toolbar.

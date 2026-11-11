@@ -26,31 +26,22 @@ export type Params = Readonly<Record<string, string>>;
 
 /** Form value of a selected switch. */
 export const SWITCH_ON = "on";
-/** Prompt card switch "Replace the subject" (wireframe 02). */
+/** Details card switch "Replace the subject" (wireframe 02). */
 export const SUBJECT_SWITCH = "subj";
 /** Home card search input (wireframe 01). */
 export const SEARCH_INPUT = "q";
-/** Callback parameter `subject` of "Insert body only": no subject and no recipient action (D24, spec 5.7). */
-export const SKIP_SUBJECT = "skip";
-/** Callback parameter `subject` of "Insert with subject": overrides a draft subject (D24). */
-export const WITH_SUBJECT = "use";
 
 /**
- * D24 truth table, the one place: whether an Insert sends the subject action (and where the prompt card switch
- * starts). A new subject moves a reply out of its conversation, so a plain Insert keeps any draft subject.
+ * D24 truth table, the one place: whether a row Insert sends the subject action, and where the details card switch
+ * starts. A new subject moves a reply out of its conversation, so a filled draft subject is kept.
  *
- * | Insert choice         | draft subject empty | draft subject filled |
- * |-----------------------|---------------------|----------------------|
- * | plain Insert          | sets it             | keeps it             |
- * | "Insert with subject" | sets it             | replaces it          |
- * | "Insert body only"    | keeps it            | keeps it             |
+ * | Draft subject | Row Insert | Details card switch |
+ * |---------------|------------|---------------------|
+ * | empty         | sets it    | on                  |
+ * | filled        | keeps it   | off                 |
  */
-export function replacesSubject(
-  choice: string | undefined,
-  draftHasSubject: boolean,
-): boolean {
-  if (choice === SKIP_SUBJECT) return false;
-  return choice === WITH_SUBJECT || !draftHasSubject;
+export function replacesSubject(draftHasSubject: boolean): boolean {
+  return !draftHasSubject;
 }
 
 export interface ActionSpec {
@@ -149,7 +140,8 @@ export type Reply =
 
 /**
  * Spec 4.1 step 4, 5.6 and 5.7: the rendered body, plus the rendered subject when it is not empty, plus the
- * recipient actions of `recipientActions`. An empty subject (none in the template, or the user opted out) sends no
+ * recipient actions of `recipientActions`. An empty subject (none in the template, only fields without a value, or the
+ * switch off) sends no
  * subject action, so the draft subject is never cleared.
  */
 export function insertReply(
@@ -168,11 +160,11 @@ export function insertReply(
 export const action = (fn: Callback, params?: Params): ActionSpec =>
   params === undefined ? { fn } : { fn, params };
 
-/** Home, folder and search cards: "Open library" as a secondary (outlined) button in the fixed footer. */
+/** Home, folder and search cards: "Open library" in the fixed footer, filled slate (a footer primary must be filled). */
 export const LIBRARY_FOOTER: NonNullable<CardSpec["footer"]> = {
   primary: {
     text: "Open library",
     action: action("onOpenLink"),
-    style: "outlined",
+    style: "filled",
   },
 };
