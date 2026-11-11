@@ -100,8 +100,6 @@
 - `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
 - `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT`: the one place side-panel insert replaces. Empty home (`emptySection`) belongs to the admin-settings slice.
 
-## Slice 8c (admin UI): views/adminTable.ts, admin/actions.ts; admin h1 then tab h2s; tables stack under 860 px.
-
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
@@ -147,3 +145,5 @@
 - flows.ts `applyNow(ports, id, extra)` = one template.apply + cached body; Flow A `insertFlow` (`rc` "t,c,b" vs list lengths, unknown draft field -> details card `counted=1`); Flow B `previewFlow` (compose followUp, side panel getBody + `panelDetailsCard`); Flow C `promptInsertFlow` (`counted=1` -> followUp; `mergedValues`).
 - cards/details.ts `detailsCard(DetailsState)`, `panelDetailsCard(view, entry)`; test fixture `details()` in test/unit/addon/fixtures.ts. prompts.ts `tooLong`, `shortenText`, `moreFieldsText`. `replacesSubject(draftHasSubject)`.
 - Worktree guard: python edits via a script file in the scratchpad, run alone; never chain `git` or `rm` with other commands.
+## Slice 17 (docs: smoke sweep, docs/ops/test-round-1.md, 2026-11-11)
+- Quote check script: extract double-quoted texts, search src with escapes undone and spaces collapsed; hand-check built texts. Admins never lose folder access: access-loss steps need the second account. Web version shows as "Version dev-<sha>" under the short name; "Signed in as" is sr-only.
