@@ -1,6 +1,6 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-11, errata run 5 (slices 14 to 19 and D33 as built at 16df87a; commits 279ed79 spec, e8f09f8 ADRs, b03201f wireframes, plus handoff and memory). Before: S7 run, D31, D32, errata run 4. Repo is the source of truth; this file is a cache.
+Last run: 2026-11-12, errata run 6 on branch architect/errata-6 (slices 20a, 20b, 21, 22, 22b as built at 8e82a07, slice 23 in review; commits 1458d3d spec, 2d93595 ADRs, 2ca59cc wireframes, plus handoff and memory; not pushed). Before: errata run 5 (16df87a), S7 run, D31, D32, errata run 4. Repo is the source of truth; this file is a cache.
 
 ## Files I own
 - docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed; 0001 D27 and 0004 D26/D31 amendments Accepted 2026-11-11). 0009 Accepted 2026-11-11 (As built section). 0003/0008 D32 Accepted (0003 "As built (slice 16)"). 0006 D31 Accepted except Q77 point. 0007 Amendment 2026-11-11 (D33, failure sentences) Accepted. 0002 Amendment 2026-11-11, slice 19 Proposed. 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Accepted 2026-11-11, section "Acceptance 2026-11-11" A1-A10; [S7] markers on old lines). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
@@ -52,6 +52,16 @@ Last run: 2026-11-11, errata run 5 (slices 14 to 19 and D33 as built at 16df87a;
 - Gmail facts: card closes after Insert; Open/Edit in library open a new Chrome window (code OVERLAY); narrow draft puts add-on in "⋮"; panel reply has signature below text, new email none.
 - 2.5b: admin-guide part 2 step 7 fails (deploy refuses version mode with empty deploymentId); Apps Script API user setting for DO unstated; logoUrl Drive-hosted.
 
+## Errata run 6 facts (as built 8e82a07, owner tests on dev 2026-11-11)
+- D34 look kept; D35 spinner on every action but onBack/onOpenLink (`toAction`), primaryColor+secondaryColor #2a3c49 (bar measured #2A3B48); D36 hint lines = DecoratedText info icon grey #5f6368 (fields line, signature line, toolbar hint, cut line); error lines = error icon alt "Error", red #b32025, no "(!)" (22b); FINISH_TYPING plain. ADR-0009 Amendment 2026-11-12 Accepted.
+- Search: outlined "Search" button + box, both onSearch; compose popup one row (Columns, try/catch fallback), panel stacked. Double run possible (Q79).
+- Caps 20b: LIST_MAX favorites 10, recent 5, folders 40, results 20; cut hint "Showing n of m <noun>. Use Search or Open library for the rest."; worst card 84.
+- Panel: "A reply adds n recipients." (message entry); NOT_CONFIGURED sentence without "then press Retry". Gmail shows thrown sentence in its own error card (Q75 closed).
+- Q55 closed: 1 consent page, 9 checkbox lines, no second prompt; per-scope checkboxes, unticked scope breaks add-on (Q82). Dark theme keeps cards white.
+- Web 20a: "Loading..." first paint, 15 s/fail banner + Reload, no toast (before setup 1 toast, Q81); NOT_SET_UP_TEXT toast; one Admin folder list; export `run` reuse + start in one lock; newId random from SHA-256 of getUuid; admins text "its access".
+- ADR-0004 Amendment 2026-11-12 Proposed (Q78): skeleton rule, tokens removed with adjacent U+0020, escapes as marker, runs joined; `{{` across segments -> PH_MALFORMED "The braces at character {n} would show as {{ in the email. Delete one of them." Touch validate.ts, placeholders.test.ts, wording.md, editor-guide.md.
+- Open: Q80 toIcon try/catch, Q83 error icon drawn?, Q84 reply count overstates.
+
 ## D31 (owner 2026-11-11): one-click insert, slice 15 (spec 7.4, 13.9, ADR-0009)
 - Every compose row "Insert" one click. Unfilled field REMOVED (owner decision, no marker): value order typed > value > fallback > "", then 4 gap rules (U+0020 only, per text run and subject): space both sides drop after; space before + `,.;:!?` drop before; run start drop space after; run end drop space before. Left alone: across inline tags, nbsp, empty blocks (smoke 13). 8 test pairs in ADR-0004 Amendment 2026-11-11.
 - Platform: UpdateDraftActionResponse has no notification [A15]; ActionResponse has no draft action [A44]; card closes after insert (S6 step 0, undocumented). FixedFooter primary must be FILLED [A40]; manifest secondaryColor default blue #2196F3 [A42]; DecoratedText one button or switch or end icon + onClick [A43]. A40-A44 in ADR-0009.
@@ -86,20 +96,20 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - 32a446c: warm save 4.2-5.2 s, Drive writes 2.0-2.7 s.
 
 ## Slice plan
-- Slices 1-19 done, on dev (16df87a); 20a (web, server) and 20b (add-on) fix round in build. v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
+- Slices 1-22 with 22b done, on dev (8e82a07); 23 (tree collapse) in review retry 1 at a26e7f3. v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
 - Q40-Q46 (D27) resolved by S7 (ADR-0007 A1). Q67-Q74 (slice 18): no via, form inputs unverified (fallback: drop boxes+switch), double press accepted, no first name for New email, no subject switch, rc mismatch notification, reply-all present skip, compose action on DecoratedText/FixedFooter unverified (fallback ButtonSet).
 - Q47-Q52 (D29): dev reads off after deploy (accept), off caps owner+admin to use (accept, turn on to clean up), no third setting, no RECIPIENTS_EXTERNAL fallback, read+insert not hide, quick start disclosure.
-- Q53 import refused on in-lock deny race (accept); Q54 rh without draft field state (accept); Q55 S6 step 7 fresh consent (owner runs by hand before prod).
-- Q68, Q74 closed yes (part J). New Q75 (how Gmail shows thrown sentence; rerun J11), Q76 (rule 2 ASCII only; accept), Q77 (row Insert no notice for left-out outside/skipped To; accept, owner's judgment).
+- Q53 import refused on in-lock deny race (accept); Q54 rh without draft field state (accept); Q55 closed 2026-11-11.
+- Q68, Q74 closed yes (part J). Q75 closed (Gmail error card). Q76 (rule 2 ASCII only; accept), Q77 (row Insert no notice; accept). Q78-Q84 errata 6.
 - Q32 closed by D29. Q33-Q39 (D26): limits, no placeholders, To in reply not added, secondary domains (RECIPIENT_DOMAINS if needed), private allowed, no existence check, address search web only.
 - Q22 = D23 open, assumption 3 s apply. Q23 built 6a. Q25 rec accept.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A44]. Question IDs global Q1-Q77. Slice numbers: 19 audit read, 20a/20b fix round in build; next free 21. ADR next free 0010. Spikes S2, S2b, S4, S5, S6, S7 closed (fresh consent open by hand, Q55; S7 step 9 form inputs not run, Q68).
+- External sources [A1]..[A44]. Question IDs global Q1-Q84; next free Q85. Next free slice 24. ADR next free 0010. Spikes S2, S2b, S4, S5, S6, S7 closed (fresh consent open by hand, Q55; S7 step 9 form inputs not run, Q68).
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
