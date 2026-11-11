@@ -1394,7 +1394,7 @@ table {
 
 .subject-row label {
   flex: none;
-  width: 54px;
+  width: 64px;
   color: var(--ink-3);
   font-size: 13px;
 }
@@ -1428,7 +1428,8 @@ table {
 
 .reads-label {
   flex: none;
-  width: 54px;
+  width: 64px;
+  white-space: nowrap;
   color: var(--ink-3);
   font-size: 13px;
   font-weight: 400;

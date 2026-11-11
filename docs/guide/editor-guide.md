@@ -68,6 +68,7 @@ The toolbar is one Tab stop. Arrow keys move between its buttons; Home and End j
 | Undo, Redo | Undo (Ctrl+Z), redo (Ctrl+Y) |
 | "Paragraph" | Paragraph, Heading 1, Heading 2, Heading 3. The button shows the current style |
 | "Normal" | Text size: Small, Normal, Large, Huge. The button shows the current size |
+| "Font" | Font family: Arial, Georgia, Times New Roman, Verdana, Courier New, Trebuchet MS, or Default. Each name in the menu shows in its own face; the current family has a check |
 | B, I, U, S | Bold (Ctrl+B), italic (Ctrl+I), underline (Ctrl+U), strikethrough (Ctrl+Shift+X) |
 | Text color, Highlight color | Text color and background color |
 | Align text | Left, center, right, justify |
@@ -79,8 +80,11 @@ The toolbar is one Tab stop. Arrow keys move between its buttons; Home and End j
 | Horizontal line | Inserts a line |
 | "Insert field" | Placeholder menu. Typing `{{` in the text opens the same menu |
 
-The toolbar has no font family button. Fonts already in a template (for example pasted from Gmail) are kept.
-
+>>>
+<<<
+- Placeholders work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
+===
+- Placeholders work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`; while it holds a placeholder, the line "Reads as" under it shows the subject with blanks, as the reader sees it.
 ## Placeholders and fallbacks
 
 The placeholder menu lists 5 values and one question type.
@@ -133,6 +137,10 @@ Users with use access see every address on a card before Insert and cannot chang
    - "Cancel" keeps your text in the editor, unsaved.
 
 Nothing is overwritten without this dialog.
+
+### Leaving with unsaved changes
+
+While the header says "Unsaved changes", leaving the editor asks first: "Leave without saving?" with "Keep editing" (selected), "Discard changes" and "Save and leave". This covers the sidebar, the folder tree, the folder path in the header, "History", and the browser's Back and Forward. "Save and leave" leaves only when the save worked; a failed save or a "This template changed" dialog keeps you in the editor. Closing or reloading the browser tab asks through the browser's own question.
 
 ## Version history and restore
 
