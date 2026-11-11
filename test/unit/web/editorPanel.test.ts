@@ -1091,6 +1091,59 @@ describe("merge with the main line (slices 11 and 13 meet slice 8b)", () => {
     expect(document.querySelectorAll("[inert]")).toHaveLength(0);
   });
 
+  it("the folder choice opens the new-template editor, and leaving it unsaved asks first", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+    button("New template").click();
+    const choice = dialogs()[0] as HTMLElement;
+    (choice.querySelector("select") as HTMLSelectElement).value = "F-QUOTES";
+    button("Create", choice).click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/new?folder=F-QUOTES");
+      expect(main().querySelector(".ProseMirror")).not.toBeNull();
+    });
+    edit();
+    document.querySelector<HTMLElement>("[data-nav=trash]")?.click();
+    expect(dialogs()).toHaveLength(1);
+    expect(titleOf()).toBe("Leave without saving?");
+    button("Keep editing").click();
+    await until(() => {
+      expect(dialogs()).toHaveLength(0);
+    });
+    expect(window.location.hash).toBe("#/new?folder=F-QUOTES");
+  });
+
+  it("reads the outside-recipients rule from the admin setting through me", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    type(byId("rcpt-bcc"), "records@partner.com");
+    expect(errorOf("bcc")).toBe("");
+    expect(
+      byId("rcpt-bcc").closest(".chips-box")?.querySelector(".chip-mark")
+        ?.textContent,
+    ).toBe("outside example.com");
+    await harnessCall("config.set", {
+      name: "recipientsExternal",
+      value: "deny",
+      baseAt: "",
+      baseBy: "",
+    });
+    window.history.replaceState(null, "", "#/edit/T-DISCOUNT");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await until(() => {
+      expect(titleOf()).toBe("Leave without saving?");
+    });
+    button("Discard changes").click();
+    await until(() => {
+      expect(byId("title").value).toBe("Discount approval");
+    });
+    type(byId("rcpt-bcc"), "records@partner.com");
+    expect(errorOf("bcc")).toBe(
+      "Bcc, address 1 is outside example.com. Your admin allows only example.com addresses. Remove it to save.",
+    );
+  });
+
   it("personal templates off: a personal template opens read-only with the reason, and leaving never asks", async () => {
     await openEditor("/?latency=0&sample=freight&personal=off#/edit/T-BOOKED");
     expect(main().querySelector(".read-only-note")?.textContent).toBe(
@@ -1104,5 +1157,28 @@ describe("merge with the main line (slices 11 and 13 meet slice 8b)", () => {
       expect(window.location.hash).toBe("#/trash");
     });
     expect(dialogs()).toHaveLength(0);
+  });
+
+  it("the library search finds a template by an address set in the editor", async () => {
+    await openEditor("/?latency=0#/edit/T-DISCOUNT");
+    type(byId("rcpt-cc"), "finance.desk@example.com");
+    button("Save").click();
+    await until(() => {
+      expect(main().querySelector(".saved-state")?.textContent).toMatch(
+        /^Saved as version 2/,
+      );
+    });
+    document.querySelector<HTMLElement>("[data-nav=library]")?.click();
+    await until(() => {
+      expect(byId("search")).not.toBeNull();
+    });
+    const search = byId("search");
+    search.value = "finance.desk@example.com";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    await until(() => {
+      expect(
+        [...main().querySelectorAll(".row-title")].map((t) => t.textContent),
+      ).toEqual(["Discount approval"]);
+    });
   });
 });

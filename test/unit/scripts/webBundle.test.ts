@@ -32,6 +32,10 @@ describe("web app page (ADR-0005 inlined bundle)", () => {
       page.indexOf("</style>"),
     );
     expect(styles).toContain(".ProseMirror{position:relative}");
+    // Both sides of the slice 8b merge: the editor's status line stays scoped, so the settings status keeps its rule.
+    expect(styles).toContain(".editor-page>.status{");
+    expect(styles).toContain(".setting-actions .status{");
+    expect(styles).not.toMatch(/(^|})\.status{[^}]*display:none/);
     for (const part of ["/*", "//", "<?", "\n.", "</style"])
       expect(styles).not.toContain(part);
     await expect(minifiedStyles('a{content:"<?"}')).rejects.toThrow(
