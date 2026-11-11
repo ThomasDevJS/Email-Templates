@@ -20,7 +20,7 @@ Access lives on folders. A grant gives one principal one level on one folder. Su
 | `use` | user | List, search, preview, insert and star templates |
 | `edit` | manager-editor | `use`, plus create, edit, duplicate, move, delete, restore templates, and version history |
 | `manage` | folder manager | `edit`, plus subfolders, rename, move or delete the folder, grants on its subtree, export of the folder |
-| admin | member of Script Property `ADMIN_GROUP`, or listed in `ADMIN_EMAILS` | `manage` on every folder, private ones included (only `use` on private folders while personal templates are off), plus the admin-only rows below |
+| admin | member of Script Property `ADMIN_GROUP`, or listed in `ADMIN_EMAILS` | `manage` on every folder, personal ones included (only `use` on personal folders while personal templates are off), plus the admin-only rows below |
 
 Role matrix (ADR-0003 Part C). "yes on source and target" means the level is needed on both folders.
 
@@ -42,31 +42,31 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 | Export library, import | no | no | no | yes |
 | View audit log, usage report | no | no | no | yes |
 | Refresh memberships, view config | no | no | no | yes |
-| Private folder of self | edit | edit | edit | yes |
+| Personal folder of self | edit | edit | edit | yes |
 
 - Admin status is never granted in the app. The owner sets `ADMIN_GROUP` (one group address) and `ADMIN_EMAILS` (comma-separated addresses) in the Apps Script editor, Project Settings, Script Properties. `setup()` puts the owner in `ADMIN_EMAILS`.
-- Every person has one private folder, "My templates", with `edit` for its owner. It cannot be shared, moved or deleted.
-- Admins see and can change every private folder (D18). The user quick start discloses this. In the library an admin sees other people's folders as "My templates (name@migway.com)". The Gmail panel hides them.
-- The Admin entry in the left rail shows for admins and `manage` holders. Admins see 6 tabs. `manage` holders see "Folders and grants" and "Export and import" (folder export only).
+- Every person has one personal folder, "My templates", with `edit` for its owner. It cannot be shared, moved or deleted.
+- Admins see and can change every personal folder (D18). The user quick start discloses this. In the library an admin sees other people's folders as "My templates (name@migway.com)". The Gmail panel hides them.
+- The Admin entry in the left rail shows for admins and `manage` holders. Admins see 6 tabs. `manage` holders see "Folders and access" and "Export and import" (folder export only).
 
 ## Grant a folder
 
-1. Admin, "Folders and grants". Select the folder in the tree.
-2. "Effective access" lists Principal, Level and Source ("this folder", or the parent path with "(inherited)"). An empty folder reads "Only admins can see this folder. Add a grant to share it."
-3. Under "Add grant", pick "Type", fill "Principal", pick "Level", click "Add grant".
+1. Admin, "Folders and access". Select the folder in the tree.
+2. "Who has access" lists Who, Access and Set on ("this folder", or the parent path with "(parent folder)"). An empty folder reads "Only admins can see this folder. Give access to share it."
+3. Under "Give access", pick "Type", fill "Give access to", pick "Access" ("Can use", "Can edit" or "Can manage"), click "Give access".
 
-| Type | Principal | Who gets access |
+| Type | Give access to | Who gets access |
 |---|---|---|
 | "Group" | Group email, for example sales-team@migway.com | Direct members of the group (next section) |
 | "User" | One person's email | That person |
 | "Domain" | Domain, for example migway.com | Everyone in the domain |
-| "OU (inactive in v1)" | OU path, for example /Field | Nobody in v1 (see below) |
+| "Org unit (not active yet)" | Org unit path, for example /Field | Nobody yet (see below) |
 
 - A grant to a principal that already has one on the folder changes its level.
 - "Remove" on a row deletes the grant at once, with no confirmation.
-- A group must exist and the owner account must be able to see its member list. Otherwise the grant is refused: "Group ... was not found or its members are not visible."
-- Grants on private folders are refused ("Private folders cannot be shared").
-- Grant changes apply to the next request. Group membership changes in Google Groups apply within 15 minutes, or at once after "Refresh now".
+- A group must exist and the owner account must be able to see its member list. Otherwise the grant is refused: "Group ... was not found or its members are not visible. Check the address."
+- Grants on personal folders are refused ("Personal folders cannot be shared.").
+- Grant changes apply to the next request. Group membership changes in Google Groups apply within 15 minutes, or at once after "Refresh groups".
 - Known limit: after a grant change the library tree does not reload. Reload the page to see the new tree.
 
 ## Groups: direct members only (D7)
@@ -74,31 +74,31 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 The app reads group members through Apps Script GroupsApp (`groupsapp_direct`). It sees direct members only.
 
 - A person who is in a child group, and not directly in the granted group, gets no access.
-- The Memberships tab warns: "Warning: <group> contains <child groups>. Members of these child groups get no access: the resolver reads direct members only."
+- The Groups tab warns: "Warning: members of <inner groups> get no access through <group>. Add them to <group> directly."
 - Use flat role groups: add people to the granted group directly.
 - D7 is open: the Workspace edition, nested groups and admin API limits are not confirmed. Nested groups need the Directory resolver, which needs an admin role for the owner and is not active in v1.
 
-## OU grants are inactive in v1 (D17)
+## Org unit access is not active yet (D17)
 
-- An OU grant is stored and shown with "Inactive: OU resolution needs the Directory resolver". It gives nobody access.
+- Access for an org unit is saved and shown with "Not active yet. Org units do not give access in this version.". It gives nobody access.
 - To share with an OU now, create a Google Group with the same people and grant the group.
 
-## Memberships tab
+## Groups tab
 
-- The summary reads "Resolver: groupsapp_direct (direct members only). Last refresh: <time>."
-- The table lists every group named in a grant or in `ADMIN_GROUP`: Group, Members, Child groups, Status.
+- The summary reads "Members are read from Google (direct members only). Last refresh: <time>."
+- The table lists every group named in a grant or in `ADMIN_GROUP`: Group, Members, Groups inside, Status.
 - The `refreshMembers` job refreshes the list every 15 minutes.
-- "Refresh now" shows "Refreshing memberships..." and then "Refreshed n groups."
+- "Refresh groups" shows "Refreshing groups..." and then "Refreshed n groups."
 - The child-group warning row is not yet verified on dev.
 
 ## Audit log
 
 Not yet verified on dev (built in slice 6b, not deployed when this guide was written).
 
-- Filters: "Month", "Date from", "Date to", "Actor", "Action", "Result", "Target". Click "Apply". 50 rows per page.
-- Columns: Time, Actor, Action, Target, Result, Details. "Details" opens the event: Before and After JSON, Duration, Request ID, App version.
+- Filters: "Month", "Date from", "Date to", "User", "Action", "Result", "Template or folder". Click "Filter". 50 rows per page.
+- Columns: Time, User, Action, Template or folder, Result, Details. "Details" opens "Entry details": Before and After, Duration, Request ID, App version, and "Technical details" with the internal name and ID.
 - Recorded: template create, change, move, delete, restore; folder changes; grant changes with before and after; imports; backup restores; trash purges; refused requests (`denied`).
-- Insert and refused events can arrive up to 5 minutes late. More than 200 such events within 5 minutes are dropped and counted in one `audit.dropped` row.
+- Inserts and refused actions can take up to 5 minutes to show. More than 200 of them within 5 minutes are lost and counted in one "Audit entries lost" row (`audit.dropped`).
 - Kept 24 months.
 - Exports write no audit event in v1.
 
@@ -106,9 +106,9 @@ Not yet verified on dev (built in slice 6b, not deployed when this guide was wri
 
 Not yet verified on dev.
 
-- Columns: Template, Folder, Applies 30 d, Last used. Most used first. No user names.
+- Columns: Template, Folder, "Inserts, 30 days", "Last inserted". Most inserted first. No user names.
 - Counts cover the 30 UTC days ending today. Inserts arrive up to 5 minutes late.
-- Every private folder shows as "My templates", without its owner.
+- Every personal folder shows as "My templates", without its owner.
 
 ## Export and import
 
@@ -121,9 +121,9 @@ Export:
 
 What an export leaves out:
 
-- Private folders and their templates (whole-library export).
+- Personal folders and their templates (whole-library export).
 - Version history: only the current version of each template.
-- Favorites, usage counts, audit events, authors and dates.
+- Favorites, insert counts, audit entries, authors and dates.
 - Grants from folders above the exported folder.
 - Templates in the trash.
 
@@ -131,8 +131,8 @@ Export pages through the library 20 templates at a time. A save during an export
 
 Import (admins only):
 
-1. "Export file": choose a file. "Target folder": pick a shared folder.
-2. "Validate" shows what the import would do and writes nothing.
+1. "Export file": choose a file. "Import into": pick a shared folder.
+2. "Check file" shows what the import would do and changes nothing.
 3. "Import" writes it and shows a report: templates created, skipped, failed; folders new and existing; subjects with line breaks replaced.
 
 | Rule | Value |
@@ -141,62 +141,62 @@ Import (admins only):
 | Templates per file | at most 200 |
 | Folders per file | at most 100 |
 | Format | `schemaVersion` 1, no two folders with one ID |
-| Target | a shared folder; a private one is refused |
+| "Import into" | a shared folder; a personal one is refused |
 | Folders | created as shared folders; a folder whose name a sibling already has is reused |
 | Grants | none created; the file's grants are for reference, re-add them by hand |
 | Templates | new IDs; a title that already exists in the destination folder is skipped, so a second import adds nothing |
-| Checks | the same cleanup and placeholder checks as a save |
-| Failure | "Nothing was imported: <what>. Run the import again." |
+| Checks | the same cleanup and field checks as a save |
+| Failure | "Nothing was imported because <what>. Run the import again." |
 
 - More than 200 templates: export one file per folder.
 - A file close to 5 MB is not yet verified on Apps Script. The browser may refuse the upload; then nothing is written.
 - Export and import do not move an app to a new owner. See the runbook.
 
-## Settings (Config tab)
+## Settings ("Settings and backups" tab)
 
-Admin, Config tab, section "Settings", first on the tab. Only admins see the Config tab; anyone else gets "You don't have access" from the server. Each setting has its own radio group and Save button. Save stays disabled until you pick another value.
+Admin, "Settings and backups" tab, section "Settings", first on the tab. Only admins see this tab; anyone else gets "You don't have access" from the server. Each setting has its own radio group and Save button. Save stays disabled until you pick another value.
 
 | Setting | Default | On (or Allowed) | Off (or migway.com only) |
 |---|---|---|---|
-| Personal templates | Off | Every user gets a private folder "My templates" on their first library visit and can create, change and delete templates there. | No new "My templates" folder is created. Users who already have one keep it and can still open, preview, star and insert its templates. Nobody can create, change, duplicate, move, delete, restore or see the history of a template in a private folder, admins included. Their edit buttons are gone; the library shows "Personal templates are turned off by your admin. You can still insert these templates." |
+| Personal templates | Off | Every user gets a personal folder "My templates" on their first library visit and can create, change and delete templates there. | No new "My templates" folder is created. Users who already have one keep it and can still open, preview, star and insert its templates. Nobody can create, change, duplicate, move, delete, restore or see the history of a template in a personal folder, admins included. Their edit buttons are gone; the library shows "Personal templates are turned off by your admin. You can still insert these templates." |
 | Outside recipients | Allowed | Templates may add addresses outside migway.com to To, Cc and Bcc. | Saving a template with an outside address fails. Templates keep stored outside addresses, but Insert skips them and the card lists them as "Not added". |
 
 - A fresh install and an install from before this setting read as the defaults. `setup()` never changes a setting.
 - Turning a setting off asks first ("Turn off personal templates?" or "Allow only migway.com recipients?"); Cancel has the focus. Turning it on saves at once.
-- Nothing is deleted when personal templates go off. Turning them on again brings back every action, with every template, version, favorite and Recent entry where it was. Templates deleted from a private folder stay in the trash and are purged after 30 days as usual.
+- Nothing is deleted when personal templates go off. Turning them on again brings back every action, with every template, version, favorite and Recent entry where it was. Templates deleted from a personal folder stay in the trash and are purged after 30 days as usual.
 - To clean up or move personal templates while the setting is off, turn it on, do the work, and turn it off again. Both changes appear in the audit log.
 - The server applies a change from the next request on. The Gmail panel can show its old list for up to 10 minutes; inserting stays allowed.
 - Each change writes one audit event "Setting changed" with the old and new value. Under the setting: "Last change: <name> on <time>." or "Default, never changed."
 - If another admin changed the setting while your page was open, you see "<name> changed this setting on <time>. The page now shows the current value."
 - Script Property `RECIPIENTS_EXTERNAL` is no longer read. If it was set to `deny`, set "migway.com only" here and delete the property.
 
-## Config and job health
+## Technical details and background jobs
 
 Not yet verified on dev. Below Settings the tab is read only.
 
-- Environment: Domain, `ADMIN_GROUP`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `INDEX_REV`, App version, Index size. The index size warns above 3 MB.
-- Jobs: Job, Schedule, Last OK, Status.
+- "Technical details": Domain, `ADMIN_GROUP`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `INDEX_REV`, App version, Library data size. The size warns above 3 MB.
+- "Background jobs": Job, Schedule, Last good run, Status. Each job shows its name in words and its internal name: "Save insert counts and refused actions" (`tick`), "Refresh groups" (`refreshMembers`), "Nightly backup and cleanup" (`daily`).
 
 | Job | Schedule | Work |
 |---|---|---|
-| `tick` | every 5 min | insert counts, refused-request events, cache refresh |
-| `refreshMembers` | every 15 min | group member lists |
-| `daily` | daily, 02:00 to 03:00 (script time zone) | audit roll, trash purge after 30 days, file cleanup, backup, audit retention |
+| `tick` | Every 5 minutes | insert counts, refused-request events, cache refresh |
+| `refreshMembers` | Every 15 minutes | group member lists |
+| `daily` | Every night, 02:00 to 03:00 (script time zone) | audit roll, trash purge after 30 days, file cleanup, backup, audit retention |
 
 - Status "ok", "late" (no success for more than 2 intervals) or "never ran". A late job shows its last error.
-- "Trigger reinstall failed: ..." appears when a trigger update after a deploy failed. Tell the owner.
+- "The background jobs could not be set up again: ..." appears when a trigger update after a deploy failed. Tell the owner.
 
 ## Backups and restore
 
 Not yet verified on dev.
 
 - The `daily` job copies `index.json`, `favorites.json` and `usage.json` each night and keeps 14 days. Template versions and audit files are never changed after writing, so they need no copy.
-- To restore: Config, "Backups", pick a "Backup date", "Restore from backup". The dialog "Restore the backup of <date>?" has the focus on "Cancel". "Restore <date>" confirms.
+- To restore: "Settings and backups", "Backups", pick a "Backup date", "Restore from backup". The dialog "Restore the backup of <date>?" has the focus on "Cancel". "Restore <date>" confirms.
 
 The two risks the dialog names:
 
-1. Every change made after that date is lost: templates, versions, folders, grants, favorites and usage counts go back to that day. The audit log is kept and records the restore.
-2. Templates emptied from the trash after that date cannot come back. The server refuses such a restore: "<n> templates of the <date> backup were emptied from the trash after that date and would not open. Pick a newer backup."
+1. Everything goes back to that date: templates, versions, folders, access, favorites and insert counts. Changes made after that day are lost. The audit log is kept and records the restore.
+2. Templates emptied from the trash after that date cannot come back. The server refuses such a restore: "Not restored. <n> templates in the backup of <date> were deleted for good after that day and would not open. Pick a newer backup."
 
 Further limits:
 

@@ -58,7 +58,7 @@ Your admin decides whether personal templates are on. When they are off, you get
 
 ## What admins can see
 
-- Admins see every folder, private ones included. They can open, change, move and delete the templates in your "My templates". The Gmail panel does not show them other people's folders; the library does.
+- Admins see every folder, personal ones included. They can open, change, move and delete the templates in your "My templates". The Gmail panel does not show them other people's folders; the library does.
 - Admins can turn personal templates off for everyone. Your templates in "My templates" stay and can still be inserted; nobody can change them until the setting is on again.
 - An audit log records who created, changed, moved, restored or deleted a template, and when, and refused access attempts.
 - Each insert writes a server log entry with your address, the template's ID and the time. People with access to the logs can see who inserted which template and when.

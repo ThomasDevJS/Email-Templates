@@ -157,10 +157,14 @@ function onePass(input: string, options: AttrOptions): SanitizeResult {
 function tooLarge(what: string, bytes: number, limit: number): AppError {
   return new AppError(
     ErrorCode.VALIDATION,
-    `${what} is ${String(bytes)} bytes; the limit is ${String(limit)}`,
+    `${what} is too large (${String(bytes)} bytes, the limit is ${String(limit)}). Shorten it or remove some formatting.`,
     {
       problems: [
-        { code: "SIZE", message: `${what} is too large`, offset: null },
+        {
+          code: "SIZE",
+          message: `${what} is too large. Shorten it or remove some formatting.`,
+          offset: null,
+        },
       ],
     },
   );
@@ -173,7 +177,7 @@ export function sanitizeHtml(
 ): SanitizeResult {
   const inputBytes = utf8Length(input);
   if (inputBytes > MAX_INPUT_BYTES)
-    throw tooLarge("Pasted HTML", inputBytes, MAX_INPUT_BYTES);
+    throw tooLarge("The pasted text", inputBytes, MAX_INPUT_BYTES);
   const attrOptions: AttrOptions = { imgHosts: options.imgHosts ?? [] };
   let result = onePass(input, attrOptions);
   for (let pass = 1; pass < MAX_PASSES; pass += 1) {
@@ -182,7 +186,8 @@ export function sanitizeHtml(
     result = next;
   }
   const bytes = utf8Length(result.html);
-  if (bytes > BODY_MAX_BYTES) throw tooLarge("Body", bytes, BODY_MAX_BYTES);
+  if (bytes > BODY_MAX_BYTES)
+    throw tooLarge("The template text", bytes, BODY_MAX_BYTES);
   return result;
 }
 

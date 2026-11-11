@@ -72,7 +72,8 @@ describe("sanitizer rules", () => {
     expect(error.details?.["problems"]).toEqual([
       {
         code: "PH_ATTR",
-        message: "Placeholders work in text only (href of a)",
+        message:
+          "Fields work in text only, not inside a link or image address (href of a).",
         offset: null,
       },
     ]);
@@ -147,10 +148,12 @@ describe("sanitizer rules", () => {
     const error = thrown(() => sanitize(big));
     expect(error.code).toBe("VALIDATION");
     expect(error.message).toBe(
-      `Body is ${String(100 * 1024 + 7)} bytes; the limit is 102400`,
+      `The template text is too large (${String(100 * 1024 + 7)} bytes, the limit is 102400). Shorten it or remove some formatting.`,
     );
     const huge = `<script>${"a".repeat(1024 * 1024)}</script>`;
-    expect(thrown(() => sanitize(huge)).message).toContain("Pasted HTML");
+    expect(thrown(() => sanitize(huge)).message).toContain(
+      "The pasted text is too large",
+    );
     expect(sanitize(`<script>${"a".repeat(200 * 1024)}</script>ok`)).toBe("ok");
   });
 });

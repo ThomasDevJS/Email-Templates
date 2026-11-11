@@ -48,9 +48,9 @@ const MINUTE_MS = 60 * 1000;
 export const JOB_INTERVALS: Readonly<
   Record<TriggerJob, { readonly ms: number; readonly label: string }>
 > = {
-  tick: { ms: 5 * MINUTE_MS, label: "every 5 min" },
-  refreshMembers: { ms: 15 * MINUTE_MS, label: "every 15 min" },
-  daily: { ms: 24 * 60 * MINUTE_MS, label: "daily, 02:00 to 03:00" },
+  tick: { ms: 5 * MINUTE_MS, label: "Every 5 minutes" },
+  refreshMembers: { ms: 15 * MINUTE_MS, label: "Every 15 minutes" },
+  daily: { ms: 24 * 60 * MINUTE_MS, label: "Every night, 02:00 to 03:00" },
 };
 
 export interface JobRow {
@@ -168,7 +168,7 @@ function refusePurged(current: IndexDoc, backup: IndexDoc, date: string): void {
   if (lost > 0)
     throw new AppError(
       ErrorCode.VALIDATION,
-      `${String(lost)} templates of the ${date} backup were emptied from the trash after that date and would not open. Pick a newer backup.`,
+      `Not restored. ${String(lost)} templates in the backup of ${date} were deleted for good after that day and would not open. Pick a newer backup.`,
     );
 }
 
@@ -216,7 +216,10 @@ export function backupRestore(context: HandlerContext): {
     throw new AppError(ErrorCode.VALIDATION, "date must be YYYY-MM-DD");
   const backup = services.store().readBackup(date);
   if (backup === null)
-    throw new AppError(ErrorCode.NOT_FOUND, "This backup was removed.");
+    throw new AppError(
+      ErrorCode.NOT_FOUND,
+      "This backup no longer exists. Reload the page and pick another.",
+    );
   const source = eventSource(context);
   return withLock(services.lock, WRITE_LOCK_MS, () => {
     const current = loadIndexForWrite(services);

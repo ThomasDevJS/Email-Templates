@@ -22,12 +22,12 @@ export interface AdminData {
 }
 
 const TAB_LABELS: Readonly<Record<AdminTab, string>> = {
-  folders: "Folders and grants",
-  memberships: "Memberships",
+  folders: "Folders and access",
+  memberships: "Groups",
   audit: "Audit log",
   usage: "Usage",
   transfer: "Export and import",
-  config: "Config",
+  config: "Settings and backups",
 };
 
 const MANAGER_TABS: readonly AdminTab[] = ["folders", "transfer"];
@@ -62,7 +62,7 @@ function denied(app: AppContext): HTMLElement {
     h(
       "p",
       {},
-      "You don't have access to the admin view. It is for admins and folder managers.",
+      "You don't have access to Admin. It is for admins and folder managers.",
     ),
     h(
       "button",
@@ -176,7 +176,7 @@ export function adminView(
                 h(
                   "p",
                   { class: "empty" },
-                  "The admin view could not be loaded. Use Retry in the message, or reload the page.",
+                  "Admin could not be loaded. Press Retry in the message, or reload the page.",
                 )),
         );
       },

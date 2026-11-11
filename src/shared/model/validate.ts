@@ -24,7 +24,7 @@ function fail(message: string): never {
 function lengthBetween(value: string, max: number, field: string): string {
   const trimmed = value.trim();
   if (trimmed.length < 1 || trimmed.length > max)
-    fail(`${field} must be 1 to ${String(max)} characters`);
+    fail(`${field} must be 1 to ${String(max)} characters.`);
   return trimmed;
 }
 
@@ -37,7 +37,7 @@ export function templateTitle(value: string): string {
 }
 
 export function tagList(values: readonly string[]): string[] {
-  if (values.length > TAGS_MAX) fail(`At most ${String(TAGS_MAX)} tags`);
+  if (values.length > TAGS_MAX) fail(`Use at most ${String(TAGS_MAX)} tags.`);
   const tags = values.map((tag) => lengthBetween(tag, TAG_MAX, "Tag"));
   return [...new Set(tags)];
 }
@@ -60,5 +60,8 @@ export function uniqueSiblingName(
       folder.ownerEmail === candidate.ownerEmail &&
       folder.name.toLowerCase() === name,
   );
-  if (clash) fail(`A folder named ${candidate.name} already exists here`);
+  if (clash)
+    fail(
+      `A folder named ${candidate.name} already exists here. Choose another name.`,
+    );
 }

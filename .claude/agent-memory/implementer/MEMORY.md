@@ -9,10 +9,7 @@
 - Always prove the lock file with `rm -rf node_modules && npm ci` before reporting. Slice 1 failed review on that. Run `prettier --write` before every commit.
 - Real runtime uses `Date.now()`; entry tests need `vi.useFakeTimers({ now, toFake: ["Date"] })`.
 - Lint traps: `no-unnecessary-type-parameters` (generic used once), `no-confusing-void-expression` (arrow shorthand returning void), `no-dynamic-delete`, `no-misused-spread` on class instances.
-
-## Toolchain decisions (slice 1)
-- typescript 6.0.3 (typescript-eslint 8.72.2 peer `<6.1.0`). eslint 10.14.0 `defineConfig`. vitest 5.1.0. @types/node 22.20.5 pinned for vitest's peer range.
-- Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
+- Toolchain (slice 1): typescript 6.0.3 (typescript-eslint 8.72.2 peer `<6.1.0`), eslint 10.14.0 `defineConfig`, vitest 5.1.0, @types/node 22.20.5. Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
 
 ## Code map (after slice 2)
 - `src/shared/permissions/`: principals.ts, effective.ts (`levelResolver`, `PRIVATE_OWNER_LEVEL`), levels.ts, matrix.ts (`ROLE_MATRIX` 17 rows, `checkNeed`, `ROOT`, `ANY_CALLER`).
@@ -121,9 +118,8 @@
 - `button { display }` beats `[hidden]`: the editor has `.editor-page [hidden] { display: none }`. Harness `?external=deny` (seeding stays allow), `?unreadable=`.
 - Screens: /opt/node-tools/node_modules/playwright via createRequire, dev-web on port 5188.
 - Guard: `View.canLeave(leave)`, app.ts `leaving()` + onBackForward hold; editor `dirty()` needs `mount.isConnected` (old apps in tests keep window listeners). Font picker shows fixed "Font" (row width).
-
 - Retry 1: `Editor.hold()` bookmark for dialog inserts; editor keeps one `asking` dialog; `Host.go`, `onBackForward(hash, moved)` from `{page, at}` history state; Problems tab = live errors + save's others; CSS minified in web.mjs `minifiedStyles`. jsdom: `history.go` fires popstate; caret via DOM selection + `selectionchange`.
-- Merge with main (slice 11, 13): Back/Forward runs `cancelDialogs()` first, then `canLeave` (a held question is cancelled and asked again: one dialog). Harness `devPolicy` reads `settings.recipientsExternal`; `?external=deny` seeds that setting.
+- Merge with main (slice 11, 13): `cancelDialogs()` runs in 2 places only: `open()` in the Back/Forward handler (app.ts, when the route really changes) and the editor's `canLeave` before its question (so a held question stays one dialog). Harness `devPolicy` reads `settings.recipientsExternal`; `?external=deny` seeds that setting.
 
 ## Slice 11 (admin settings, D29, 2026-11-11)
 - shared/model/settings.ts: `SETTINGS` list, `settingsOf` (defaults at read, never written), `personalTemplatesOn`, `settingsProblem` (in `indexProblem`), `PERSONAL_OFF_TEXT`. `IndexDoc.settings` optional.
@@ -147,3 +143,7 @@
 - Old `from` args: reload hint. `RequestStats.target` feeds the log `targetId` when args lack `id`/`folderId`.
 - `prof:<sha256>` keys; `FakeCache.keys()`. `cancelDialogs()` on Back/Forward; backdrop `preventDefault`. Library folder choice for New template (`lastNewFolder`); harness `?access=use`.
 - Search: `SearchFields.addresses` + `Query.words`, web only.
+## Slice 14 (wording, 2026-11-11)
+- `docs/design/wording.md` is the glossary (things, actions, words never on screen) and the table of 216 changed texts. New text: check the glossary first. Access = "Who has access", "Give access", "Can use/edit/manage"; field, field name, default text, sender; personal (never private); Delete vs Remove; entry (audit); insert (never apply).
+- Web: `exportFailedText(done, total, answer)` (adminTransfer.ts; null = no answer, NETWORK only); editor chip announcer `.sr-only.chip-status`; `JOB_WORDS` (adminConfig.ts). Server: `IMPORT_SETTING_CHANGED`, `recheckOrExplain` (transfer.ts). Harness `?exportPage=<n>`, `fail=NETWORK`.
+- Wording tooling that worked: one batch file (file, old, new, reason) applied by a script that also rewrites the same quotes in test/ and docs/, then a table generated from the rows. The guard blocks `git` chained after other commands and long python heredocs: script files via Write, `git` as its own call.

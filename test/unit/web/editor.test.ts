@@ -90,12 +90,12 @@ describe("placeholder atom in the editor", () => {
     expect(prompt?.className).toBe("ph ask");
     expect(prompt?.textContent).toBe("Load number");
     expect(prompt?.getAttribute("aria-label")).toBe(
-      "Field: Load number, asked at insert",
+      "Field: Load number, the sender fills it in",
     );
     expect(value?.textContent).toBe("Recipient first name or there");
     expect(value?.querySelector(".ph-or")?.textContent).toBe(" or ");
     expect(value?.getAttribute("aria-label")).toBe(
-      "Field: Recipient first name, fallback there",
+      "Field: Recipient first name, default text there",
     );
     expect(ed.html()).toBe(
       "<p>{{ask:Load number}} {{recipient.first_name|there}}</p>",
@@ -206,7 +206,7 @@ describe("PH_BACKSLASH (backslash before a chip)", () => {
     expect(backslashProblems(ed.view.state.doc)).toEqual([
       {
         code: "PH_BACKSLASH",
-        message: "Remove the backslash before the placeholder at character 4",
+        message: "Remove the backslash before the field at character 4.",
         offset: 3,
       },
     ]);
@@ -375,25 +375,29 @@ describe("schema helpers and picker rules", () => {
       blankParts({ name: "sender.phone", label: "", fallback: "n/a" }),
     ).toEqual({ className: "ph", label: "Sender phone", fallback: "n/a" });
     expect(chipLabel({ name: "", label: "Date", fallback: null })).toBe(
-      "Field: Date, asked at insert",
+      "Field: Date, the sender fills it in",
     );
     expect(
       chipLabel({ name: "sender.phone", label: "", fallback: "n/a" }),
-    ).toBe("Field: Sender phone, fallback n/a");
+    ).toBe("Field: Sender phone, default text n/a");
   });
 
   it("checks labels and fallbacks", () => {
-    expect(labelProblem("")).toBe("Label must be 1 to 40 characters.");
-    expect(labelProblem("a|b")).toBe("Label cannot contain { } | \\ < >.");
+    expect(labelProblem("")).toBe("The field name must be 1 to 40 characters.");
+    expect(labelProblem("a|b")).toBe(
+      "The field name cannot contain { } | \\ < >.",
+    );
     expect(labelProblem("Meeting date")).toBe("");
     expect(fallbackProblem("x".repeat(81))).toBe(
-      "Fallback must be at most 80 characters.",
+      "The default text must be at most 80 characters.",
     );
-    expect(fallbackProblem("a<b")).toBe("Fallback cannot contain { } \\ < >.");
+    expect(fallbackProblem("a<b")).toBe(
+      "The default text cannot contain { } \\ < >.",
+    );
     expect(fallbackProblem("there")).toBe("");
   });
 
-  it("lists the 5 names, Ask the user and, on a selected variable, Add fallback", () => {
+  it("lists the 5 names, Ask the sender and, on a selected variable, Add default text", () => {
     const ed = open("<p>{{sender.name}}</p>");
     expect(pickerItems(ed).map((item) => item.label)).toEqual([
       "Sender name",
@@ -401,14 +405,14 @@ describe("schema helpers and picker rules", () => {
       "Sender phone",
       "Sender department",
       "Recipient first name",
-      "Ask the user...",
+      "Ask the sender...",
     ]);
     ed.view.dispatch(
       ed.view.state.tr.setSelection(
         NodeSelection.create(ed.view.state.doc, chipPos(ed)),
       ),
     );
-    expect(pickerItems(ed).at(-1)?.label).toBe("Add fallback...");
+    expect(pickerItems(ed).at(-1)?.label).toBe("Add default text...");
     pickerItems(ed)[1]?.run();
     expect(ed.html()).toBe("<p>{{sender.title}}</p>");
   });
@@ -476,7 +480,7 @@ describe("held selection for dialog inserts (slice 8b retry 1)", () => {
     const ed = open("<p>Hello world</p>");
     caret(ed, 6);
     pickerItems(ed)
-      .find((item) => item.label === "Ask the user...")
+      .find((item) => item.label === "Ask the sender...")
       ?.run();
     caret(ed, 1);
     await answer("Load number");
@@ -491,7 +495,7 @@ describe("held selection for dialog inserts (slice 8b retry 1)", () => {
       ),
     );
     pickerItems(ed)
-      .find((item) => item.label === "Add fallback...")
+      .find((item) => item.label === "Add default text...")
       ?.run();
     caret(ed, 1);
     await answer("us");

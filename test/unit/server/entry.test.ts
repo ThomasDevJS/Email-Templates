@@ -235,7 +235,7 @@ describe("web app and add-on entry points", () => {
   ])("doGet serves the Cannot identify page to %j", (email, code) => {
     asCaller(email);
     const page = doGet() as unknown as FakeHtmlOutput;
-    expect(page.title).toBe("Cannot identify your account");
+    expect(page.title).toBe("Cannot identify your Migway account");
     expect(lastLog()).toMatchObject({ result: "denied", errorCode: code });
     expect(lastLog()["requestId"]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
   });

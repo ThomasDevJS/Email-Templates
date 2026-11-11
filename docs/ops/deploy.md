@@ -19,7 +19,7 @@ All commands run on the owner's machine from the repository root. The cloud sess
 9. Install the add-on test deployment: Deploy, Test deployments, Application: Google Workspace Add-on, Install.
 10. Open Gmail, compose a new message, open the Migway Templates icon in the compose toolbar. Expect the home card with "Search templates" and Folders (no card header; Gmail's bar says "Migway Templates"), or "No templates shared with you yet." on a new install.
 
-If step 10 shows "Something went wrong." with `Network: Server returned HTTP 401` or `403` in mode `head`, the `/dev` URL rejects token calls (spike S2 (d)). Set `"mode": "version"` in `deploy/dev.json`, use the `/exec` URL of the step 6 deployment as `execUrl`, commit, and deploy again. Each dev deploy then creates 1 version.
+If step 10 shows "Something went wrong." with `Details for your admin: Server returned HTTP 401` or `403` in mode `head`, the `/dev` URL rejects token calls (spike S2 (d)). Set `"mode": "version"` in `deploy/dev.json`, use the `/exec` URL of the step 6 deployment as `execUrl`, commit, and deploy again. Each dev deploy then creates 1 version.
 
 ## Every release
 

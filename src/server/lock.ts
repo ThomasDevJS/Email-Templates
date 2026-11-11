@@ -10,7 +10,10 @@ export function withLock<T>(
   run: () => T,
 ): T {
   if (!lock.tryLock(timeoutMs))
-    throw new AppError(ErrorCode.BUSY, "Busy, try again.");
+    throw new AppError(
+      ErrorCode.BUSY,
+      "The library is busy. Try again in a few seconds.",
+    );
   try {
     return run();
   } finally {

@@ -32,7 +32,7 @@ function conflictText(error: RpcError): string {
   const by = error.details?.["updatedBy"];
   const at = error.details?.["updatedAt"];
   return typeof by === "string" && typeof at === "string"
-    ? `Changed by ${by} at ${formatTime(at)}.`
+    ? `${by} changed this at ${formatTime(at)}. Reload the page and try again.`
     : error.message;
 }
 
@@ -44,16 +44,16 @@ export function messageOf(error: RpcError): string {
         ? PERSONAL_OFF_TEXT
         : "You don't have access to this template. Ask a folder manager.";
     case ErrorCode.NOT_FOUND:
-      return "This template was removed or moved.";
+      return "This template was deleted or moved.";
     case ErrorCode.BUSY:
-      return "Busy, try again.";
+      return "The library is busy. Try again in a few seconds.";
     case ErrorCode.QUOTA:
       return "Service is busy. Try again in a minute.";
     case ErrorCode.CONFLICT:
       return conflictText(error);
     default:
       return presentationOf(error.code) === "toast"
-        ? "Something went wrong. Retry."
+        ? "Something went wrong. Try again."
         : error.message;
   }
 }
@@ -119,7 +119,7 @@ export function showToast(
           toast.remove();
         },
       },
-      "Dismiss",
+      "Close",
     ),
   );
   toast.append(actions);
@@ -152,7 +152,7 @@ export function authPage(root: HTMLElement): void {
       h(
         "p",
         {},
-        "Apps Script does not support several signed-in Google accounts.",
+        "This app does not work when several Google accounts are signed in.",
       ),
       h(
         "p",
