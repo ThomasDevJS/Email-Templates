@@ -69,87 +69,59 @@ Behavior (compose, slice 15)
 - No notification after the insert: an insert response cannot carry one [A15, A44]. The draft is the result.
 - Edit in library (details card): clears add-on cache, opens /exec?view=editor&id=... in OVERLAY, card reloads on close.
 
-Side-panel variant as built (slices 10 and 12, interim until spike S7):
-Opened from Gmail's right side panel. Same cards as above, with no [Insert] or [Review]
-on rows and no Insert buttons on the preview; a tap on a title opens the preview. Home,
-folder, search and preview cards end with the hint, then the footer:
-| To insert a template, open a draft   |  TextParagraph, sidePanelHint(entry)
-| and use the Migway Templates button  |
-| in the draft's toolbar.              |
-| (Open library)                       |
-Dev build only: a "Spike S7 (temporary)" section after the hint.
+Side-panel variant (D27, slice 18; ADR-0007 Accepted 2026-11-11, spec 4.1a and 7.2)
+Opened from Gmail's right side panel. Same cards, data and row labels as above; only the row button and the
+hint differ. Entry decided by entryOf(event) in every callback. As built until slice 18: no row button, the old
+hint "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.", and in
+the dev build the "Spike S7 (temporary)" section (removed in slice 18).
 
-Side-panel variant, planned (D27, ADR-0007 Proposed, spec 4.1a and 7.2; Gmail panel pass after spike S7)
-Same cards and data as above; only the first line, the row button, the preview buttons
-and the footer hint differ. Since slice 12 the home card has no header, so the line
-below sits first. Entry decided once by entryOf(event): compose | message | inbox.
-
-No message open (entry inbox, homepage trigger):
+No message open (entry inbox, homepage trigger onHomepage):
 +--------------------------------------+
-| Start a new email from a template.   |  TextParagraph, first line
-|--------------------------------------|
-| Search templates                     |  same TextInput as compose
+| Search templates                     |  same TextInput as compose; no line above it
 | [ ____________________________ ]     |
 |--------------------------------------|
 | FAVORITES                            |
-|  Welcome email         [New email]   |  compose action, STANDALONE_DRAFT
-|    Sales / Onboarding                |
-|  Price quote 2026      [New email]   |  prompts: opens the prompt card
-|    Sales / Quotes · 2 fields to fill |
-|  Driver leaving        [New email]   |  D31: one click after S7 too (ADR-0009 section 6)
-|    Adds Cc 1 · HR                    |
+|  * Welcome email       [New email]   |  FILLED slate; setComposeAction STANDALONE_DRAFT;
+|    Sales / Onboarding                |  onCompose {id, as: new, rc?}; alt "New email from <title>"
+|  * Price quote 2026    [New email]   |  one click: unfilled fields removed, as compose
+|    2 fields to fill · Sales / Quotes |
 |--------------------------------------|
-| RECENT / FOLDERS                     |  same as compose
+| RECENT                               |
+|  @ Driver leaving      [New email]   |  To, Cc, Bcc of the template go into the new email
+|    Adds To 1, Cc 1 · HR              |
 |--------------------------------------|
-| To insert a template, open a draft   |  hint, TextParagraph
-| and use the Migway Templates button  |
-| in the draft's toolbar.              |
-| (Open library)                       |
+| FOLDERS                              |  same as compose
+|--------------------------------------|
+| To insert a template into an email   |  TextParagraph, last section: sidePanelHint(entry)
+| you are already writing, use the     |
+| Migway Templates button in that      |
+| email's toolbar.                     |
+|--------------------------------------|
+| [Open library]                       |  fixed footer as compose
 +--------------------------------------+
 
-Message open (entry message, contextual trigger unconditional):
+Message open (entry message, contextual trigger unconditional, onMessageOpen):
 +--------------------------------------+
-| Reply to this email with a template, |
-| or start a new one.                  |
-|--------------------------------------|
 | Search templates  ...                |
 |--------------------------------------|
 | FAVORITES                            |
-|  Welcome email             [Reply]   |  compose action, REPLY_AS_DRAFT
-|    Sales / Onboarding                |
-|  Driver leaving            [Reply]   |
-|    Adds Cc 1 · HR                    |
+|  * Welcome email           [Reply]   |  FILLED slate; REPLY_AS_DRAFT; onCompose {id, as: reply, rc?};
+|    Sales / Onboarding                |  alt "Reply with <title>"
+|  @ Driver leaving          [Reply]   |  reply goes to the sender; template To not added,
+|    Adds To 1, Cc 1 · HR              |  Cc and Bcc added
 |  ...                                 |
 |--------------------------------------|
-| (footer hint, Open library)          |
+| (hint, as above)                     |
+| [Open library]                       |
 +--------------------------------------+
-
-Preview card, side panel, message open:
-+--------------------------------------+
-| < Driver leaving                     |
-|--------------------------------------|
-| Subject                              |
-| Driver leaving: [Name]               |
-| The reply keeps its subject, so it   |  only in Reply / Reply all
-| stays in the conversation.           |
-|--------------------------------------|
-| Recipients                           |
-| Cc safety@migway.com                 |
-| Not added: payroll@migway.com. The   |  template To, reply has a To (D26)
-| reply already has a To recipient.    |
-|--------------------------------------|
-| Plain-text preview, max 600 chars    |
-|--------------------------------------|
-| Your Gmail signature is not added.   |  dropped if spike S7 shows Gmail adds it
-| Use the signature button in the      |
-| draft.                               |
-| [Reply]  [Reply all]  [New email]    |  each a compose action; New email sets subject and To
-| [Edit in library]                    |  only if level >= edit
-+--------------------------------------+
+Folder and search cards: the same rows, the hint last, footer [Open library].
 
 Behavior (side panel)
-- Every button creates a draft that Gmail opens in a compose window; nothing changes a draft already open.
-- One click for every template after S7 (D31): fields without a value are removed; the row tap opens the details card.
-- Details card footer: [Create email] or [Create reply]; blank fields are removed (no notification).
-- Errors: notification with the spec 7 text, no draft.
-- If spike S7 fails: no action buttons; the hint moves to the top of the card.
+- A row button makes one new draft and Gmail opens it: New email in a new window, Reply inline in the
+  conversation. Nothing changes a draft that is already open (S7 result 6).
+- One template.apply (one use), render as compose, then GmailApp.createDraft / createDraftReply.
+- New email: subject = template subject; To, Cc, Bcc = template lists. Reply: no subject option ("Re:" kept),
+  Cc and Bcc only, minus addresses already in the message.
+- rc differs: notification "The recipients of this template changed. Tap its name to see them.", no draft.
+- Errors: a notification (spec 7.2), no card, no draft.
+- Gmail adds the signature to a reply, not to a new email.

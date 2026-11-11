@@ -68,6 +68,58 @@ Rules
   subject.", "The draft already has a subject. It is kept.", [Insert with subject], [Insert body only], [Cancel],
   the too-many-fields card, the "Review" row button.
 
-Side panel (entries inbox and message, until spike S7): the same card with no Fields section, no switches and
-no [Insert]; the recipient lines read as for an empty draft; the footer hint of spec 7.2 is the last section.
-After S7 the footer primary is the compose action ([Create email] or [Create reply]), ADR-0009 section 6.
+Side panel (D27, slice 18; ADR-0007 Acceptance 2026-11-11 section A2, spec 7.2). As built until slice 18:
+the same card with no Fields section, no switches and no button but "Edit in library", the old hint last.
+
+Details card, side panel, message open (entry message), template with fields, To and Cc:
++--------------------------------------+
+| < Driver leaving                     |  CardHeader: title
+|--------------------------------------|
+| Fields                               |  same inputs as compose (p-1 .. p-20)
+| Fill in now, or leave blank and type |
+| in the draft.                        |
+| Driver name                          |
+| [ ____________________________ ]     |
+| Recipient first name                 |
+| [ ____________________________ ]     |
+| Leave blank to use the first name of |  message entry only; inbox: no hint
+| the person you reply to, when known. |
+|--------------------------------------|  no "Replace the subject" switch in the panel
+| Recipients                           |
+| Add recipients               [on ]   |  rcpt, only when a press would add one
+| Adds 2 recipients.                   |
+| To   payroll@migway.com              |  lines as for an empty draft (recipientPlan, NO_DRAFT)
+| Cc   safety@migway.com               |  no finish-typing line
+| A reply goes to the sender, so the   |  message entry, template with a To
+| template's To is not added. New      |
+| email adds it.                       |
+|--------------------------------------|
+| Gmail adds your signature to replies |  both panel entries
+| only. In a new email, use "Insert    |
+| signature" in its toolbar.           |
+|--------------------------------------|
+| Plain-text preview, max 600 chars    |
+|--------------------------------------|
+| (New email)  (Edit in library)       |  ButtonSet, OUTLINED; New email = STANDALONE_DRAFT;
+|                                      |  Edit in library only at edit or manage
+|--------------------------------------|
+| To insert a template into an email   |  hint, last section
+| you are already writing, use the     |
+| Migway Templates button in that      |
+| email's toolbar.                     |
+|--------------------------------------|
+| [Reply]              (Reply all)     |  FixedFooter: primary FILLED slate, secondary OUTLINED;
++--------------------------------------+  both REPLY_AS_DRAFT, onPromptCompose {id, as, version, values, rh}
+
+No message open (entry inbox): no hint under the first-name box, no To line, no last button section;
+footer [New email] (STANDALONE_DRAFT) and (Edit in library) at edit or manage.
+
+Rules (side panel)
+- Opening: template.apply followUp: true for every entry (no use counted); template.getBody is no longer called.
+- Press: boxes over 500 characters -> notification, no call. Then the message read (Reply, Reply all), one
+  template.apply (one use), the version and rh checks (a change -> notification, no draft), render as compose,
+  GmailApp.createDraft / createDraftReply / createDraftReplyAll, ComposeActionResponse.
+- New email: template subject, To, Cc, Bcc. Reply: To = sender (Gmail), "Re:" kept, Cc and Bcc added.
+  Reply all: Gmail's To and Cc kept, template Cc and Bcc added (S7 result 3). Add recipients off: none.
+- No change line and no re-render: a compose action answers with a draft or a notification only.
+- If the slice 18 smoke shows the boxes or the switch do not reach the press (Q68), the panel card drops them.
