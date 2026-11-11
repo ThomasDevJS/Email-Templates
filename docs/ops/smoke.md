@@ -155,7 +155,7 @@ Needs: the dev deployment of this build (reopen the add-on). Set the recipients 
 6. `deny` on the list: tap "Open library" and close it (this drops the cached list), open the folder: the row says "Adds To 1, Cc 1, Bcc 1". Row Insert in a new draft: 3 addresses added, no `s9-outside@`. Then Admin, "Settings and backups", Settings, "Outside recipients": choose "Allowed" and Save (back to allowed).
 7. Both switches off: new draft, tap the title, turn "Replace the subject" and "Add recipients" off, Insert: body `Hello` only; Subject, To, Cc and Bcc stay empty.
 8. Regression: new draft, row "Smoke 9 plain" shows Insert and no "Adds" line. One tap inserts `Plain` at the cursor.
-9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `draft` with counts and `hasSubject` only. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
+9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `"draft":{"fields":[...],"to":n,"cc":n,"bcc":n,"hasSubject":...}`, where `fields` lists names of draft fields (for example `toRecipients`, `subject`), never their values. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
 
 ## Slice 11
 
@@ -212,7 +212,7 @@ Templates to create in the library first, in a folder you can edit:
 
 1. New draft, cursor in the text. Row Insert on T1: the text at the cursor, subject "T1 subject". Record: the panel closed (y/n).
 2. Row Insert on T2 in a new draft: subject "Load", text "Hi, load is ready." followed by your phone when the directory has one, else nothing. No card, no "{{" left.
-3. The row of T4 reads "Adds Cc 1, Bcc 1 · 2 fields to fill · <folder path>" (the hint counts the fields the sender fills in). Record: the label on one line, wrapped, or cut.
+3. Under Favorites, Recent or search results, the row of T4 reads "Adds Cc 1, Bcc 1 · 2 fields to fill · <folder path>" (the hint counts the fields the sender fills in). On a folder card the same row shows "Adds Cc 1, Bcc 1 · 2 fields to fill" without the path. Record: the label on one line, wrapped, or cut.
 4. Row Insert on T3 in a new empty draft: Cc and Bcc addresses added, the Bcc line visible. Record: the panel closed (y/n).
 5. Reply to a received message, row Insert on T4: To and the "Re:" subject kept, Cc and Bcc added, the fields left out of the text.
 6. Open the panel (list loaded). In the library add a second Cc to T3. Within 10 minutes, row Insert on T3: the details card with "(!) The recipients of this template changed. Check them and press Insert again.", the draft unchanged. Click "Insert" there: 2 Cc added.
