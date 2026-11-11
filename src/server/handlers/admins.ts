@@ -75,10 +75,12 @@ export function directoryStatus(error: unknown): number {
 /** One warn line per failed lookup: `errorCode` "<reason>:<status>", no address, no message text (smoke 16 step 4). */
 function logDirectoryRefusal(
   services: Services,
+  requestId: string,
   reason: AdminReason,
   error: unknown,
 ): void {
   services.logger.warn({
+    requestId,
     surface: services.stats.surface,
     action: "directory.users.get",
     result: "error",
@@ -90,7 +92,12 @@ function logDirectoryRefusal(
  * The account's primary address from the Directory (`domain_public`, `basic`, the scope `lookupProfile` uses). Not
  * found (also a group address): ADMIN_NO_ACCOUNT. Any other failure: INTERNAL, nothing written.
  */
-function primaryAddress(services: Services, email: string, domain: string) {
+function primaryAddress(
+  services: Services,
+  requestId: string,
+  email: string,
+  domain: string,
+) {
   const noAccount = refusal(
     "ADMIN_NO_ACCOUNT",
     `No ${domain} account has this address. A group goes in the admin group the owner sets.`,
@@ -105,7 +112,7 @@ function primaryAddress(services: Services, email: string, domain: string) {
     const reason = /not found/i.test(message)
       ? "ADMIN_NO_ACCOUNT"
       : "ADMIN_CHECK";
-    logDirectoryRefusal(services, reason, error);
+    logDirectoryRefusal(services, requestId, reason, error);
     if (reason === "ADMIN_NO_ACCOUNT") throw noAccount;
     // INTERNAL keeps the log level `error`; the reason lets the page show this text in place of the toast.
     throw new AppError(
@@ -180,7 +187,7 @@ export function adminAdd(context: HandlerContext): AdminsResult {
   const typed = emailArg(context.args);
   requireForm(typed, domain);
   if (!isAdminAddress(typed, domain)) throw outside(domain);
-  const email = primaryAddress(services, typed, domain);
+  const email = primaryAddress(services, context.requestId, typed, domain);
   const entry: AdminEntry = {
     email,
     addedAt: nowIso(services),

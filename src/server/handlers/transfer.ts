@@ -9,6 +9,7 @@ import {
 } from "../../shared/model/recipients";
 import { tagList, templateTitle } from "../../shared/model/validate";
 import { isId } from "../../shared/ids";
+import { isRequestId } from "../../shared/requestId";
 import { inPrivateTree } from "../../shared/permissions/effective";
 import { controlIndex, oneLine } from "../../shared/placeholders/subject";
 import { auditEvent, type EventSource } from "../audit/events";
@@ -39,6 +40,8 @@ import {
   recipientPolicy,
 } from "./body";
 import { commit } from "./commit";
+import { WRITE_LOCK_MS, withLock } from "../lock";
+import { commitLocked } from "../storage/writer";
 import { newFolder } from "./folders";
 import { chainOf, folderPath, liveFolder } from "./indexOps";
 import {
@@ -58,6 +61,8 @@ import {
 export const EXPORT_PAGE = 20;
 /** A run token lives this long after its start or its last page (sliding, so a long export keeps going). */
 export const EXPORT_RUN_TTL_S = 600;
+/** A start retried with the same `run` key within this time gets the first token, so one click writes one event. */
+export const EXPORT_RETRY_S = 60;
 /**
  * The outside-recipients setting changed between the check before the lock and the commit: the import is refused
  * whole, as before, and the text says what happened and what to do (the second run drops the addresses).
@@ -129,6 +134,27 @@ interface ExportRun {
 
 const runKey = (token: string): string => `exp:${token}`;
 
+/** What `exps:<run>` holds: the first start of one export click (its `run` key, from the browser). */
+interface StartedRun extends ExportRun, ExportStart {}
+
+/** The earlier start of the same click, caller and scope whose token still lives; null otherwise. */
+function retriedStart(
+  context: HandlerContext,
+  scope: ExportScope,
+  key: string,
+): ExportStart | null {
+  const raw = context.services.cache.get(key);
+  const prior = raw === null ? null : (JSON.parse(raw) as StartedRun);
+  if (
+    prior?.actor !== context.caller.email ||
+    prior.kind !== scope.kind ||
+    prior.folderId !== scope.folderId ||
+    context.services.cache.get(runKey(prior.token)) === null
+  )
+    return null;
+  return { token: prior.token, total: prior.total };
+}
+
 /**
  * Commits the one audit event of an export run through the index write (ADR-0002 security events), counted on the
  * index read inside the lock, then stores the run token. A failed commit (BUSY, Drive error) throws a retryable
@@ -136,31 +162,43 @@ const runKey = (token: string): string => `exp:${token}`;
  */
 function startExport(context: HandlerContext, scoped: Scoped): ExportStart {
   const { scope } = scoped;
+  const { services } = context;
+  const run = optString(context.args, "run");
+  const startKey = isRequestId(run) ? `exps:${run}` : null;
   const folder = scope.kind === "folder";
-  const total = commit(context, (current) => {
-    if (folder) liveFolder(current, scope.folderId);
-    const templates = liveItems(current, scoped.folderIds(current)).length;
-    const event = auditEvent(eventSource(context, scope.folderId), {
-      action: folder ? "export.folder" : "export.library",
-      targetType: folder ? "folder" : "library",
-      targetId: scope.folderId,
-      targetPath: folder ? folderPath(current, scope.folderId) : "",
-      after: { scope: scope.kind, templates },
+  // The reuse check and the start share one lock, so two tries of one click cannot both miss (20a review minor 6).
+  return withLock(services.lock, WRITE_LOCK_MS, () => {
+    const retried =
+      startKey === null ? null : retriedStart(context, scope, startKey);
+    if (retried !== null) return retried;
+    const total = commitLocked(services, (current) => {
+      context.recheck(current);
+      if (folder) liveFolder(current, scope.folderId);
+      const templates = liveItems(current, scoped.folderIds(current)).length;
+      const event = auditEvent(eventSource(context, scope.folderId), {
+        action: folder ? "export.folder" : "export.library",
+        targetType: folder ? "folder" : "library",
+        targetId: scope.folderId,
+        targetPath: folder ? folderPath(current, scope.folderId) : "",
+        after: { scope: scope.kind, templates },
+      });
+      return { doc: current, events: [event], result: templates };
     });
-    return { doc: current, events: [event], result: templates };
+    const token = services.newId();
+    const owner: ExportRun = {
+      actor: context.caller.email,
+      kind: scope.kind,
+      folderId: scope.folderId,
+    };
+    services.cache.put(runKey(token), JSON.stringify(owner), EXPORT_RUN_TTL_S);
+    if (startKey !== null)
+      services.cache.put(
+        startKey,
+        JSON.stringify({ ...owner, token, total }),
+        EXPORT_RETRY_S,
+      );
+    return { token, total };
   });
-  const token = context.services.newId();
-  const run: ExportRun = {
-    actor: context.caller.email,
-    kind: scope.kind,
-    folderId: scope.folderId,
-  };
-  context.services.cache.put(
-    runKey(token),
-    JSON.stringify(run),
-    EXPORT_RUN_TTL_S,
-  );
-  return { token, total };
 }
 
 /**

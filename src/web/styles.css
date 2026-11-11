@@ -1655,6 +1655,12 @@ table {
   cursor: default;
 }
 
+/* A read-only Title reads as text, as the read-only chip boxes do (8b minor 5). */
+.panel-control input[readonly] {
+  padding-left: 0;
+  border-color: transparent;
+}
+
 .chips-box input {
   flex: 1 0 80px;
   min-width: 80px;

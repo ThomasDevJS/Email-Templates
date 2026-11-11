@@ -182,7 +182,7 @@ export function adminsSection(app: AppContext, data: ConfigView): HTMLElement {
     h(
       "p",
       { id: helpId, class: "setting-help" },
-      `Admins manage every shared folder, grants, settings, imports and backups. Add people by their ${data.domain} address.`,
+      `Admins manage every shared folder, its access, settings, imports and backups. Add people by their ${data.domain} address.`,
     ),
     list,
     ...fixedAdminTexts(data.breakGlass, data.adminGroup).map((text) =>

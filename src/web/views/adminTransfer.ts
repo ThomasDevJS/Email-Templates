@@ -7,9 +7,10 @@ import { folderPath } from "../library/model";
 import type { ExportPage, FolderRow, ImportReport } from "../rpc/api";
 import { ErrorCode } from "../../shared/errors/codes";
 import { RpcError } from "../rpc/client";
+import { requestIdNow } from "../../shared/requestId";
 import { adminLineText, lineText, toRpcError } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
-import type { AdminData } from "./admin";
+import type { AdminData, AdminFolders } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 
@@ -24,11 +25,11 @@ export const EXPORT_RETRY_MS = 200;
  */
 export function exportFailedText(
   done: number,
-  total: number,
+  total: number | null,
   answer: string | null,
 ): string {
   const head =
-    total === 0
+    total === null
       ? "The export did not start"
       : `The export stopped after ${String(done)} of ${String(total)} templates`;
   return answer === null
@@ -130,10 +131,11 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
 
   const pages = async (
     folderId: string,
-    progress: { done: number; total: number },
+    progress: { done: number; total: number | null },
   ) => {
+    const run = requestIdNow();
     const { token, total } = await retrying(() =>
-      app.api.exportStart(folderId),
+      app.api.exportStart(folderId, run),
     );
     progress.total = total;
     const pageAt = (offset: number) =>
@@ -142,7 +144,9 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     const items = [...page.items];
     while (page.next !== null) {
       progress.done = items.length;
-      status.textContent = `Exporting ${String(items.length)} of ${String(total)} templates...`;
+      // Each page counts the live library: a save during the export changes the total (13 retry 2 minor 5).
+      progress.total = page.total;
+      status.textContent = `Exporting ${String(items.length)} of ${String(page.total)} templates...`;
       page = await pageAt(page.next);
       items.push(...page.items);
     }
@@ -157,7 +161,11 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     }
     run.disabled = true;
     status.textContent = "Exporting...";
-    const progress = { done: 0, total: 0 };
+    // total stays null until the start answers: a start of 0 templates did start (14 minor 8).
+    const progress: { done: number; total: number | null } = {
+      done: 0,
+      total: null,
+    };
     pages(folderId, progress)
       .then(({ file, count }) => {
         const name = exportFileName(file.scope, new Date());
@@ -174,9 +182,10 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
           noAnswer
             ? null
             : // The library export is admin only; a folder export needs manage.
+              // A toast closes; the line keeps the reason (14 minor 10).
               (folderId === "" ? adminLineText : lineText)(
                 error,
-                app.fail(error),
+                app.fail(error) ?? status,
               ),
         );
       })
@@ -254,7 +263,11 @@ function reportTables(report: ImportReport): HTMLElement[] {
   return [counts, lines];
 }
 
-function importSection(app: AppContext, data: AdminData): HTMLElement {
+function importSection(
+  app: AppContext,
+  data: AdminData,
+  folders: AdminFolders,
+): HTMLElement {
   const status = h("p", {
     class: "status",
     role: "status",
@@ -302,7 +315,9 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
         if (dryRun) return;
         // The Import button turns disabled, so focus goes to the report it produced.
         result.querySelector<HTMLElement>("table")?.focus();
+        // An import can create folders: the library and the other Admin tabs read them again.
         void app.reload();
+        folders.refresh().catch(() => undefined);
       })
       .catch((error: unknown) => {
         status.textContent = adminLineText(error, app.fail(error));
@@ -357,12 +372,13 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
 export function transferTab(
   app: AppContext,
   panel: HTMLElement,
-  data: AdminData,
+  folders: AdminFolders,
 ): View {
+  const data = folders.current();
   replace(
     panel,
     exportSection(app, data),
-    data.isAdmin ? importSection(app, data) : null,
+    data.isAdmin ? importSection(app, data, folders) : null,
   );
   return { dispose: () => undefined };
 }

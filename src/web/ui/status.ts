@@ -1,4 +1,4 @@
-import { ErrorCode } from "../../shared/errors/codes";
+import { ErrorCode, NOT_SET_UP_TEXT } from "../../shared/errors/codes";
 import { PERSONAL_OFF_TEXT } from "../../shared/model/settings";
 import { RpcError } from "../rpc/client";
 import { formatTime, h, replace } from "./dom";
@@ -65,6 +65,9 @@ export function messageOf(error: RpcError): string {
       return "Service is busy. Try again in a minute.";
     case ErrorCode.CONFLICT:
       return conflictText(error);
+    // The server's own setup sentence; other NOT_CONFIGURED texts name internals (errata 5 item 9).
+    case ErrorCode.NOT_CONFIGURED:
+      return NOT_SET_UP_TEXT;
     default:
       return presentationOf(error.code) === "toast"
         ? "Something went wrong. Try again."

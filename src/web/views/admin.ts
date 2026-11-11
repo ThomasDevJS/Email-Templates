@@ -21,6 +21,16 @@ export interface AdminData {
   readonly folders: readonly FolderRow[];
 }
 
+/**
+ * The one folder list of the Admin view (test round 1, part D step 14). Every tab reads `current()` when it opens;
+ * a folder write calls `refresh()`, so the next tab shows the change with no page reload.
+ */
+export interface AdminFolders {
+  current(): AdminData;
+  /** Reads the list again once `after` (a folder write) settles. A tab opened meanwhile waits for the answer. */
+  refresh(after?: Promise<unknown>): Promise<AdminData>;
+}
+
 const TAB_LABELS: Readonly<Record<AdminTab, string>> = {
   folders: "Folders and access",
   memberships: "Groups",
@@ -36,11 +46,11 @@ function openTab(
   name: AdminTab,
   app: AppContext,
   panel: HTMLElement,
-  data: AdminData,
+  folders: AdminFolders,
 ): View {
   switch (name) {
     case "folders":
-      return foldersTab(app, panel, data);
+      return foldersTab(app, panel, folders);
     case "memberships":
       return membershipsTab(app, panel);
     case "audit":
@@ -48,7 +58,7 @@ function openTab(
     case "usage":
       return usageTab(app, panel);
     case "transfer":
-      return transferTab(app, panel, data);
+      return transferTab(app, panel, folders);
     case "config":
       return configTab(app, panel);
   }
@@ -91,7 +101,27 @@ export function adminView(
   );
   let current: View | null = null;
 
-  const show = (data: AdminData, tab: AdminTab) => {
+  const show = (initial: AdminData, tab: AdminTab) => {
+    let data = initial;
+    let pending: Promise<AdminData> | null = null;
+    const folders: AdminFolders = {
+      current: () => data,
+      refresh: (after = Promise.resolve()) => {
+        const next = after
+          .catch(() => undefined)
+          .then(() => app.api.adminFolders())
+          .then((fresh) => {
+            data = fresh;
+            return fresh;
+          });
+        pending = next;
+        const clear = () => {
+          if (pending === next) pending = null;
+        };
+        next.then(clear, clear);
+        return next;
+      },
+    };
     const tabs = data.isAdmin ? ADMIN_TABS : MANAGER_TABS;
     let active = tabs.includes(tab) ? tab : "folders";
     const panel = h("div", {
@@ -127,7 +157,17 @@ export function adminView(
       panel.setAttribute("aria-labelledby", `tab-${name}`);
       app.replaceRoute({ name: "admin", tab: name });
       current?.dispose();
-      current = openTab(name, app, panel, data);
+      current = null;
+      const open = () => {
+        if (active === name) current = openTab(name, app, panel, folders);
+      };
+      if (pending === null) {
+        open();
+        return;
+      }
+      // A folder write is still being listed: the tab draws with the new list (20a review minor 3).
+      replace(panel, ...skeletonRows(3));
+      pending.then(open, open);
     };
     const tablist = h(
       "div",

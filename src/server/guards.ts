@@ -1,4 +1,4 @@
-import { AppError, ErrorCode } from "../shared/errors/codes";
+import { AppError, ErrorCode, NOT_SET_UP_TEXT } from "../shared/errors/codes";
 import { domainOf } from "../shared/permissions/principals";
 import type { PropertyStore, SessionInfo, TriggerApp } from "./services";
 
@@ -72,10 +72,7 @@ export function setupAllowed(
 export function requireDomain(email: string, props: PropertyStore): void {
   const domain = norm(props.getProperty(DOMAIN_KEY) ?? "");
   if (domain === "")
-    throw new AppError(
-      ErrorCode.NOT_CONFIGURED,
-      "Migway Templates is not set up yet. Ask your admin to finish setup.",
-    );
+    throw new AppError(ErrorCode.NOT_CONFIGURED, NOT_SET_UP_TEXT);
   if (domainOf(email) !== domain) {
     throw new AppError(
       ErrorCode.AUTH_DOMAIN,

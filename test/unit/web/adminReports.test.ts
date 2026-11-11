@@ -187,6 +187,23 @@ describe("audit log tab", () => {
     ).toContainEqual(["template.get", "Template opened"]);
   });
 
+  it("opens one drawer for a click and an Enter on the same row", async () => {
+    await boot("/?latency=20#/admin/audit");
+    await until(() => {
+      expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(50);
+    });
+    const opener = main().querySelector<HTMLButtonElement>(
+      ".admin-table tbody button",
+    ) as HTMLButtonElement;
+    opener.click();
+    opener.click();
+    await until(() => {
+      expect(dialog()).not.toBeNull();
+    });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+  });
+
   it("opens the details drawer with before and after, traps focus and returns it", async () => {
     await boot("/?latency=0#/admin/audit");
     await until(() => {
@@ -370,6 +387,47 @@ describe("export and import tab", () => {
     expect(toasts()).toBe("");
   });
 
+  it("sends one run key with every try of a start, and a new key for the next click", async () => {
+    await boot(
+      "/?latency=0&failOp=export.library&fail=BUSY&failTimes=2#/admin/transfer",
+    );
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      () => undefined,
+    );
+    interface Run {
+      withSuccessHandler(handler: (value: unknown) => void): Run;
+      withFailureHandler(handler: (error: unknown) => void): Run;
+      rpc(op: string, args: unknown, id: string): void;
+    }
+    const script = (window as unknown as { google: { script: { run: Run } } })
+      .google.script;
+    const runs: unknown[] = [];
+    const wrap = (inner: Run): Run => ({
+      withSuccessHandler: (handler) => wrap(inner.withSuccessHandler(handler)),
+      withFailureHandler: (handler) => wrap(inner.withFailureHandler(handler)),
+      rpc: (op, args, id) => {
+        const sent = args as { start?: boolean; run?: unknown };
+        if (sent.start === true) runs.push(sent.run);
+        inner.rpc(op, args, id);
+      },
+    });
+    script.run = wrap(script.run);
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    await waitStatus(/Exported 4 templates to /);
+    button("Export").click();
+    await until(() => {
+      expect(runs).toHaveLength(4);
+    });
+    expect(new Set(runs.slice(0, 3)).size).toBe(1);
+    expect(runs[0]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
+    expect(runs[3]).not.toBe(runs[0]);
+  });
+
   it("retries a page that failed with a retryable error after the start", async () => {
     const { clicks } = await exportWith("fail=INTERNAL&failSkip=1&failTimes=3");
     await waitStatus(/Exported 4 templates to /);
@@ -389,8 +447,9 @@ describe("export and import tab", () => {
 
   it("shows the server's own message when the server answered with an error after the retries", async () => {
     const { clicks, createUrl } = await exportWith("fail=QUOTA&failSkip=1");
+    // The reason stays in the line after the toast closes (14 minor 10).
     await waitStatus(
-      "The export stopped after 0 of 4 templates and no file was downloaded.",
+      "The export stopped after 0 of 4 templates and no file was downloaded. Service is busy. Try again in a minute.",
     );
     expect(status()).not.toContain("did not answer");
     expect(toasts()).toContain("Service is busy. Try again in a minute.");
@@ -411,12 +470,52 @@ describe("export and import tab", () => {
     expect(createUrl).not.toHaveBeenCalled();
   });
 
+  it("counts progress from the live total of each page", async () => {
+    await boot(
+      "/?latency=0&failOp=export.library&exportPage=1&fail=NETWORK&failSkip=3#/admin/transfer",
+    );
+    interface Run {
+      withSuccessHandler(handler: (value: unknown) => void): Run;
+      withFailureHandler(handler: (error: unknown) => void): Run;
+      rpc(op: string, args: unknown, id: string): void;
+    }
+    const script = (window as unknown as { google: { script: { run: Run } } })
+      .google.script;
+    // A save after the start: every page now counts 5 templates.
+    const wrap = (inner: Run): Run => ({
+      withSuccessHandler: (handler) =>
+        wrap(
+          inner.withSuccessHandler((value) => {
+            const reply = value as {
+              data?: { next?: unknown; total?: number };
+            };
+            if (reply.data?.next !== undefined) reply.data.total = 5;
+            handler(value);
+          }),
+        ),
+      withFailureHandler: (handler) => wrap(inner.withFailureHandler(handler)),
+      rpc: (op, args, id) => {
+        inner.rpc(op, args, id);
+      },
+    });
+    script.run = wrap(script.run);
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    await waitStatus(/^The export stopped after 2 of 5 templates/);
+  });
+
   it("words a failed export from its progress and the server's answer", () => {
-    expect(exportFailedText(0, 0, null)).toBe(
+    expect(exportFailedText(0, null, null)).toBe(
       "The export did not start: the server did not answer after 4 tries. No file was downloaded, so wait a few minutes and export again.",
     );
-    expect(exportFailedText(0, 0, "")).toBe(
+    expect(exportFailedText(0, null, "")).toBe(
       "The export did not start and no file was downloaded.",
+    );
+    // A start of 0 templates did start (14 minor 8).
+    expect(exportFailedText(0, 0, "")).toBe(
+      "The export stopped after 0 of 0 templates and no file was downloaded.",
     );
     expect(exportFailedText(40, 100, "Ask a folder manager.")).toBe(
       "The export stopped after 40 of 100 templates and no file was downloaded. Ask a folder manager.",
@@ -825,7 +924,7 @@ describe("config tab, Admins section (D32)", () => {
       section().querySelector(".setting-help")?.id,
     );
     expect(section().textContent).toContain(
-      "Admins manage every shared folder, grants, settings, imports and backups. Add people by their example.com address.",
+      "Admins manage every shared folder, its access, settings, imports and backups. Add people by their example.com address.",
     );
     expect(rows()).toEqual(["dev.user@example.com", "ana.moreno@example.com"]);
     const [own, other] = [...section().querySelectorAll(".admins li")] as [

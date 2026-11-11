@@ -6,12 +6,12 @@ All commands run on the owner's machine from the repository root. The cloud sess
 
 1. Install Node 22 (`.nvmrc`). Check with `node -v`.
 2. `npm ci`
-3. `npx clasp login`. A browser opens; sign in with the Migway account that will own the dev project. clasp stores its token in `~/.clasprc.json`, outside the repository.
+3. `npx clasp login`. A browser opens; sign in with the Migway account that will own the dev project. clasp stores its token in `~/.clasprc.json`, outside the repository. clasp needs "Google Apps Script API" turned on for that account at https://script.google.com/home/usersettings; without it `clasp create` and `clasp push` fail.
 4. Create the dev script once:
    `npx clasp create --type standalone --title "Migway Templates (dev)" --rootDir dist`
    Copy the `scriptId` from the generated `.clasp.json` into `deploy/dev.json`, then delete that root `.clasp.json` (git-ignored; `deploy/dev.json` is the source of truth).
 5. Commit `deploy/dev.json`, then `npm run deploy -- dev`. Mode `head` builds, runs the drift check and pushes. No version is created.
-6. Create the web app deployment in the editor (`npx clasp open-script`): Deploy, New deployment, type Web app, Execute as: Me, Who has access: Anyone within Migway. Copy into `deploy/dev.json`:
+6. Create the web app deployment in the editor (`npx clasp open-script <scriptId>`, with the `scriptId` from `deploy/dev.json`): Deploy, New deployment, type Web app, Execute as: Me, Who has access: Anyone within Migway. Copy into `deploy/dev.json`:
    - `deploymentId`: the deployment ID shown after Deploy.
    - `execUrl`: in mode `head`, the `/dev` URL from Deploy, Test deployments, Web app. In mode `version`, the `/exec` URL of the new deployment. Use the Workspace form `https://script.google.com/a/macros/migway.com/s/<deploymentId>/dev` (or `/exec`). A POST with a Workspace token to the plain `/macros/s/` form returns HTTP 404 (observed 2026-11-09).
 7. Commit `deploy/dev.json`, then `npm run deploy -- dev` again, so the add-on bundle carries `execUrl`.
@@ -20,6 +20,15 @@ All commands run on the owner's machine from the repository root. The cloud sess
 10. Open Gmail, compose a new message, open the Migway Templates icon in the compose toolbar. Expect the home card with "Search templates" and Folders (no card header; Gmail's bar says "Migway Templates"), or "No templates shared with you yet." on a new install.
 
 If step 10 shows "Something went wrong." with `Details for your admin: Server returned HTTP 401` or `403` in mode `head`, the `/dev` URL rejects token calls (spike S2 (d)). Set `"mode": "version"` in `deploy/dev.json`, use the `/exec` URL of the step 6 deployment as `execUrl`, commit, and deploy again. Each dev deploy then creates 1 version.
+
+## First prod deploy (2.5b)
+
+The full order, with the Workspace admin's steps, is in the [admin guide, part 2](../guide/admin-guide.md#steps-not-yet-exercised). Not yet tried on the Migway Workspace. The points where prod differs from dev:
+
+1. The dedicated owner account signs in: Apps Script API on at https://script.google.com/home/usersettings, then `npx clasp logout` and `npx clasp login` as that account. `npm run deploy` uses the one default clasp login of this computer user, so log out and in as the dedicated account before each prod deploy, and as the dev owner again before the next dev deploy. `npx clasp show-authorized-user` names the account.
+2. Before `setup()`: editor (`npx clasp open-script <scriptId>`, with the `scriptId` from `deploy/prod.json`), Project Settings, Google Cloud Platform project, switch to the standard project's number. The switch is one way.
+3. First push: `deploy/prod.json` ships with `"mode": "version"` and empty IDs, and `npm run deploy -- prod` refuses version mode without `deploymentId` and `execUrl`. Set `"mode": "head"` for the first run, commit on `main`, deploy. Then create the web app deployment (step 6 above), fill `deploymentId` and the `/exec` URL, set `"mode": "version"`, commit, and deploy again.
+4. After `setup()`: Project Settings, Script Properties. No `job:...:lastError` property exists. Then the dedicated account opens the web app and adds the first admins in Admin, "Settings and backups", Admins.
 
 ## Every release
 

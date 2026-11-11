@@ -354,6 +354,17 @@ New texts, spec 7.2. Paths are relative to `src/`.
 | `addon/panel.ts` | This template was deleted or moved. Open the panel again to update the list. |
 | `addon/panel.ts` | Something went wrong. Try again. (alone: a side-panel action shows its failure as one sentence in Gmail's error bar, with no request ID or technical message) |
 
+## Web app fix round (slice 20a)
+
+New texts. Paths are relative to `src/`.
+
+| Where | Text |
+|---|---|
+| `web/index.html`, `web/app.ts` | Loading... (first paint, until the first view draws) |
+| `web/app.ts` | Templates could not be loaded. Press Reload to try again. / Reload (button) |
+| `web/ui/status.ts` | Migway Templates is not set up yet. Ask your admin to finish setup. (NOT_CONFIGURED; was "Something went wrong. Try again.") |
+| `web/views/adminAdmins.ts` | Admins manage every shared folder, its access, settings, imports and backups. Add people by their {domain} address. (was "... shared folder, grants, ..."; spec 7.3 line 533 and wireframe 06 line 119 still quote the old text) |
+
 ## Gmail cards fix round (slice 20b)
 
 New texts. Paths are relative to `src/`.

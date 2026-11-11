@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AppError } from "../../../src/shared/errors/codes";
-import { isId, makeId } from "../../../src/shared/ids";
+import { digestIndex, isId, makeId } from "../../../src/shared/ids";
 import type { Folder } from "../../../src/shared/model/data";
 import {
   folderName,
@@ -29,6 +29,14 @@ describe("ids", () => {
     expect(early < late).toBe(true);
     expect(isId("lowercase-not-an-id-000000")).toBe(false);
     expect(isId(42)).toBe(false);
+  });
+
+  it("takes the random part from a digest, one byte per character", () => {
+    const digest = "00ff21".padEnd(64, "0");
+    const id = makeId(0, digestIndex(digest));
+    expect(isId(id)).toBe(true);
+    // 0x00 % 32 = 0, 0xff % 32 = 31 (Z), 0x21 % 32 = 1.
+    expect(id.slice(10, 13)).toBe("0Z1");
   });
 });
 

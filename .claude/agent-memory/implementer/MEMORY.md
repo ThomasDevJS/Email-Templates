@@ -31,7 +31,6 @@
 - scripts/web.mjs (`webPage({harness})`, `servePage`, `DEV_PAGE_VALUES`), dev-web.mjs, lighthouse.mjs. build.mjs uses webPage.
 - Tests: test/unit/web/* (jsdom per file, `stubLayout` for ProseMirror), app.test.ts boots harness + app via dynamic import and `vi.resetModules`.
 
-## Lessons (slice 3): PM serializes style as rgb(), parse the style attribute by hand; `<base target="_top">` sends # links to the top window; aria-label must contain the visible text; scrollable `pre` needs tabindex=0.
 
 ## Code map (after slice 4)
 - `src/addon/`: entry.ts (12 callbacks, `respond` = guard, QUOTA `notBefore` wait, flow, render), flows.ts (`Ports` = call, User Cache, nowMs, userEmail, execUrl; home, folder, preview, insert, promptInsert, openLink, spike flows), view.ts (`view:*` chunks 600 s, `body:<id>`), event.ts (params, formInputs, `internalRecipient`), prompts.ts (p-n names, 20 fields, 500 chars).
@@ -81,8 +80,7 @@
 
 ## Slice 8a (UI shell, 2026-11-10)
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
-- Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
-- Screens: Playwright `servePage(localPage(webPage({harness:true})))`, `colorScheme`, `timezoneId: "UTC"`. Scratchpad is shared: unique file names.
+- Screens: Playwright `servePage(localPage(webPage({harness:true})))`, `colorScheme`, `timezoneId: "UTC"`. Scratchpad is shared: unique file names. Playwright: createRequire("/opt/node-tools/node_modules/"), dev-web port 5188.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 ## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
 - shared/model/recipients.ts: `validateRecipients`, `importRecipients`, `splitBlocked`, `recipientsOf` (absent = []), `RECIPIENTS_EXTERNAL_KEY`. `to/cc/bcc` OPTIONAL on Item/BodyFile so src/web builds unchanged.
@@ -107,7 +105,6 @@
 ## Slice 8b (editor direction A, 2026-11-11)
 - views/editor.ts builds the work area once in `build()` after `loading` (level from `app.items()`; `use` = read-only); `savedText`, `panelSection`, `panelTabs`, `editorSkeleton`. views/recipients.ts `recipientField` (chips, `splitAddresses`, `recipientBlock`). preview.ts `blankHtml`, `promptUses`, `recipientLines`. schema `blankParts`, names "Field: ...". toolbar `GROUPS`, `tooltip`, `Toolbar.placeholder`. commands `imageWidth`. `api.me()`.
 - `button { display }` beats `[hidden]`: the editor has `.editor-page [hidden] { display: none }`. Harness `?external=deny` (seeding stays allow), `?unreadable=`.
-- Screens: /opt/node-tools/node_modules/playwright via createRequire, dev-web on port 5188.
 - Guard: `View.canLeave(leave)`, app.ts `leaving()` + onBackForward hold; editor `dirty()` needs `mount.isConnected` (old apps in tests keep window listeners). Font picker shows fixed "Font" (row width).
 - Retry 1: `Editor.hold()` bookmark for dialog inserts; editor keeps one `asking` dialog; `Host.go`, `onBackForward(hash, moved)` from `{page, at}` history state; Problems tab = live errors + save's others; CSS minified in web.mjs `minifiedStyles`. jsdom: `history.go` fires popstate; caret via DOM selection + `selectionchange`.
 - Merge with main (slice 11, 13): `cancelDialogs()` runs in 2 places only: `open()` in the Back/Forward handler (app.ts, when the route really changes) and the editor's `canLeave` before its question (so a held question stays one dialog). Harness `devPolicy` reads `settings.recipientsExternal`; `?external=deny` seeds that setting.
@@ -123,6 +120,9 @@
 ## Open items handed forward
 - Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
 - Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check.
+## Slice 20a (fix round, 2026-11-11)
+- Admin `AdminFolders { current, refresh }` shared by tabs. app.ts `firstLoad` (15 s, Reload), first history entry stamped, held Discard uses `go(moved)`. `hold().run` clears the DOM selection (Chromium caret). Export `run` key -> `exps:<run>` 60 s. `newId` from sha256(getUuid). `NOT_SET_UP_TEXT` in shared/errors/codes.ts.
+- Fail-before check: scratchpad script `git diff src > p; git checkout -- src; vitest -t; git apply p` (guard rejects it chained inline). jsdom history is shared across tests in a file: assert history state directly, or wait for both popstates.
 ## Slice 13 (fix round, 2026-11-11)
 - `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
 - `recheckRecipients` (body.ts) inside every write commit; `problemsError` shared with `prepareBody`. `trash.purge` returns `templates`, `folders`.
