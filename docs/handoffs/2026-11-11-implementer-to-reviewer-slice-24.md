@@ -57,3 +57,21 @@ busy.test.ts (blocks clicks and keys, dialog works, focus stays; bar, aria-busy 
 `npm ci` ok; lint, typecheck clean; `npm run test:coverage` 72 files, 2003 passed, lines 98.00; build Code.js 373.5 KB, index.html 383.2 KB of 400; scopes 10 approved; format clean; Lighthouse 16 of 16 at 100. Source lines changed: 187 added, 7 removed.
 
 Files: src/web/ui/busy.ts (new), src/web/app.ts, src/web/styles.css, src/web/views/{admin,adminFolders,context,editor}.ts, test/unit/web/{busy (new),admin,app,editorPanel,styles}.test.ts, docs/ops/test-round-1.md (part M), docs/design/wording.md, this file.
+
+## Retry 1 (review docs/reviews/slice-24.md, FAIL on 2)
+
+| Item | State | Test |
+|---|---|---|
+| MF1 typing lost during a save | fixed: the guard lets keydown, beforeinput, paste and drop through when the target is a text field (textarea, text-like input, or inside `contenteditable="true"`). Clicks, mousedown and form submits stay blocked; `saving` still stops a second save. Chromium 1243, 3 s save: "ab", Ctrl+S, "cdefgh", Backspace, "xyz" in the title: text ends "abcdefg", title "...xyz", header "Unsaved changes" | app.test "keeps what is typed during a save and then says Unsaved changes; clicks stay blocked" (keys, Backspace, paste in title and text; fails on 815a0cb) |
+| MF2 toast Retry starts a second restore | fixed: `restoring` in history.ts; `runRestore` and the Retry's `restore` return while one runs | app.test "starts no second restore from a toast's Retry while one runs" (3 `version.restore`, base 4) |
+| Other toast Retry that repeats a write | checked every `app.fail(..., retry)`: editor save (`() => void save()`, guarded by `saving`), history restore (now guarded). The rest repeat reads: app.ts first load and library load, history version preview, Admin, Usage, Audit, Settings, Trash list loads | none |
+| Minor 2 late call lost at 20 s | fixed: each call stops counting after its own 20 s | busy.test "keeps blocking for a call that started late..." |
+
+Part M step 2 now checks typing, Backspace and paste during a save.
+
+Left:
+- Minor 1: a call that never answers frees the page at 20 s and leaves its busy text ("Duplicating...", `src/web/views/rowActions.ts:32`); no error path exists for an unanswered call.
+- Minor 3: NOT_FOUND on a grant remove shows "This template was deleted or moved." (`src/web/ui/status.ts` `messageOf`, same on base).
+- Minor 4: a Remove on a held access row during the background read is allowed by design (1 write, error path works).
+- Minor 5: in dark mode the bar uses the dark `--slate` (#dfe6eb) for contrast on the dark page; D37 names #2a3c49 for light only (`src/web/styles.css` `.busy-bar::before`).
+- A click into another field during a save is blocked (mousedown); Tab moves between fields.
