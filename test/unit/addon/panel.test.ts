@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Folder, Item } from "../../../src/shared/model/data";
 import { ErrorCode } from "../../../src/shared/errors/codes";
@@ -25,8 +27,10 @@ import {
   UNREADABLE,
   composeFlow,
   failureText,
-  panelVisible,
+  WRONG,
+  panelAnswer,
   promptComposeFlow,
+  type PanelReply,
 } from "../../../src/addon/panel";
 import { readView } from "../../../src/addon/view";
 import { readBuffer } from "../../../src/server/audit/buffer";
@@ -458,16 +462,10 @@ describe("server failures (AC 10)", () => {
 
   it.each([
     [ErrorCode.QUOTA, "Service is busy. Try again in a minute."],
-    [
-      ErrorCode.BUSY,
-      "The library is busy. Try again in a few seconds. Request ID R1",
-    ],
-    [ErrorCode.INTERNAL, "Something went wrong. Try again. Request ID R1"],
-    [ErrorCode.VALIDATION, "Something went wrong. Try again. Request ID R1"],
-    [
-      ErrorCode.NETWORK,
-      "Something went wrong. Try again. Request ID R1 Details for your admin: m",
-    ],
+    [ErrorCode.BUSY, "The library is busy. Try again in a few seconds."],
+    [ErrorCode.INTERNAL, WRONG],
+    [ErrorCode.VALIDATION, WRONG],
+    [ErrorCode.NETWORK, WRONG],
     [
       ErrorCode.NOT_CONFIGURED,
       "Migway Templates is not set up yet. Ask your admin to finish setup, then press Retry.",
@@ -478,16 +476,16 @@ describe("server failures (AC 10)", () => {
     ],
     [ErrorCode.DENIED, PANEL_DENIED],
     [ErrorCode.NOT_FOUND, PANEL_NOT_FOUND],
-  ])("%s gives its notification", (code, text) => {
-    expect(failureText(failure(code))).toBe(text);
-  });
+  ])(
+    "%s gives its sentence, no request ID or technical message",
+    (code, text) => {
+      expect(failureText(failure(code))).toBe(text);
+    },
+  );
 
-  it("the personal templates text passes through; no request ID leaves no Request ID", () => {
+  it("the personal templates text passes through", () => {
     expect(failureText(failure(ErrorCode.DENIED, PERSONAL_OFF_TEXT))).toBe(
       PERSONAL_OFF_TEXT,
-    );
-    expect(failureText(failure(ErrorCode.INTERNAL, "m", ""))).toBe(
-      "Something went wrong. Try again.",
     );
   });
 
@@ -558,73 +556,138 @@ describe("refused before the server (AC 11)", () => {
   });
 });
 
-describe("no uncaught exception (AC 12)", () => {
-  const visible = (run: () => Reply) => panelVisible(run, (reply) => reply);
+describe("every failure throws one plain sentence (AC 12, Follow-up 1)", () => {
+  /** Runs a flow as entry.ts does; returns the thrown message, or "" when a draft came back. */
+  function thrown(run: () => PanelReply, render = (r: PanelReply) => r) {
+    try {
+      panelAnswer(run, render);
+      return "";
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      return (error as Error).message;
+    }
+  }
+  const drafts = () =>
+    gmailCalls.filter((c) => c.method.startsWith("createDraft")).length;
+  /** No address, request ID, subject, Gmail message or stack line in the text. */
+  const plain = (text: string) => {
+    expect(text).not.toMatch(/@|REQ|R9|Gmail says no|Secret|\n|\bat /);
+  };
+  const quota: Ports["call"] = () => ({
+    requestId: "R9",
+    response: {
+      ok: false,
+      error: { code: ErrorCode.QUOTA, message: "quota", retryable: true },
+      serverVersion: "",
+      durationMs: 0,
+    },
+  });
+
+  it("NOT_FOUND, DENIED, QUOTA: the sentence and no createDraft call", () => {
+    const item = create({ subject: "Secret", html: "<p>x</p>" });
+    const press = { id: item.id, as: "new" };
+    world.ok(OWNER, "template.delete", { id: item.id });
+    const gone = thrown(() => composeFlow(ports(), inbox, press));
+    expect(gone).toBe(PANEL_NOT_FOUND);
+    expect(drafts()).toBe(0);
+    const kept = create({ html: "<p>x</p>" });
+    const grantId = world.services
+      .store()
+      .readIndex()
+      .grants.find((g) => g.principalKey === ANA)?.id;
+    world.ok(OWNER, "grant.remove", { grantId });
+    const denied = thrown(() =>
+      composeFlow(ports(), inbox, { id: kept.id, as: "new" }),
+    );
+    expect(denied).toBe(PANEL_DENIED);
+    expect(drafts()).toBe(0);
+    const busy = thrown(() =>
+      composeFlow({ ...ports(), call: quota }, inbox, press),
+    );
+    expect(busy).toBe("Service is busy. Try again in a minute.");
+    expect(drafts()).toBe(0);
+    for (const text of [gone, denied, busy]) plain(text);
+  });
+
+  it("an unreadable email: the sentence, no server call, no draft", () => {
+    const text = thrown(() =>
+      composeFlow(ports("message", null), opened, { id: "T", as: "reply" }),
+    );
+    expect(text).toBe(UNREADABLE);
+    expect(sent).toEqual([]);
+    expect(drafts()).toBe(0);
+  });
 
   it.each([
     "setCurrentMessageAccessToken",
-    "getMessageById",
-    "getFrom",
-    "getReplyTo",
+    "createDraft",
     "createDraftReply",
-  ])("a throw at %s on Reply is a notification", (fail) => {
+    "createDraftReplyAll",
+  ])("a throw at %s: the generic sentence, the Gmail text dropped", (fail) => {
     const id = create({ html: "<p>x</p>" }).id;
-    const reply = visible(() =>
-      composeFlow(ports("message", {}, fail), opened, { id, as: "reply" }),
+    const as = { createDraft: "new", createDraftReplyAll: "replyAll" }[fail];
+    const text = thrown(() =>
+      composeFlow(ports("message", { from: `Bob <${BOB}>` }, fail), opened, {
+        id,
+        as: as ?? "reply",
+      }),
     );
-    expect(reply.kind).toBe("notify");
+    expect(text).toBe(WRONG);
+    plain(text);
+    // The only createDraft* call is the failed one itself.
+    expect(drafts()).toBe(fail.startsWith("createDraft") ? 1 : 0);
   });
 
-  it.each(["createDraft", "createDraftReplyAll"])(
-    "a throw inside %s gives the admin details",
-    (fail) => {
-      const id = create({ html: "<p>x</p>" }).id;
-      const as = fail === "createDraft" ? "new" : "replyAll";
-      expect(
-        visible(() =>
-          composeFlow(ports("message", {}, fail), opened, { id, as }),
-        ),
-      ).toEqual(
-        notice(
-          "Something went wrong. Try again. Details for your admin: Gmail says no",
-        ),
-      );
-    },
-  );
-
-  it("a throwing server port is a notification", () => {
+  it("a throw inside the flow (a broken server port) gives the generic sentence", () => {
     const broken: Ports = {
       ...ports(),
       call: () => {
-        throw new Error("down");
+        throw new Error(`down for ${BOB}`);
       },
     };
-    expect(
-      visible(() => composeFlow(broken, inbox, { id: "T", as: "new" })),
-    ).toEqual(
-      notice("Something went wrong. Try again. Details for your admin: down"),
+    const text = thrown(() =>
+      composeFlow(broken, inbox, { id: "T", as: "new" }),
     );
+    expect(text).toBe(WRONG);
+    plain(text);
+    expect(drafts()).toBe(0);
   });
 
-  it("a throw while rendering a made draft names Drafts; a string throw still shows", () => {
-    const draft: Reply = { kind: "compose", draft: {} as never };
-    let first = true;
-    const render = (reply: Reply) => {
-      if (first) {
-        first = false;
-        throw new Error("render");
-      }
-      return reply;
-    };
-    expect(panelVisible(() => draft, render)).toEqual(notice(DRAFT_NOT_OPENED));
-    expect(
-      visible(() => {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error
-        throw "odd";
-      }),
-    ).toEqual(
-      notice("Something went wrong. Try again. Details for your admin: odd"),
+  it("a render problem after the draft exists names Drafts; a draft that renders throws nothing", () => {
+    const draft: PanelReply = { kind: "compose", draft: {} as never };
+    const text = thrown(
+      () => draft,
+      () => {
+        throw new Error(`no window\n    at render (${BOB})`);
+      },
     );
+    expect(text).toBe(DRAFT_NOT_OPENED);
+    plain(text);
+    expect(
+      panelAnswer(
+        () => draft,
+        (r) => r,
+      ),
+    ).toBe(draft);
+  });
+
+  it("every sentence it can throw is in docs/design/wording.md", () => {
+    const wording = readFileSync(
+      join(import.meta.dirname, "../../../docs/design/wording.md"),
+      "utf8",
+    );
+    for (const text of [
+      NO_MESSAGE,
+      UNREADABLE,
+      TOO_LONG,
+      TEMPLATE_CHANGED,
+      LISTS_CHANGED,
+      COUNTS_CHANGED,
+      DRAFT_NOT_OPENED,
+      PANEL_NOT_FOUND,
+      WRONG,
+    ])
+      expect(wording).toContain(text);
   });
 });
 

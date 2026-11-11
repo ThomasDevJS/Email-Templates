@@ -21,7 +21,12 @@ import {
   type Ports,
 } from "./flows";
 import { requireAddonSession } from "./guard";
-import { composeFlow, panelVisible, promptComposeFlow } from "./panel";
+import {
+  composeFlow,
+  panelAnswer,
+  promptComposeFlow,
+  type PanelReply,
+} from "./panel";
 import { clearView } from "./view";
 
 type Card = GoogleAppsScript.Card_Service.Card;
@@ -151,14 +156,14 @@ export function onOpenLink(event?: AddonEvent): Response {
   return respond("onOpenLink", event, openLinkFlow);
 }
 
-/** Side-panel actions: guard, then flow and render inside the one catch (ADR-0007 A8). */
+/** Side-panel actions: guard, then flow and render inside `panelAnswer`: a failure throws one plain sentence. */
 function panelRespond(
   name: string,
   event: AddonEvent | undefined,
-  run: (ports: Ports, params: Params) => Reply,
+  run: (ports: Ports, params: Params) => PanelReply,
 ): Response {
   requireAddonSession(name);
-  return panelVisible(() => run(ports(event), paramsOf(event)), renderReply);
+  return panelAnswer(() => run(ports(event), paramsOf(event)), renderReply);
 }
 
 /** Side-panel row button "New email" or "Reply" (spec 4.1a step 3). */

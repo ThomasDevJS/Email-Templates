@@ -42,7 +42,7 @@ import { clearView } from "./view";
 /**
  * Side-panel actions (spec 4.1a, ADR-0007 A3 to A8): New email, Reply and Reply all make one new Gmail draft through
  * a compose action. Same pipeline as compose (`applyNow`, `rendered`, `recipientPlan`); only the last step differs.
- * Every refusal is a notification and makes no draft. No address, value or subject reaches a log or a parameter.
+ * Every refusal is one plain sentence and makes no draft. No address, value or subject reaches a log or a parameter.
  */
 export const NO_MESSAGE =
   "Open the email you want to answer, then press Reply again.";
@@ -61,17 +61,14 @@ export const PANEL_NOT_FOUND =
   "This template was deleted or moved. Open the panel again to update the list.";
 export const PANEL_DENIED =
   "You don't have access to this template. Ask a folder manager.";
-const WRONG = "Something went wrong. Try again.";
+export const WRONG = "Something went wrong. Try again.";
 
 type GmailMessage = GoogleAppsScript.Gmail.GmailMessage;
 
-const notify = (text: string): Reply => ({ kind: "notify", text });
+/** What a panel flow returns: the draft Gmail opens, or the sentence that says why there is none. */
+export type PanelReply = Extract<Reply, { kind: "compose" | "notify" }>;
 
-function withId(text: string, failure: Failure): string {
-  return failure.requestId === ""
-    ? text
-    : `${text} Request ID ${failure.requestId}`;
-}
+const notify = (text: string): PanelReply => ({ kind: "notify", text });
 
 /** Text lines of the state card, for the codes whose card has no Retry worth showing in a notification. */
 function stateLines(failure: Failure): string {
@@ -85,16 +82,16 @@ function stateLines(failure: Failure): string {
     .join(" ");
 }
 
-/** The notification of a failed `template.apply` (spec 7.2). */
+/**
+ * The sentence of a failed `template.apply` (spec 7.2). No request ID and no technical message: Gmail shows the
+ * sentence in its error bar (Follow-up 1), and the server log holds the request.
+ */
 export function failureText(failure: Failure): string {
   switch (failure.code) {
     case ErrorCode.QUOTA:
       return "Service is busy. Try again in a minute.";
     case ErrorCode.BUSY:
-      return withId(
-        "The library is busy. Try again in a few seconds.",
-        failure,
-      );
+      return "The library is busy. Try again in a few seconds.";
     case ErrorCode.DENIED:
       return failure.message === PERSONAL_OFF_TEXT
         ? PERSONAL_OFF_TEXT
@@ -106,14 +103,12 @@ export function failureText(failure: Failure): string {
     case ErrorCode.AUTH_DOMAIN:
       return stateLines(failure);
     default:
-      return failure.code === ErrorCode.NETWORK
-        ? `${withId(WRONG, failure)} Details for your admin: ${failure.message}`
-        : withId(WRONG, failure);
+      return WRONG;
   }
 }
 
 /** DENIED and NOT_FOUND mean the cached view is stale. */
-function refused(ports: Ports, failure: Failure): Reply {
+function refused(ports: Ports, failure: Failure): PanelReply {
   if (failure.code === ErrorCode.DENIED || failure.code === ErrorCode.NOT_FOUND)
     clearView(ports.cache);
   return notify(failureText(failure));
@@ -166,7 +161,7 @@ function begin(
   event: AddonEvent | undefined,
   as: string | undefined,
   refusal: string,
-): Started | Reply {
+): Started | PanelReply {
   if (!isComposeAs(as)) return notify(WRONG);
   const messageId = messageIdOf(event);
   if (as !== "new" && messageId === "") return notify(NO_MESSAGE);
@@ -177,7 +172,7 @@ function begin(
   return read === null ? notify(UNREADABLE) : { as, ...read };
 }
 
-function isReply(value: Started | Reply): value is Reply {
+function isReply(value: Started | PanelReply): value is PanelReply {
   return "kind" in value;
 }
 
@@ -206,7 +201,7 @@ function draftOf(
   started: Started,
   parts: { readonly html: string; readonly subject: string },
   added: Recipients,
-): Reply {
+): PanelReply {
   const options = { htmlBody: parts.html, ...listOptions(added) };
   const { message } = started;
   const draft =
@@ -223,7 +218,7 @@ export function composeFlow(
   ports: Ports,
   event: AddonEvent | undefined,
   params: Readonly<Record<string, string>>,
-): Reply {
+): PanelReply {
   const started = begin(ports, event, params["as"], "");
   if (isReply(started)) return started;
   const applied = applyFor(ports, params["id"] ?? "", started);
@@ -253,7 +248,7 @@ export function promptComposeFlow(
   ports: Ports,
   event: AddonEvent | undefined,
   params: Readonly<Record<string, string>>,
-): Reply {
+): PanelReply {
   const boxes = Array.from({ length: MAX_FIELDS }, (_, n) =>
     formValue(event, inputName(n)),
   );
@@ -281,30 +276,26 @@ export function promptComposeFlow(
   );
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 /**
- * The one catch around each panel action callback (ADR-0007 A8): no failure is silent. A throw after the draft
- * exists (rendering the response) says where the draft is; any other throw (a Gmail call) gives its message for the
- * admin. The message goes on the user's screen and into no log.
+ * The one wrapper of each panel action callback (Follow-up 1). Gmail showed nothing for a notification returned by
+ * a compose action (part J step 11), so every failure throws an Error whose message is one plain sentence and nothing
+ * else: the refusal's sentence, "Something went wrong. Try again." for any throw before a draft exists, the Drafts
+ * sentence for a throw after it. The caught error is dropped: its text may hold an address or a stack.
  */
-export function panelVisible<T>(
-  run: () => Reply,
-  render: (reply: Reply) => T,
+export function panelAnswer<T>(
+  run: () => PanelReply,
+  render: (reply: PanelReply) => T,
 ): T {
-  let reply: Reply | null = null;
+  let reply: PanelReply;
   try {
     reply = run();
+  } catch {
+    throw new Error(WRONG);
+  }
+  if (reply.kind === "notify") throw new Error(reply.text);
+  try {
     return render(reply);
-  } catch (error) {
-    return render(
-      notify(
-        reply?.kind === "compose"
-          ? DRAFT_NOT_OPENED
-          : `${WRONG} Details for your admin: ${messageOf(error)}`,
-      ),
-    );
+  } catch {
+    throw new Error(DRAFT_NOT_OPENED);
   }
 }
