@@ -2,7 +2,11 @@
 
 Date: 2026-11-11. Branch `slice/19-audit-read`, head ad343af (implementer 3687ba5 plus main a9402f5). Slice diff `5065ba1..3687ba5`.
 
-## Verdict: FAIL
+## Final verdict: PASS (retry 1, review on ce47afd)
+
+First review on ad343af: FAIL, kept below. Retry 1 section at the end.
+
+## Verdict (first review): FAIL
 
 The read fix is correct: query, rolls and restore work on JSON Lines, with clean errors and no loss. The privacy check fails. `recordJobError` still stores any exception message in `job:<name>:lastError`, and the Admin page shows it while a job is late. A damaged live `index.json` (Advanced `readText`) still puts file text with addresses into that property on the fixed build (probe 5). 1 must-fix, 5 minors.
 
@@ -65,3 +69,46 @@ The fixed build writes "Drive REST get failed with HTTP <n>" for an HTTP failure
 - `audit.query` for 2026-11 answers rows (REST media read with the owner token on a file the Advanced service created).
 - The next nightly run turns "Nightly backup and cleanup" OK and empties `pendingAudit`.
 - The exception name the platform uses for a failed Advanced media read (the fake uses `Error`).
+
+## Retry 1
+
+Date: 2026-11-11. Head ce47afd. Diff `0209752..ce47afd`: health.ts (`JobError`, `jobErrorText`, success deletes `lastError`, `runJob` rethrows the safe text), daily.ts (`<step> (<code>)`), codes.ts `errorSummary`, snapshot.ts group warning, driveStore.ts `documentText` fallback, restDrive.ts `fileUrl` and 429, tests, runbook.
+
+### Verdict: PASS
+
+The must-fix is fixed. No file text, address or token reaches a property, a log line, a rethrown message, a response or `members.json` in 7 probe cases. 0 must-fix, 2 minors.
+
+### Commands (clean install on ce47afd)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0, npm audit 16 (14 moderate, 2 high; unchanged) |
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 68 files, 1928 tests passed, 0 failed; all files 97.13 statements, 90.95 branches, 97.97 lines |
+| `npm run build -- --env dev` | Code.js 368.3 KB of 800 KB, index.html 379.2 KB of 400 KB |
+| `npm run scopes:check` | "Scope check passed: 10 scopes, all approved." |
+| `npm run format:check` | exit 0, clean |
+
+### Probes (scratch copies of ce47afd and ad343af, deleted after)
+
+1. Leaks. Damaged `index.json`, `usage.json`, `favorites.json`, `members.json`, a body file and the audit month file, each holding `leak@example.com` and `ya29.FAKETOKEN_abc`. Per case: daily, tick and membership refresh through `runJob` (cold cache), then 6 web requests. Fixed build: 0 hits in Script Properties, log lines, other Drive files, rethrown messages (with stack) and responses, in all 6 cases. A group read throwing the same text: warning "Group g@example.com could not be read (INTERNAL Error). Previous members kept.", 0 hits in `members.json` and `membership.status`. On ad343af the same probe hits: properties (index, members), rethrown messages (index, members), `members.json` and `membership.status` (group). The probe finds real leaks.
+2. Admin row text. Damaged index: `job:daily:lastError` = "<time> daily steps failed: auditRolled (INTERNAL), purged (INTERNAL), orphans (INTERNAL)"; tick and refreshMembers = "<time> INTERNAL AppError". The row names the job, the step and the code. Responses now say "index.json is not valid JSON", "usage.json is not valid JSON", "favorites.json is not valid JSON".
+3. Grep of `src/server` for `.message`, `.stack`, `String(error`, `${error`: 10 uses.
+   - health.ts:23: `JobError` message only, built from step names and codes. Safe.
+   - triggers.ts:40: wraps a non-Error; stored through `recordJobError`, so code and name only. Safe.
+   - admins.ts:104: regex test for "not found", never stored or returned. Safe.
+   - transfer.ts:286, 292, 311, 534-538, transfer/plan.ts:51: AppError texts from validators of the admin's own import file and folder names, returned to that admin; `toErrorBody` gives "Internal error" for any other error. Safe, unchanged.
+   - driveStore.ts:219: AppError text from `readChecked` ("<name> is not valid JSON", "<name> is damaged: <problem>"); shape.ts problems name fields and positions, never values. Safe.
+4. Fallback cost. 20 healthy requests over 5 ops with a cold cache each time: 68 Drive calls, 0 UrlFetch on ad343af and on ce47afd. A healthy JSON file never takes the REST path. Transient Advanced failure on a valid `index.json`: 1 REST media read, request ok (ad343af answered INTERNAL). The fallback is one `try` with one second read; the REST error propagates, so it cannot loop. Damaged index plus REST 500: 1 fetch, INTERNAL "Drive REST get failed with HTTP 500". When the Advanced read fails and REST returns valid JSON, the REST text wins. That is safe: the same file bytes, then the same `readChecked` shape check.
+5. `fileUrl`. Refused: `..`, `%2e%2e`, `a/b`, `a?x`, `a#b`, empty, `leak@example.com`, with "Drive REST refused a malformed file ID" (no ID echoed, 0 requests). A 39-character Drive-style ID passes. All 8 fake Drive IDs and all 1928 tests pass the rule.
+6. HTTP 429. Query: QUOTA, retryable, "Service is busy. Try again in a minute." Daily roll: "daily steps failed: auditRolled (QUOTA)", 300 pending kept, file unchanged; next run: 302 lines, 302 unique, 0 pending.
+7. Job health. `jobStatus` reads only `lastOk`; Late and Never do not depend on `lastError`. A failure keeps `lastOk` and writes `lastError`, so a late job still shows its last error until the next success deletes it.
+8. Regression of the first-review probes. 6,500 lines with é, emoji and U+2028 plus a broken line: total 6,500, 1 media read for 2 queries. Roll recovery and crash dedupe: covered by auditRead tests (pass). Restore: damaged-copy VALIDATION tests and slice 16 "keeps the live list" pass; `readBackup` is still before `withLock`.
+
+### Minors (retry 1)
+
+1. `documentText` falls back on any non-AppError, including Advanced quota and 404 errors: 1 extra UrlFetch per failed read. Healthy path unchanged.
+2. `job:triggers:lastError` is not deleted by a successful reinstall (`installAndRecord`); the Config tab shows it only while `TRIGGERS_VERSION` is stale. The runbook step covers the old text on dev.
+
+Open from the first review: ADR-0002 errata for the architect. Runbook check (runbook.md, "Required after deploying this build") names all 4 `lastError` properties and the expiry of Executions and Cloud Logging entries.

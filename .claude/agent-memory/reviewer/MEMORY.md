@@ -99,7 +99,7 @@
 - Slice 19 audit read fix (2026-11-11): FAIL (review on ad343af). Read fix correct; privacy fails. 68 files, 1924 tests, lines 97.96, Code.js 367.5 KB, 10 scopes.
   - Mechanism: DriveClient.readRawText = restMediaReader (UrlFetch, ScriptApp token) under both clients; monthText, appendAudit, readBackup use it. Strict fake: Advanced alt=media parses JSON, throws "HttpResponseException: Response Code: 200. Message: <text>" otherwise. Revert probe: 19 fail (8 old + 11 new).
   - Must fix: health.ts describe + daily.ts:241 store raw messages in job:<name>:lastError (Admin page shows when Late); damaged live index.json text with addresses lands there on the fixed build. Runbook: owner deletes job:daily:lastError (and tick) on dev.
-  - Minors: fileId unencoded in REST URLs (path traversal, host fixed); 429 -> INTERNAL; storage.test.ts:475 pins raw exception for damaged live index.
+  - Retry 1 PASS (ce47afd, 1928 tests): JobError + errorSummary (code + name), success deletes lastError, fileUrl ID rule ^[\w-]+$, 429 QUOTA, documentText fallback (Advanced fail -> one REST read). Leak probe 6 damaged files x 3 jobs + 6 ops: 0 hits (base: hits).
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
