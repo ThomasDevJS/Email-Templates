@@ -122,6 +122,9 @@ export function createEditor(
         run: (command) => {
           held.delete(mark);
           if (view.isDestroyed) return;
+          // Chromium keeps its own caret from before the dialog when the DOM position looks the same, so the next
+          // keystroke after a node inserted at a paragraph start went before it; an empty selection forces a new one.
+          document.getSelection()?.removeAllRanges();
           const { tr } = view.state;
           view.dispatch(tr.setSelection(mark.bookmark.resolve(tr.doc)));
           command(view.state, view.dispatch);

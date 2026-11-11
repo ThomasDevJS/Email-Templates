@@ -463,6 +463,17 @@ describe("held selection for dialog inserts (slice 8b retry 1)", () => {
     );
   });
 
+  it("drops the browser's old caret before a held insert, so the editor sets a new one (8b minor 4)", () => {
+    const ed = open("<p>Hello</p>");
+    caret(ed, 1);
+    const held = ed.hold();
+    const cleared = vi.spyOn(Selection.prototype, "removeAllRanges");
+    held.run(insertNode(schema.text("!")));
+    expect(cleared).toHaveBeenCalled();
+    cleared.mockRestore();
+    expect(ed.html()).toBe("<p>!Hello</p>");
+  });
+
   it("does nothing on a destroyed editor, and release leaves the document as it was", () => {
     const ed = open("<p>Hello</p>");
     const released = ed.hold();

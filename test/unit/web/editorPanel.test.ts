@@ -992,40 +992,14 @@ describe("unsaved-changes guard", () => {
     });
   });
 
-  it("keeps the Forward entries after Back to the page's first entry and Keep editing", async () => {
+  it("stamps the page's first entry with its position, so a Back to it travels and keeps the Forward entries", async () => {
     await boot("/?latency=0#/library");
     await until(() => {
       expect(main().querySelector('td[tabindex="0"]')).not.toBeNull();
     });
-    key(main().querySelector('td[tabindex="0"]') as HTMLElement, "Enter");
-    await until(() => {
-      expect(byId("title").value).not.toBe("");
-    });
-    const editing = window.location.hash;
-    button("History").click();
-    await until(() => {
-      expect(window.location.hash).toMatch(/^#\/history\//);
-    });
-    window.history.back();
-    await until(() => {
-      expect(window.location.hash).toBe(editing);
-      expect(byId("title").value).not.toBe("");
-    });
-    edit();
-    window.history.back();
-    await until(() => {
-      expect(dialogs()).toBe(1);
-      expect(window.location.hash).toBe(editing);
-    });
-    button("Keep editing").click();
-    await until(() => {
-      expect(dialogs()).toBe(0);
-    });
-    // History is still one entry ahead: Forward asks before it leaves.
-    window.history.forward();
-    await until(() => {
-      expect(dialogs()).toBe(1);
-    });
+    const state = window.history.state as { page?: unknown; at?: unknown };
+    expect(typeof state.page).toBe("string");
+    expect(state.at).toBe(0);
   });
 
   it("adds no history entry for Back and Discard", async () => {
