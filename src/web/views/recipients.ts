@@ -33,6 +33,8 @@ export interface ChipOptions {
   readonly onChange: () => void;
   /** IDs of help text that describes every recipient field. */
   readonly describedBy: string;
+  /** Says a change in the page's live region: "Added a@x.com to Cc". */
+  readonly announce: (text: string) => void;
 }
 
 const SEPARATORS = new Set(["Enter", ",", ";", " "]);
@@ -100,8 +102,7 @@ export function recipientField(
                 class: "chip-remove",
                 "aria-label": `Remove ${address} from ${name}`,
                 onclick: () => {
-                  addresses = addresses.filter((_, i) => i !== position - 1);
-                  changed();
+                  remove(position - 1);
                   input.focus();
                 },
               },
@@ -137,6 +138,12 @@ export function recipientField(
     options.onChange();
   };
 
+  const remove = (index: number) => {
+    options.announce(`Removed ${addresses[index] ?? ""} from ${name}`);
+    addresses = addresses.filter((_, i) => i !== index);
+    changed();
+  };
+
   const add = (text: string) => {
     const fresh = splitAddresses(text).filter(
       (address, i, all) =>
@@ -145,6 +152,7 @@ export function recipientField(
     input.value = "";
     if (fresh.length === 0) return;
     addresses = [...addresses, ...fresh];
+    options.announce(`Added ${fresh.join(", ")} to ${name}`);
     changed();
   };
 
@@ -159,8 +167,7 @@ export function recipientField(
       addresses.length > 0
     ) {
       event.preventDefault();
-      addresses = addresses.slice(0, -1);
-      changed();
+      remove(addresses.length - 1);
     }
   });
   input.addEventListener("paste", (event) => {

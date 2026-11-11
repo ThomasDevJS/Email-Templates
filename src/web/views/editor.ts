@@ -681,6 +681,9 @@ export function editorView(
       readOnly,
       onChange: recipientsChanged,
       describedBy: "rcpt-help",
+      announce: (text: string) => {
+        status.textContent = text;
+      },
     };
     fields = {
       to: recipientField("to", options),

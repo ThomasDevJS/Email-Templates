@@ -279,9 +279,15 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
       "yard@example.com",
       "late@example.com",
     ]);
+    // Each change is said in the page's live region (role=status).
+    const said = () =>
+      main().querySelector('.status[role="status"]')?.textContent;
+    expect(said()).toBe("Added late@example.com to To");
     key(to, "Backspace");
     expect(chips("to")).toHaveLength(4);
+    expect(said()).toBe("Removed late@example.com from To");
     button("Remove ops@example.com from To").click();
+    expect(said()).toBe("Removed ops@example.com from To");
     expect(chips("to")).toEqual([
       "payroll@example.com",
       "dock@example.com",
@@ -295,6 +301,7 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
     });
     cc.dispatchEvent(paste);
     expect(chips("cc")).toEqual(["a@example.com", "b@partner.com"]);
+    expect(said()).toBe("Added a@example.com, b@partner.com to Cc");
     const marks = [
       ...(cc.closest(".chips-box")?.querySelectorAll(".chip-mark") ?? []),
     ];
@@ -450,6 +457,7 @@ describe("read-only editor (use level)", () => {
       readOnly: true,
       onChange: () => undefined,
       describedBy: "",
+      announce: () => undefined,
     });
     field.set(["help@example.com", "x@partner.com"]);
     expect(
