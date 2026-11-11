@@ -366,9 +366,13 @@ describe("rpc client", () => {
       folderId: "F",
       tags: ["a"],
       html: "<p>x</p>",
+      to: ["a@x.com"],
+      cc: [],
+      bcc: [],
     };
     await Promise.all([
       api.profile(),
+      api.me(),
       api.folders(),
       api.templates(),
       api.template("I"),
@@ -383,6 +387,7 @@ describe("rpc client", () => {
     ]);
     expect(sent).toEqual([
       ["profile.me", {}],
+      ["me", {}],
       ["folder.list", {}],
       ["template.list", {}],
       ["template.get", { id: "I" }],

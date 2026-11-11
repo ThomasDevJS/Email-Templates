@@ -111,6 +111,17 @@ export function insertPlaceholder(attrs: PlaceholderAttrs): Command {
   return insertNode(type.create(attrs));
 }
 
+export const IMAGE_MAX_WIDTH = 600;
+
+/**
+ * Width attribute of an inserted image: its own width up to 600 pixels, never wider and never stretched; null when
+ * the width is unknown (the image did not load), so the email shows it at its own size.
+ */
+export function imageWidth(natural: number): string | null {
+  if (!(natural > 0)) return null;
+  return String(Math.min(Math.round(natural), IMAGE_MAX_WIDTH));
+}
+
 /** 2 by 2 table with a header row. */
 export function newTable(): PMNode {
   const {

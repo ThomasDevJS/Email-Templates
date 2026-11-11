@@ -68,6 +68,7 @@ export function createEditor(
   html: string,
   callbacks: EditorCallbacks,
   attributes: Record<string, string>,
+  readOnly = false,
 ): Editor {
   const state = EditorState.create({
     doc: parseHtml(html),
@@ -81,6 +82,8 @@ export function createEditor(
   const view = new EditorView(mount, {
     state,
     attributes,
+    // A caller with `use` only reads the body (spec 5.7 "who sets them").
+    editable: () => !readOnly,
     dispatchTransaction(tr) {
       view.updateState(view.state.apply(tr));
       callbacks.onChange();

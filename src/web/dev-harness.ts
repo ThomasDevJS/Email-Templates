@@ -3,16 +3,24 @@
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
  * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
- * freight templates with invented names for screenshots (the tests use the default sample).
+ * freight templates with invented names for screenshots (the tests use the default sample), `?external=deny` turns
+ * outside recipients off, `?unreadable=cc,bcc` makes `version.restore` report those lists of the old version as
+ * unreadable.
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { Folder, Item } from "../shared/model/data";
+import {
+  NO_RECIPIENTS,
+  RECIPIENT_FIELDS,
+  type RecipientPolicy,
+  type Recipients,
+} from "../shared/model/recipients";
 import { scanBody } from "../shared/placeholders/validate";
 import type { AccessLevel } from "../shared/permissions/levels";
 import type { GoogleScript, ScriptLocation } from "./host";
 
-interface Version {
+interface Version extends Recipients {
   readonly version: number;
   readonly subject: string;
   readonly html: string;
@@ -22,6 +30,7 @@ interface Version {
 }
 
 const ME = "dev.user@example.com";
+const PARAMS = new URLSearchParams(window.location.search);
 const NOW = "2026-11-09T14:03:00.000Z";
 const FREIGHT =
   new URLSearchParams(window.location.search).get("sample") === "freight";
@@ -92,6 +101,14 @@ function needLevel(folderId: string, need: "use" | "edit"): void {
     );
 }
 
+/** The server's recipient rule, with the dev domain. */
+function devPolicy(): RecipientPolicy {
+  return {
+    domain: "example.com",
+    external: PARAMS.get("external") === "deny" ? "deny" : "allow",
+  };
+}
+
 function store(
   id: string,
   folderId: string,
@@ -101,13 +118,15 @@ function store(
   by = ME,
   restoredFrom = 0,
   subject = "",
+  lists: Recipients = NO_RECIPIENTS,
 ): Item {
-  const body = prepareBody(html, {}, subject);
+  const body = prepareBody(html, {}, subject, { lists, policy: devPolicy() });
   const list = versions.get(id) ?? [];
   const version = list.length + 1;
   list.push({
     version,
     subject: body.subject,
+    ...body.recipients,
     html: body.html,
     savedAt: new Date(Date.parse(NOW) + version * 60000).toISOString(),
     savedBy: by,
@@ -120,6 +139,7 @@ function store(
     folderId,
     title,
     subject: body.subject,
+    ...body.recipients,
     tags,
     status: "published",
     currentVersion: version,
@@ -267,6 +287,11 @@ function seedFreight(): void {
       by,
       from,
       "Rate confirmation for load {{ask:Load number}}",
+      {
+        to: ["dispatch@example.com"],
+        cc: ["safety@example.com"],
+        bcc: ["records@partner-logistics.com"],
+      },
     );
     dated("T-RATECON", at, by);
   }
@@ -661,6 +686,20 @@ function tags(args: Record<string, unknown>): string[] {
     : [];
 }
 
+/** The lists of a save; a list left out keeps `kept`, like the server's `template.update`. */
+function lists(
+  args: Record<string, unknown>,
+  kept: Partial<Recipients> = {},
+): Recipients {
+  const read = (field: (typeof RECIPIENT_FIELDS)[number]) => {
+    const value = args[field];
+    return Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === "string")
+      : (kept[field] ?? []);
+  };
+  return { to: read("to"), cc: read("cc"), bcc: read("bcc") };
+}
+
 function title(args: Record<string, unknown>): string {
   const value = str(args, "title").trim();
   if (value === "")
@@ -690,6 +729,12 @@ const OPS: Readonly<Record<string, Op>> = {
     title: "Sales Manager",
     department: "Sales",
     phone: "+1 555 0100",
+  }),
+  me: () => ({
+    email: ME,
+    isAdmin: isAdmin(),
+    env: "dev",
+    recipientsExternal: devPolicy().external,
   }),
   "folder.list": () => ({ folders: liveFolders() }),
   "template.list": (args) => ({
@@ -743,6 +788,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       0,
       str(args, "subject"),
+      lists(args),
     );
   },
   "template.update": (args) => {
@@ -760,6 +806,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       0,
       str(args, "subject"),
+      lists(args, found),
     );
   },
   "template.duplicate": (args) => {
@@ -775,6 +822,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       0,
       found.subject,
+      lists({}, found),
     );
   },
   "template.move": (args) => {
@@ -993,7 +1041,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ?.find((candidate) => candidate.version === from);
     if (entry === undefined)
       throw new AppError(ErrorCode.NOT_FOUND, "Version not found");
-    return store(
+    const restored = store(
       found.id,
       found.folderId,
       found.title,
@@ -1002,7 +1050,14 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       from,
       entry.subject,
+      entry,
     );
+    const unreadable = (PARAMS.get("unreadable") ?? "")
+      .split(",")
+      .filter((field) =>
+        (RECIPIENT_FIELDS as readonly string[]).includes(field),
+      );
+    return { ...restored, recipientsUnreadable: unreadable };
   },
 };
 

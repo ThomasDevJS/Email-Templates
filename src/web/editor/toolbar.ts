@@ -1,6 +1,8 @@
 import type { MarkType, NodeType } from "prosemirror-model";
+import { redo, undo } from "prosemirror-history";
 import type { Command, EditorState } from "prosemirror-state";
 import { h } from "../ui/dom";
+import { icon, type IconName } from "../ui/icons";
 import { openMenu, type MenuItem } from "../ui/menu";
 import {
   inList,
@@ -12,18 +14,12 @@ import {
   toggleBlockquote,
   toggleList,
 } from "./commands";
-import {
-  ALIGNMENTS,
-  COLORS,
-  FONT_FAMILIES,
-  FONT_SIZES,
-  HIGHLIGHTS,
-  schema,
-} from "./schema";
+import { ALIGNMENTS, COLORS, FONT_SIZES, HIGHLIGHTS, schema } from "./schema";
 
 /**
- * Formatting toolbar (spec section 8): one tab stop, arrow keys move between buttons, toggles carry
- * `aria-pressed`, menus carry `aria-haspopup`. Buttons act on the editor through `ToolbarHost`.
+ * Formatting toolbar (spec section 8, design system "Editor"): icon buttons in groups with dividers, one tab stop,
+ * arrow keys move between buttons (ARIA toolbar pattern), toggles carry `aria-pressed`, menus carry
+ * `aria-haspopup`, every tooltip names its shortcut. Buttons act on the editor through `ToolbarHost`.
  */
 export interface ToolbarHost {
   state(): EditorState;
@@ -39,8 +35,13 @@ export interface ToolbarHost {
 type MenuBuilder = (state: EditorState, host: ToolbarHost) => MenuItem[];
 
 interface Tool {
-  readonly text: string;
+  /** Accessible name and tooltip. */
   readonly label: string;
+  readonly icon?: IconName;
+  /** B, I, U, S stay letters (design system "Icons"). */
+  readonly letter?: string;
+  /** A picker shows the current value as its text ("Paragraph"). */
+  readonly value?: (state: EditorState) => string;
   readonly shortcut?: string;
   readonly pressed?: (state: EditorState) => boolean;
   readonly menu?: MenuBuilder;
@@ -51,13 +52,13 @@ const mark = (name: string): MarkType => schema.marks[name] as MarkType;
 const node = (name: string): NodeType => schema.nodes[name] as NodeType;
 
 function markTool(
-  text: string,
+  letter: string,
   label: string,
   name: string,
   shortcut: string,
 ): Tool {
   return {
-    text,
+    letter,
     label,
     shortcut,
     pressed: (state) => markActive(state, mark(name)),
@@ -107,6 +108,8 @@ function styleMenu(
   };
 }
 
+const BLOCK_STYLES = ["Paragraph", "Heading 1", "Heading 2", "Heading 3"];
+
 function blockLevel(state: EditorState): number {
   const parent = state.selection.$from.parent;
   return parent.type === node("heading") ? Number(parent.attrs["level"]) : 0;
@@ -117,114 +120,139 @@ function currentAlign(state: EditorState): string {
   return typeof align === "string" ? align : "";
 }
 
-const TOOLS: readonly Tool[] = [
-  markTool("B", "Bold", "strong", "Control+B"),
-  markTool("I", "Italic", "em", "Control+I"),
-  markTool("U", "Underline", "underline", "Control+U"),
-  markTool("S", "Strikethrough", "strike", "Control+Shift+X"),
-  {
-    text: "Text",
-    label: "Text style",
-    menu: (state, host) =>
-      ["Paragraph", "Heading 1", "Heading 2", "Heading 3"].map(
-        (label, level) => ({
+function sizeLabel(state: EditorState): string {
+  const size = currentAttr(state, "font_size", "size");
+  return FONT_SIZES.find((option) => option.value === size)?.label ?? "Normal";
+}
+
+function listTool(label: string, icon: IconName, name: string): Tool {
+  return {
+    label,
+    icon,
+    pressed: (state) => inList(state, node(name)),
+    act: (host) => {
+      host.run(toggleList(node(name)));
+    },
+  };
+}
+
+function actTool(
+  label: string,
+  icon: IconName,
+  act: (host: ToolbarHost) => void,
+  shortcut?: string,
+): Tool {
+  return shortcut === undefined
+    ? { label, icon, act }
+    : { label, icon, act, shortcut };
+}
+
+/** Groups in the order of the mockup; a divider goes between two groups. */
+const GROUPS: readonly (readonly Tool[])[] = [
+  [
+    actTool(
+      "Undo",
+      "undo",
+      (host) => {
+        host.run(undo);
+      },
+      "Control+Z",
+    ),
+    actTool(
+      "Redo",
+      "redo",
+      (host) => {
+        host.run(redo);
+      },
+      "Control+Y",
+    ),
+  ],
+  [
+    {
+      label: "Block style",
+      value: (state) => BLOCK_STYLES[blockLevel(state)] ?? "Paragraph",
+      menu: (state, host) =>
+        BLOCK_STYLES.map((label, level) => ({
           label,
           checked: blockLevel(state) === level,
           run: () => {
             host.run(setTextStyle(level));
           },
-        }),
-      ),
-  },
-  {
-    text: "Color",
-    label: "Text color",
-    menu: styleMenu("color", "color", COLORS, true),
-  },
-  {
-    text: "Highlight",
-    label: "Highlight color",
-    menu: styleMenu("background", "color", HIGHLIGHTS, true),
-  },
-  {
-    text: "Size",
-    label: "Font size",
-    menu: styleMenu("font_size", "size", FONT_SIZES, false),
-  },
-  {
-    text: "Font",
-    label: "Font family",
-    menu: styleMenu("font_family", "family", FONT_FAMILIES, true),
-  },
-  {
-    text: "Align",
-    label: "Align text",
-    menu: (state, host) =>
-      ALIGNMENTS.map((align) => ({
-        label: `${align.charAt(0).toUpperCase()}${align.slice(1)}`,
-        checked: currentAlign(state) === align,
-        run: () => {
-          host.run(setAlign(align === "left" ? null : align));
-        },
-      })),
-  },
-  {
-    text: "• List",
-    label: "Bulleted list",
-    pressed: (state) => inList(state, node("bullet_list")),
-    act: (host) => {
-      host.run(toggleList(node("bullet_list")));
+        })),
     },
-  },
-  {
-    text: "1. List",
-    label: "1. List, numbered",
-    pressed: (state) => inList(state, node("ordered_list")),
-    act: (host) => {
-      host.run(toggleList(node("ordered_list")));
+    {
+      label: "Text size",
+      value: sizeLabel,
+      menu: styleMenu("font_size", "size", FONT_SIZES, false),
     },
-  },
-  {
-    text: "Quote",
-    label: "Quote",
-    pressed: (state) => inList(state, node("blockquote")),
-    act: (host) => {
-      host.run(toggleBlockquote());
+  ],
+  [
+    markTool("B", "Bold", "strong", "Control+B"),
+    markTool("I", "Italic", "em", "Control+I"),
+    markTool("U", "Underline", "underline", "Control+U"),
+    markTool("S", "Strikethrough", "strike", "Control+Shift+X"),
+    {
+      label: "Text color",
+      icon: "drop",
+      menu: styleMenu("color", "color", COLORS, true),
     },
-  },
-  {
-    text: "Line",
-    label: "Horizontal line",
-    act: (host) => {
-      host.insertRule();
+    {
+      label: "Highlight color",
+      icon: "highlight",
+      menu: styleMenu("background", "color", HIGHLIGHTS, true),
     },
-  },
-  {
-    text: "Link",
-    label: "Link",
-    shortcut: "Control+K",
-    act: (host) => {
-      host.insertLink();
+  ],
+  [
+    {
+      label: "Align text",
+      icon: "align",
+      menu: (state, host) =>
+        ALIGNMENTS.map((align) => ({
+          label: `${align.charAt(0).toUpperCase()}${align.slice(1)}`,
+          checked: currentAlign(state) === align,
+          run: () => {
+            host.run(setAlign(align === "left" ? null : align));
+          },
+        })),
     },
-  },
-  {
-    text: "Image",
-    label: "Image by URL",
-    act: (host) => {
+    listTool("Bulleted list", "ul", "bullet_list"),
+    listTool("Numbered list", "ol", "ordered_list"),
+    {
+      label: "Quote",
+      icon: "quote",
+      pressed: (state) => inList(state, node("blockquote")),
+      act: (host) => {
+        host.run(toggleBlockquote());
+      },
+    },
+  ],
+  [
+    actTool(
+      "Link",
+      "link",
+      (host) => {
+        host.insertLink();
+      },
+      "Control+K",
+    ),
+    actTool("Image", "image", (host) => {
       host.insertImage();
-    },
-  },
-  {
-    text: "Table",
-    label: "Table",
-    act: (host) => {
+    }),
+    actTool("Table", "table", (host) => {
       host.insertTable();
-    },
-  },
+    }),
+    actTool("Horizontal line", "rule", (host) => {
+      host.insertRule();
+    }),
+  ],
 ];
+
+const TOOLS: readonly Tool[] = GROUPS.flat();
 
 export interface Toolbar {
   readonly element: HTMLElement;
+  /** The "Insert field" button, the anchor of the placeholder menu. */
+  readonly placeholder: HTMLButtonElement;
   update(state: EditorState): void;
 }
 
@@ -257,27 +285,45 @@ function arrowKeys(element: HTMLElement, buttons: HTMLButtonElement[]): void {
   });
 }
 
+/** "Bold (Ctrl+B)": the tooltip names the shortcut. */
+export function tooltip(label: string, shortcut?: string): string {
+  return shortcut === undefined
+    ? label
+    : `${label} (${shortcut.replace("Control", "Ctrl")})`;
+}
+
+function buttonClass(tool: Tool): string {
+  if (tool.value !== undefined) return "tool picker";
+  return tool.letter === undefined ? "tool" : "tool letter";
+}
+
+/** Keeps the focus in the editor when a button is pressed with the mouse. */
+function keepFocus(button: HTMLButtonElement): void {
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+  });
+}
+
 function toolButton(tool: Tool, host: ToolbarHost): HTMLButtonElement {
+  const picker = tool.value !== undefined;
   const button = h(
     "button",
     {
       type: "button",
-      class: "tool",
-      "aria-label": tool.label,
-      title:
-        tool.shortcut === undefined
-          ? tool.label
-          : `${tool.label} (${tool.shortcut.replace("Control", "Ctrl")})`,
+      class: buttonClass(tool),
+      // A picker gets its name in `update`, with its visible value in it.
+      "aria-label": picker ? undefined : tool.label,
+      title: tooltip(tool.label, tool.shortcut),
       "aria-keyshortcuts": tool.shortcut,
       "aria-pressed": tool.pressed === undefined ? undefined : "false",
       "aria-haspopup": tool.menu === undefined ? undefined : "menu",
       "aria-expanded": tool.menu === undefined ? undefined : "false",
     },
-    tool.text,
+    tool.letter ?? (tool.icon === undefined ? null : icon(tool.icon)),
+    picker ? h("span", { class: "picker-value" }) : null,
+    picker ? icon("down") : null,
   );
-  button.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-  });
+  keepFocus(button);
   button.addEventListener("click", () => {
     if (tool.menu !== undefined) {
       openMenu({
@@ -295,6 +341,21 @@ function toolButton(tool: Tool, host: ToolbarHost): HTMLButtonElement {
   return button;
 }
 
+/** The buttons with a divider before every group but the first. */
+function grouped(buttons: readonly HTMLButtonElement[]): HTMLElement[] {
+  let next = 0;
+  return GROUPS.flatMap((group, i) => {
+    const members = buttons.slice(next, next + group.length);
+    next += group.length;
+    const divider = h("span", {
+      class: "tool-sep",
+      role: "separator",
+      "aria-orientation": "vertical",
+    });
+    return i === 0 ? members : [divider, ...members];
+  });
+}
+
 export function createToolbar(host: ToolbarHost, editorId: string): Toolbar {
   const buttons = TOOLS.map((tool) => toolButton(tool, host));
   const placeholder = h(
@@ -302,13 +363,14 @@ export function createToolbar(host: ToolbarHost, editorId: string): Toolbar {
     {
       type: "button",
       class: "tool tool-ph",
-      "aria-label": "Insert placeholder",
-      title: "Insert placeholder (type {{)",
+      title: "Insert field (type {{)",
       "aria-haspopup": "menu",
       "aria-expanded": "false",
     },
-    "{{ Placeholder",
+    icon("field"),
+    "Insert field",
   );
+  keepFocus(placeholder);
   placeholder.addEventListener("click", () => {
     host.openPicker(placeholder);
   });
@@ -321,16 +383,25 @@ export function createToolbar(host: ToolbarHost, editorId: string): Toolbar {
       "aria-label": "Formatting",
       "aria-controls": editorId,
     },
-    ...all,
+    ...grouped(buttons),
+    placeholder,
   );
   roving(all);
   arrowKeys(element, all);
   return {
     element,
+    placeholder,
     update: (state) => {
       TOOLS.forEach((tool, i) => {
+        const button = buttons[i];
+        if (button === undefined) return;
         if (tool.pressed !== undefined)
-          buttons[i]?.setAttribute("aria-pressed", String(tool.pressed(state)));
+          button.setAttribute("aria-pressed", String(tool.pressed(state)));
+        if (tool.value === undefined) return;
+        const value = tool.value(state);
+        button.setAttribute("aria-label", `${tool.label}: ${value}`);
+        const text = button.querySelector(".picker-value");
+        if (text !== null) text.textContent = value;
       });
     },
   };
