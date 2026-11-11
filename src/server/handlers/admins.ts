@@ -25,7 +25,8 @@ export type AdminReason =
   | "ADMIN_OUTSIDE"
   | "ADMIN_NO_ACCOUNT"
   | "ADMIN_TOO_MANY"
-  | "ADMIN_SELF";
+  | "ADMIN_SELF"
+  | "ADMIN_CHECK";
 
 export interface AdminsResult {
   readonly admins: AdminEntry[];
@@ -62,6 +63,27 @@ function requireForm(email: string, domain: string): void {
 const outside = (domain: string) =>
   refusal("ADMIN_OUTSIDE", `Only ${domain} addresses can be admins.`);
 
+/** HTTP status of an advanced-service error (`details.code`), else 0. Never the message: it can name the address. */
+export function directoryStatus(error: unknown): number {
+  const code = (error as { details?: { code?: unknown } } | null)?.details
+    ?.code;
+  return typeof code === "number" && Number.isInteger(code) ? code : 0;
+}
+
+/** One warn line per failed lookup: `errorCode` "<reason>:<status>", no address, no message text (smoke 16 step 4). */
+function logDirectoryRefusal(
+  services: Services,
+  reason: AdminReason,
+  error: unknown,
+): void {
+  services.logger.warn({
+    surface: services.stats.surface,
+    action: "directory.users.get",
+    result: "error",
+    errorCode: `${reason}:${String(directoryStatus(error))}`,
+  });
+}
+
 /**
  * The account's primary address from the Directory (`domain_public`, `basic`, the scope `lookupProfile` uses). Not
  * found (also a group address): ADMIN_NO_ACCOUNT. Any other failure: INTERNAL, nothing written.
@@ -78,10 +100,16 @@ function primaryAddress(services: Services, email: string, domain: string) {
       .get(email, { viewType: "domain_public", projection: "basic" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "";
-    if (/not found/i.test(message)) throw noAccount;
+    const reason = /not found/i.test(message)
+      ? "ADMIN_NO_ACCOUNT"
+      : "ADMIN_CHECK";
+    logDirectoryRefusal(services, reason, error);
+    if (reason === "ADMIN_NO_ACCOUNT") throw noAccount;
+    // INTERNAL keeps the log level `error`; the reason lets the page show this text in place of the toast.
     throw new AppError(
       ErrorCode.INTERNAL,
       "The address could not be checked. Try again.",
+      { reason },
     );
   }
   const primary = (raw as { primaryEmail?: unknown } | null)?.primaryEmail;
@@ -90,6 +118,24 @@ function primaryAddress(services: Services, email: string, domain: string) {
   // An alias of a user whose primary address sits in another domain of the Workspace.
   if (!isAdminAddress(address, domain)) throw outside(domain);
   return address;
+}
+
+/**
+ * The edit applied to the list read for the write. Null there means the list differs from the one checked in the
+ * same lock: refuse, so no path can write an empty list in place of the real one.
+ */
+export function editedList(
+  stored: unknown,
+  domain: string,
+  edit: (entries: AdminEntry[]) => AdminEntry[] | null,
+): AdminEntry[] {
+  const admins = edit(adminEntriesOf(stored, domain));
+  if (admins === null)
+    throw new AppError(
+      ErrorCode.CONFLICT,
+      "The admin list changed while you worked. Reload the page and try again.",
+    );
+  return admins;
 }
 
 function change(
@@ -106,7 +152,7 @@ function change(
     const entries = adminEntriesOf(current.admins, domain);
     if (edit(entries) === null) return { admins: entries, changed: false };
     return commitLocked(services, (latest: IndexDoc) => {
-      const admins = edit(adminEntriesOf(latest.admins, domain)) ?? [];
+      const admins = editedList(latest.admins, domain, edit);
       return {
         doc: { ...latest, admins },
         events: [

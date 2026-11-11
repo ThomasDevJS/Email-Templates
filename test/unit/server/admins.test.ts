@@ -9,6 +9,10 @@ import type { AdminEntry } from "../../../src/shared/model/admins";
 import type { Surface } from "../../../src/shared/log/logger";
 import { readBuffer } from "../../../src/server/audit/buffer";
 import type { ConfigView } from "../../../src/server/handlers/config";
+import {
+  directoryStatus,
+  editedList,
+} from "../../../src/server/handlers/admins";
 import { runDaily } from "../../../src/server/jobs/daily";
 import { refreshSnapshot } from "../../../src/server/membership/snapshot";
 import { loadIndex } from "../../../src/server/cache/indexCache";
@@ -226,16 +230,48 @@ describe("admin.add refusals (criterion 4): own code, check order, nothing writt
     refused({ email: "alias@example.com" }, "VALIDATION", "ADMIN_OUTSIDE");
   });
 
-  it("SERVER (INTERNAL) with the 7.3 text for any other Directory error", () => {
+  /** A Directory failure as the advanced service throws it: a message and `details.code`. */
+  function directoryFails(message: string, code: number): void {
     world.directory.get = () => {
-      throw new Error("Service unavailable");
+      throw Object.assign(new Error(`${message}: flaky@example.com`), {
+        details: { code },
+      });
     };
+  }
+
+  /** The Directory warn line: reason and status only, no address, no message text. */
+  function directoryLine(): Record<string, unknown> {
+    const line =
+      world.lines.find((entry) => entry.includes("directory.users.get")) ?? "";
+    expect(line).not.toContain("flaky");
+    expect(line).not.toMatch(/unavailable|Resource/);
+    return JSON.parse(line) as Record<string, unknown>;
+  }
+
+  it("SERVER (INTERNAL) with the 7.3 text and reason ADMIN_CHECK for any other Directory error", () => {
+    directoryFails("Service unavailable", 503);
     refused(
       { email: "flaky@example.com" },
       "INTERNAL",
-      undefined,
+      "ADMIN_CHECK",
       "The address could not be checked. Try again.",
     );
+    expect(directoryLine()).toMatchObject({
+      level: "warn",
+      action: "directory.users.get",
+      errorCode: "ADMIN_CHECK:503",
+    });
+  });
+
+  it("logs the status of a not-found answer; 0 when the error carries none", () => {
+    directoryFails("Resource Not Found", 404);
+    refused({ email: "flaky@example.com" }, "VALIDATION", "ADMIN_NO_ACCOUNT");
+    expect(directoryLine()).toMatchObject({
+      errorCode: "ADMIN_NO_ACCOUNT:404",
+    });
+    expect(directoryStatus(new Error("x"))).toBe(0);
+    expect(directoryStatus({ details: { code: "404" } })).toBe(0);
+    expect(directoryStatus(null)).toBe(0);
   });
 
   it("ADMIN_TOO_MANY for the 21st address, checked in the lock", () => {
@@ -371,6 +407,44 @@ describe("in-lock re-check (criterion 7)", () => {
     beforeNextLock(() => remove(BOB, CARL));
     expect(errorOf(CARL, "admin.remove", { email: BOB }).code).toBe("DENIED");
     expect(listed()).toEqual([BOB]);
+  });
+
+  it("refuses a removed admin's in-flight level-row writes in the lock: nothing written, one denied row (retry 1)", () => {
+    const sales = world.ok<Folder>(OWNER, "folder.create", { name: "Sales" });
+    add(OWNER, CARL);
+    const writes: [string, unknown][] = [
+      [
+        "grant.add",
+        {
+          folderId: sales.id,
+          principalType: "user",
+          principalKey: CARL,
+          level: "manage",
+        },
+      ],
+      ["template.create", { folderId: sales.id, title: "T", html: "<p>t</p>" }],
+    ];
+    for (const [op, args] of writes) {
+      add(OWNER, CARL);
+      beforeNextLock(() => remove(OWNER, CARL));
+      const before = fileIndex().rev + 1;
+      const denied = deniedRows();
+      expect(errorOf(CARL, op, args).code).toBe("DENIED");
+      expect(fileIndex().rev).toBe(before);
+      expect(fileIndex().grants).toHaveLength(0);
+      expect(fileIndex().items).toHaveLength(0);
+      expect(deniedRows()).toBe(denied + 1);
+    }
+  });
+
+  it("refuses, never writes an empty list, when the edit finds nothing to do on the list read for the write", () => {
+    const stored = [{ email: CARL, addedAt: "t", addedBy: OWNER }];
+    expect(() => editedList(stored, "example.com", () => null)).toThrow(
+      expect.objectContaining({ code: "CONFLICT" }),
+    );
+    expect(editedList(stored, "example.com", (entries) => entries)).toEqual(
+      stored,
+    );
   });
 
   it("two concurrent adds both land", () => {
