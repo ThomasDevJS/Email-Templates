@@ -14,7 +14,7 @@ describe("actionWords", () => {
     expect(actionWords("template.update")).toBe("Template updated");
     expect(actionWords("grant.add")).toBe("Grant added");
     expect(actionWords("backup.restore")).toBe("Backup restored");
-    expect(actionWords("export.library")).toBe("Library exported");
+    expect(actionWords("export.library")).toBe("Library export started");
     expect(actionWords("future.op")).toBe("future.op");
     expect(actionWords("toString")).toBe("toString");
     expect(actionWords("")).toBe("");
@@ -68,21 +68,27 @@ describe("purgeText", () => {
 });
 
 describe("rowActionWords", () => {
-  it("labels an export page with its range, other rows with the action words", () => {
-    const row = (offset: number, templates: number, total: number) =>
+  it("labels an export start with its count and folder path, other rows with the action words", () => {
+    expect(
       rowActionWords({
         action: "export.library",
-        exportPage: { offset, templates, total },
-      });
-    expect(row(0, 20, 25)).toBe("Library exported, templates 1 to 20 of 25");
-    expect(row(20, 5, 25)).toBe("Library exported, templates 21 to 25 of 25");
-    expect(row(0, 3, 3)).toBe("Library exported, all 3 templates");
-    expect(row(0, 1, 1)).toBe("Library exported, all 1 template");
-    expect(row(30, 0, 25)).toBe(
-      "Library exported, no templates (from 31 of 25)",
+        targetPath: "",
+        exportTemplates: 25,
+      }),
+    ).toBe("Library export started, 25 templates");
+    expect(
+      rowActionWords({
+        action: "export.folder",
+        targetPath: "/Sales/Quotes",
+        exportTemplates: 1,
+      }),
+    ).toBe("Folder export started: Sales / Quotes, 1 template");
+    expect(rowActionWords({ action: "export.folder", targetPath: "/S" })).toBe(
+      "Folder export started",
     );
-    expect(rowActionWords({ action: "export.folder" })).toBe("Folder exported");
-    expect(rowActionWords({ action: "grant.add" })).toBe("Grant added");
+    expect(rowActionWords({ action: "grant.add", targetPath: "/S" })).toBe(
+      "Grant added",
+    );
   });
 });
 

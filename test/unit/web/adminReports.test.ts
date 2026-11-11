@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { EXPORT_RETRY_TEXT } from "../../../src/web/views/adminTransfer";
 import { stubLayout } from "./domStubs";
 
 const INDEX = readFileSync(
@@ -333,33 +334,8 @@ describe("export and import tab", () => {
     );
   });
 
-  it("retries a page answered BUSY and then downloads the whole file", async () => {
-    URL.createObjectURL = vi.fn(() => "blob:x");
-    URL.revokeObjectURL = vi.fn();
-    const clicks: string[] = [];
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-      this: HTMLAnchorElement,
-    ) {
-      clicks.push(this.download);
-    });
-    await boot(
-      "/?latency=0&fail=BUSY&failOp=export.library&failTimes=2#/admin/transfer",
-    );
-    await until(() => {
-      expect(button("Export")).toBeTruthy();
-    });
-    button("Export").click();
-    await vi.waitFor(
-      () => {
-        expect(status()).toMatch(/Exported 4 templates to /);
-      },
-      { timeout: 4000, interval: 10 },
-    );
-    expect(clicks).toHaveLength(1);
-    expect(toasts()).toBe("");
-  });
-
-  it("stops after the retries with a clear message and downloads nothing", async () => {
+  /** Boots the transfer tab on `query`, clicks Export, and records downloads. */
+  const exportWith = async (query: string) => {
     const createUrl = vi.fn(() => "blob:x");
     URL.createObjectURL = createUrl;
     URL.revokeObjectURL = vi.fn();
@@ -369,22 +345,52 @@ describe("export and import tab", () => {
     ) {
       clicks.push(this.download);
     });
-    await boot("/?latency=0&fail=BUSY&failOp=export.library#/admin/transfer");
+    await boot(`/?latency=0&failOp=export.library&${query}#/admin/transfer`);
     await until(() => {
       expect(button("Export")).toBeTruthy();
     });
     button("Export").click();
-    await vi.waitFor(
+    return { clicks, createUrl };
+  };
+  const waitStatus = (part: string | RegExp) =>
+    vi.waitFor(
       () => {
-        expect(status()).toContain(
-          "The export stopped: the server was too busy to record it in the audit log. Nothing was downloaded. Try again in a minute.",
-        );
+        expect(status()).toMatch(part);
       },
       { timeout: 4000, interval: 10 },
+    );
+
+  it("retries a start answered BUSY and then downloads the whole file", async () => {
+    const { clicks } = await exportWith("fail=BUSY&failTimes=2");
+    await waitStatus(/Exported 4 templates to /);
+    expect(clicks).toHaveLength(1);
+    expect(toasts()).toBe("");
+  });
+
+  it("retries a page that failed with a retryable error after the start", async () => {
+    const { clicks } = await exportWith("fail=INTERNAL&failSkip=1&failTimes=3");
+    await waitStatus(/Exported 4 templates to /);
+    expect(clicks).toHaveLength(1);
+  });
+
+  it("stops after the retries with a clear message and downloads nothing", async () => {
+    const { clicks, createUrl } = await exportWith("fail=BUSY&failSkip=1");
+    await waitStatus(EXPORT_RETRY_TEXT);
+    expect(EXPORT_RETRY_TEXT).toBe(
+      "The export stopped: the server did not answer after 4 tries. Nothing was downloaded. Wait a few minutes, then export again.",
     );
     expect(clicks).toEqual([]);
     expect(createUrl).not.toHaveBeenCalled();
     expect(button("Export").disabled).toBe(false);
+  });
+
+  it("stops at once on a refused page (expired run) and downloads nothing", async () => {
+    const { clicks, createUrl } = await exportWith(
+      "fail=VALIDATION&failSkip=1&failTimes=1",
+    );
+    await waitStatus("Simulated VALIDATION.");
+    expect(clicks).toEqual([]);
+    expect(createUrl).not.toHaveBeenCalled();
   });
 
   it("validates a file before Import, then imports into the chosen folder", async () => {

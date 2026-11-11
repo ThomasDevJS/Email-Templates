@@ -2,7 +2,7 @@
  * Dev harness (`npm run dev:web`, `scripts/lighthouse.mjs`): a fake `google.script` with an in-memory server, so
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
  * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code
- * (`&failTimes=<n>`: only the first n calls),
+ * (`&failSkip=<n>`: not the first n calls; `&failTimes=<n>`: only n calls),
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
  * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
  * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only.
@@ -1053,7 +1053,8 @@ const OPS: Readonly<Record<string, Op>> = {
   },
 };
 
-/** Simulated failures so far, for `?failTimes=<n>`. */
+/** Calls of the failing op and simulated failures so far, for `?failSkip=<n>` and `?failTimes=<n>`. */
+let seen = 0;
 let failed = 0;
 
 function reply(op: string, args: unknown): unknown {
@@ -1062,9 +1063,11 @@ function reply(op: string, args: unknown): unknown {
   try {
     const fail = params.get("fail");
     const times = Number(params.get("failTimes") ?? "Infinity");
+    const skip = Number(params.get("failSkip") ?? "0");
     if (
       fail !== null &&
       (params.get("failOp") ?? op) === op &&
+      (seen += 1) > skip &&
       failed < times
     ) {
       failed += 1;
