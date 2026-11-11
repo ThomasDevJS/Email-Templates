@@ -80,16 +80,36 @@ function toButton(spec: ButtonSpec): GoogleAppsScript.Card_Service.TextButton {
       icon: GoogleAppsScript.Card_Service.MaterialIcon,
     ) => unknown;
   };
-  if (spec.icon !== undefined && typeof withIcon.setMaterialIcon === "function")
-    withIcon.setMaterialIcon(CardService.newMaterialIcon().setName(spec.icon));
+  try {
+    if (
+      spec.icon !== undefined &&
+      typeof withIcon.setMaterialIcon === "function"
+    )
+      withIcon.setMaterialIcon(
+        CardService.newMaterialIcon().setName(spec.icon),
+      );
+  } catch {
+    // A runtime that refuses the icon keeps the button, without the icon.
+  }
   return button;
 }
 
-function toIcon(name: IconName): GoogleAppsScript.Card_Service.IconImage {
-  return CardService.newIconImage().setMaterialIcon(
+function toIcon(
+  name: IconName,
+  alt?: string,
+): GoogleAppsScript.Card_Service.IconImage {
+  const icon = CardService.newIconImage().setMaterialIcon(
     CardService.newMaterialIcon().setName(name),
   );
+  return alt === undefined ? icon : icon.setAltText(alt);
 }
+
+/** Hint and error lines (D36): a wrapped DecoratedText, the tone's icon at the start, the escaped text in its color. */
+const TONES = {
+  hint: { color: GREY, icon: "info", alt: undefined },
+  // The icon's alt text says "Error" to screen readers, so the line needs no "(!)" (slice 22b).
+  error: { color: RED, icon: "error", alt: "Error" },
+} as const;
 
 // Labels are plain text in Gmail (add-on widget guide): escaped like every value, never given markup such as `<br>`.
 function toItem(spec: Extract<Widget, { kind: "item" }>) {
@@ -130,14 +150,12 @@ function toInput(spec: Extract<Widget, { kind: "input" }>) {
 function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
   switch (spec.kind) {
     case "text":
-      if (spec.tone === "hint")
-        return CardService.newDecoratedText()
-          .setText(colored(GREY, spec.text))
-          .setWrapText(true)
-          .setStartIcon(toIcon("info"));
-      return CardService.newTextParagraph().setText(
-        spec.tone === "error" ? colored(RED, spec.text) : markup(spec.text),
-      );
+      if (spec.tone === undefined)
+        return CardService.newTextParagraph().setText(markup(spec.text));
+      return CardService.newDecoratedText()
+        .setText(colored(TONES[spec.tone].color, spec.text))
+        .setWrapText(true)
+        .setStartIcon(toIcon(TONES[spec.tone].icon, TONES[spec.tone].alt));
     case "item":
       return toItem(spec);
     case "buttons":

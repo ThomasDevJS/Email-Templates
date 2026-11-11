@@ -696,7 +696,7 @@ describe("details Insert (spec 7.4 Flow C)", () => {
     const reply = submit({ "p-1": "ok", "p-2": "x".repeat(501) });
     expect(reply.kind).toBe("update");
     const card = cardOf(reply);
-    expect(texts(card)[0]).toBe("(!) Shorten to 500 characters: Notes");
+    expect(texts(card)[0]).toBe("Shorten to 500 characters: Notes");
     expect(inputs(card).map((i) => i.name)).toEqual(["p-2", "p-1"]);
     expect(card.footer?.primary.action.params?.["counted"]).toBe("1");
   });
@@ -711,7 +711,7 @@ describe("details Insert (spec 7.4 Flow C)", () => {
     cache.removeAll([`body:${item.id}`]);
     const card = cardOf(submit({ "p-1": "a", "p-2": "b" }));
     expect(texts(card)[0]).toBe(
-      "(!) The template changed. Check the fields and press Insert again.",
+      "The template changed. Check the fields and press Insert again.",
     );
     expect(sent.map((s) => s.op)).toEqual(["template.apply"]);
     expect(card.footer?.primary.action.params).toMatchObject({

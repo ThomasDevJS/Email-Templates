@@ -468,7 +468,7 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
     const inputs = widgets(card).filter((w) => w.kind === "input");
     expect(inputs).toHaveLength(20);
     expect(inputs[0]).toMatchObject({ name: "p-6", title: "F5" });
-    expect(texts(card)[0]).toBe("(!) Shorten to 500 characters: F5");
+    expect(texts(card)[0]).toBe("Shorten to 500 characters: F5");
     expect(texts(card)).toContain(
       "This template has 23 fields. The first 20 are here. The rest are left out of the draft.",
     );

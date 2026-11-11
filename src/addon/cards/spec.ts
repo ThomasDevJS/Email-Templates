@@ -68,14 +68,14 @@ export function hint(text: string): Widget {
 
 /** Material icon names (`newMaterialIcon().setName`): no image URL, so the add-on loads nothing from outside Google. */
 export type IconName =
-  "star" | "schedule" | "description" | "folder" | "info" | "search";
+  "star" | "schedule" | "description" | "folder" | "info" | "search" | "error";
 
 export type Widget =
   | {
       readonly kind: "text";
       readonly text: string;
       /**
-       * "error": a line that reports a problem, shown in brand red; it keeps its words ("(!)"), so color is extra.
+       * "error": a line that reports a problem, the error icon (alt text "Error") and brand red.
        * "hint": guidance on what to do next (no error, no empty state, no fact about the template), shown grey with
        * the info icon (D36).
        */

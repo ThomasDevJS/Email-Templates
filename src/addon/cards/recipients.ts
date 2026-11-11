@@ -8,7 +8,7 @@ import {
   type Recipients,
 } from "../../shared/model/recipients";
 import type { DraftRecipients } from "../event";
-import { hint, type Widget } from "./spec";
+import type { Widget } from "./spec";
 
 /**
  * Template recipients at Insert (D26, spec 5.7, ADR-0006 section 4, spike S6). The one place that decides which
@@ -173,6 +173,8 @@ export function recipientWidgets(
     text: `The draft's ${FIELD_LABELS[field]} recipients could not be read and were not changed. Add by hand: ${plan.unknown[field].join(", ")}.`,
   }));
   const finish: Widget[] =
-    typing && recipientCount(plan.added) > 0 ? [hint(FINISH_TYPING)] : [];
+    typing && recipientCount(plan.added) > 0
+      ? [{ kind: "text", text: FINISH_TYPING }]
+      : [];
   return [...lines, ...skipped, ...unread, ...finish];
 }

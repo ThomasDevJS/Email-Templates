@@ -98,7 +98,7 @@ exports[`card look is frozen (D34) > details cards 1`] = `
     "sections": [
       [
         "",
-        "text: (!) The recipients of this template changed. Check them and press Insert again.",
+        "text: The recipients of this template changed. Check them and press Insert again.",
       ],
       [
         "",

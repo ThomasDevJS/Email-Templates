@@ -197,7 +197,7 @@ describe("unknown draft fields (never rewritten)", () => {
         kind: "text",
         text: "The draft's Bcc recipients could not be read and were not changed. Add by hand: records@partner.com.",
       },
-      { kind: "text", text: FINISH_TYPING, tone: "hint" },
+      { kind: "text", text: FINISH_TYPING },
     ]);
   });
 });
@@ -252,7 +252,7 @@ describe("texts (spec 7.1)", () => {
         kind: "text",
         text: "Not added: x@partner.com. Outside migway.com, turned off by your admin.",
       },
-      { kind: "text", text: FINISH_TYPING, tone: "hint" },
+      { kind: "text", text: FINISH_TYPING },
     ]);
     expect(FINISH_TYPING).toBe(
       "Finish typing addresses in the draft first: an address still being typed is lost.",
