@@ -1,13 +1,14 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-11, S7 run (ADR-0007 Accepted, slice 18 side-panel insert; commits 356a247, b5b6ba0, c52de03, 4b30e82, 1e76e5d). Before: D31 (slice 15), D32 (slice 16), errata run 4. Repo is the source of truth; this file is a cache.
+Last run: 2026-11-11, errata run 5 (slices 14 to 19 and D33 as built at 16df87a; commits 279ed79 spec, e8f09f8 ADRs, b03201f wireframes, plus handoff and memory). Before: S7 run, D31, D32, errata run 4. Repo is the source of truth; this file is a cache.
 
 ## Files I own
-- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Accepted 2026-11-11, section "Acceptance 2026-11-11" A1-A10; [S7] markers on old lines). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
+- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed; 0001 D27 and 0004 D26/D31 amendments Accepted 2026-11-11). 0009 Accepted 2026-11-11 (As built section). 0003/0008 D32 Accepted (0003 "As built (slice 16)"). 0006 D31 Accepted except Q77 point. 0007 Amendment 2026-11-11 (D33, failure sentences) Accepted. 0002 Amendment 2026-11-11, slice 19 Proposed. 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Accepted 2026-11-11, section "Acceptance 2026-11-11" A1-A10; [S7] markers on old lines). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
 - docs/spec.md (sections 1-16; 4.5 export/import as built; 5.1 depth 5; 5.2 key max 254; 5.6 subject D24; 11 `draft`; 11.1 admin audit/log rules; 12.1 measured; 13.3 6a/6b done; 13.4 known limits; 13.5 slice 7 and v1.1 items; 5.7 recipients; 7.1 recipient texts; 13.6 slice 9; 14.1 spike S6; 4.1a panel flow; 7.2 panel texts; 13.7 Gmail panel pass; 14.2 spike S7; 5.8 settings + enforcement table; 7.3 settings texts; 13.8 slice 11; Q1-Q52; 16.1 restore, 16.2 damaged-file recovery, 16.3 owner handover)
 - docs/wireframes/01-07 (01 slice 12 cards + panel interim; 02 recipient lines; 04 editor 8b direction A; 06 as built; 07 states slice 12). 03 and 05 keep old layout; 03 points to docs/design/screens/8a.
 
 ## Owner decisions in force
+- D31 one-click (removal), D32 in-app admins, D33 Reply + Reply all on panel rows (ButtonSet under title): built, Accepted 2026-11-11.
 - D15 one Apps Script project. Add-on runs as user, web app deployment runs as owner (USER_DEPLOYING, DOMAIN).
 - D18 admins see private folders in the library; `sidebar.home` hides other users' private folders (spec 2).
 - D21 template subject applied in v1, slice 5.
@@ -40,6 +41,16 @@ Last run: 2026-11-11, S7 run (ADR-0007 Accepted, slice 18 side-panel insert; com
 - Export: start call commits one event via `commit`, token `exp:<token>` 600 s sliding, pages need it, misses not cached. Audit words "Library export started, n templates".
 - Buffer: evicted slot first, apply takes denied slot, `evt:lost`. Log targetId falls back to dispatch-resolved folder (grant.remove). `prof:<sha256>`.
 - Add-on slice 12: no headers on home/state cards, one-line labels " · ", hint "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.", Favorites hidden when empty.
+
+## Errata run 5 facts (as built 16df87a)
+- Glossary of record: docs/design/wording.md. Tabs: Folders and access, Groups, Audit log, Usage, Export and import, Settings and backups. "Refresh groups". Jobs shown as "Save insert counts and refused actions", "Refresh groups", "Nightly backup and cleanup".
+- Web NOT_CONFIGURED = toast "Something went wrong. Try again." (server text never shown; fix round). Admins explanation still says "grants".
+- Slice 15: details Insert params id, version, values, rh, counted (no title); row-pushed card counted=1; `replacesSubject(draftHasSubject)`; first-name box on every details card when template has it without default text (`cardFields`); "(!) " prefix; one `rendered()` for all paths.
+- Slice 16: `ADMIN_DENIED_TEXT` "You are no longer an admin, so nothing was changed. Ask an admin if you need access." on 8 admin-only actions; Directory error INTERNAL reason `ADMIN_CHECK`; `lockedSubject` in `recheck` for every write; results carry `email`; `indexProblem` accepts any `admins` value.
+- Slice 18 fu1: `panelAnswer` throws one sentence (notification from compose action not shown, part J step 11); no request ID. fu2 (D33): message rows = DecoratedText + ButtonSet [Reply][Reply all]; 100-widget limit at 69 folders (slice 20b). Q68, Q74 yes.
+- Slice 19: Advanced `alt=media` throws on non-JSON text; `readRawText` (REST media) for month files, rolls, backup copies; doc reads retry raw once; `fileUrl` ID [A-Za-z0-9_-]; 429 QUOTA; `job:*:lastError` = "<time> <code> <error name>" (`errorSummary`, `JobError`).
+- Gmail facts: card closes after Insert; Open/Edit in library open a new Chrome window (code OVERLAY); narrow draft puts add-on in "⋮"; panel reply has signature below text, new email none.
+- 2.5b: admin-guide part 2 step 7 fails (deploy refuses version mode with empty deploymentId); Apps Script API user setting for DO unstated; logoUrl Drive-hosted.
 
 ## D31 (owner 2026-11-11): one-click insert, slice 15 (spec 7.4, 13.9, ADR-0009)
 - Every compose row "Insert" one click. Unfilled field REMOVED (owner decision, no marker): value order typed > value > fallback > "", then 4 gap rules (U+0020 only, per text run and subject): space both sides drop after; space before + `,.;:!?` drop before; run start drop space after; run end drop space before. Left alone: across inline tags, nbsp, empty blocks (smoke 13). 8 test pairs in ADR-0004 Amendment 2026-11-11.
@@ -75,19 +86,20 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - 32a446c: warm save 4.2-5.2 s, Drive writes 2.0-2.7 s.
 
 ## Slice plan
-- Slices 1-17 done, on dev (56bf795). 18 side-panel insert (spec 13.11, 16 criteria, test round part J 12 steps + 2 by hand). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
+- Slices 1-19 done, on dev (16df87a); 20a (web, server) and 20b (add-on) fix round in build. v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
 - Q40-Q46 (D27) resolved by S7 (ADR-0007 A1). Q67-Q74 (slice 18): no via, form inputs unverified (fallback: drop boxes+switch), double press accepted, no first name for New email, no subject switch, rc mismatch notification, reply-all present skip, compose action on DecoratedText/FixedFooter unverified (fallback ButtonSet).
 - Q47-Q52 (D29): dev reads off after deploy (accept), off caps owner+admin to use (accept, turn on to clean up), no third setting, no RECIPIENTS_EXTERNAL fallback, read+insert not hide, quick start disclosure.
 - Q53 import refused on in-lock deny race (accept); Q54 rh without draft field state (accept); Q55 S6 step 7 fresh consent (owner runs by hand before prod).
+- Q68, Q74 closed yes (part J). New Q75 (how Gmail shows thrown sentence; rerun J11), Q76 (rule 2 ASCII only; accept), Q77 (row Insert no notice for left-out outside/skipped To; accept, owner's judgment).
 - Q32 closed by D29. Q33-Q39 (D26): limits, no placeholders, To in reply not added, secondary domains (RECIPIENT_DOMAINS if needed), private allowed, no existence check, address search web only.
 - Q22 = D23 open, assumption 3 s apply. Q23 built 6a. Q25 rec accept.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A44]. Question IDs global Q1-Q74. Slice numbers: next free 19 (17 docs, 18 side panel). ADR next free 0010. Spikes S2, S2b, S4, S5, S6, S7 closed (fresh consent open by hand, Q55; S7 step 9 form inputs not run, Q68).
+- External sources [A1]..[A44]. Question IDs global Q1-Q77. Slice numbers: 19 audit read, 20a/20b fix round in build; next free 21. ADR next free 0010. Spikes S2, S2b, S4, S5, S6, S7 closed (fresh consent open by hand, Q55; S7 step 9 form inputs not run, Q68).
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
