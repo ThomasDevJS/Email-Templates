@@ -31,10 +31,7 @@
 - scripts/web.mjs (`webPage({harness})`, `servePage`, `DEV_PAGE_VALUES`), dev-web.mjs, lighthouse.mjs. build.mjs uses webPage.
 - Tests: test/unit/web/* (jsdom per file, `stubLayout` for ProseMirror), app.test.ts boots harness + app via dynamic import and `vi.resetModules`.
 
-## Lessons (slice 3)
-- PM DOMParser reads `element.style` and DOMSerializer writes `style.cssText`: colors become `rgb()`. Parse the `style` attribute text and serialize by hand.
-- `<base target="_top">` in HtmlService sends `#` links to the top window; handle nav in script.
-- Lighthouse `label-content-name-mismatch`: aria-label must contain the visible text. Scrollable `pre` needs `tabindex=0`.
+## Lessons (slice 3): PM serializes style as rgb(), parse the style attribute by hand; `<base target="_top">` sends # links to the top window; aria-label must contain the visible text; scrollable `pre` needs tabindex=0.
 
 ## Code map (after slice 4)
 - `src/addon/`: entry.ts (12 callbacks, `respond` = guard, QUOTA `notBefore` wait, flow, render), flows.ts (`Ports` = call, User Cache, nowMs, userEmail, execUrl; home, folder, preview, insert, promptInsert, openLink, spike flows), view.ts (`view:*` chunks 600 s, `body:<id>`), event.ts (params, formInputs, `internalRecipient`), prompts.ts (p-n names, 20 fields, 500 chars).
