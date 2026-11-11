@@ -21,28 +21,9 @@
 - Server-plus-add-on probes: test/fakes/world.ts `setupWorld()`, `world.call(email, op, args, surface)`, `world.lines` for logs; add-on Ports pattern in test/unit/addon/flows.test.ts.
 
 ## Slice log
-- Slices 1-4b (2026-11-09/10): all PASS after retries. Lessons kept below. Open minors: readPreviousSnapshot swallows Drive errors; template.get not re-sanitized; prompt Insert renders from body cache; failed trigger reinstall can leave <3 triggers; admin can duplicate others' private templates (D11).
-  - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Sanitizer src/shared/sanitize, placeholders src/shared/placeholders. REQUEST_ID_PATTERN shared, checked on both surfaces.
-- Slices 2-3 (2026-11-09): PASS (64078b8, 8ba6797). Sanitizer src/shared/sanitize, placeholders src/shared/placeholders, write path shared/body/prepare.ts + server/handlers/body.ts, web app src/web (ProseMirror), harness scripts/dev-web.mjs. Open: template.get not re-sanitized; QUOTA retry not delayed; PH_BACKSLASH false positive across marks.
-- Slice 4 (2026-11-10): FAIL (2ac580f), retry 1 PASS (054129a, 846 tests, Code.js 259.2 KB). First review: 40 files, 842 tests, lines 95.95% (addon 100, shared 100, server 99.08), Code.js 258.9 KB, 10 scopes.
-  - Blocker: home.ts:54 empty state needs folders AND templates empty; every caller gets a private folder on first folder.list, so the empty state never shows (smoke Slice 4 step 8 fails). Fix: templates.length === 0.
-  - Minors: prompt Insert renders from body:<id> cache (6 h) with no re-check; unused payload fields placeholders/own/rev; smoke Slice 1 step 3 stale Ping; setRequiredWidgets not tried.
-  - Accepted: unset DOMAIN -> NOT_CONFIGURED; sidebar hides others' private folders from admins (server filter, library still shows); apply event buffered at prompt card open (spec 4.1 step 3).
-- Slice 4b (2026-11-10): FAIL (78a3d34), retry 1 PASS (20bd55a, 891 tests, Code.js 266.5 KB). Retry: shared REQUEST_ID_PATTERN enforced in handleRpc (VALIDATION, server ID logged), action logged only for policy ops, ensureTriggers live re-check, tick runs ensureTriggers, readers never set INDEX_REV (setup publishes). Open: failed reinstall can leave <3 triggers (delete-first); spec 16 wording.
-  First review (714adf0): 42 files, 879 tests, lines 96.27% (addon 100, server 99.31, shared 100, web 95.12), Code.js 265.8 KB, index.html 278.2 KB, 10 scopes, Lighthouse 100x3.
-  - Blocker: client requestId not format-checked on server. doPost logs any non-empty string (handle.ts:107, protocol.ts:69); rpc accepts [A-Za-z0-9-]{8,64} (entry.ts:123). Fix: shared XXXXXXXX-XXXXXX pattern, replace non-matching IDs on both surfaces.
-  - Accepted: 9bbd262 bundle as JSON literal + (0, eval) (fuzzed 191k strings, round-trips); lock-free loadIndex; body cache bd:<bodyFileId> behind dispatch; requestTiming bounds 0..600000 ints.
-- Slice 5 (2026-11-10): PASS (b534836). 46 files, 952 tests, lines 96.33% (addon 100, server 99.31, shared 100, web 95.5), Code.js 276.2 KB, index.html 284.2 KB, 10 scopes, Lighthouse 100x3.
-  - Subject: src/shared/placeholders/subject.ts, renderSubject (one pass, oneLine), insertReply (cards/spec.ts). Cards escape via markup(); history subject via withChips(escapeText()).
-  - Search: shared/search/match.ts (QUERY_MAX 200), sidebar `search` on snippet only, `search.body` ft:* + 25 Drive reads cap. Favorites/Recent: handlers/favorites.ts, key = server caller email, filtered by visible IDs; side caches server/cache/sideCache.ts with FAVORITES_REV, USAGE_REV (tick publishes when unset).
-  - Minors: spec 4.4 snippet wording; subject-only prompts asked with switch off; 2 Drive reads per home until first tick on pre-5 data; crash between writeSide and setProperty serves stale set; Q21 threadId boolean not in smoke step 1; spec 6 status line and 5.6 property list stale.
-- Slice 5b (2026-11-10): PASS (c50c953). 46 files, 983 tests, lines 96.41 (addon 100, server 99.31, shared 100, web 95.52), Code.js 279.8 KB, index.html 284.9 KB, 10 scopes, Lighthouse 100x3. New tests on old src: 38 fail.
-  - Q21: DRAFT_FIELDS/requestDraft in shared/model/protocol.ts (null -> VALIDATION, not logged), draftInfo/isReplyDraft in addon/event.ts, replacesSubject in cards/spec.ts, "Insert with subject" = subject "use".
-  - Owner label: folderLabel in server/handlers/folders.ts (folder.list only; sidebar filters others' privates).
-- Slice 5c (2026-11-10): PASS (1611869). 1001 tests, lines 96.41, Code.js 280.3 KB, 10 scopes, Lighthouse 100x3. New tests on old src: 21 fail.
-  - D24: draftHasSubject (addon/event.ts) reads gmail.subject and draftMetadata.subject; replacesSubject(choice, draftHasSubject). Gmail compose event has no threadId/messageId.
-  - DraftInfo.hasSubject boolean, requestDraft requires 5 keys. folder.rename strips " (owner)" on private folders; only admins can rename private folders (owner gets DENIED).
-  - Minor: strip also hits admin's own folder.
+- Slices 1-5c (2026-11-09/10): all PASS after retries; details in docs/reviews/slice-0*.md. Open minors: readPreviousSnapshot swallows Drive errors; template.get not re-sanitized; prompt Insert renders from body cache; failed trigger reinstall can leave <3 triggers; admin can duplicate others' private templates (D11); QUOTA retry not delayed; PH_BACKSLASH false positive across marks.
+  - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts Card Service only. Write path shared/body/prepare.ts + server/handlers/body.ts. REQUEST_ID_PATTERN shared, checked on both surfaces.
+  - Search shared/search/match.ts; favorites/usage side caches server/cache/sideCache.ts (FAVORITES_REV, USAGE_REV). Q21/D24 draft info in addon/event.ts (draftInfo, draftHasSubject), replacesSubject in cards/spec.ts. folderLabel in handlers/folders.ts.
 - Slice 6a (2026-11-10): FAIL (2b6b30f), retry 1 PASS (bb53d6c, 1132 tests, lines 96.56, Code.js 286.0 KB). Retry: PRINCIPAL_KEY_MAX 254 on trimmed lowercased key; dispatch buffers denied event for handler or in-lock DENIED (no double rows); grant.list sourcePath hidden above visible part; PURGE_FILES_MAX 50 after commit. Admin into others' private folders is ADR-0003 C (line 113), not a defect; my minor 3 withdrawn.
   First review: 49 files, 1120 tests, lines 96.54 (addon 100, server 99.31, shared 100, web 95.89), Code.js 284.7 KB, index.html 301.4 KB, 10 scopes, Lighthouse 100x6. New tests on old src: 58 fail.
   - Blocker 1: grant.add principalKey unbounded (grants.ts:73 principalKeyFor); manage holder stored a 20,004-char domain key.
@@ -106,6 +87,9 @@
 - Slice 8b merge with main fe33d50 (2026-11-11): PASS (a5d4527 on 0a59b34). 65 files, 1774 tests, lines 97.77, Code.js 358.6 KB, index.html 374.3 KB, Lighthouse 100x15, 10 scopes. Server/addon/shared diff vs main empty.
   - Merge method: `git show --remerge-diff <merge>`; symbol union check (git grep declarations per commit, trace absentees to merge base); test lines removed vs one parent must be removed by the other from base; computed-style diff per element vs the parent owning each view (0 diffs).
   - cancelDialogs: app.ts open() (route change) and editor canLeave (before the question). Minor: implementer MEMORY:126 describes it wrong.
+- Slice 14 wording (2026-11-11): FAIL (3bad2cb). Code, tests, defects a-f pass; 13 stale quotes in admin-guide 120/194/211, editor-guide 113/125, smoke 114-131 (Slice 6a/6b steps). 65 files, 1779 tests, lines 97.82, Code.js 360.4 KB, index.html 375.5 KB, Lighthouse 100x15, 10 scopes.
+  - Import ReportLine has no code field; reasonOf dropped `code:` so SUBJ_/PH_ codes left the response (minor, freeze forbids a field). Chip announcer .sr-only.chip-status verified in Chromium AX tree.
+  - Doc check method: extract every "quoted" string from guides/smoke, grep first 40 chars in src; read misses by hand (most are composed strings).
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
