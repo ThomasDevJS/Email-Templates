@@ -1,19 +1,17 @@
 Screen 7: States (empty, no permission, loading, error, trash)
-Slices 3 (web), 4 (sidebar), 6 (admin). Error codes in docs/spec.md section 7.
+Slices 3 (web), 4 (sidebar), 6 (admin). Error codes in docs/spec.md section 7. Sidebar cards as built in slice 12:
+no header on any state card.
 
 A. Sidebar, no templates visible (personal templates on)
 +--------------------------------------+
-| [M] Migway Templates                 |
-|--------------------------------------|
 | No templates shared with you yet.    |
-| Your private folder is ready.        |
+| Your private folder is ready: open   |
+| the library to create one.           |
 | [Open library]                       |
 +--------------------------------------+
 
 A2. Sidebar, no templates visible, personal templates off (D29, added 2026-11-10)
 +--------------------------------------+
-| [M] Migway Templates                 |
-|--------------------------------------|
 | No templates shared with you yet.    |
 | Ask your admin for access to a       |
 | folder.                              |
@@ -26,15 +24,17 @@ B. Sidebar, no permission (DENIED)
 +--------------------------------------+
 | You don't have access to this        |
 | template. Ask a folder manager.      |
-| [Back]                               |
+| [Back]                               |  [Refresh] when there is no card to go back to
 +--------------------------------------+
 
 C. Sidebar, error with retry (BUSY, QUOTA, TIMEOUT, SERVER)
 +--------------------------------------+
-| Something went wrong.                |
-| Request ID 01JC8XK2                  |
-| [Retry]  [Back]                      |
+| Something went wrong. Press Retry.   |  BUSY: "Busy right now. Press Retry in a few
+| Request ID MWARO9CA-YG9VT8           |  seconds." QUOTA: "Service is busy. Try again
+| [Retry]  [Back]                      |  in a minute."
 +--------------------------------------+
+Not configured: "Migway Templates is not set up yet." "Ask the owner to finish setup, then press Retry." [Retry]
+Not found: "This template was removed or moved. Press Refresh to update the list." [Refresh]
 
 D. Account not identified (AUTH_NO_USER), sidebar and web app
 +--------------------------------------------------------------+

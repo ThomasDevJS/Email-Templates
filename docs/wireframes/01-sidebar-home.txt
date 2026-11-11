@@ -1,42 +1,59 @@
 Screen 1: Sidebar home (Gmail compose, Card Service)
-Slice 4 (Favorites, Recent, search in 5). Width about 300 px. Widgets per card under 100 [R4 S9].
+Slice 4 (Favorites, Recent, search in 5). Layout and texts as built in slice 12 (verified at 6374b7b).
+Width about 300 px. Widgets per card under 100 [R4 S9]. [Insert] is a filled slate button,
+(Open library) an outlined button in the fixed footer. Icons: * star, @ clock, = document, # folder.
 
 +--------------------------------------+
-| [M] Migway Templates                 |  CardHeader
+| Search templates                     |  no CardHeader: Gmail's bar names the add-on
+| [ quote_______________________ ]     |  TextInput, onChangeAction -> search
+| Tip: add folder:Sales or tag:pricing |  hint line
+| to narrow the search.                |
 |--------------------------------------|
-| Search templates                     |  TextInput, onChangeAction -> search
-| [ quote_______________________ ]     |  hint: folder:Sales  tag:pricing
-|--------------------------------------|
-| FAVORITES                            |  CardSection, max 10
+| FAVORITES                            |  only with rows; max 10; 5 shown, rest collapsed
 |  * Welcome email          [Insert]   |  DecoratedText + TextButton
-|    Sales / Onboarding                |  bottom label: folder path
+|    Sales / Onboarding                |  one plain-text label line: path, then hints, " · "
 |  * Price quote 2026       [Insert]   |
-|    Sales / Quotes   2 fields to fill |  label when prompts exist
+|    Sales / Quotes · 2 fields to fill |
 |--------------------------------------|
-| RECENT                               |  max 5, last used by me
-|  Meeting follow-up        [Insert]   |
-|  Out of office reply      [Insert]   |
+| RECENT                               |  only with rows; max 5, last used by me
+|  @ Driver leaving         [Review]   |  template with recipients: no one-click insert (D26)
+|    HR · Adds Cc 1, Bcc 1             |
+|  @ Out of office reply    [Insert]   |
 |--------------------------------------|
-| FOLDERS                              |  collapsible section
-|  > Sales (24)                        |  DecoratedText, onClick -> folder card
-|  > Support (41)                      |
-|  > HR (7)                            |
-|  > My templates (3)                  |  private folder (D11); while personal templates are off (D29) only if it already exists
+| FOLDERS                              |  5 shown, rest collapsed
+|  # Sales                             |  DecoratedText, onClick -> folder card
+|    24 templates                      |
+|  # Support                           |
+|    41 templates                      |
+|  # My templates                      |  private folder (D11); while personal templates are off (D29) only if it already exists
+|    3 templates                       |
 |--------------------------------------|
-| [Open library]                       |  OpenLink OVERLAY, RELOAD_ADD_ON
+| (Open library)                       |  fixed footer; OpenLink OVERLAY, RELOAD_ADD_ON
 +--------------------------------------+
+
+Empty home (no visible templates; wireframe 07 A): "No templates shared with you yet." "Your private folder is
+ready: open the library to create one." [Open library]; no footer. Personal templates off (A2): "No templates
+shared with you yet. Ask your admin for access to a folder." No button.
 
 Folder card (pushed on tap):
 +--------------------------------------+
-| < Sales / Quotes                     |
+| Sales / Quotes                       |  CardHeader: folder path
 |--------------------------------------|
-|  Price quote 2026         [Insert]   |
-|    "Hi {first name}, thanks for..."  |  snippet, 80 chars
-|  Discount approval        [Insert]   |
+|  # Discounts                         |  subfolders first
+|    3 templates                       |
+|  = Price quote 2026       [Insert]   |
+|    2 fields to fill                  |  hints only (the header shows the path); no label when none
+|  = Discount approval      [Insert]   |
 |  ... 20 per page                     |
 |--------------------------------------|
-| [< Prev]   Page 1 of 3   [Next >]    |
+| [Previous]   Page 1 of 3   [Next]    |
+|--------------------------------------|
+| (Open library)                       |
 +--------------------------------------+
+
+Search card: the input with the query, RESULTS with = rows, or
+'No templates match "zzz". Try fewer words, or remove folder: and tag: from the search.'
+(query cut at 60 characters, then "..."). Footer (Open library).
 
 Tap on a title (not the button) pushes the preview card. Layout with the
 template subject (D21, slice 5): docs/wireframes/02-sidebar-prompt.txt.
@@ -46,15 +63,24 @@ Behavior
 - Insert on a template with prompts: push screen 2.
 - Edit in library: clears add-on cache, opens /exec?view=editor&id=... in OVERLAY, sidebar reloads on close.
 
-Side-panel variant (D27, ADR-0007, spec 4.1a and 7.2; Gmail panel pass, after slice 9)
-Opened from Gmail's right side panel. Same cards and data as above; only the
-line under the header, the row button, the preview buttons and the footer hint differ.
-Entry decided once by entryOf(event): compose | message | inbox.
+Side-panel variant as built (slices 10 and 12, interim until spike S7):
+Opened from Gmail's right side panel. Same cards as above, with no [Insert] or [Review]
+on rows and no Insert buttons on the preview; a tap on a title opens the preview. Home,
+folder, search and preview cards end with the hint, then the footer:
+| To insert a template, open a draft   |  TextParagraph, sidePanelHint(entry)
+| and use the Migway Templates button  |
+| in the draft's toolbar.              |
+| (Open library)                       |
+Dev build only: a "Spike S7 (temporary)" section after the hint.
+
+Side-panel variant, planned (D27, ADR-0007 Proposed, spec 4.1a and 7.2; Gmail panel pass after spike S7)
+Same cards and data as above; only the first line, the row button, the preview buttons
+and the footer hint differ. Since slice 12 the home card has no header, so the line
+below sits first. Entry decided once by entryOf(event): compose | message | inbox.
 
 No message open (entry inbox, homepage trigger):
 +--------------------------------------+
-| [M] Migway Templates                 |  CardHeader
-| Start a new email from a template.   |  TextParagraph
+| Start a new email from a template.   |  TextParagraph, first line
 |--------------------------------------|
 | Search templates                     |  same TextInput as compose
 | [ ____________________________ ]     |
@@ -63,22 +89,20 @@ No message open (entry inbox, homepage trigger):
 |  Welcome email         [New email]   |  compose action, STANDALONE_DRAFT
 |    Sales / Onboarding                |
 |  Price quote 2026      [New email]   |  prompts: opens the prompt card
-|    Sales / Quotes   2 fields to fill |
+|    Sales / Quotes · 2 fields to fill |
 |  Driver leaving           [Review]   |  recipients: preview card first (D26)
-|    HR   Adds Cc 1                    |
+|    HR · Adds Cc 1                    |
 |--------------------------------------|
 | RECENT / FOLDERS                     |  same as compose
 |--------------------------------------|
-| Writing an email? Open Migway        |  footer hint, TextParagraph
-| Templates from the toolbar at the    |
-| bottom of the draft to insert at     |
-| the cursor.                          |
-| [Open library]                       |
+| To insert a template, open a draft   |  hint, TextParagraph
+| and use the Migway Templates button  |
+| in the draft's toolbar.              |
+| (Open library)                       |
 +--------------------------------------+
 
 Message open (entry message, contextual trigger unconditional):
 +--------------------------------------+
-| [M] Migway Templates                 |
 | Reply to this email with a template, |
 | or start a new one.                  |
 |--------------------------------------|
@@ -88,7 +112,7 @@ Message open (entry message, contextual trigger unconditional):
 |  Welcome email             [Reply]   |  compose action, REPLY_AS_DRAFT
 |    Sales / Onboarding                |
 |  Driver leaving           [Review]   |
-|    HR   Adds Cc 1                    |
+|    HR · Adds Cc 1                    |
 |  ...                                 |
 |--------------------------------------|
 | (footer hint, Open library)          |
@@ -122,4 +146,4 @@ Behavior (side panel)
 - One click when the template has no prompts and no recipients; otherwise the preview or prompt card first.
 - Prompt card footer: [Create email] or [Create reply]; a blank field shows "Fill 1 field: <label>" and creates nothing.
 - Errors: notification with the spec 7 text, no draft.
-- If spike S7 fails: no action buttons; the footer hint moves to the top of the card.
+- If spike S7 fails: no action buttons; the hint moves to the top of the card.

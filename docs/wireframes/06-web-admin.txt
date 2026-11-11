@@ -57,7 +57,10 @@ Tab: Usage
 Tab: Export and import
   Export scope: (o) Whole library (shared folders)  ( ) One folder and its subfolders   Folder [Sales v]
                 [Download JSON]     (manage holder: heading "Export folder", Folder [v], [Export folder])
-  Status: "Exporting... 40 of 120 templates."  then  "Exported 120 templates to migway-templates-library-2026-11-10.json."
+  Status: "Exporting 40 of 120 templates..."  then  "Exported 120 templates to migway-templates-library-2026-11-10.json."
+  Slice 13: the export starts with one start call (one audit event, run token), then pages; the file downloads only
+  after the last page. After 4 failed tries: "The export stopped: the server did not answer after 4 tries. Nothing was
+  downloaded. Wait a few minutes, then export again." Audit log row: "Library export started, 120 templates".
   Import: "An export file of up to 5 MB and 200 templates. Validate shows what Import would do; nothing is written
            before Import."
           [Choose file]  Target folder [ Imports v ] (shared folders only)  [Validate]  [Import]
@@ -89,7 +92,9 @@ The tab is admin only (manage holders never see it); config.get and config.set a
   +--------------------------------------------------------------------------------+
   Status under the setting: "Saving..." then "Saved. Personal templates are off for every user from their next action."
   Conflict (another admin changed it): "ana changed this setting on Nov 10, 2:05 PM. The page now shows the current
-  value." The radio group reloads with the current value; nothing was written.
+  value." The radio group shows the current value; nothing was written. Focus moves to the status line (slice 13).
+  config.set sends baseAt and baseBy (the last change shown); a tab older than slice 13 gets "This page is out of
+  date. Reload it and save again."
 
   Confirm dialog, only when Save takes something away (On -> Off, Allowed -> migway.com only); Cancel has focus:
   +--------------------------------------------------------------------------------+
@@ -143,6 +148,8 @@ Trash view (#/trash, see also wireframe 07 H; edit holders see templates of fold
     Restore "Old price quote" to [ folder v ]   [Restore] [Cancel]
     No editable folder: "You can edit no folder to restore into. Ask a folder manager."
   Status: 'Restoring "Old price quote"...'  then  'Restored "Old price quote" to Sales/Quotes.'
-  Empty trash dialog: "Remove all 3 templates in the trash for good? This cannot be undone."  [Empty trash] [Cancel]
+  Empty trash dialog: "Empty the trash? All 3 templates in it are removed for good, and deleted folders go too.
+  This cannot be undone." For 1: "The 1 template in it is removed for good". Cancel has focus. The result counts
+  come from trash.purge (templates, folders), slice 13.
     then "Removed 3 items for good." (+ " The nightly job deletes the stored versions of N of them.")
   Empty: "Trash is empty. Deleted templates stay here for 30 days."

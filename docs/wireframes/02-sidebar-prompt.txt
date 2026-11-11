@@ -63,11 +63,11 @@ Rules
 - A template changed under the open prompt card resets the switch to its default.
 - Cancel pops back to the previous card. Values are not stored.
 
-Recipients (D26, slice 9; spec 5.7, 7.1; ADR-0006). Proposed until the owner approves.
+Recipients (D26, slice 9; spec 5.7, 7.1; ADR-0006, Accepted 2026-11-11). As built at 6374b7b (slices 9 and 12).
 
 List row (Home, Folder, Search, Favorites, Recent) of a template with recipients:
-| Driver leaving                       |  DecoratedText
-| Adds Cc 1, Bcc 1          [Review]   |  bottom label: counts per field with addresses; "Review" opens the preview
+| = Driver leaving          [Review]   |  DecoratedText, document icon
+|   HR · Adds Cc 1, Bcc 1              |  one plain-text label line: path, hints, " · "; "Review" opens the preview
                                           card (or the prompt card when the template has prompts). No one-click insert.
 
 Preview card, template with recipients (new draft, To empty, subject empty):
@@ -81,8 +81,11 @@ Preview card, template with recipients (new draft, To empty, subject empty):
 | To   payroll@migway.com              |  one DecoratedText per address, top label = field
 | Cc   safety@migway.com               |
 | Bcc  records@partner.com             |
-|      outside migway.com              |  marker: domain differs from the caller's
-|      hidden from other recipients    |  marker on every Bcc line
+|      outside migway.com · hidden     |  bottom label: markers joined by " · "; outside = domain
+|      from other recipients           |  differs from the caller's; hidden = every Bcc line
+| Finish typing addresses in the draft |  last line of the section, whenever Insert adds an address
+| first: an address still being typed  |
+| is lost.                             |
 |--------------------------------------|
 | Plain-text preview ...               |
 |--------------------------------------|
@@ -92,7 +95,7 @@ Preview card, template with recipients (new draft, To empty, subject empty):
 | [Edit in library]                    |
 +--------------------------------------+
 
-Same template in a reply (To and subject filled), with RECIPIENTS_EXTERNAL=deny:
+Same template in a reply (To and subject filled), with the setting Outside recipients = migway.com only (deny):
 | Recipients                           |
 | Cc   safety@migway.com               |
 | Not added: payroll@migway.com.       |
@@ -111,9 +114,15 @@ Same template in a reply (To and subject filled), with RECIPIENTS_EXTERNAL=deny:
 Prompt card, template with recipients:
 | Replace the subject          [on ]   |  unchanged (D24)
 | Add recipients               [on ]   |  SwitchControl id rcpt, starts on; off = no recipient action
-| Cc safety@migway.com, Bcc            |  bottom label lists every address that Insert adds,
-|   records@partner.com (outside       |  with markers
-|   migway.com)                        |
+| Adds 2 recipients.                   |  bottom label, only when Insert adds one
+| Cc   safety@migway.com               |  then the preview card's lines (recipientWidgets):
+| Bcc  records@partner.com             |  markers, Not added, unknown fields, finish typing
+|      outside migway.com · hidden ... |
+
+Draft field that the event does not carry as a list of strings (unknown):
+| The draft's Cc recipients could not  |  no action for that field; an unknown To counts as filled
+| be read and were not changed. Add by |
+| hand: safety@migway.com.             |
 
 Rules
 - The Insert callback calls template.apply; it returns to, cc, bcc and blocked on every call. Addresses are
@@ -121,6 +130,6 @@ Rules
   A different hash at Insert: no draft change, card re-rendered with
   "The recipients of this template changed. Check them and press Insert again."
 - Per field: skip addresses already in any draft field; To only when the draft's To is empty; Cc and Bcc
-  always; a field with nothing new sends no action. Content of each action (new only, or draft list plus new)
-  is set by spike S6.
+  always; a field with nothing new sends no action. Each action carries the draft's list from the tap's event,
+  then the new addresses: spike S6 showed that an action replaces the field.
 - One UpdateDraftActionResponse: body, subject (D24), then To, Cc, Bcc actions. Never setSendStatus.

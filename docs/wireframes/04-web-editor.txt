@@ -1,61 +1,78 @@
 Screen 4: Web app editor (/exec?view=editor&id=...)
-Slice 3. Subject field slice 5 (D21).
+Slice 3. Subject field slice 5 (D21). Layout as built in slice 8b, design direction A
+(docs/design/design-system.md, screens in docs/design/screens/8b). Verified at 6374b7b.
 
-+----------------------------------------------------------------------------------+
-| < Library   Price quote 2026                 Version 7   [History]  [Save Ctrl+S] |
-+----------------------------------------------------------------------------------+
-| Title  [ Price quote 2026_________________________ ]                             |
-| Subject [ Quote for {{ask:Product name}}__________ ]  31/200   (optional)        |
-| Folder [ Sales / Quotes        v ]   Tags [ pricing x ] [ quotes x ] [+ tag]     |
-|----------------------------------------------------------------------------------|
-| [B][I][U][S] [Color v][Size v][Font v] [Align v] [* list][1. list] ["] [--]      |
-| [Link] [Image URL] [Table] [{{ Placeholder v }]                                  |
-|----------------------------------------------------------------------------------|
-| Hi (Recipient first name | there),                       | PREVIEW AS ME         |
-|                                                          | Hi there,             |
-| Thanks for your interest in (Ask: Product name). Our     | Thanks for your       |
-| quote for (Ask: Meeting date) is below.                  | interest in [Product  |
-|                                                          | name]. ...            |
-| +--------+--------+                                      |                       |
-| | Item   | Price  |                                      | Ana Lopez             |
-| +--------+--------+                                      | Sales Manager         |
-|                                                          | +1 555 0100           |
-| (Sender name)                                            |                       |
-| (Sender title)                                           |                       |
-|----------------------------------------------------------------------------------|
-| PREVIEW AS ME subject: Quote for [Product name]                                  |
-|----------------------------------------------------------------------------------|
-| Problems (2):                                            role="alert" region     |
-|  - Unknown placeholder sender.nmae at char 120. Did you mean sender.name?        |
-|  - Warning: recipient.first_name has no fallback.                                |
-|----------------------------------------------------------------------------------|
-| Status: Saved as version 7, 14:03                        role="status"           |
-+----------------------------------------------------------------------------------+
++------------------------------------------------------------------------------------------------+
+| Dispatch > Rate confirmations > Rate confirmation    v Saved as version 4, 2:05 PM  (History) [Save] |
++---------------------------------------------------------------------+--------------------------+
+| (undo)(redo) | Paragraph v  Normal v  Font v | B I U S (color)(highl.) | DETAILS                  |
+| (align)(bullets)(numbers)(quote) | (link)(image)(table)(line)  [{} Insert field] | Title             |
+|---------------------------------------------------------------------| [ Rate confirmation    ] |
+|   Subject   Rate confirmation for load {{ask:Load number}}  46/200  | Folder                   |
+|             (optional)                                              | [ Dispatch / Rate co. v] |
+|   Reads as  Rate confirmation for load [Load number]                | Tags  (rates x)(carrier x)|
+|   ---------------------------------------------------------------   | [______] [Add tag]       |
+|   Hi [Recipient first name or there],                               | Up to 10 tags.           |
+|   Thank you for covering load [Load number]. Please confirm the     | To  [dispatch@... x]     |
+|   rate below for pickup on [Pickup date].                           | Cc  [safety@... x]       |
+|   +------+-----------+------+                                       | Bcc [records@... x]      |
+|   | Lane | Equipment | Rate |                                       |     outside example.com  |
+|   +------+-----------+------+                                       | (Bcc help, group help)   |
+|   [Sender name]                                                     |--------------------------|
+|   [Sender title]                                                    | THE SENDER FILLS IN      |
+|   sheet 680 px over the canvas, body 15 px / 1.6                    | Load number  used 2 times|
+|                                                                     | Pickup date  used once   |
+|                                                                     |--------------------------|
+|                                                                     | [Preview as me] Problems 0|
+|                                                                     | To dispatch@example.com  |
++---------------------------------------------------------------------+--------------------------+
 
-(...) = placeholder chip, atomic, contenteditable=false, aria-label "Placeholder: sender name".
+Header: folder path as buttons that open the folder in the library, then the title (h1). Saved state
+(role="status"): "Saved as version 4, 2:05 PM" (date added when not today), "Unsaved changes", "Saving...",
+"Not saved yet". History is a ghost button, Save is primary, Ctrl+S saves.
+Toolbar: 5 groups with separators; every button has a name and a tooltip with its shortcut ("Bold (Ctrl+B)");
+toggles carry aria-pressed, menus aria-haspopup; one tab stop with arrows, Home, End. "Font" picker names its
+value ("Font: Georgia"). "Insert field" sits at the right end.
+Blanks: value placeholders amber with a dotted line; asked fields in a dashed box; fallback reads
+"<name> or <fallback>". Atomic, contenteditable=false. aria-label "Field: Sender name",
+"Field: Recipient first name, fallback there", "Field: Load number, asked at insert".
+"Reads as" line under the Subject only while the subject holds a placeholder.
+Right panel 340 px: Details, "The sender fills in" (each asked field, "used once" / "used n times"; empty:
+"Nothing yet. To add a question, choose Insert field, then Ask the user."), tabs "Preview as me" and
+"Problems n" (live errors plus the last save's problems; a refused save opens Problems; each problem with a
+field is a button that focuses it).
+Under 860 px: the panel moves below the sheet; each section collapses with its heading button (aria-expanded).
+Read only (use holders): no toolbar, Save or History; inputs read only; chips without x; note "You can use this
+template but not change it. To change it, ask a folder manager for edit access." While personal templates are
+off, a private template shows "Personal templates are turned off by your admin. You can still insert this template."
+Leave guard: with unsaved changes every exit (library links, folder tree, breadcrumb, History, Back, Forward)
+asks "Leave without saving?" ("Your changes to this template are not saved. They are lost if you leave now.")
+[Keep editing] (focused) [Discard changes] [Save and leave]. One question at a time. A page reload gets the
+browser's own leave prompt.
 
 Placeholder menu ({{ or toolbar):
   Sender name | Sender title | Sender phone | Sender department | Recipient first name
   Ask the user... -> dialog: Label (1-40 chars)
   Add fallback... -> dialog on a selected chip: fallback text (0-80 chars)
 
-Conflict dialog (CONFLICT on save):
-  "Ben saved version 8 at 14:05 while you edited."
-  [Open Ben's version]  [Copy my text]  [Cancel]
+Conflict dialog (CONFLICT on save), title "This template changed":
+  "Ben saved version 8 at 2:05 PM while you edited."
+  [Open their version]  [Copy my text]  [Cancel]
+  "Opening their version..." then "Opened their version. Your changes were discarded."
+  Copy: "Copied your text. Open their version and paste it where needed."
 
 Subject field (D21, spec 5.6):
-  Single-line <input>, label "Subject", optional, counter 0/200. Plain text: tokens are typed
+  Single-line <input> on top of the sheet, label "Subject", optional, counter "n/200 (optional)". Plain text: tokens are typed
   as text, no chips. Placeholder menu inserts token text at the cursor when the subject has
   focus. Enter does not add a line. Paste of a line break becomes one space in the input; the
   server still rejects line breaks with SUBJ_LINEBREAK.
   Problems name the field: "Subject: Unknown placeholder sender.nmae at char 3."
   Empty subject = the draft subject is not touched on Insert.
 
-Recipients (D26). Slice 9: three fields under Subject in the current form. Slice 8b: moved into the
-Details panel of design direction A (docs/design/design-system.md, right panel 340 px). Proposed until
-the owner approves.
+Recipients (D26, ADR-0006). Built in slice 8b in the Details panel of design direction A (right panel
+340 px). Slice 9 built no editor fields; its planned placement under Subject below was never built.
 
-Slice 9 placement (current editor):
+Slice 9 placement (planned, not built):
 | Subject [ Driver leaving: {{ask:Driver name}} ]  31/200   (optional)                |
 | To  [ payroll@migway.com x ] [______________________ ]                              |
 | Cc  [ safety@migway.com x ] [_______________________ ]                              |
@@ -63,11 +80,15 @@ Slice 9 placement (current editor):
 |     Added to the draft when someone inserts this template. Users see every          |
 |     address before it is added.                                                     |
 
-Slice 8b, Details panel (right panel, inputs 30 px):
+Slice 8b, Details panel (right panel, as built; labels above full-width controls):
 +--------------------------------------+
 | Details                              |  panel heading, 13 px
-| Folder   [ HR / Drivers        v ]   |
-| Tags     [ leaving x ] [+ tag]       |
+| Title                                |
+| [ Driver leaving               ]     |
+| Folder                               |
+| [ HR / Drivers                 v ]   |  shows the path; two folders may share a name
+| Tags                                 |
+| ( leaving x ) [________] [Add tag]   |
 |                                      |
 | To                                   |  label above input
 | [ payroll@migway.com x ][________ ]  |  chip per address, tag style (radius 10, --select)
@@ -84,12 +105,14 @@ Slice 8b, Details panel (right panel, inputs 30 px):
 +--------------------------------------+
 
 Rules
-- Input splits on comma, semicolon, space and line break; each address becomes a chip on blur or Enter.
-  Backspace in an empty input selects the last chip; Delete removes it. Chip remove button aria-label
-  "Remove safety@migway.com from Cc".
+- Enter, comma, semicolon, space, a pasted list and leaving the field turn the typed text into chips (trim,
+  lower case, repeats dropped). Backspace in an empty input removes the last chip (slice 8b). Chip remove
+  button aria-label "Remove safety@migway.com from Cc". The status line announces "Added <addresses> to Cc"
+  and "Removed <address> from Cc".
 - Client checks with the shared validateRecipients for inline hints; the server result is authoritative.
 - Outside marker: domain part differs from the caller's domain (from `me`). With `me.recipientsExternal`
   = deny the chip has the error style (--red border) and the RCPT_EXTERNAL text under the field.
-- Errors under the field and in Problems, texts of spec 7.1, for example
+- Errors under the field (chips named by a problem get the error style) and in Problems, texts of spec 7.1, for example
   "Cc, address 2 is not an email address. Use the form name@company.com."
-- Preview as me shows a "To / Cc / Bcc" line above the rendered subject.
+- Preview as me shows To, Cc, Bcc lines above the rendered subject. use holders see the lists read only; an
+  empty field reads "None". Save always sends to, cc, bcc.
