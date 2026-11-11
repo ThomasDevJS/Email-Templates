@@ -374,3 +374,4 @@ New texts. Paths are relative to `src/`.
 | `addon/cards/folder.ts` | Showing {shown} of {total} {favorites / recent templates / folders / results}. Use Search or Open library for the rest. (last line of a list cut to stay under Gmail's 100 widgets per card) |
 | `addon/cards/recipients.ts` | A reply adds {n} recipient(s). (label of "Add recipients" on the side-panel details card with an email open, when the template has a To: a reply never adds it) |
 | `addon/panel.ts` | Migway Templates is not set up yet. Ask your admin to finish setup. (side-panel action refused for "not set up": the server text, without "then press Retry", because Gmail's error bar has no Retry) |
+| `addon/cards/details.ts` | {problem} (the details card change line loses its "(!) " prefix; the red error icon with alt text "Error" carries the meaning, slice 22b) |

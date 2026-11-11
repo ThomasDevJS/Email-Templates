@@ -113,12 +113,12 @@ Gmail, owner, the add-on in a draft's toolbar; the web app in a second tab. Abou
 2. New draft, To `test-a@<your domain>` as a chip. Tap the name "T6 recipients". Expect: "Not added: test-to@<your domain>. The draft already has a To recipient." and "Adds 3 recipients."
 3. Open a received message, "Reply", tap the name "T6 recipients". Expect: "Replace the subject" is off.
 4. New draft, tap the name "T2 fields". Expect: section "Fields" with "Fill in now, or leave blank and type in the draft." and the boxes "Load number" and "Driver name" (plus "Your phone" when the directory has no phone). Type `Sam` in "Driver name" only, "Insert". Expect: "Hi Sam, load is ready." followed by your phone when the directory has one, and Subject "Load".
-5. New draft, tap the name "T2 fields". In "Driver name" type `1234567890` fifty times, then one more letter (501 characters). "Insert". Expect: "(!) Shorten to 500 characters: Driver name", the draft unchanged. Delete the last letter, "Insert": the text arrives.
+5. New draft, tap the name "T2 fields". In "Driver name" type `1234567890` fifty times, then one more letter (501 characters). "Insert". Expect: the red line "Shorten to 500 characters: Driver name", the draft unchanged. Delete the last letter, "Insert": the text arrives.
 6. New draft, type `old` in Subject, tap the name "T4 fields and copies". Expect: "Replace the subject" off. Turn "Add recipients" off, "Insert". Expect: text only; Subject `old`; To, Cc and Bcc empty.
 7. New empty draft, tap the name "T6 recipients", turn "Replace the subject" and "Add recipients" off, "Insert". Expect: "Hello" only; Subject, To, Cc and Bcc stay empty.
 8. New draft, To: the second account's address as a chip. Tap the name "T7 first name". Expect: the box "Recipient first name" with "Leave blank to use the To recipient's first name, when known." below it. Leave it blank, "Insert". Expect: "Hello" and that person's first name when the directory has one, else "Hello" alone.
-9. New draft, open the folder "Smoke 6a" and leave the card open. Web app tab: open "T3 copies", add Cc `test-cc2@<your domain>`, "Save". Gmail, within 10 minutes, row Insert on "T3 copies". Expect: the details card with "(!) The recipients of this template changed. Check them and press Insert again.", the draft unchanged. "Insert": 2 Cc addresses added. Web app: remove `test-cc2@` from "T3 copies", "Save".
-10. New draft, tap the name "T1 plain" and leave the card open. Web app: open "T1 plain", change `T1 text.` to `T1 text again.`, "Save". Gmail: "Insert". Expect: "(!) The template changed. Check the fields and press Insert again.", the draft unchanged. "Insert" again: "T1 text again." arrives. Web app: change the text back to `T1 text.`, "Save".
+9. New draft, open the folder "Smoke 6a" and leave the card open. Web app tab: open "T3 copies", add Cc `test-cc2@<your domain>`, "Save". Gmail, within 10 minutes, row Insert on "T3 copies". Expect: the details card with the red line "The recipients of this template changed. Check them and press Insert again.", the draft unchanged. "Insert": 2 Cc addresses added. Web app: remove `test-cc2@` from "T3 copies", "Save".
+10. New draft, tap the name "T1 plain" and leave the card open. Web app: open "T1 plain", change `T1 text.` to `T1 text again.`, "Save". Gmail: "Insert". Expect: the red line "The template changed. Check the fields and press Insert again.", the draft unchanged. "Insert" again: "T1 text again." arrives. Web app: change the text back to `T1 text.`, "Save".
 11. Web app: create `C scratch` in "Smoke 6a" with text `C`. Gmail: new draft, open the add-on, "Open library", close it, open the folder "Smoke 6a" (the list now holds "C scratch"). Web app: delete "C scratch". Gmail: row Insert on "C scratch". Expect: "This template was deleted or moved. Press Refresh to update the list." and "Refresh". "Refresh": the home card shows, without "C scratch".
 12. Home card, type `zzqx` in "Search templates" and click outside the box. Expect: `No templates match "zzqx". Try fewer words, or remove folder: and tag: from the search.` Search `paragraphs`. Expect: "Results" with "T5 paragraphs". Clear the box: the home card returns.
 13. Tap the name "T1 plain", "Edit in library". Record: what opened (an overlay over Gmail, a new tab, or nothing). Close it. Expect: the add-on shows the home card. If nothing opens for the browser agent, report "nothing opened" and go on: Chrome can block the window for an automated click, and the owner repeats this one click by hand (part H).
@@ -275,7 +275,7 @@ Gmail web, dev build of slice 21, browser agent, about 10 minutes. Needs "T1 pla
 1. New draft, cursor in the text, open Migway Templates from the draft's toolbar. Open the folder "Smoke 6a", then row "Insert" on "T1 plain". Expect: the text is inserted. Record: a spinner showed after each click (y/n).
 2. The card closed after step 1. Open the add-on again from the same draft's toolbar. Type `plain` in "Search templates" and click outside the box. Expect: "Results" with "T1 plain". Record: a spinner showed during the search (y/n). Tap the name "T1 plain". Record the color of the bar at the top of the add-on (dark slate blue-grey or grey) and of the filled "Insert" on the details card: dark slate blue-grey (y/n).
 3. Inbox, no message open, open the add-on in the side panel. Row "New email" on "T1 plain". Expect: a new email window. Record: a spinner showed after the click (y/n); the top bar color (slate or grey).
-4. New draft, open the add-on from its toolbar, click the name "T2 fields". Type 501 characters in "Driver name", click "Insert". Expect: "(!) Shorten to 500 characters: Driver name" above the boxes, in red, the draft unchanged. Record: the red line is readable (y/n).
+4. New draft, open the add-on from its toolbar, click the name "T2 fields". Type 501 characters in "Driver name", click "Insert". Expect: the red line "Shorten to 500 characters: Driver name" above the boxes, with an error icon at its start, the draft unchanged. Record: the red line is readable (y/n).
 5. Gmail, Settings (gear), "Themes", choose "Dark", save. Repeat step 4. Record: the card background (white or dark); the red line is readable (y/n); the filled "Insert" is readable (y/n). Then choose the theme that was set before, save.
 
 | Step | Record                                                              | Result |
@@ -291,13 +291,13 @@ Gmail web, dev build of slice 21, browser agent, about 10 minutes. Needs "T1 pla
 Gmail web, dev build of slice 22, a person (not the browser agent), about 5 minutes. Needs "T1 plain" of "Templates to create once". Discard every draft when its step ends.
 
 1. Inbox, no message open, open the add-on in the side panel. Expect: the last line "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar." in grey with an "i" icon at its start. Record: it reads as a hint, set apart from the list (y/n).
-2. Same panel. Under "Search templates" an outlined "Search" button with a search icon. Type `plain`, then click "Search" without pressing Enter. Expect: "Results" with "T1 plain" and the box and button still on top. Record: one result card or a flicker of two (one or two).
-3. New draft, open the add-on from the draft's toolbar. Repeat step 2 there. Record: the button shows and searches (y/n).
+2. Same panel. Under "Search templates" an outlined "Search" button with a search icon. Type `plain`, then click "Search" without pressing Enter. Expect: "Results" with "T1 plain" and the box and button still on top. Record: how often the spinner showed after the click (once or twice).
+3. New draft, open the add-on from the draft's toolbar. Repeat step 2 there. Record: the button shows and searches (y/n). Then click the name "T2 fields" (search `fields` if needed), type 501 characters in "Driver name", click "Insert". Expect: the red line "Shorten to 500 characters: Driver name" with no "(!)". Record: a round error icon starts the line (y/n).
 4. Gmail, Settings (gear), "Themes", choose "Dark", save. Open the side panel as in step 1. Record: the grey hint is readable (y/n); the "i" icon shows (y/n). Then choose the theme that was set before, save.
 
-| Step | Record                                     | Result |
-| ---- | ------------------------------------------ | ------ |
-| 1    | hint set apart (y/n)                       |        |
-| 2    | result card: one or two                    |        |
-| 3    | Search button works in the popup (y/n)     |        |
-| 4    | grey hint readable, icon shows, dark (y/n) |        |
+| Step | Record                                                                   | Result |
+| ---- | ------------------------------------------------------------------------ | ------ |
+| 1    | hint set apart (y/n)                                                     |        |
+| 2    | spinner after the click: once or twice                                   |        |
+| 3    | Search button works in the popup (y/n); error icon on the red line (y/n) |        |
+| 4    | grey hint readable, icon shows, dark (y/n)                               |        |

@@ -35,7 +35,7 @@ Some templates have fields, for example a driver name. Their row says "2 fields 
 - "Insert" on the row leaves those fields out: "Hi [Driver name], thanks" becomes "Hi, thanks". Type the missing words in the draft.
 - To fill them first, tap the template's name. The panel shows "Fill in now, or leave blank and type in the draft.", one box per field, the subject, the recipients and the start of the text.
 - Fill the boxes you want (plain text, up to 500 characters) and click "Insert". A box left blank is left out of the draft.
-- A value over 500 characters stops the insert and shows "(!) Shorten to 500 characters: ...". Your draft stays unchanged.
+- A value over 500 characters stops the insert and shows the red line "Shorten to 500 characters: ...". Your draft stays unchanged.
 - Gmail's back arrow goes back to the list without inserting.
 
 Some fields fill themselves from the Migway directory: your name, title, phone, department, and the first name of a single Migway recipient. When a value is unknown, the field uses its default text, or is left out when it has none. Details: [editor guide](editor-guide.md).
@@ -59,7 +59,7 @@ Templates that add recipients say so on the row, for example Adds Cc 1. The draf
 - In a reply, or when you typed a To address, the template's To is not added. Type it yourself if you need it.
 - Tap the template's name to see every address first: "outside migway.com" marks an address outside the company, "hidden from other recipients" marks Bcc, "Not added" says why an address is left out.
 - To insert without the addresses: tap the template's name and turn off "Add recipients".
-- When the template's addresses changed since the panel loaded, "Insert" opens the template with "(!) The recipients of this template changed. Check them and press Insert again." Nothing is inserted until you click "Insert" there.
+- When the template's addresses changed since the panel loaded, "Insert" opens the template with the red line "The recipients of this template changed. Check them and press Insert again." Nothing is inserted until you click "Insert" there.
 
 ## Search, Favorites and Recent
 
