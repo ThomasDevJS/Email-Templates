@@ -138,3 +138,74 @@ Old-code check: `git checkout acf07ee -- src`, 5 test files: 10 failed (all the 
 Not touched in retry 1: src/web/views/editor.ts, src/web/editor/, history.ts, preview.ts, problems.ts, tags.ts, ui/dialog.ts, styles.css, appsscript.json, package files, scripts/. Secret scan of added lines: 0 hits, no URLs. Addresses added: example.com fixtures only.
 
 Files touched in retry 1: src/server/audit/buffer.ts, audit/query.ts, handlers/config.ts, handlers/transfer.ts; src/shared/model/data.ts; src/web/admin/actions.ts, dev-harness.ts, rpc/api.ts, views/adminAudit.ts, views/adminTransfer.ts; tests adminReports (server, web), jobs, settings, adminActions; docs/ops/smoke.md; this handoff.
+
+## Retry 2 (after review 4b73c16, FAIL on the export audit record)
+
+Commits 6ec0bf7, ae145a5, d79854c, 2b1992a, 39b6a69 and the handoff commit. Not merged, not pushed.
+
+### Mechanism
+
+- `export.library` and `export.folder` with `start: true` commit one audit event through `commit` (lock, `recheck`, `commitLocked`, `pendingAudit`), the same path as template changes. Event: actor, `targetType` folder or library, `targetId` (folder ID or ""), `targetPath` (folder only), `after { scope, templates }` counted on the index read inside the lock. No title, subject, body or address. Lock busy answers BUSY; a Drive write failure answers INTERNAL; both are retryable and leave no token.
+- The start answers `{ token, total }`. The token is `services.newId()` (26 characters, 16 random), stored as `exp:<token>` in the Script Cache with `{ actor, kind, folderId }` for `EXPORT_RUN_TTL_S` 600 s. Each accepted page re-puts it for another 600 s, so a long export keeps its token and a token unused for 10 minutes expires.
+- A page call (no `start`) needs a token that matches `isId`, exists in the cache, belongs to the caller and matches the requested scope kind and folder. Otherwise VALIDATION, `EXPORT_RESTART`, no data, before the index or any body is read. The dispatch permission check runs first on every call, unchanged.
+- Export pages read bodies with `readStoredBody(services, item, false)`: a cache hit is used, a miss is read from Drive and not cached.
+- Web: `exportStart`, then `exportPage(folderId, offset, token)`. Start and pages retry a retryable error (BUSY, QUOTA, INTERNAL, NETWORK) 3 times after 200, 400, 600 ms. The file is built and downloaded only after the last page.
+
+### Removed
+
+- Per-page export events (`recordExport`), the `change` buffer kind, the buffer rank table, `TickResult.changes`.
+- `joinExportPages`, `exportPageOf`, `ExportPageCounts` (shared/model/data.ts), `AuditRow.exportPage`, `exportPageText`; their tests. `query.ts`, `data.ts` and `adminAudit.ts` are back to acf07ee apart from the new count field.
+- Gap 4: `evt:lostSeen` is gone. `evt:lost` holds "<lost> <seen>" in one key, so both numbers expire or are evicted together. `clearBuffer` re-reads the key before it writes the mark.
+- Gap 5: a full buffer first stores a new event (apply or denied) in an evicted slot, with no drop counted. Then an apply takes a denied slot (counted). Then the event is dropped (counted).
+- Gap 6 is moot: the buffer no longer refuses any request.
+
+### Tests that fail on d0f00be (`git checkout d0f00be -- src`, 6 files: 11 failed, 381 passed; `src` restored)
+
+- server adminReports: one event per run with content check and audit row count; no data without a committed start (offsets 0, 1, 21, 25, 1000 without token, empty token, malformed token, unknown token, another user's token, another scope's token, both directions); expiry and replay after expiry, sliding life, evicted token; cold 1,000-template export (5 imports of 200, clock +7 h): 1,000 items, 0 `bd:*` puts, the event in `audit.query` before and after `tick`; page reads 20 bodies.
+- server jobs: busy-lock count after 6 h (old code reports 2 of 7); evicted slot taken with no drop.
+- web adminActions: new words; web adminReports: page retry after the start (`failSkip`), stop text.
+- Passes on old code too, kept as guards: BUSY start writes nothing and stores no token; VALIDATION page stops at once with no download.
+
+### Changed texts
+
+- Server, refused page: "This export is no longer valid (it expired or belongs to another session). Nothing was downloaded. Start the export again."
+- Web, after 4 failed tries: "The export stopped: the server did not answer after 4 tries. Nothing was downloaded. Wait a few minutes, then export again." Replaces the "Try again in a minute." text.
+- Audit log: "Library export started, 25 templates"; "Folder export started: Sales / Quotes, 12 templates". Action filter words: "Library export started", "Folder export started".
+- Removed: "The export could not be recorded in the audit log. Try again in a moment."; "Library exported, all 25 templates" and the range forms.
+
+### Spec and ADR sentences now untrue (architect)
+
+- spec 11.1 line 575: "Change events go through `pendingAudit`..." (no change events in the buffer now; the sentence about apply and denied holds).
+- spec 11.1 line 578 and ADR-0003 line 208: "Export writes no audit event in v1". Now one event per run, at start.
+- spec 13.5 line 719 (follow-up "One `export` audit event per export (first page)"): done in a different form.
+- spec 4.5 line 133 and ADR-0002 line 200 (Paging): add the start call, the run token (caller, scope, 10 min sliding) and that pages do not fill the body cache.
+- ADR-0003 line 185: also an evicted slot is reused before any drop. Line 187 holds.
+- ADR-0002 line 128 is true again for export (event in the index write). Line 19 table: add `exp:<token>`, 600 s.
+- spec 4.5 and ADR-0002 line 139: the audit row wording above.
+
+### Left for later
+
+- Minor 4 of the first review (in-lock recipient re-check refuses the whole import).
+- An abandoned export still leaves its start event (it records intent, not completion).
+- A token evicted by other cache traffic mid-run stops the export; the user starts again (one more start event).
+
+### Risks
+
+- Each export run costs one index write (about 1 s under the lock at 1x).
+- Two tabs of one admin get two tokens and write two start events.
+
+### Checks (clean install: `rm -rf node_modules && npm ci`, exit 0)
+
+| Command | Result |
+|---|---|
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 64 files, 1710 passed. All files 95.91 statements, 90.04 branches, 96.79 lines (addon 100, server 99.31, shared 100, web 92.26) |
+| `npm run build -- --env dev` | Code.js 358.6 KB of 800 KB, index.html 361.8 KB of 400 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 14 of 14 views at 100 |
+
+Not touched in retry 2: src/web/views/editor.ts, src/web/editor/, history.ts, preview.ts, problems.ts, tags.ts, ui/dialog.ts, styles.css, appsscript.json, package files, scripts/, docs/ops/smoke.md, config.ts. No log line carries the token (dispatch logs no args). No new network call. Addresses added: example.com fixtures only.
+
+Files touched in retry 2: src/server/audit/buffer.ts, audit/query.ts, handlers/body.ts, handlers/transfer.ts, jobs/tick.ts; src/shared/model/data.ts; src/web/admin/actions.ts, dev-harness.ts, rpc/api.ts, views/adminAudit.ts, views/adminTransfer.ts; tests adminReports (server, web), jobs, adminActions, recipients, settings; this handoff.
