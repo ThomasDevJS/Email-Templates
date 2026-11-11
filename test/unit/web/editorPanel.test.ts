@@ -300,6 +300,10 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
       "Cc, address 2 is not an email address. Use the form name@company.com.",
     );
     expect(cc.getAttribute("aria-invalid")).toBe("true");
+    // Only a valid address can be outside the domain.
+    expect(
+      cc.closest(".chips-box")?.querySelectorAll(".chip-mark"),
+    ).toHaveLength(0);
     expect(
       cc.closest(".chips-box")?.querySelectorAll(".chip.bad"),
     ).toHaveLength(1);
@@ -404,6 +408,10 @@ describe("read-only editor (use level)", () => {
     expect(byId("title").readOnly).toBe(true);
     expect(byId("subject").readOnly).toBe(true);
     expect(byId("folder").disabled).toBe(true);
+    expect(
+      (byId("folder") as unknown as HTMLSelectElement).selectedOptions[0]
+        ?.textContent,
+    ).toBe("Support");
     expect(chips("to")).toEqual([]);
     expect(
       byId("rcpt-to").closest(".chips-box")?.querySelector<HTMLElement>(".hint")

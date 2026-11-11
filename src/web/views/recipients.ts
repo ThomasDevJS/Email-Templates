@@ -1,5 +1,6 @@
 import {
   FIELD_LABELS,
+  isAddress,
   isOutside,
   type RecipientField,
   type RecipientProblem,
@@ -107,7 +108,9 @@ export function recipientField(
               "×",
             ),
       ),
-      options.domain() !== "" && isOutside(address, options.domain())
+      options.domain() !== "" &&
+        isAddress(address) &&
+        isOutside(address, options.domain())
         ? h(
             "span",
             { class: "chip-mark" },

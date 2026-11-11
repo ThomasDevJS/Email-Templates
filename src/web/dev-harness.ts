@@ -101,11 +101,14 @@ function needLevel(folderId: string, need: "use" | "edit"): void {
     );
 }
 
+/** Templates stored before the admin turned outside recipients off keep them (spec 5.7). */
+let seeding = true;
+
 /** The server's recipient rule, with the dev domain. */
 function devPolicy(): RecipientPolicy {
   return {
     domain: "example.com",
-    external: PARAMS.get("external") === "deny" ? "deny" : "allow",
+    external: !seeding && PARAMS.get("external") === "deny" ? "deny" : "allow",
   };
 }
 
@@ -386,6 +389,7 @@ function seedDefault(): void {
 
 if (FREIGHT) seedFreight();
 else seedDefault();
+seeding = false;
 
 interface DevGrant {
   readonly id: string;

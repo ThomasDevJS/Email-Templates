@@ -21,7 +21,7 @@ import { safeHref, schema } from "../editor/schema";
 import { backslashProblems } from "../editor/serialize";
 import { createEditor, type Editor } from "../editor/setup";
 import { createToolbar } from "../editor/toolbar";
-import { editableFolders } from "../library/model";
+import { editableFolders, folderPath } from "../library/model";
 import { formatTime, h, replace, uid } from "../ui/dom";
 import { openDialog, promptText } from "../ui/dialog";
 import { icon } from "../ui/icons";
@@ -478,7 +478,10 @@ export function editorView(
       current.folderId !== "" &&
       !options.some((option) => option.id === current.folderId)
     )
-      options.unshift({ id: current.folderId, label: "Current folder" });
+      options.unshift({
+        id: current.folderId,
+        label: folderPath(app.folders(), current.folderId) || "Current folder",
+      });
     replace(
       folderSelect,
       ...options.map((option) =>

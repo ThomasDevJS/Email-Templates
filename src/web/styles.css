@@ -1180,6 +1180,11 @@ table {
   margin: 0 -28px -28px;
 }
 
+/* Buttons and lists set their own display; `hidden` (read-only state, empty lists) still wins. */
+.editor-page [hidden] {
+  display: none;
+}
+
 .editor-head {
   display: flex;
   flex-wrap: wrap;
@@ -1288,7 +1293,7 @@ table {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  padding: 6px 28px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--line);
   background: var(--paper);
 }
@@ -1333,8 +1338,8 @@ table {
 
 .tool.picker {
   width: auto;
-  gap: 6px;
-  padding: 0 6px 0 8px;
+  gap: 4px;
+  padding: 0 4px 0 6px;
   font-weight: 400;
 }
 
@@ -1342,15 +1347,15 @@ table {
   flex: none;
   width: 1px;
   height: 18px;
-  margin: 0 6px;
+  margin: 0 4px;
   background: var(--line);
 }
 
 .tool-ph {
   width: auto;
   margin-left: auto;
-  gap: 7px;
-  padding: 0 10px;
+  gap: 6px;
+  padding: 0 8px;
   border: 1px solid var(--blank-line);
   background: var(--blank-bg);
   color: var(--blank-ink);
@@ -1572,12 +1577,22 @@ table {
   height: 30px;
 }
 
+/* Recipient fields take the full panel width, with the label above (wireframe 04). */
 .rcpt-group {
   margin-top: 12px;
 }
 
+.rcpt-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.rcpt-row > label {
+  padding-top: 0;
+}
+
 .rcpt-help {
-  margin: 0 0 0 72px;
+  margin: 0;
 }
 
 .chips-box {
@@ -1822,9 +1837,14 @@ table {
     padding: 8px 16px;
   }
 
-  .crumb-line {
+  .crumb-line,
+  .saved-state {
     flex: 1 1 100%;
     flex-wrap: wrap;
+  }
+
+  .editor-head .grow {
+    display: none;
   }
 
   .editor-page > .status,
