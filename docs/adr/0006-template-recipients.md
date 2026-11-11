@@ -23,7 +23,7 @@ Scope: no new OAuth scope. Reading Cc and Bcc uses `draftAccess: METADATA` and `
 | `CardService.newUpdateDraftToRecipientsAction().addUpdateToRecipients(String[])`; Cc: `addUpdateCcRecipients(String[])`; Bcc: `addUpdateBccRecipients(String[])`. Class text: "Updates the To recipients of an email draft". Parameter text: "The To recipients to insert to the email draft" | [A25], [A26], [A27] | yes |
 | Whether the actions add to the field or replace it | none of [A14], [A15], [A25] to [A28] says | yes, S6 step 2: an action replaces the field |
 | Whether 5 actions (body, subject, To, Cc, Bcc) combine in one response | [A15] says chaining only; S5 verified body plus subject | yes, S6 step 1: all 5 applied, the Bcc line opened. Step 4: a response with only a recipient action works too |
-| Scope for the recipient actions | the compose guide asks for scopes "required for compose actions" and names none per action [A14] | no prompt in the owner's runs; the fresh-consent step 7 is still open (spec Q55) |
+| Scope for the recipient actions | the compose guide asks for scopes "required for compose actions" and names none per action [A14] | no prompt in the owner's runs; the fresh-consent step 7 is still open (spec Q55) [run by hand 2026-11-11: one consent page, then Insert with recipients and no second prompt; Q55 closed, ADR-0007 Amendment 2026-11-12] |
 | Limits: count per action, address format accepted, display names | none stated on any page | unverified |
 | Behavior in a reply or forward draft, and with an address already present | not stated | yes, S6 steps 3, 5, 6: draft list plus new keeps every address once; reply keeps its To; forward To filled |
 | Format of the event lists | not stated | yes, S6 step 8: JSON arrays of bare addresses in `draftMetadata`, empty when the field is empty; `gmail` repeats only non-empty lists |
@@ -157,7 +157,7 @@ Status: Accepted 2026-11-11 with ADR-0008. D29 asks for two admin switches, so Q
 
 ## As built (slices 9, 8b, 11, 13; verified at 6374b7b)
 
-Spike S6 record: docs/spikes/slice-09-s6.md. Owner run on dev-ec0ccb2 from the compose toolbar, 2026-11-10. Actions replace a field; 5 actions combine in one response with no prompt; a reply keeps its To; the event lists are arrays of bare addresses. Step 7 (fresh consent) not run (spec Q55).
+Spike S6 record: docs/spikes/slice-09-s6.md. Owner run on dev-ec0ccb2 from the compose toolbar, 2026-11-10. Actions replace a field; 5 actions combine in one response with no prompt; a reply keeps its To; the event lists are arrays of bare addresses. Step 7 (fresh consent) not run (spec Q55). [Run by hand 2026-11-11, no prompt beyond the 10 scopes; Q55 closed.]
 
 - `recipientActions(template, draft, add)` and `recipientPlan` (src/addon/cards/recipients.ts). Each action carries the draft's list from the tap's event, then the template addresses not in any known draft field (trimmed, lower case, part inside `<...>`). A field with nothing to add gets no action. `add` false ("Insert body only", switch off) sends none.
 - `draftRecipients(event)` (src/addon/event.ts) returns per field a list or null (unknown). The first source holding the key decides (`draftMetadata`, then `gmail`). A missing key, null, a string, an object or an array with a non-string entry is unknown. An unknown field never gets an action, so a replace cannot wipe it; an unknown To counts as filled. The cards say "The draft's <Field> recipients could not be read and were not changed. Add by hand: <addresses>."

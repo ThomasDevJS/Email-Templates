@@ -100,6 +100,7 @@ Drive access: Advanced Drive service v3 (`Drive.Files.create`, `Drive.Files.upda
 | Script Cache | `prof:<n>` [built as `prof:<sha256 of the lower-case address>`, one entry per profile; Amendment 2026-11-11] | Directory profile map (ADR-0004) | chunked | 6 h |
 | Script Cache | `evt:<n>` | buffered apply and denied events [plus `evt:meta`, `evt:dropped`, `evt:lost`; Amendment 2026-11-11] | 90 KB parts | 6 h |
 | Script Cache | `exp:<token>` [Amendment 2026-11-11] | export run `{ actor, kind, folderId }` | under 1 KB | 600 s, sliding |
+| Script Cache | `exps:<run>` [slice 13 retry 2; one lock since slice 20a; spec 4.5] | first start of one export click `{ actor, kind, folderId, token, total }` | under 1 KB | 60 s |
 | User Cache (add-on code only, as the user) | `view:<n>`, `body:<itemId>:<version>` | the caller's filtered list, bodies for apply | 2 chunks, 90 KB parts | 10 min |
 
 Rules:
@@ -344,7 +345,7 @@ Decision: option 3. Mechanism:
 - The start stores `exp:<token>` in the Script Cache: `{ actor, kind, folderId }`, 600 s (`EXPORT_RUN_TTL_S`). The token is `newId()` (26 characters). Each accepted page re-puts it for 600 s.
 - A page call needs a well-formed token present in the cache, of the same caller, scope kind and folder; else VALIDATION `EXPORT_RESTART` before the index or any body is read. The dispatch permission check runs first on every call, so a removed grant stops the next page.
 - Pages read bodies with `readStoredBody(services, item, false)`: a cache hit is used, a miss is read from Drive and not cached, so an export cannot evict other cache entries.
-- Limits: the event records the start, not a finished download. A token evicted mid-run stops the export; the user starts again and a second event is written. Two tabs write two events. A NETWORK retry of a start whose commit landed writes a second event (the log over-reports, never under-reports).
+- Limits: the event records the start, not a finished download. A token evicted mid-run stops the export; the user starts again and a second event is written. Two tabs write two events. A NETWORK retry of a start whose commit landed writes a second event (the log over-reports, never under-reports). [Slice 13 retry 2 added the `run` key: the browser sends one request-ID-form key per click; a start with the same key, caller and scope within 60 s answers the first token and writes no event (`exps:<run>`). Slice 20a moved that check into the start's lock, so two concurrent tries of one click write one event; a retry that meets a held lock answers BUSY and the web client retries. Spec 4.5.]
 
 Event buffer (`evt:*`, apply and denied events only; no change event goes through it):
 - In a full buffer a new event first takes an evicted slot (no drop counted); else an apply takes the slot of a denied event (counted); else the event is dropped and counted in `evt:dropped`.

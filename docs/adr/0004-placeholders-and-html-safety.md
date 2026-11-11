@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)")
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)"); braces that join around a field (Proposed 2026-11-12, Q78, not built; see "Amendment 2026-11-12")
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -310,6 +310,49 @@ Risk accepted by the owner: a sentence with a hole ("Your load is ready" without
 
 Consequences: nothing changes on the server: `PH_TOO_MANY` (20 per template) stays; one-click needs no field cap. No log line carries a removed field or a count of them (the server writes the apply line before the add-on renders).
 
+## Amendment 2026-11-12: braces that join around a field (slice 20b minor 7, Q78)
+
+Status: Proposed (architect, errata run 6). No owner decision exists yet; the owner approves or rejects the rule. Not built.
+
+Problem. `{{{ask:N}}{ask:M}}` saves today and puts template syntax into a draft. Cause: the regex finds the token `{{ask:N}}` at character 2, so the text node splits into the literal `{`, the token, and the literal `{ask:M}}`. Neither literal holds `{{`, so the leftover pass finds nothing and the template saves. At insert, N blank gives `{` + "" + `{ask:M}}` = `{{ask:M}}` in the draft; N "7" gives `{7{ask:M}}`. M is never asked. The same happens across inline tags (`<b>{</b>{{ask:N}}{ask:M}}`, because each tag starts a new text run) and when a gap rule removes the space between two braces. The reviewer confirmed the base build behaves the same (docs/reviews/slice-20b.md item 3.8).
+
+Options:
+1. Save rule: refuse a body or subject whose text, with every field removed, holds `{{` that no single literal holds. One check at the place every write already passes (`scanBody`); stored templates and the renderer stay as they are.
+2. Render rule: after rendering, turn any `{{` that the render created into `{ {` or drop one brace. Changes text the author wrote, at every insert, in the add-on and the side panel, and hides the mistake from the author.
+3. Grammar change: let `{{{` start a token, or refuse a literal `{` right before any token. The first changes which token the regex finds for every template; the second also refuses harmless text such as `{{{ask:N}}` with nothing after it.
+
+Recommendation: option 1. It tells the author at save time, in the editor's Problems list before the save, and it changes no stored text and no draft.
+
+Rule (exact):
+- Skeleton of the body: take the text runs of the sanitized HTML in order (`textRuns`, the runs `scanBody` already walks). Split each run with `parseText`. Keep each literal segment as written. Replace each escape `\{{` with one marker character that is not `{` (the implementation picks U+E000). Remove each token (variable or field) together with the U+0020 spaces directly before and after it in the same run. Join all runs with nothing between them.
+- Refuse each `{{` in the skeleton whose two braces come from different literal segments (across a removed token, or across two runs). A `{{` inside one literal segment is already refused by the leftover pass and is not reported twice.
+- Code `PH_MALFORMED`. Offset: body-text offset of the first brace of the pair. Message: "The braces at character {n} would show as {{ in the email. Delete one of them."
+- Subject: the same rule on the subject as one run, with `field: "subject"`.
+- Removing every space next to a token covers more than the 4 gap rules remove, so every `{{` the gap rules could form is caught. Cost: `{ {{ask:N}} {ask:M}}` is refused, although it renders `{ {ask:M}}`. Accepted: the author can delete one brace.
+- Joining runs with nothing between them also refuses a paragraph that ends in `{` followed by one that starts with `{`. Accepted as rare; the message names the character.
+- Values are not part of the check. A value the sender types that starts or ends with `{` can form `{{` in that one draft: the sender wrote it. Default texts cannot hold braces (grammar `fchar`). Directory values are not checked.
+
+Examples (input, result; character numbers count the body text from 1):
+
+| Input | Result today | Result with the rule |
+|---|---|---|
+| Body `{{{ask:N}}{ask:M}}` | saves; N blank gives `{{ask:M}}`, N "7" gives `{7{ask:M}}` | refused, `PH_MALFORMED` at character 1 |
+| Subject `Load {{{ask:N}}{ask:M}}` | saves; N blank gives subject `Load {{ask:M}}` | refused, `PH_MALFORMED` at character 6, `field: "subject"` |
+| Body `<p><b>{</b>{{ask:N}}{ask:M}}</p>` | saves; N blank shows `{{ask:M}}` | refused at character 1 (the pair spans two runs) |
+| Body `{{{ask:N}}` | saves; renders `{7` or `{` | saves, unchanged (skeleton `{`) |
+| Body `\{{ask:N}}` | saves; renders the text `{{ask:N}}`, no field (apply semantics 6) | saves, unchanged (skeleton U+E000 `ask:N}}`) |
+| Body `{{{sender.name}}{{ask:M}}}` | saves; renders `{Ana Lopez7}` | saves, unchanged (skeleton `{}`) |
+| Body `{{ask:N}}{ask:M}}` | saves; N blank gives `{ask:M}}` | saves, unchanged (one `{` in the skeleton) |
+
+Effect on writes. The rule runs inside `scanBody`, so it applies wherever a body is checked: editor Problems list (`src/web/views/editor.ts`), `template.create`, `template.update`, `template.duplicate` (`src/server/handlers/templates.ts` through `prepareFor`), `version.restore` (`history.ts`), import (`transfer.ts`, the file's template is reported as failed). A stored template that breaks the rule keeps rendering as today; its next save, duplicate or restore is refused until a brace is deleted. How many stored templates hold the pattern is unknown (a library search cannot match braces).
+
+Files an implementer touches:
+- `src/shared/placeholders/validate.ts`: the skeleton pass in `scanBody` (body) and `scanSubject` (subject).
+- `test/unit/shared/placeholders.test.ts`: the 7 examples above, plus one case where the gap rule would join braces (`<b>{ {{ask:N}}</b>{ask:M}}`, refused at character 1).
+- `docs/design/wording.md`: one row for the new message.
+- `docs/guide/editor-guide.md`: one line next to the `\{{` line (108): "A { right before a field and another after it is refused: delete one of them."
+- No change: `grammar.ts`, `render.ts`, the add-on, server handlers, stored data.
+
 ## Consequences
 
 - Easier: one grammar, one regex, one registry; unresolved values become prompts, so nothing ships empty. Server-side sanitizing keeps the stored body safe for every client.
@@ -319,6 +362,7 @@ Consequences: nothing changes on the server: `PH_TOO_MANY` (20 per template) sta
 
 ## Open questions
 
+- Q78 (spec section 15, Amendment 2026-11-12): save rule for braces that join around a field. Recommendation: option 1.
 - Q20, Q21 (spec section 15): closed 2026-11-10. Q20 by spike S5 (one response, no new scope); Q21 by D24.
 - Q25 (spec section 15): prompts used only in the subject are asked while "Replace the subject" is off. Recommendation: accept in v1.
 

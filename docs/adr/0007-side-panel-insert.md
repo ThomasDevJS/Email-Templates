@@ -1,6 +1,6 @@
 # ADR-0007: Insert from the Gmail side panel (D27)
 
-Status: Accepted 2026-11-11 (spike S7 passed on Gmail web from the side panel, dev-56bf795, docs/spikes/slice-10-s7.md). Was Proposed 2026-11-10. Owner decision D27 sets the requirement; this ADR sets the mechanism. Section "Acceptance 2026-11-11" holds the S7 facts and the design of slice 18; it replaces the lines marked [S7] below. Its new owner questions (Q67 to Q74) carry defaults; Q68 and Q74 are settled yes (part J). Amendment 2026-11-11 (D33 and slice 18 follow-up 1): "Reply" and "Reply all" on rows; failures raise one sentence. Accepted 2026-11-11 (owner decision D33; built and reviewed).
+Status: Accepted 2026-11-11 (spike S7 passed on Gmail web from the side panel, dev-56bf795, docs/spikes/slice-10-s7.md). Was Proposed 2026-11-10. Owner decision D27 sets the requirement; this ADR sets the mechanism. Section "Acceptance 2026-11-11" holds the S7 facts and the design of slice 18; it replaces the lines marked [S7] below. Its new owner questions (Q67 to Q74) carry defaults; Q68 and Q74 are settled yes (part J). Amendment 2026-11-11 (D33 and slice 18 follow-up 1): "Reply" and "Reply all" on rows; failures raise one sentence. Accepted 2026-11-11 (owner decision D33; built and reviewed). Amendment 2026-11-12 (Q75, Q55 answered by the owner on dev): Accepted.
 Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
@@ -115,7 +115,7 @@ Options for knowing the open message:
 1. Homepage only. `onHomepage` has no `messageId` [A36], so the panel offers only "New email". Fails D27 for replies.
 2. Add `addOns.gmail.contextualTriggers: [{ "unconditional": {}, "onTriggerFunction": "onMessageOpen" }]`. Gmail calls `onMessageOpen` when the user opens a message with the panel open; the event carries `gmail.messageId` [A35], [A13]. The panel offers "Reply". Cost: one manifest entry and one entry function that calls the same `homeFlow`. Each message switch with the panel open is one execution; the home view comes from the User Cache `view:*`, so it adds no server call on a hit.
 
-Decision: option 2, if S7 shows no consent prompt. A prompt that names a new scope stops option 2 until the owner approves; the panel then ships option 1 ("New email" only). [S7 result 2: `onMessageOpen` runs and carries the message ID; no prompt in the owner's session. The fresh-consent run stays open (Q55).]
+Decision: option 2, if S7 shows no consent prompt. A prompt that names a new scope stops option 2 until the owner approves; the panel then ships option 1 ("New email" only). [S7 result 2: `onMessageOpen` runs and carries the message ID; no prompt in the owner's session. The fresh-consent run stays open (Q55).] [Q55 closed 2026-11-11: no prompt beyond the 10 scopes; Amendment 2026-11-12.]
 
 Card content [S7: the first lines below are not built; the hint changes; Acceptance section A2]:
 
@@ -166,7 +166,7 @@ Owner, 2026-11-11: "do we have a plan to have same functionality for the app's s
 
 | Q | Default before S7 | S7 result | Decision |
 |---|---|---|---|
-| Q40 contextual trigger | yes if no prompt | 2: card reloads, message ID present, no prompt | Kept (built). Fresh consent stays open by hand (Q55); a prompt naming a scope outside the 10 stops slice 18 |
+| Q40 contextual trigger | yes if no prompt | 2: card reloads, message ID present, no prompt | Kept (built). Fresh consent stays open by hand (Q55); a prompt naming a scope outside the 10 stops slice 18 [run 2026-11-11, no such prompt; Amendment 2026-11-12] |
 | Q41 signature | not added, card says so | 4: in the reply, not in the new email | No scope. Reply: Gmail adds it. New email: one card line and one quick start line (A5) |
 | Q42 row button with a message open | "Reply" | 2: Reply works | "Reply" on the row; "Reply all" and "New email" on the details card (A2) |
 | Q43 a discarded draft counts | yes | 7: a closed draft stays in Drafts | Yes: one `template.apply` event per created draft, buffered before the draft exists (A6) |
@@ -323,7 +323,17 @@ Options:
 1. Throw an `Error` whose message is one plain sentence. A thrown error is the one answer a callback always produces; Gmail shows it in its error bar.
 2. Reload the list each time the panel opens, so a deleted template is gone before the press. Adds one `sidebar.home` per message opened (`onMessageOpen` fires on each) and would not have caught step 11 (the template was deleted after the folder card loaded).
 
-Decision: option 1. Mechanism (src/addon/panel.ts `panelAnswer`): every refusal throws `new Error(<sentence>)`; a throw before a draft exists becomes "Something went wrong. Try again."; a throw while building the response after a draft exists becomes "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it."; the caught error's text is dropped, because it may hold an address or a stack. No request ID and no "Details for your admin" line. DENIED and NOT_FOUND still clear the cached view. The sentences are in spec 7.2. Side effect: each refusal is a failed run in Executions and, with `exceptionLogging: STACKDRIVER`, an error log entry that holds the sentence only. Open: how Gmail shows the sentence (Q75, part J step 11 rerun).
+Decision: option 1. Mechanism (src/addon/panel.ts `panelAnswer`): every refusal throws `new Error(<sentence>)`; a throw before a draft exists becomes "Something went wrong. Try again."; a throw while building the response after a draft exists becomes "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it."; the caught error's text is dropped, because it may hold an address or a stack. No request ID and no "Details for your admin" line. DENIED and NOT_FOUND still clear the cached view. The sentences are in spec 7.2. Side effect: each refusal is a failed run in Executions and, with `exceptionLogging: STACKDRIVER`, an error log entry that holds the sentence only. Open: how Gmail shows the sentence (Q75, part J step 11 rerun). [Answered 2026-11-11: Gmail's own error card; see Amendment 2026-11-12.]
+
+## Amendment 2026-11-12: how Gmail shows a failure, and fresh consent (Q75, Q55)
+
+Status: Accepted 2026-11-12. Facts from the owner's tests on dev, 2026-11-11 (PLAN.md log); the owner left the error card as is. No code change.
+
+Q75, failed side-panel action. Gmail shows its own error card: "Error with the add-on. Run time error.", then the sentence `panelAnswer` threw (spec 7.2), then "[line: n, function: panelAnswer, file: Code]". Options were: (1) keep the thrown sentence; (2) return a notification, which Gmail does not show from a compose action (part J step 11); (3) return a draft that holds the error text, which would leave a junk draft. Decision: option 1, accepted by the owner as is, because a compose-action button takes only a draft as its answer. The bracket line is Gmail's; it names the function and file, no address and no request data.
+
+Q55, fresh consent. After "Remove access", Google showed one consent page with 9 checkbox lines (the 10 scopes less the sign-in email, owner's count). After the owner accepted them, an Insert with recipients worked with no second prompt. So D26 and D27 need no scope outside the 10, and A7 holds. New fact: the page has one checkbox per scope; an unticked scope breaks the add-on; the admin domain install grants every scope with no page. Recommendation (Q82): install by the Workspace admin for every user, and one quick-start line for self-installers.
+
+Also as built (slice 20b): the NOT_CONFIGURED sentence in the panel is "Migway Templates is not set up yet. Ask your admin to finish setup." (no "then press Retry", since the error card has no Retry); the details card label with a message open reads "A reply adds n recipients." (template To left out; can count a Cc already on the email, Q84). Reply-To with several addresses: every address counts as present, the first one is the reply address.
 
 ## Decision summary
 
@@ -344,7 +354,7 @@ Decision: option 1. Mechanism (src/addon/panel.ts `panelAnswer`): every refusal 
 
 ## Open questions
 
-- Q40 to Q46 in spec section 15, resolved in Acceptance section A1. New: Q67 to Q74; Q68 and Q74 closed 2026-11-11. Amendment 2026-11-11: Q75.
+- Q40 to Q46 in spec section 15, resolved in Acceptance section A1. New: Q67 to Q74; Q68 and Q74 closed 2026-11-11. Amendment 2026-11-11: Q75 (closed 2026-11-11). Amendment 2026-11-12: Q55 closed, Q82 new.
 
 ## Sources
 
