@@ -588,9 +588,10 @@ describe("toolbar", () => {
     expect(font.getAttribute("aria-haspopup")).toBe("menu");
     for (const family of FONT_FAMILIES) {
       const items = pick(family.label);
-      expect(items.map((entry) => entry.getAttribute("style"))).toEqual(
-        FONT_FAMILIES.map((f) => `font-family: ${f.value}`).concat([null]),
-      );
+      expect(items.map((entry) => entry.getAttribute("style"))).toEqual([
+        ...FONT_FAMILIES.map((f) => `font-family: ${f.value}`),
+        null,
+      ]);
       expect(ed.html()).toBe(
         `<p><span style="font-family: ${family.value}">word</span></p>`,
       );

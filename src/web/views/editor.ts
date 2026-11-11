@@ -853,15 +853,16 @@ export function editorView(
     }
   };
 
-  const save = async () => {
-    if (saving || readOnly || editor === null) return;
+  /** True when the save succeeded ("Save and leave" leaves only then). */
+  const save = async (): Promise<boolean> => {
+    if (saving || readOnly || editor === null) return false;
     const blocked = backslashProblems(editor.view.state.doc);
     if (blocked.length > 0) {
       showProblems(
         blocked.map((problem) => ({ kind: "error", message: problem.message })),
       );
       status.textContent = "Not saved. Fix the problems in the Problems tab.";
-      return;
+      return false;
     }
     for (const field of RECIPIENT_FIELDS) fields?.[field].commit();
     saving = true;
@@ -896,10 +897,12 @@ export function editorView(
       showSaved();
       if (isNew) app.replaceRoute({ name: "edit", id: item.id });
       void app.reload();
+      return true;
     } catch (error: unknown) {
       saving = false;
       showSaved();
       fail(error);
+      return false;
     } finally {
       saving = false;
       saveButton.disabled = false;
@@ -922,6 +925,55 @@ export function editorView(
     }
   };
   document.addEventListener("keydown", ctrlS);
+
+  /** Unsaved changes: the form differs from the last load or save, for a caller who may edit. */
+  const dirty = () =>
+    built &&
+    !readOnly &&
+    editor !== null &&
+    // A view no longer on the page (a test booting a new app) has nothing to lose.
+    mount.isConnected &&
+    formKey() !== savedKey;
+
+  /** Leaving the editor with unsaved changes asks first; "Save and leave" leaves only after a successful save. */
+  const canLeave = (leave: () => void): boolean => {
+    if (!dirty()) return true;
+    openDialog({
+      title: "Leave without saving?",
+      body: h(
+        "p",
+        {},
+        "Your changes to this template are not saved. They are lost if you leave now.",
+      ),
+      actions: [
+        { label: "Keep editing", autofocus: true, run: () => true },
+        {
+          label: "Discard changes",
+          run: () => {
+            leave();
+            return true;
+          },
+        },
+        {
+          label: "Save and leave",
+          primary: true,
+          run: () => {
+            void save().then((saved) => {
+              if (saved) leave();
+            });
+            return true;
+          },
+        },
+      ],
+    });
+    return false;
+  };
+
+  /** Closing or reloading the page while changes are unsaved: the browser asks (where the frame allows it). */
+  const beforeUnload = (event: BeforeUnloadEvent) => {
+    if (dirty()) event.preventDefault();
+  };
+  window.addEventListener("beforeunload", beforeUnload);
 
   replace(
     main,
@@ -960,7 +1012,9 @@ export function editorView(
   });
 
   return {
+    canLeave,
     dispose: () => {
+      window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("keydown", ctrlS);
       window.clearTimeout(previewTimer);
       editor?.destroy();

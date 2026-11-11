@@ -161,6 +161,11 @@ export function startApp(host: Host): AppContext {
     });
   };
 
+  /** Route hook of the unsaved-changes guard (slice 8b): a view may hold a route change and run `leave` later. */
+  const leaving = (leave: () => void) => {
+    if (view?.canLeave?.(leave) !== false) leave();
+  };
+
   const render = (next: Route) => {
     view?.dispose();
     route = next;
@@ -243,9 +248,11 @@ export function startApp(host: Host): AppContext {
       stale = true;
     },
     go: (next) => {
-      host.navigate(routeHash(next), false);
-      render(next);
-      main.focus();
+      leaving(() => {
+        host.navigate(routeHash(next), false);
+        render(next);
+        main.focus();
+      });
     },
     replaceRoute: (next) => {
       host.navigate(routeHash(next), true);
@@ -281,8 +288,18 @@ export function startApp(host: Host): AppContext {
     })
     .catch((error: unknown) => app.fail(error));
   host.onBackForward((hash) => {
-    favoritesOnly = false;
-    render(parseRoute(hash));
+    const next = parseRoute(hash);
+    const open = () => {
+      favoritesOnly = false;
+      render(next);
+    };
+    // While the view asks, the address goes back to it; leaving later moves it on again.
+    const held = view?.canLeave?.(() => {
+      host.navigate(routeHash(next), false);
+      open();
+    });
+    if (held === false) host.navigate(routeHash(route), false);
+    else open();
   });
   // `<base target="_top">` would send fragment links to the top window, so both links act in script.
   element("skip").addEventListener("click", (event) => {

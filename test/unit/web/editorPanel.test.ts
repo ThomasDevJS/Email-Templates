@@ -519,3 +519,203 @@ describe("history recipients", () => {
     });
   });
 });
+
+describe("unsaved-changes guard", () => {
+  const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+
+  function edit(): void {
+    const title = byId("title");
+    title.value = "Changed title";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  async function storedTitle(id: string): Promise<string> {
+    return (
+      (await harnessCall("template.get", { id })).data as {
+        item: { title: string };
+      }
+    ).item.title;
+  }
+
+  /** Every way out of the editor inside the app; each one asks while the form has changes. */
+  const exits: readonly (readonly [string, () => void])[] = [
+    [
+      "sidebar All templates",
+      () => {
+        document.querySelector<HTMLElement>("[data-nav=library]")?.click();
+      },
+    ],
+    [
+      "sidebar Favorites",
+      () => {
+        document.querySelector<HTMLElement>("[data-nav=favorites]")?.click();
+      },
+    ],
+    [
+      "sidebar Trash",
+      () => {
+        document.querySelector<HTMLElement>("[data-nav=trash]")?.click();
+      },
+    ],
+    [
+      "folder tree",
+      () => {
+        document.querySelector<HTMLElement>("#side .tree-item")?.click();
+      },
+    ],
+    [
+      "breadcrumb",
+      () => {
+        button("Quotes").click();
+      },
+    ],
+    [
+      "History",
+      () => {
+        button("History").click();
+      },
+    ],
+    [
+      "browser Back to the library",
+      () => {
+        window.history.replaceState(null, "", "#/library");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      },
+    ],
+    [
+      "opening another template",
+      () => {
+        window.history.replaceState(null, "", "#/edit/T-DISCOUNT");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+      },
+    ],
+  ];
+
+  for (const [name, leave] of exits)
+    it(`asks before leaving by the ${name}; Keep editing stays`, async () => {
+      await openEditor("/?latency=0#/edit/T-QUOTE");
+      edit();
+      leave();
+      await until(() => {
+        expect(dialog()?.querySelector("h2")?.textContent).toBe(
+          "Leave without saving?",
+        );
+      });
+      expect(
+        [...(dialog()?.querySelectorAll("button") ?? [])].map(
+          (b) => b.textContent,
+        ),
+      ).toEqual(["Keep editing", "Discard changes", "Save and leave"]);
+      expect(document.activeElement?.textContent).toBe("Keep editing");
+      button("Keep editing").click();
+      await until(() => {
+        expect(dialog()).toBeNull();
+      });
+      expect(window.location.hash).toBe("#/edit/T-QUOTE");
+      expect(byId("title").value).toBe("Changed title");
+    });
+
+  it("leaves without a question when nothing changed", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    button("History").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/history/T-QUOTE");
+    });
+    expect(dialog()).toBeNull();
+  });
+
+  it("leaves without a question for a caller without edit", async () => {
+    await openEditor("/?latency=0#/edit/T-SUPPORT");
+    edit();
+    document.querySelector<HTMLElement>("[data-nav=library]")?.click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/library");
+    });
+    expect(dialog()).toBeNull();
+  });
+
+  it("Discard changes leaves and saves nothing", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    edit();
+    button("Quotes").click();
+    button("Discard changes").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/library?folder=F-QUOTES");
+    });
+    expect(await storedTitle("T-QUOTE")).toBe("Price quote 2026");
+  });
+
+  it("Save and leave saves, then leaves", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    edit();
+    button("History").click();
+    button("Save and leave").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/history/T-QUOTE");
+    });
+    expect(await storedTitle("T-QUOTE")).toBe("Changed title");
+  });
+
+  it("Back held by the question moves on after Discard changes", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    edit();
+    window.history.replaceState(null, "", "#/edit/T-DISCOUNT");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    // The address returns to the open template while the question shows.
+    expect(window.location.hash).toBe("#/edit/T-QUOTE");
+    button("Discard changes").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/edit/T-DISCOUNT");
+      expect(byId("title").value).toBe("Discount approval");
+    });
+  });
+
+  it("stays when Save and leave fails", async () => {
+    await openEditor(
+      "/?latency=0&fail=BUSY&failOp=template.update#/edit/T-QUOTE",
+    );
+    edit();
+    document.querySelector<HTMLElement>("[data-nav=library]")?.click();
+    button("Save and leave").click();
+    await until(() => {
+      expect(document.querySelector(".toast")?.textContent).toContain(
+        "Busy, try again.",
+      );
+    });
+    expect(window.location.hash).toBe("#/edit/T-QUOTE");
+    expect(main().querySelector(".saved-state")?.textContent).toBe(
+      "Unsaved changes",
+    );
+  });
+
+  it("stays on a conflict and shows the conflict dialog", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    await harnessCall("template.update", {
+      id: "T-QUOTE",
+      baseVersion: 2,
+      title: "Other tab",
+      html: "<p>theirs</p>",
+    });
+    edit();
+    button("History").click();
+    button("Save and leave").click();
+    await until(() => {
+      expect(dialog()?.querySelector("h2")?.textContent).toBe(
+        "This template changed",
+      );
+    });
+    expect(window.location.hash).toBe("#/edit/T-QUOTE");
+  });
+
+  it("asks the browser before the page closes while changes are unsaved", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    const unload = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+    edit();
+    expect(unload()).toBe(true);
+  });
+});
