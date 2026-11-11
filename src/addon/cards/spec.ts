@@ -64,16 +64,22 @@ export interface ButtonSpec {
   /** Screen reader text naming the target ("Insert Welcome email"), spec section 8. */
   readonly alt?: string;
   readonly disabled?: boolean;
-  readonly filled?: boolean;
+  /** "filled": the one main action, in slate; "outlined": a secondary action. Absent: Gmail's default style. */
+  readonly style?: "filled" | "outlined";
   /** `setComposeAction` with this `ComposedEmailType` in place of a click action; the callback returns a draft. */
   readonly compose?: "STANDALONE_DRAFT" | "REPLY_AS_DRAFT";
 }
+
+/** Material icon names (`newMaterialIcon().setName`): no image URL, so the add-on loads nothing from outside Google. */
+export type IconName = "star" | "schedule" | "description" | "folder";
 
 export type Widget =
   | { readonly kind: "text"; readonly text: string }
   | {
       readonly kind: "item";
       readonly text: string;
+      /** Start icon of a list row, by the kind of section it sits in. */
+      readonly icon?: IconName;
       readonly topLabel?: string;
       readonly bottomLabel?: string;
       readonly onClick?: ActionSpec;
@@ -97,11 +103,14 @@ export interface SectionSpec {
   readonly header?: string;
   /** Never empty: Card Service rejects a section without widgets. */
   readonly widgets: readonly Widget[];
+  /** Collapsible, with this many widgets shown while collapsed. */
+  readonly collapseAfter?: number;
 }
 
 export interface CardSpec {
   readonly name: string;
-  readonly title: string;
+  /** Header title, only where it carries information (folder path, template title): Gmail's bar names the add-on. */
+  readonly title?: string;
   readonly sections: readonly SectionSpec[];
   readonly footer?: {
     readonly primary: ButtonSpec;
@@ -158,3 +167,12 @@ export function insertReply(
 
 export const action = (fn: Callback, params?: Params): ActionSpec =>
   params === undefined ? { fn } : { fn, params };
+
+/** Home, folder and search cards: "Open library" as a secondary (outlined) button in the fixed footer. */
+export const LIBRARY_FOOTER: NonNullable<CardSpec["footer"]> = {
+  primary: {
+    text: "Open library",
+    action: action("onOpenLink"),
+    style: "outlined",
+  },
+};

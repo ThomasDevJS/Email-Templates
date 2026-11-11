@@ -158,7 +158,7 @@ export function recipientWidgets(
         kind: "item",
         topLabel: FIELD_LABELS[field],
         text: address,
-        ...(marks.length === 0 ? {} : { bottomLabel: marks.join("\n") }),
+        ...(marks.length === 0 ? {} : { bottomLabel: marks.join(" · ") }),
       };
     }),
   );

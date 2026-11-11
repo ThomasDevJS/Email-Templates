@@ -106,7 +106,6 @@
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
 - Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
 - Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire`. Lighthouse dark: Chrome `--force-dark-mode`.
-- The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
 ## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
@@ -115,22 +114,24 @@
 - Add-on: cards/recipients.ts (`recipientPlan`, `recipientActions` = draft list + new, REPLACE), `draftRecipients` (event.ts), `Ports.hash` (`rh`), Review rows (`rowButton`), prompt card `rcpt` switch; prompt card `rh` absent = body only.
 - Retry 1: draft lists are known or unknown (`DraftRecipients`, null); an unknown field never gets a replace action. `recipientWidgets` is the single source of recipient lines on both cards. Version-file lists: `isStoredList`, `unreadableRecipients`.
 ## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
-- Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry` set in `ports(event)`; `templateItem(t, entry, below)`, `folderCard(..., entry)`, `homeCard(view, entry)`, `searchCard(..., entry)`, `previewCard(..., entry)`; `TOOLBAR_HINT` (home.ts); `onMessageOpen` + manifest `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
+- Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry`; cards take `entry`; `onMessageOpen` + `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
 - TEMPORARY: src/addon/spikeS7.ts, `onS7Card/Compose/Notify`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-10-s7.md.
 - Harness guard stays outside the error wrapper (the guard test expects a throw). `perl -0pi` multi-file edits pass the worktree guard; python heredocs do not.
+## Slice 12 (add-on layout and wording, 2026-11-11)
+- Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.
+- `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
+- `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT`: the one place side-panel insert replaces. Empty home (`emptySection`) belongs to the admin-settings slice.
 
 ## Slice 8c (admin UI, 2026-11-10)
 - `views/adminTable.ts` (`adminTable`, `tableRow` with `data-label`, `noteRow`, `toneTag`); `admin/actions.ts` (`actionWords`, `resultTag`, `purgeText`). Tint tokens `--ok-bg`, `--warn-bg`, `--red-bg`.
 - Admin h1 then tab h2s (Lighthouse heading order). Admin tables stack under 860 px via `td[data-label]::before`.
 - Worktree guard refuses `cmd && python3 - <<EOF`; scratchpad `ed8c.py` (@@@/<<</===/>>>) run alone works. Screens: scratchpad `shoot8c.cjs`, dev server on a fixed port, rebuild by restart.
-- Count harness calls in jsdom: wrap `window.google.script.run` (host reads `script.run` per call).
 
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
 - Focus ring rule: on the active item (`outline-offset: -2px`), never around a listbox. Stacked labels `content: attr(data-label) / ""`.
 - CSS-only fixes get a text test in test/unit/web/styles.test.ts. Old-code check: copy src/web to scratchpad, `git checkout HEAD -- src/web`, run, copy back.
-- Trash `load()` returns boolean; purge result needs the reloaded list.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.

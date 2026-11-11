@@ -480,7 +480,7 @@ export function promptInsertFlow(
     );
   }
   const problem = changed
-    ? "The template changed. Check the fields and insert again."
+    ? "The template changed. Check the fields and press Insert again."
     : listsChanged
       ? RECIPIENTS_CHANGED
       : problemText(fields, check);

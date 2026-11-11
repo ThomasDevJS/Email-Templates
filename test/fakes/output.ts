@@ -147,7 +147,7 @@ export function createRecordingCardService(): {
       IN_PLACE_INSERT: "IN_PLACE_INSERT",
       INSERT_AT_END: "INSERT_AT_END",
     },
-    TextButtonStyle: { FILLED: "FILLED", TEXT: "TEXT" },
+    TextButtonStyle: { FILLED: "FILLED", OUTLINED: "OUTLINED", TEXT: "TEXT" },
     SwitchControlType: { SWITCH: "SWITCH", CHECK_BOX: "CHECK_BOX" },
     ComposedEmailType: {
       REPLY_AS_DRAFT: "REPLY_AS_DRAFT",

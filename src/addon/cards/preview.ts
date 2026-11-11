@@ -3,6 +3,7 @@ import type { SidebarTemplate } from "../../shared/model/sidebar";
 import { atLeast } from "../../shared/permissions/levels";
 import type { Entry } from "../event";
 import { insertButton } from "./folder";
+import { sidePanelHint } from "./sidePanel";
 import {
   RECIPIENTS_CHANGED,
   addsLine,
@@ -18,6 +19,9 @@ import {
   type SectionSpec,
   type Widget,
 } from "./spec";
+
+/** Preview of a template without body text. */
+export const EMPTY_TEMPLATE = "This template has no text.";
 
 /** What the preview card shows of the recipients (spec 5.7) and the hash its Insert buttons carry. */
 export interface PreviewRecipients {
@@ -62,7 +66,6 @@ function insertButtons(
 ): ButtonSpec[] {
   const plain: ButtonSpec = {
     ...insertButton(template),
-    filled: true,
     action: action("onInsert", { id: template.id, rh }),
   };
   const bodyOnly = (hasSubject && !draftHasSubject) || adds;
@@ -154,7 +157,7 @@ export function previewCard(
   ];
   const preview: Widget = {
     kind: "text",
-    text: text === "" ? "(Empty template)" : text,
+    text: text === "" ? EMPTY_TEMPLATE : text,
   };
   // Card Service rejects a section without widgets.
   const top: SectionSpec[] =
@@ -168,6 +171,10 @@ export function previewCard(
   return {
     name: `preview-${template.id}`,
     title: template.title,
-    sections: [...top, ...(actions.length === 0 ? [] : [{ widgets: actions }])],
+    sections: [
+      ...top,
+      ...(actions.length === 0 ? [] : [{ widgets: actions }]),
+      ...sidePanelHint(entry),
+    ],
   };
 }

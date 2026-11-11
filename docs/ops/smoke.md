@@ -44,8 +44,8 @@ Needs: the dev deployment after `npm run deploy -- dev`, and the second Migway a
 
 Needs: the dev deployment after `npm run deploy -- dev` (code only: reopen the sidebar), the "Smoke 3" folder and "Smoke 3 quote" template from slice 3, and the second account from slice 2 (no grant).
 
-1. Gmail web, compose, open Migway Templates. Within 3 s the home card shows "Folders" with "Smoke 3 (1)" and "My templates (n)", and "Open library". Close and reopen within 10 min: the card shows faster (User Cache hit, no `sidebar.home` line in Executions).
-2. Tap "Smoke 3": the folder card is titled "Smoke 3" and lists "Smoke 3 quote" with "1 field to fill" and its snippet. Tap the title: the preview shows plain text with "[Recipient first name]", "[Product]" and "[Sender name]", "Fields to fill: Product", Insert and "Edit in library".
+1. Gmail web, compose, open Migway Templates. Within 3 s the home card shows "Folders" with "Smoke 3" ("1 template" below) and "My templates" ("n templates" below), and "Open library" at the bottom. Close and reopen within 10 min: the card shows faster (User Cache hit, no `sidebar.home` line in Executions).
+2. Tap "Smoke 3": the folder card is titled "Smoke 3" and lists "Smoke 3 quote" with "1 field to fill" below the title. Tap the title: the preview shows plain text with "[Recipient first name]", "[Product]" and "[Sender name]", "Fields to fill: Product", Insert and "Edit in library".
 3. To: one Migway colleague. Tap Insert: the prompt card asks "Product *". Tap Insert with the field blank: "(!) Fill 1 field: Product" and the draft is unchanged.
 4. Enter `<b>A & B</b>`, a new line, `second line`; tap Insert. The body shows the colleague's first name, the text literally (no bold), on 2 lines, and your Directory name in bold. Stopwatch from tap to body change: under 2 s.
 5. In the library, create "Smoke 4 plain" in "Smoke 3" with body `Hello {{recipient.first_name|there}}` (no prompts). Back in Gmail, compose with no recipient and open the "Smoke 3" folder card (Open library cleared the cached view). Tap Insert on "Smoke 4 plain": "Hello there" appears at the cursor in one click.
@@ -79,7 +79,7 @@ Needs: the dev deployment after `npm run deploy -- dev` (reopen the sidebar), th
 5. Library: star "Smoke 3 quote" with the mouse, then another row with Tab to its star cell and Enter: "Added ... to favorites.", star filled. "★ Favorites" shows only starred rows; press it again to see all.
 6. Library search: `/`, type `quote for`: "Smoke 3 quote" (subject match). Type a word that is only in a body: it appears under "Matches in text" within 1 s. `folder:smoke tag:smoke` filters. DevTools, Performance, User Timing: `library.list` under 50 ms, `library.body` under 1 s.
 7. Gmail, compose, open the add-on (Open library cleared the cached view): "Favorites" lists the starred templates with their folder path; "Recent" lists templates inserted in steps 1 to 3 after the next `tick`. Type `quote` in "Search templates" and leave the field: results replace Home; clear the field: Home returns.
-8. Second account: compose, open the add-on: no "Favorites" or "Recent" entries from your templates; search `quote` shows "No templates match quote. Try folder: or tag:.".
+8. Second account: compose, open the add-on: no "Favorites" or "Recent" entries from your templates; search `quote` shows `No templates match "quote". Try fewer words, or remove folder: and tag: from the search.`.
 9. Editor, Executions: `search`, `favorite.set` and `search.body` lines carry `action`; a warm `sidebar.home`, `search` and `template.apply` show `"props":1` and `"drive":0`. No subject text, body text or query text in any line. Script Properties: `FAVORITES_REV` and `USAGE_REV` are set.
 
 ## Slice 5b
@@ -147,6 +147,19 @@ Needs: the dev deployment of this build (reopen the add-on). The web editor has 
 7. "Insert body only": new draft, Review, "Insert body only": body `Hello` only; Subject, To, Cc and Bcc stay empty.
 8. Regression: new draft, row "Smoke 9 plain" shows Insert and no "Adds" line. One tap inserts `Plain` at the cursor.
 9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `draft` with counts and `hasSubject` only. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
+
+## Slice 12
+
+Needs: the dev deployment of this build (reload Gmail), a user with at least 1 favorite, 1 recent template, 1 template with prompts, the Slice 9 template "Smoke 9 recipients", the template "Smoke 9 plain", and a folder named `R&D <b>` holding one template. Take one screenshot of each card in steps 1 to 7 and attach it to the handoff. Compare each with the card sketches in docs/handoffs/2026-11-11-implementer-to-reviewer-slice-12.md.
+
+1. Draft toolbar, home: no card header (Gmail's bar alone says "Migway Templates"). "Search templates" with the hint "Tip: add folder:Sales or tag:pricing to narrow the search." below. "Favorites" rows have a star icon, "Recent" rows a clock icon, "Folders" rows a folder icon and "n templates". Each template row: the title, then one line with the folder path and the hints that apply, for example "Sales · 1 field to fill · Adds Cc 1". Each row has one "Insert" (or "Review") filled in dark slate. "Open library" sits in a fixed bar at the bottom, outlined. Check: no row shows `<br>` or `&amp;`; the 4 icons show (star, clock, document, folder); the folder `R&D <b>` reads exactly `R&D <b>`. Report any `&amp;` or `&lt;` you see: labels are plain text in Gmail and the code escapes them.
+2. Same card with more than 5 folders or favorites: the section shows 5 rows and a "Show more" control (Gmail's wording) for the rest.
+3. Draft toolbar, open a folder: header is the folder path; subfolders first with folder icons, then template rows with a document icon and only their hints below the title (no folder path; nothing for a template without prompts or recipients); "Previous" and "Next" when there are over 20 templates; "Open library" at the bottom.
+4. Draft toolbar, search `zzqx`: `No templates match "zzqx". Try fewer words, or remove folder: and tag: from the search.`. Search a real word: "Results" rows with a document icon.
+5. Draft toolbar, tap a template title: header is the template title; "Insert" is the only filled button; "Insert with subject", "Insert body only" and "Edit in library" are outlined. A template with prompts, Insert: the prompt card footer has a filled "Insert" and a plain "Cancel".
+6. Regression: new draft, row "Smoke 9 plain", tap Insert once: `Plain` appears at the cursor. Discard the draft.
+7. Side panel, no message open, then with a message open: the same home, folder, search and preview cards, with no Insert or Review on rows or the preview. Each card ends with "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." In the dev build the home card shows the section "Spike S7 (temporary)" after that line.
+8. State cards: open a folder in the panel, delete one of its templates in the library in another tab, then tap that template's title in the panel: "This template was removed or moved. Press Refresh to update the list." with Refresh. No card header. DENIED, QUOTA and the request-ID error card are not reachable in a smoke run.
 
 ## Spike S7
 

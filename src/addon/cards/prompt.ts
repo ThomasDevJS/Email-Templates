@@ -117,7 +117,7 @@ export function promptCard(state: PromptState): CardSpec {
       primary: {
         text: "Insert",
         alt: `Insert ${state.title}`,
-        filled: true,
+        style: "filled",
         action: action("onPromptInsert", {
           id: state.id,
           title: state.title,
@@ -142,7 +142,7 @@ export function tooManyFieldsCard(title: string, count: number): CardSpec {
         widgets: [
           {
             kind: "text",
-            text: `This template needs ${String(count)} fields; the sidebar fills at most 20. Ask an editor to reduce its prompts.`,
+            text: `This template needs ${String(count)} fields. The panel fills at most 20. Ask an editor to remove some fields.`,
           },
           {
             kind: "buttons",

@@ -21,27 +21,8 @@
 - Server-plus-add-on probes: test/fakes/world.ts `setupWorld()`, `world.call(email, op, args, surface)`, `world.lines` for logs; add-on Ports pattern in test/unit/addon/flows.test.ts.
 
 ## Slice log
-- Slice 1 (2026-11-09): FAIL then PASS on retry 1 (501090f). Blocker was npm ci EUSAGE (@types/node peer). 144 tests, 99.34% lines.
-- Slice 2 (2026-11-09): FAIL (195ab90, stale authorization under concurrent move), retry 1 fix 6052320: PASS (64078b8). 22 files, 439 tests, 99.39% lines, Code.js 103.4 KB, 10 scopes.
-  - Fix: dispatch returns target placement; handlers/commit.ts rechecks inside the lock (CONFLICT reason moved, DENIED on lost level). races.test.ts 9 tests.
-  - Open minor: readPreviousSnapshot swallows Drive errors, mergeGroup can then write members.json with one group. Add-on 404 at first hop (deploy issue, s2.md).
-
-- Slice 3 (2026-11-09): PASS (review 8ba6797 on 41575e3). 32 files, 745 tests, lines 94.61% (shared 100, server 99.06, web reported only). Code.js 226.0 KB, index.html 271.0 KB, Lighthouse 100/100/100, 10 scopes.
-  - Sanitizer src/shared/sanitize (htmlparser2 12.0.0), placeholders src/shared/placeholders, write path src/shared/body/prepare.ts + server/handlers/body.ts. Web app src/web (ProseMirror, no framework), dev harness scripts/dev-web.mjs.
-  - Open minors: template.get not re-sanitized (editor loads through it); QUOTA retry not delayed 60 s; PH_BACKSLASH false positive across mark runs; bodySize dead in src; chrome-launcher undeclared; spec 6 lacks template.getBody; ADR paste-preview sanitize not done.
-
-- Slice 4 (2026-11-10): FAIL (2ac580f), retry 1 PASS (054129a, 846 tests, Code.js 259.2 KB). First review: 40 files, 842 tests, lines 95.95% (addon 100, shared 100, server 99.08), Code.js 258.9 KB, 10 scopes.
-  - Blocker: home.ts:54 empty state needs folders AND templates empty; every caller gets a private folder on first folder.list, so the empty state never shows (smoke Slice 4 step 8 fails). Fix: templates.length === 0.
-  - Minors: prompt Insert renders from body:<id> cache (6 h) with no re-check; unused payload fields placeholders/own/rev; smoke Slice 1 step 3 stale Ping; setRequiredWidgets not tried.
-  - Accepted: unset DOMAIN -> NOT_CONFIGURED; sidebar hides others' private folders from admins (server filter, library still shows); apply event buffered at prompt card open (spec 4.1 step 3).
-  - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Spike S4 harness TEMPORARY (spike.s4, onSpikeCard, onSpikeInsert, src/shared/spike).
-
-- Slice 4b (2026-11-10): FAIL (78a3d34), retry 1 PASS (20bd55a, 891 tests, Code.js 266.5 KB). Retry: shared REQUEST_ID_PATTERN enforced in handleRpc (VALIDATION, server ID logged), action logged only for policy ops, ensureTriggers live re-check, tick runs ensureTriggers, readers never set INDEX_REV (setup publishes). Open: failed reinstall can leave <3 triggers (delete-first); spec 16 wording.
-  First review (714adf0): 42 files, 879 tests, lines 96.27% (addon 100, server 99.31, shared 100, web 95.12), Code.js 265.8 KB, index.html 278.2 KB, 10 scopes, Lighthouse 100x3.
-  - Blocker: client requestId not format-checked on server. doPost logs any non-empty string (handle.ts:107, protocol.ts:69); rpc accepts [A-Za-z0-9-]{8,64} (entry.ts:123). Fix: shared XXXXXXXX-XXXXXX pattern, replace non-matching IDs on both surfaces.
-  - Minors: snapshotProps breaks ensureTriggers double-check (reinstalls twice); maintain only in doGet, deploy.md lacks "open /exec after deploy"; loadIndex sets INDEX_REV when unset from pre-read snapshot (race before first tick); bd:* shares Script Cache capacity; admin can duplicate others' private templates (D11).
-  - Accepted: 9bbd262 bundle as JSON literal + (0, eval) (fuzzed 191k strings, round-trips); lock-free loadIndex; body cache bd:<bodyFileId> behind dispatch; requestTiming bounds 0..600000 ints.
-  - Defect 7 iframe focus unverified; owner checks Tab into tree, Shift+F10 vs Chrome menu.
+- Slices 1-4b (2026-11-09/10): all PASS after retries. Lessons kept below. Open minors: readPreviousSnapshot swallows Drive errors; template.get not re-sanitized; prompt Insert renders from body cache; failed trigger reinstall can leave <3 triggers; admin can duplicate others' private templates (D11).
+  - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Sanitizer src/shared/sanitize, placeholders src/shared/placeholders. REQUEST_ID_PATTERN shared, checked on both surfaces.
 
 - Slice 5 (2026-11-10): PASS (b534836). 46 files, 952 tests, lines 96.33% (addon 100, server 99.31, shared 100, web 95.5), Code.js 276.2 KB, index.html 284.2 KB, 10 scopes, Lighthouse 100x3.
   - Subject: src/shared/placeholders/subject.ts, renderSubject (one pass, oneLine), insertReply (cards/spec.ts). Cards escape via markup(); history subject via withChips(escapeText()).
@@ -109,6 +90,12 @@
   - Accepted: rh over to/cc/bcc/blocked, no rh -> preview card, forged rh -> card; update omission keeps lists, deny then refuses; apply/getBody blocked split; audit admin only; validator rejects injection probes.
   - Code: shared/model/recipients.ts (validateRecipients, importRecipients, splitBlocked), addon/cards/recipients.ts (recipientPlan, recipientActions, rowHint), flows.ts needsReview. Minor: version files have no shape check.
 
+- Slice 12 add-on layout and wording (2026-11-11): PASS (00c91a3). 62 files, 1437 tests, lines 96.67, Code.js 347.8 KB, 10 scopes. Add-on only.
+  - Probe base vs head pure flows (6 events x 5 templates, all insert params, prompt switches): 502/526 replies identical incl. 322 draft responses; 24 diffs = Open library moved to fixed footer.
+  - New: CardSpec.title optional, ButtonSpec.style filled (slate #2a3c49 via setBackgroundColor) | outlined, item icon (Material names star/schedule/description/folder), SectionSpec.collapseAfter (VISIBLE_ROWS 5), LIBRARY_FOOTER, sidePanel.ts sidePanelHint.
+  - Gaps: bottom label `\n`-><br> plus escaping vs Google guide 'labels must use plain text' (unverified, smoke step 1); no-match echoes unbounded query; folder rows repeat header path, snippet gone (wireframe 01 had it); stale smoke.md:47-48, deploy.md:20.
+  - Follow-up 9d48a79, 85d6d50: PASS, 1440 tests. Labels escapeText only, one line joined ' · '; folder rows hints only; ECHO_MAX 60 (cut by UTF-16 unit, can split a surrogate pair: minor). Draft responses still identical to base.
+
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -140,3 +127,6 @@
 - Overlay panels: Tab past the last item and check where focus lands; check outside click.
 - Entry gating by event fields: verify the field exists on action (click) events too, from live logs, before trusting the classifier.
 - Replace-type writes (Gmail recipient actions): probe missing, non-array and mixed input; "unknown" must never read as "empty".
+- Card Service docs: fetch developers.google.com/apps-script/reference/card-service/<class> with curl; extract <article> text. Unknown MaterialIcon name renders no icon, no error. TextButton unset style = OUTLINED. Labels plain text per add-on widget guide.
+- Behaviour-freeze slices: run one probe script on base and head copies, dump replies with text stripped, diff.
+- rm -rf with a shell variable path is blocked; use literal absolute paths.

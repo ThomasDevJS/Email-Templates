@@ -242,7 +242,7 @@ describe("texts (spec 7.1)", () => {
         kind: "item",
         topLabel: "Bcc",
         text: "records@partner.com",
-        bottomLabel: "outside migway.com\nhidden from other recipients",
+        bottomLabel: "outside migway.com · hidden from other recipients",
       },
       {
         kind: "text",

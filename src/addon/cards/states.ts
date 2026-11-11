@@ -33,7 +33,6 @@ function card(lines: readonly string[], buttons: ButtonSpec[]): CardSpec {
     buttons.length === 0 ? [] : [{ kind: "buttons", buttons }];
   return {
     name: "state",
-    title: "Migway Templates",
     sections: [{ widgets: [...text, ...row] }],
   };
 }
@@ -49,10 +48,10 @@ function retryAction(failure: Failure, context: StateContext): ActionSpec {
 function retryLines(failure: Failure): string[] {
   const head =
     failure.code === ErrorCode.BUSY
-      ? "Busy, try again."
+      ? "Busy right now. Press Retry in a few seconds."
       : failure.code === ErrorCode.QUOTA
         ? "Service is busy. Try again in a minute."
-        : "Something went wrong.";
+        : "Something went wrong. Press Retry.";
   const lines = [head];
   if (failure.requestId !== "") lines.push(`Request ID ${failure.requestId}`);
   // NETWORK messages come from the add-on itself ("Server returned HTTP 401"); deploy.md step 10 needs them.
@@ -77,7 +76,7 @@ export function stateCard(failure: Failure, context: StateContext): CardSpec {
       return card(
         [
           "Migway Templates is not set up yet.",
-          "The owner runs setup once and deploys; then reopen the sidebar.",
+          "Ask the owner to finish setup, then press Retry.",
         ],
         [{ text: "Retry", action: context.retry }],
       );
@@ -87,7 +86,12 @@ export function stateCard(failure: Failure, context: StateContext): CardSpec {
         backOr(refresh),
       );
     case ErrorCode.NOT_FOUND:
-      return card(["This template was removed or moved."], [refresh]);
+      return card(
+        [
+          "This template was removed or moved. Press Refresh to update the list.",
+        ],
+        [refresh],
+      );
     default:
       return card(retryLines(failure), [
         { text: "Retry", action: retryAction(failure, context) },

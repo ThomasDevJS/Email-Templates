@@ -152,6 +152,7 @@ describe("list rows", () => {
       button: {
         text: "Review",
         alt: "Review Driver leaving",
+        style: "filled",
         action: { fn: "onPreview", params: { id: item.id } },
       },
     });
@@ -180,7 +181,7 @@ describe("list rows", () => {
       kind: "item",
       topLabel: "Bcc",
       text: BCC,
-      bottomLabel: "outside example.com\nhidden from other recipients",
+      bottomLabel: "outside example.com · hidden from other recipients",
     });
     expect(texts(card)).toContain(FINISH_TYPING);
   });
@@ -207,7 +208,7 @@ describe("preview card and Insert", () => {
       kind: "item",
       topLabel: "Bcc",
       text: BCC,
-      bottomLabel: "outside example.com\nhidden from other recipients",
+      bottomLabel: "outside example.com · hidden from other recipients",
     });
     expect(buttons(card).map((b) => b.text)).toEqual([
       "Insert",
@@ -393,7 +394,7 @@ describe("prompt card", () => {
       kind: "item",
       topLabel: "Bcc",
       text: BCC,
-      bottomLabel: "outside example.com\nhidden from other recipients",
+      bottomLabel: "outside example.com · hidden from other recipients",
     });
   });
 

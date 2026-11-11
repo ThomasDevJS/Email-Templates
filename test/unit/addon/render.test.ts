@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderCard, renderReply } from "../../../src/addon/cards/render";
+import {
+  SLATE,
+  renderCard,
+  renderReply,
+} from "../../../src/addon/cards/render";
 import type { CardSpec } from "../../../src/addon/cards/spec";
+import { homeCard, searchCard } from "../../../src/addon/cards/home";
+import { previewCard } from "../../../src/addon/cards/preview";
+import { template, view } from "./fixtures";
 import {
   createRecordingCardService,
   type RecordedCall,
@@ -39,7 +46,7 @@ const CARD: CardSpec = {
           button: {
             text: "Insert",
             alt: "Insert Item",
-            filled: true,
+            style: "filled",
             disabled: true,
             action: { fn: "onInsert", params: { id: "T1" } },
           },
@@ -91,6 +98,7 @@ describe("renderCard", () => {
     expect(argsOf("setAltText")).toEqual(["Insert Item"]);
     expect(argsOf("setDisabled")).toEqual([true]);
     expect(argsOf("setTextButtonStyle")).toEqual(["FILLED"]);
+    expect(argsOf("setBackgroundColor")).toEqual([SLATE]);
     expect(argsOf("setFieldName")).toEqual(["p-1"]);
     expect(argsOf("setValue")).toEqual(["v"]);
     expect(argsOf("setMultiline")).toEqual([true]);
@@ -109,6 +117,41 @@ describe("renderCard", () => {
     expect(argsOf("setHeader")).toHaveLength(1);
     expect(argsOf("setTopLabel")).toEqual([]);
     expect(argsOf("setPrimaryButton")).toEqual([]);
+  });
+
+  it("renders start icons by Material name, outlined buttons, collapsible sections, and no header without a title", () => {
+    renderCard({
+      name: "c4",
+      sections: [
+        {
+          header: "Folders",
+          collapseAfter: 5,
+          widgets: [
+            { kind: "item", icon: "folder", text: "Sales" },
+            { kind: "item", text: "No icon" },
+          ],
+        },
+        { widgets: [{ kind: "text", text: "x" }] },
+      ],
+      footer: {
+        primary: {
+          text: "Open library",
+          action: { fn: "onOpenLink" },
+          style: "outlined",
+        },
+      },
+    });
+    expect(SLATE).toBe("#2a3c49");
+    expect(argsOf("setHeader")).toEqual(["Folders"]);
+    expect(argsOf("newCardHeader")).toEqual([]);
+    expect(argsOf("setName")).toEqual(["c4", "folder"]);
+    expect(argsOf("setMaterialIcon")).toHaveLength(1);
+    expect(argsOf("setStartIcon")).toHaveLength(1);
+    expect(argsOf("setIconUrl")).toEqual([]);
+    expect(argsOf("setCollapsible")).toEqual([true]);
+    expect(argsOf("setNumUncollapsibleWidgets")).toEqual([5]);
+    expect(argsOf("setTextButtonStyle")).toEqual(["OUTLINED"]);
+    expect(argsOf("setBackgroundColor")).toEqual([]);
   });
 
   it("renders an input hint and change action, and an item switch", () => {
@@ -251,5 +294,59 @@ describe("renderReply", () => {
       recipients: { to: ["t@x.com"] },
     });
     expect(argsOf("addUpdateToRecipients")).toEqual([["t@x.com"]]);
+  });
+});
+
+describe("labels (plain text in Gmail)", () => {
+  const labels = () => [...argsOf("setTopLabel"), ...argsOf("setBottomLabel")];
+
+  it("get no markup from the code's own strings; folder names stay escaped on one line", () => {
+    const name = "R&D <b>Research and development of long names</b>";
+    renderCard(
+      homeCard(
+        view({
+          folders: [{ id: "F1", name, parentId: "", count: 2 }],
+          subfolders: [
+            {
+              id: "F2",
+              name: "Quotes for every region",
+              parentId: "F1",
+              count: 1,
+            },
+          ],
+          templates: [
+            template("T1", { folderId: "F2", prompts: ["A"], rc: [1, 1, 0] }),
+          ],
+          favorites: ["T1"],
+        }),
+        "compose",
+      ),
+    );
+    const escaped =
+      "R&amp;D &lt;b&gt;Research and development of long names&lt;/b&gt;";
+    expect(labels()).toEqual([
+      `${escaped} / Quotes for every region · 1 field to fill · Adds To 1, Cc 1`,
+      "2 templates",
+    ]);
+    calls.length = 0;
+    renderCard(
+      previewCard(template("T1"), "x", "S", false, "compose", {
+        plan: {
+          added: { to: ["a@example.com"], cc: [], bcc: ["b@example.com"] },
+          notAdded: [],
+          unknown: { to: [], cc: [], bcc: [] },
+        },
+        rh: "RH",
+        domain: "migway.com",
+        changed: false,
+      }),
+    );
+    expect(labels().length).toBeGreaterThan(2);
+    for (const text of labels()) expect(String(text)).not.toMatch(/[<>]/);
+  });
+
+  it("escapes the query echoed in the no-match text", () => {
+    renderCard(searchCard(view(), "<b>x</b>", [], "compose"));
+    expect(argsOf("setText")[0]).toContain("&lt;b&gt;x&lt;/b&gt;");
   });
 });

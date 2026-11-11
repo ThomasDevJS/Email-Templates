@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as addon from "../../../src/addon/entry";
-import { TOOLBAR_HINT } from "../../../src/addon/cards/home";
+import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import { CALLBACKS } from "../../../src/addon/cards/spec";
 import {
   callServer,
@@ -236,12 +236,12 @@ describe("add-on entry points", () => {
     addon.onHomepage();
     expect(ops).toEqual(["sidebar.home"]);
     expect(argsOf("setTitle")).toEqual([
-      "Migway Templates",
       "Search templates",
-      "Migway Templates",
       "Search templates",
     ]);
-    expect(argsOf("setText")).toContain("Sales (1)");
+    expect(argsOf("setText")).toContain("Sales");
+    expect(argsOf("setBottomLabel")).toContain("1 template");
+    expect(argsOf("setFixedFooter")).toHaveLength(2);
     expect(argsOf("build")).toHaveLength(2);
   });
 
@@ -286,7 +286,9 @@ describe("add-on entry points", () => {
       parameters: { id: "T1", notBefore: String(now + 30_000) },
     });
     expect(fetchApp.requests).toHaveLength(0);
-    expect(argsOf("setText")).toEqual(["Service is busy. Try again in 30 s."]);
+    expect(argsOf("setText")).toEqual([
+      "Service is busy. Try again in 30 seconds.",
+    ]);
   });
 
   it("Back pops, Refresh replaces the root, folder and preview push cards", () => {
