@@ -203,11 +203,11 @@ Unverified: that Upload new version keeps the file ID and its app properties. Ch
 
 BRIEF 13 asks for one exercised rollback before v1 is done. The orchestrator fills this record after the exercise.
 
-| Field       | Value |
-| ----------- | ----- |
-| Date        |       |
-| Environment |       |
-| From build  |       |
-| To build    |       |
-| Steps       |       |
-| Result      |       |
+| Field       | Value                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Date        | 2026-11-11, 00:04 to 00:07 UTC                                                                                                                                                                                                                                                                                                                                                               |
+| Environment | dev, mode `head`                                                                                                                                                                                                                                                                                                                                                                             |
+| From build  | dev-7de9962                                                                                                                                                                                                                                                                                                                                                                                  |
+| To build    | dev-5f83683 (the build deployed before it), then forward again to dev-7de9962                                                                                                                                                                                                                                                                                                                |
+| Steps       | `git checkout 5f83683`, `npm ci`, `npm run deploy -- dev` (drift check passed), read-only `template.list` call and a fetch of the served page; then `git checkout` of the branch, `npm ci`, `npm run deploy -- dev`, the same two checks                                                                                                                                                     |
+| Result      | Pass. The older build answered as dev-5f83683 within 15 s of the deploy command, loaded the live data (4 templates) written by the newer build, and its served script equaled the local build. The forward deploy answered as dev-7de9962 with the same data. Not exercised: `npm run rollback` on a versioned deployment (prod uses mode `version`); a rollback across a data shape change. |
