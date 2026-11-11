@@ -91,6 +91,10 @@
   - Import ReportLine has no code field; reasonOf dropped `code:` so SUBJ_/PH_ codes left the response (minor, freeze forbids a field). Chip announcer .sr-only.chip-status verified in Chromium AX tree.
   - Retry 1 PASS (d52d084, review on top): 13 quotes fixed, 40-quote sample 0 misses, src text only + roleWords (actions.ts), 1780 tests, Code.js 360.5 KB, index.html 375.7 KB, Lighthouse 100x15. Open: import code gone from report (minor 1).
   - Doc check method: extract every "quoted" string from guides/smoke, grep first 40 chars in src; read misses by hand (most are composed strings).
+- Slice 16 in-app admins D32 (2026-11-11): FAIL (review on 6bf8c86). Security core clean; 2 client texts. 66 files, 1827 tests, lines 97.84, Code.js 366.2 KB, index.html 378.7 KB, Lighthouse 100x16, 10 scopes.
+  - Mechanism: index.json `admins` (shared/model/admins.ts adminEntriesOf, ADMINS_MAX 20), isAdminEmail 5th input lazy, subjectFor(email, snap, props, index thunk); dispatch admin-row recheck passes in-lock index. handlers/admins.ts change() = withLock + recheck + commitLocked.
+  - Must fix: DENIED shows "...this template. Ask a folder manager." in Admins section (status.ts messageOf); Directory INTERNAL text never shown (generic toast).
+  - Minors: level-row recheck uses pre-lock isAdmin (removed admin's in-flight grant.add lands); `?? []` latent wipe admins.ts:109; no auto-retry in web client (handoff wrong); smoke "record Directory text" impossible (raw message not logged).
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -131,4 +135,5 @@
 - Keyboard engine probes: pace keys (60 ms) before diffing builds; unpaced runs differ on both builds.
 - Paged ops: probe audit events at offset > 0 with a busy or full buffer; count the Script Cache puts the same op makes (1,000 items, FIFO); world.clock +7 h for a cold cache.
 - Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.
+- Privilege lists: probe stored-variant matrix (case, plus, dots, homoglyph, display name, nested, proto) and a level-row race, not only admin rows.
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
