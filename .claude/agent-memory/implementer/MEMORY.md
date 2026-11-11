@@ -80,8 +80,7 @@
 
 ## Slice 8a (UI shell, 2026-11-10)
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
-- Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
-- Screens: Playwright `servePage(localPage(webPage({harness:true})))`, `colorScheme`, `timezoneId: "UTC"`. Scratchpad is shared: unique file names.
+- Screens: Playwright `servePage(localPage(webPage({harness:true})))`, `colorScheme`, `timezoneId: "UTC"`. Scratchpad is shared: unique file names. Playwright: createRequire("/opt/node-tools/node_modules/"), dev-web port 5188.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
 ## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
@@ -108,7 +107,6 @@
 ## Slice 8b (editor direction A, 2026-11-11)
 - views/editor.ts builds the work area once in `build()` after `loading` (level from `app.items()`; `use` = read-only); `savedText`, `panelSection`, `panelTabs`, `editorSkeleton`. views/recipients.ts `recipientField` (chips, `splitAddresses`, `recipientBlock`). preview.ts `blankHtml`, `promptUses`, `recipientLines`. schema `blankParts`, names "Field: ...". toolbar `GROUPS`, `tooltip`, `Toolbar.placeholder`. commands `imageWidth`. `api.me()`.
 - `button { display }` beats `[hidden]`: the editor has `.editor-page [hidden] { display: none }`. Harness `?external=deny` (seeding stays allow), `?unreadable=`.
-- Screens: /opt/node-tools/node_modules/playwright via createRequire, dev-web on port 5188.
 - Guard: `View.canLeave(leave)`, app.ts `leaving()` + onBackForward hold; editor `dirty()` needs `mount.isConnected` (old apps in tests keep window listeners). Font picker shows fixed "Font" (row width).
 - Retry 1: `Editor.hold()` bookmark for dialog inserts; editor keeps one `asking` dialog; `Host.go`, `onBackForward(hash, moved)` from `{page, at}` history state; Problems tab = live errors + save's others; CSS minified in web.mjs `minifiedStyles`. jsdom: `history.go` fires popstate; caret via DOM selection + `selectionchange`.
 - Merge with main (slice 11, 13): `cancelDialogs()` runs in 2 places only: `open()` in the Back/Forward handler (app.ts, when the route really changes) and the editor's `canLeave` before its question (so a held question stays one dialog). Harness `devPolicy` reads `settings.recipientsExternal`; `?external=deny` seeds that setting.
