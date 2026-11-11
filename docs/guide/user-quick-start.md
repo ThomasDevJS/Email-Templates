@@ -63,7 +63,7 @@ Your admin decides whether personal templates are on. When they are off, you get
 
 1. In the panel, click "Open library" at the bottom.
 2. Select "My templates" in the folder list on the left.
-3. Click "+ New template", fill "Title" and the text. "Subject" and "Tags" are optional.
+3. Click "New template", fill "Title" and the text. "Subject" and "Tags" are optional.
 4. Click "Save" or press Ctrl+S. The status reads "Saved as version 1" and the time.
 
 ## What admins can see
@@ -88,5 +88,5 @@ Your admin decides whether personal templates are on. When they are off, you get
 - "You don't have access to this template. Ask a folder manager.": ask the folder's manager or the Migway Templates admin.
 - No Migway Templates icon: ask the Migway Templates admin.
 - "Cannot identify your Migway account.": you are signed in to several Google accounts. Use a separate Chrome profile for Migway.
-- "Busy right now. Press Retry in a few seconds." or "Service is busy. Try again in a minute.": wait, then click "Retry".
+- "The library is busy. Try again in a few seconds." or "Service is busy. Try again in a minute.": wait, then click "Retry".
 - "Something went wrong." with a Request ID: send the Request ID to the admin.

@@ -109,7 +109,7 @@ export function savedText(
   return `Saved as version ${String(version)}, ${formatTime(iso, today ? "time" : "date", now)}`;
 }
 
-/** Problems in the subject name the field (wireframe 04): "Subject: Unknown placeholder ...". */
+/** Problems in the subject name the field (wireframe 04): "Subject: Unknown field ...". */
 function fieldMessage(problem: { message?: unknown; field?: unknown }) {
   const message = String(problem.message);
   return problem.field === "subject" ? `Subject: ${message}` : message;

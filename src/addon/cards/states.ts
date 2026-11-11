@@ -48,7 +48,7 @@ function retryAction(failure: Failure, context: StateContext): ActionSpec {
 function retryLines(failure: Failure): string[] {
   const head =
     failure.code === ErrorCode.BUSY
-      ? "Busy right now. Press Retry in a few seconds."
+      ? "The library is busy. Try again in a few seconds."
       : failure.code === ErrorCode.QUOTA
         ? "Service is busy. Try again in a minute."
         : "Something went wrong. Press Retry.";

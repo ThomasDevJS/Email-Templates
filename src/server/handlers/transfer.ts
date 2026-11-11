@@ -333,11 +333,11 @@ const DROP_REASONS: Readonly<Record<RecipientCode, string>> = {
   RCPT_FORMAT: "not an email address",
   RCPT_TOO_LONG: "longer than 254 characters",
   RCPT_TOO_MANY: "too many",
-  RCPT_DUPLICATE: "already in an earlier field",
+  RCPT_DUPLICATE: "already in To or Cc",
   RCPT_EXTERNAL: "outside the domain, turned off by the admin",
 };
 
-/** "2 addresses dropped: not an email address (1), already in an earlier field (1)". Counts, never an address. */
+/** "2 addresses not imported: not an email address (1), already in To or Cc (1)". Counts, never an address. */
 function droppedText(codes: readonly RecipientCode[]): string {
   const counts = new Map<RecipientCode, number>();
   for (const code of codes) counts.set(code, (counts.get(code) ?? 0) + 1);
@@ -484,7 +484,7 @@ export function importTemplates(context: HandlerContext): ImportReport {
   if (inPrivateTree(chainOf(index, targetId)))
     throw new AppError(
       ErrorCode.VALIDATION,
-      "Templates cannot be imported into a personal folder. Pick a shared folder.",
+      'Templates cannot be imported into "My templates". Pick a shared folder.',
     );
   const prepared = prepareItems(context, file);
   const flattened = file.items.filter(

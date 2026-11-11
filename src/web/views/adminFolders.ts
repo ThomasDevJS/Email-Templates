@@ -21,8 +21,8 @@ import type { AppContext, View } from "./context";
 import { createFolderTree } from "./tree";
 
 /**
- * Tab "Folders and grants" (wireframe 06): folder tree, folder actions (new top-level folder for admins, new
- * subfolder, rename, move, delete with confirmation) and the effective access table with add and remove grant.
+ * Tab "Folders and access" (wireframe 06): folder tree, folder actions (new top-level folder for admins, new
+ * subfolder, rename, move, delete with confirmation) and the "Who has access" table with give and remove access.
  * Private folders (D11, D18) show their owner and take no grant, move or delete. Every write shows a busy status at
  * once; afterwards the folders or grants reload from the server, so a concurrent change shows up.
  */

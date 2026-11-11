@@ -211,7 +211,7 @@ export function blankParts(attrs: PlaceholderAttrs): BlankParts {
   };
 }
 
-/** Accessible name: "Field: Load number, asked at insert", "Field: Recipient first name, fallback there". */
+/** Accessible name: "Field: Load number, the sender fills it in", "Field: Recipient first name, default text there". */
 export function chipLabel(attrs: PlaceholderAttrs): string {
   const { label, fallback } = blankParts(attrs);
   if (attrs.name === "") return `Field: ${label}, the sender fills it in`;

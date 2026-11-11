@@ -6,8 +6,21 @@ import {
   rowActionWords,
   purgeText,
   resultTag,
+  roleWords,
 } from "../../../src/web/admin/actions";
 import { POLICY } from "../../../src/server/dispatch/policy";
+
+describe("roleWords", () => {
+  it("shows a level in the words of the access table, never the bare level", () => {
+    expect(roleWords("admin")).toBe("admin");
+    expect(roleWords("use")).toBe("Can use");
+    expect(roleWords("edit")).toBe("Can edit");
+    expect(roleWords("manage")).toBe("Can manage");
+    expect(roleWords("none")).toBe("no access");
+    expect(roleWords("")).toBe("no access");
+    expect(roleWords("toString")).toBe("no access");
+  });
+});
 
 describe("actionWords", () => {
   it("names operations in words and keeps an unknown name as it is", () => {

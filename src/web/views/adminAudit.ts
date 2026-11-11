@@ -1,5 +1,10 @@
 import type { AuditEvent } from "../../shared/model/data";
-import { actionWords, resultTag, rowActionWords } from "../admin/actions";
+import {
+  actionWords,
+  resultTag,
+  roleWords,
+  rowActionWords,
+} from "../admin/actions";
 import { displayPath, localDate, localDayStart } from "../admin/model";
 import type { AuditFilter, AuditPage, AuditRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
@@ -76,7 +81,7 @@ function details(event: AuditEvent, returnFocus: HTMLElement): void {
   const rawTarget = event.targetPath || event.targetId || event.targetType;
   const facts: [string, Node | string][] = [
     ["Time", formatTime(event.ts)],
-    ["User", `${event.actor} (${event.actorRoles || "no access"})`],
+    ["User", `${event.actor} (${roleWords(event.actorRoles)})`],
     ["Action", actionWords(event.action)],
     ["Template or folder", displayPath(event.targetPath) || rawTarget],
     [

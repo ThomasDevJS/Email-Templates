@@ -409,7 +409,7 @@ describe("export and import", () => {
         name: "Mixed",
         outcome: "imported",
         reason:
-          "3 addresses not imported: not an email address (1), already in an earlier field (1), outside the domain, turned off by the admin (1)",
+          "3 addresses not imported: not an email address (1), already in To or Cc (1), outside the domain, turned off by the admin (1)",
       },
     ]);
     expect(fileIndex().items.find((i) => i.title === "Mixed")).toMatchObject({
@@ -443,7 +443,7 @@ describe("export and import", () => {
     });
     const response = world.call(OWNER, "import", { folderId: into.id, file });
     expect(response.ok ? "" : response.error.message).toBe(
-      "Nothing was imported because of the template Big. Cc holds 11 addresses. Use at most 10 per field.",
+      "Nothing was imported because of the template Big. Cc holds 11 addresses. Use at most 10 in Cc.",
     );
     expect(fileIndex().rev).toBe(rev);
   });

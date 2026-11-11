@@ -124,7 +124,7 @@ function grantEvent(
 function checkShareable(index: IndexDoc, folderId: string): void {
   liveFolder(index, folderId);
   if (inPrivateTree(chainOf(index, folderId)))
-    throw validation("Personal folders cannot be shared.");
+    throw validation('The folder "My templates" cannot be shared.');
 }
 
 /**
