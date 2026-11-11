@@ -36,10 +36,19 @@ Not measured: callback durations (part H step 3); the fresh-consent check (part 
 - Errors from a compose-action button can be a notification.
 - The side panel never changes a compose window that is already open.
 
+## Part J run, 2026-11-11
+
+Owner's Gmail web, side panel, dev build `dev-5065ba1` (slice 18), test round 1 part J. 11 of 12 steps passed.
+
+- Q74 settled: a compose action works on a `DecoratedText` row button and on a `FixedFooter` button.
+- Q68 settled: typed values and the "Add recipients" switch reach the compose-action callback ("Load 77", "Hi Ann, load 77 is ready."; switch off added no Cc or Bcc).
+- Reply: To the sender, Cc and Bcc added, signature below the text. Reply all kept To and added Cc and Bcc. So `getMessageById` and the header reads (`getReplyTo`, `getFrom`, `getTo`, `getCc`) ran under the 10 scopes: a failed read makes no draft.
+- A double press opened 1 draft (Q69).
+- Long row hints wrap.
+- No quoted earlier message seen in the reply of step 7 (the "..." control was not seen). S7 result 2 saw a trimmed-quote marker. Unconfirmed; the owner checks by hand.
+- Defect, step 11: "New email" on a row of a template deleted in the library showed nothing and opened no draft, on two tries. The callback returned an `ActionResponse` with a notification (NOT_FOUND text); Gmail did not show it. S7 result 5 had shown a notification from a compose-action button in a `ButtonSet`; this one sat on a `DecoratedText` row. Fix (slice 18 follow-up 1): every failure of a panel action now throws an `Error` whose message is one plain sentence. How Gmail shows a thrown error from a compose action is unverified; part J step 11 records it.
+
 ## Still open
 
-- Compose action on a `DecoratedText` row button and on a `FixedFooter` button (the harness used a `ButtonSet`): slice 18 smoke part J steps 2 and 5 (Q74).
-- Form inputs in a compose-action callback: part J steps 5 and 6 (Q68).
-- `getFrom`, `getReplyTo`, `getTo`, `getCc` under `message.metadata`: documented for `getFrom` only [A34]; part J steps 7 and 9.
 - Quoted earlier message in a reply: part J step 7.
 - Fresh consent with the panel actions: part H step 2 (Q55).

@@ -66,3 +66,17 @@ src/addon/{entry,event,flows,panel}.ts, src/addon/cards/{details,folder,home,rec
 - `npm run build -- --env dev`: Code.js 367.1 KB of 800 KB, index.html 379.2 KB of 400 KB.
 - `npm run scopes:check`: 10 scopes, all approved. `npm run format:check`: clean.
 - `git diff --stat 702df60 -- src/server src/shared/permissions src/shared/model src/web scripts/lib/html.mjs appsscript.json package.json package-lock.json`: empty. Lighthouse not run (no web file changed).
+
+## Follow-up 1 (2026-11-11): silent failures in the side panel
+
+Merged `claude/gracious-franklin-3n8zbq` (85e41f0) first.
+
+- Before: `onCompose` and `onPromptCompose` returned an `ActionResponse` with `setNotification(<sentence>)` for every refusal (NOT_FOUND, DENIED, QUOTA, BUSY, unreadable email, no message ID, 500 characters, version, `rh`, `rc`). A throw became the same notification ("... Details for your admin: <error message>"). Part J step 11: Gmail showed none of it.
+- Now: `panelAnswer` (src/addon/panel.ts) throws `new Error(<sentence>)` for every refusal. A throw before a draft exists becomes "Something went wrong. Try again."; a throw while building the response after a draft exists becomes the Drafts sentence. The caught error's text is dropped. Request IDs and "Details for your admin" are gone from panel texts. No draft is created on failure.
+- Chosen (a). Reason: a thrown error is the one answer an add-on callback always produces; the notification was shown for a `ButtonSet` compose button (S7 result 5) and not for a `DecoratedText` row (step 11). Unverified: how Gmail shows a thrown error from a compose action (the banner look, any prefix such as "Exception:", whether the footer button acts the same). Part J step 11 now records it.
+- Not built (b): reloading the list when the panel opens adds one `sidebar.home` per message opened (`onMessageOpen` fires on each), and it would not have caught step 11 (the template was deleted after the folder card loaded). NOT_FOUND and DENIED still clear the cached view.
+- Side effect: each refusal is now a failed run in Executions and, with `exceptionLogging: STACKDRIVER`, an error log entry holding the sentence only.
+- Tests: panel.test "every failure throws one plain sentence" (NOT_FOUND, DENIED, QUOTA, unreadable email, a throw at the token, `createDraft`, `createDraftReply`, `createDraftReplyAll`, a broken server port, a render throw after the draft; 0 `createDraft*` calls except the failed one; no `@`, request ID, Gmail text, subject or stack line; every sentence is in docs/design/wording.md). addon.test: 4 entry tests expect the throw, one is step 11.
+- Docs: part J step 11 records what Gmail shows; docs/spikes/slice-10-s7.md "Part J run, 2026-11-11" (Q68, Q74 settled, header reads ran).
+- For the architect: in the reply of part J step 7 the tester saw no quoted earlier message ("..." not seen); S7 step 2 saw a trimmed-quote marker. Unconfirmed; the owner checks by hand.
+- Files: src/addon/{panel,entry}.ts; test/unit/addon/{panel,addon}.test.ts; docs/design/wording.md, docs/ops/test-round-1.md, docs/spikes/slice-10-s7.md.

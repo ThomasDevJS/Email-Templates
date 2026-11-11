@@ -94,6 +94,7 @@
 ## Slice 10 + 18 (side panel, D27; S7 harness removed in 18)
 - event.ts `entryOf`, `messageIdOf`, `tokenOf`, `addressesOf`, `internalAddress`; `onMessageOpen`; `ButtonSpec.compose` -> `setComposeAction`; Reply kind `compose` -> ComposeActionResponse.
 - src/addon/panel.ts `composeFlow` (row, `onCompose`), `promptComposeFlow` (details, `onPromptCompose`), `failureText`, `panelVisible` (one catch). `Ports.gmail` (`GmailPort`, getter in entry.ts). flows.ts `rendered(body, input)` = the one render step of all 4 paths. cards/sidePanel.ts `COMPOSE_AS`, `composeButton`; `panelDetailsCard(state, entry)`; `recipientWidgets(plan, domain, typing)`.
+- Follow-up 1: Gmail showed no notification from a compose action on a row (part J step 11). `panelAnswer` throws `Error(<one plain sentence>)` for every panel failure; flows return `PanelReply` (compose | notify).
 - test/fakes/gmail.ts `createRecordingGmail(headers|null, failMethod)`; test/unit/addon/panel.test.ts. Commit trailer: use the system attribution lines (model named there), not a model name from an agent prompt.
 ## Slice 12 (add-on layout and wording, 2026-11-11)
 - Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.

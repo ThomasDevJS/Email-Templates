@@ -428,17 +428,39 @@ describe("side-panel actions (slice 18 AC 3, 12)", () => {
     expect(argsOf("setGmailDraft")).toEqual([{ draft: "createDraft" }]);
   });
 
-  it("a throw inside createDraft is a notification with the message for the admin", () => {
+  it("a throw inside createDraft: the callback throws the generic sentence, no response is built", () => {
     vi.stubGlobal("GmailApp", createRecordingGmail({}, "createDraft").gmail);
     serve({ "template.apply": APPLIED });
-    addon.onCompose(press);
-    expect(argsOf("setText")).toEqual([
-      "Something went wrong. Try again. Details for your admin: Gmail says no",
-    ]);
+    expect(() => addon.onCompose(press)).toThrow(
+      new Error("Something went wrong. Try again."),
+    );
     expect(argsOf("setGmailDraft")).toEqual([]);
+    expect(argsOf("setNotification")).toEqual([]);
   });
 
-  it("a throw after the draft exists says where the draft is", () => {
+  it("a deleted template: the callback throws the NOT_FOUND sentence (part J step 11)", () => {
+    const fake = createRecordingGmail();
+    vi.stubGlobal("GmailApp", fake.gmail);
+    fetchApp.respondWith(() => ({
+      status: 200,
+      body: JSON.stringify({
+        ok: false,
+        error: { code: "NOT_FOUND", message: "Not found", retryable: false },
+        serverVersion: "x",
+        durationMs: 1,
+      }),
+    }));
+    expect(() => addon.onCompose(press)).toThrow(
+      new Error(
+        "This template was deleted or moved. Open the panel again to update the list.",
+      ),
+    );
+    expect(fake.calls.map((c) => c.method)).toEqual([
+      "setCurrentMessageAccessToken",
+    ]);
+  });
+
+  it("a throw after the draft exists: the callback throws the Drafts sentence", () => {
     vi.stubGlobal("GmailApp", createRecordingGmail().gmail);
     serve({ "template.apply": APPLIED });
     const cards = createRecordingCardService();
@@ -450,34 +472,34 @@ describe("side-panel actions (slice 18 AC 3, 12)", () => {
         },
       }),
     );
-    addon.onPromptCompose({
-      gmail: { accessToken: "tok" },
-      commonEventObject: {
-        parameters: {
-          id: "T1",
-          as: "new",
-          version: "2",
-          values: "{}",
-          rh: EMPTY_RH,
+    expect(() =>
+      addon.onPromptCompose({
+        gmail: { accessToken: "tok" },
+        commonEventObject: {
+          parameters: {
+            id: "T1",
+            as: "new",
+            version: "2",
+            values: "{}",
+            rh: EMPTY_RH,
+          },
         },
-      },
-    });
-    expect(
-      cards.calls.filter((c) => c.method === "setText").map((c) => c.args[0]),
-    ).toEqual([
-      "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it.",
-    ]);
+      }),
+    ).toThrow(
+      new Error(
+        "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it.",
+      ),
+    );
   });
 
-  it("a throw before any Gmail call (the token) is a notification too", () => {
+  it("a throw before any Gmail call (the token): the generic sentence, no server call", () => {
     vi.stubGlobal(
       "GmailApp",
       createRecordingGmail({}, "setCurrentMessageAccessToken").gmail,
     );
-    addon.onCompose(press);
+    expect(() => addon.onCompose(press)).toThrow(
+      new Error("Something went wrong. Try again."),
+    );
     expect(fetchApp.requests).toHaveLength(0);
-    expect(argsOf("setText")).toEqual([
-      "Something went wrong. Try again. Details for your admin: Gmail says no",
-    ]);
   });
 });

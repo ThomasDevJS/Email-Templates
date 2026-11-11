@@ -352,4 +352,4 @@ New texts, spec 7.2. Paths are relative to `src/`.
 | `addon/panel.ts` | The recipients of this template changed. Tap its name to see them. |
 | `addon/panel.ts` | The email is in your Drafts, but Gmail could not open it. Open Drafts to find it. |
 | `addon/panel.ts` | This template was deleted or moved. Open the panel again to update the list. |
-| `addon/panel.ts` | Something went wrong. Try again. (plus " Request ID {id}" or " Details for your admin: {message}") |
+| `addon/panel.ts` | Something went wrong. Try again. (alone: a side-panel action shows its failure as one sentence in Gmail's error bar, with no request ID or technical message) |
