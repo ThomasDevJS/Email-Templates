@@ -31,7 +31,6 @@
 - scripts/web.mjs (`webPage({harness})`, `servePage`, `DEV_PAGE_VALUES`), dev-web.mjs, lighthouse.mjs. build.mjs uses webPage.
 - Tests: test/unit/web/* (jsdom per file, `stubLayout` for ProseMirror), app.test.ts boots harness + app via dynamic import and `vi.resetModules`.
 
-## Lessons (slice 3): PM serializes style as rgb(), parse the style attribute by hand; `<base target="_top">` sends # links to the top window; aria-label must contain the visible text; scrollable `pre` needs tabindex=0.
 
 ## Code map (after slice 4)
 - `src/addon/`: entry.ts (12 callbacks, `respond` = guard, QUOTA `notBefore` wait, flow, render), flows.ts (`Ports` = call, User Cache, nowMs, userEmail, execUrl; home, folder, preview, insert, promptInsert, openLink, spike flows), view.ts (`view:*` chunks 600 s, `body:<id>`), event.ts (params, formInputs, `internalRecipient`), prompts.ts (p-n names, 20 fields, 500 chars).
@@ -125,6 +124,9 @@
 ## Open items handed forward
 - Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
 - Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check.
+## Slice 20a (fix round, 2026-11-11)
+- Admin `AdminFolders { current, refresh }` shared by tabs. app.ts `firstLoad` (15 s, Reload), first history entry stamped, held Discard uses `go(moved)`. `hold().run` clears the DOM selection (Chromium caret). Export `run` key -> `exps:<run>` 60 s. `newId` from sha256(getUuid). `NOT_SET_UP_TEXT` in shared/errors/codes.ts.
+- Fail-before check: scratchpad script `git diff src > p; git checkout -- src; vitest -t; git apply p` (guard rejects it chained inline). jsdom history is shared across tests in a file: assert history state directly, or wait for both popstates.
 ## Slice 13 (fix round, 2026-11-11)
 - `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
 - `recheckRecipients` (body.ts) inside every write commit; `problemsError` shared with `prepareBody`. `trash.purge` returns `templates`, `folders`.
