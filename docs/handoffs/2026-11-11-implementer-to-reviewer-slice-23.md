@@ -39,3 +39,18 @@ Collapsing an ancestor of the selected folder hides the selected row; the page, 
 ## Files
 
 src/web/views/tree.ts, src/web/styles.css, test/unit/web/app.test.ts, test/unit/web/admin.test.ts, test/unit/web/styles.test.ts, docs/ops/test-round-1.md, docs/ops/smoke.md, this file.
+
+## Retry 1 (review docs/reviews/slice-23.md, FAIL on 2)
+
+| Item | State | Test |
+|---|---|---|
+| MF1 every render reopened the parents | fixed: `render` opens the parents only for a new selection whose folder is in the list (`opened`); a deep link still opens them once the folders load | admin.test "keeps a closed parent closed after a folder write redraws the tree" (fails on 8101c13); app.test "opens the parents of a folder named in the address..." |
+| MF2 double-click closed the parent | fixed: a row click with `detail > 1` is ignored | admin.test "leaves a closed parent open after a double-click on its name" (fails on 8101c13; also checks 1 `grant.list`) |
+| Minor 2 two `grant.list` on a double-click | fixed by MF2 | same test |
+| Minor 3 chevron hover | fixed: `.tree-toggle:hover svg.i` uses `--ink` | none (CSS) |
+
+What the user sees now (replaces item 3 above): a parent closed by the user stays closed through every redraw (library reload, Duplicate, Admin rename) until the user selects another folder; that new selection opens its own parents.
+
+Left:
+- Minor 1: Admin at 390 px with a 60-character folder name scrolls sideways (`src/web/styles.css` `.admin-folders`); same on base.
+- Minor 4: on touch, a tap just outside the 24 px target opens the folder (`src/web/styles.css` `.tree-toggle::before`).

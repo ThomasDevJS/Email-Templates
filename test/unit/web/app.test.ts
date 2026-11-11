@@ -312,6 +312,15 @@ describe("library (screen 3)", () => {
     });
   });
 
+  it("opens the parents of a folder named in the address once the folders load (slice 23 retry 1)", async () => {
+    await boot("/?latency=0#/library?folder=F-QUOTES");
+    await until(() => {
+      expect(
+        sideTree().querySelector('[aria-selected="true"]')?.textContent,
+      ).toBe("Quotes");
+    });
+  });
+
   it("opens and closes a folder by its chevron or a second click, without opening it (slice 23)", async () => {
     await boot("/?latency=0#/library");
     await until(() => {

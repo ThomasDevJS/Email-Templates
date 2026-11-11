@@ -76,6 +76,8 @@ export function createFolderTree(
   const expanded = new Set<string>();
   let roots: TreeNode[] = [];
   let selected = "";
+  /** The selection whose parents were last opened. */
+  let opened = "";
   let focused = "";
   let counts: ReadonlyMap<string, number> = new Map();
 
@@ -108,7 +110,9 @@ export function createFolderTree(
         class: "tree-item",
         "data-count": counts.get(row.id),
         style: `padding-left: ${String(row.depth * 16 - 8)}px`,
-        onclick: () => {
+        onclick: (event: Event) => {
+          // The second click of a double-click would close what the first one opened.
+          if ((event as MouseEvent).detail > 1) return;
           focused = row.id;
           // The selected open row closes on a second click; any other row opens and expands (slice 23).
           if (row.hasChildren && row.id === selected && expanded.has(row.id)) {
@@ -203,10 +207,15 @@ export function createFolderTree(
     element: list,
     render: (folders, folderId, folderCounts = new Map<string, number>()) => {
       roots = buildTree(folders);
+      // Only a new selection opens its parents, once its folder is loaded; a redraw keeps a parent the user
+      // closed (slice 23 retry 1).
+      if (folderId !== opened && folders.some((f) => f.id === folderId)) {
+        for (const id of ancestorsOf(folders, folderId)) expanded.add(id);
+        opened = folderId;
+      }
       selected = folderId;
       focused = folderId;
       counts = folderCounts;
-      for (const id of ancestorsOf(folders, folderId)) expanded.add(id);
       // Redrawing replaces the rows; a tree that had focus keeps it on the selected row.
       draw(list.contains(document.activeElement));
     },

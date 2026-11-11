@@ -300,6 +300,42 @@ describe("folders and grants", () => {
     );
   });
 
+  it("keeps a closed parent closed after a folder write redraws the tree (slice 23 retry 1)", async () => {
+    await boot("/?latency=0#/admin");
+    await openQuotes();
+    const chevron = () =>
+      treeItem("Sales").querySelector(".tree-toggle") as HTMLElement;
+    chevron().click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    button("Rename...").click();
+    button("OK", dialog()).click();
+    await until(() => {
+      expect(status()).toContain('Renamed to "Quotes".');
+    });
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "Sales / Quotes",
+    );
+  });
+
+  it("leaves a closed parent open after a double-click on its name (slice 23 retry 1)", async () => {
+    await boot("/?latency=0#/admin");
+    await until(() => {
+      expect(main().querySelector('[role="tablist"]')).not.toBeNull();
+    });
+    const grantLists = countCalls("grant.list");
+    treeItem("Sales").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 1 }),
+    );
+    treeItem("Sales").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 2 }),
+    );
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("true");
+    await until(() => {
+      expect(grantLists()).toBe(1);
+    });
+  });
+
   it("asks for a principal under the field and marks it invalid", async () => {
     await boot("/?latency=0#/admin");
     await openQuotes();

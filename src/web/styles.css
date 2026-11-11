@@ -511,6 +511,10 @@ input[aria-invalid="true"] {
   cursor: pointer;
 }
 
+.tree-toggle:hover svg.i {
+  color: var(--ink);
+}
+
 .tree-toggle::before {
   position: absolute;
   inset: -4px;
