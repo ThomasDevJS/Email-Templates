@@ -25,8 +25,6 @@ export interface RenderInput {
 
 export interface Rendered {
   readonly html: string;
-  /** Fields without a value: removed from the text (D31). */
-  readonly missing: PromptField[];
 }
 
 const implicitKey = (name: string): string => `{var}${name}`;
@@ -77,23 +75,15 @@ export function promptsFor(
   return [...fields.values()];
 }
 
-/** Plain value of a token in the value order; a field without a value goes to `missing` and renders as "". */
-function tokenValue(
-  segment: Token,
-  input: RenderInput,
-  missing: Map<string, PromptField>,
-): string {
+/** Plain value of a token in the value order; a field without a value renders as "" (removed, D31). */
+function tokenValue(segment: Token, input: RenderInput): string {
   const key =
     segment.kind === "prompt"
       ? promptKey(collapse(segment.label))
       : implicitKey(segment.name);
   const answer = input.answers[key];
   if (present(answer)) return answer;
-  const field = fieldOf(segment, input.values);
-  if (field !== null) {
-    missing.set(field.key, field);
-    return "";
-  }
+  if (fieldOf(segment, input.values) !== null) return "";
   const variable = segment as Extract<Segment, { kind: "variable" }>;
   const value = input.values[variable.name];
   return present(value) ? value : (variable.fallback ?? "");
@@ -133,13 +123,12 @@ export function closeGaps(parts: readonly Part[]): string {
 function runParts(
   run: string,
   input: RenderInput,
-  missing: Map<string, PromptField>,
   format: { text(t: string): string; value(v: string): string },
 ): Part[] {
   return parseText(run).map((segment) => {
     if (segment.kind === "text") return format.text(segment.text);
     if (segment.kind === "escape") return "{{";
-    const value = tokenValue(segment, input, missing);
+    const value = tokenValue(segment, input);
     return value === "" ? null : format.value(value);
   });
 }
@@ -148,11 +137,10 @@ const HTML_FORMAT = { text: escapeText, value: formatValue };
 const PLAIN_FORMAT = { text: (t: string) => t, value: (v: string) => v };
 
 export function renderBody(html: string, input: RenderInput): Rendered {
-  const missing = new Map<string, PromptField>();
   const out = mapTextRuns(html, (text) =>
-    closeGaps(runParts(text, input, missing, HTML_FORMAT)),
+    closeGaps(runParts(text, input, HTML_FORMAT)),
   );
-  return { html: out, missing: [...missing.values()] };
+  return { html: out };
 }
 
 /**
@@ -163,8 +151,7 @@ export function renderBody(html: string, input: RenderInput): Rendered {
 export function renderSubject(
   subject: string,
   input: RenderInput,
-): { text: string; missing: PromptField[] } {
-  const missing = new Map<string, PromptField>();
-  const raw = closeGaps(runParts(subject, input, missing, PLAIN_FORMAT));
-  return { text: oneLine(raw), missing: [...missing.values()] };
+): { text: string } {
+  const raw = closeGaps(runParts(subject, input, PLAIN_FORMAT));
+  return { text: oneLine(raw) };
 }

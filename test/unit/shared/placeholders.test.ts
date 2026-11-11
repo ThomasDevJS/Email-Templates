@@ -270,7 +270,7 @@ describe("renderer (ADR-0004 apply semantics)", () => {
       "a &amp; b &lt; c &gt; d &quot; e &#39; f<br>g<br>h",
     );
     const out = renderBody("<p>{{sender.name}}</p>", { values, answers: {} });
-    expect(out).toEqual({ html: "<p>Ana &lt;Lopez&gt;</p>", missing: [] });
+    expect(out).toEqual({ html: "<p>Ana &lt;Lopez&gt;</p>" });
   });
 
   it("uses the fallback for blank values and renders \\{{ as {{", () => {
@@ -301,15 +301,13 @@ describe("renderer (ADR-0004 apply semantics)", () => {
       values,
       answers: { "{var}sender.phone": " " },
     });
-    expect(blocked.missing.map((field) => field.label)).toEqual([
-      "Your phone",
-      "Your title",
-    ]);
+    // A blank answer leaves both fields without a value: removed (D31).
+    expect(blocked).toEqual({ html: "<p>there</p>" });
     const done = renderBody(html, {
       values,
       answers: { "{var}sender.phone": "+1 555", "{var}sender.title": "Lead" },
     });
-    expect(done).toEqual({ html: "<p>+1 555 Lead there</p>", missing: [] });
+    expect(done).toEqual({ html: "<p>+1 555 Lead there</p>" });
   });
 
   it("never creates markup from values or fallbacks", () => {
@@ -393,7 +391,6 @@ describe("property: render(parse(x)) equals x without tokens", () => {
       if (html.includes("{{")) continue;
       expect(renderBody(html, { values: {}, answers: {} })).toEqual({
         html,
-        missing: [],
       });
       expect(scanBody(html).problems).toEqual([]);
       checked += 1;

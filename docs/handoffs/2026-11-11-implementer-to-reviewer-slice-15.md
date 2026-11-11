@@ -66,3 +66,10 @@ src/shared/placeholders/render.ts; src/addon/flows.ts, prompts.ts, cards/{detail
 ## Commands
 
 `npm ci`, `npm run lint`, `npm run typecheck`, `npm run test:coverage`, `npm run build -- --env dev`, `npm run scopes:check`, `npm run format:check`, `npm run lighthouse`.
+
+## Follow-up 1 (review minors 1, 2, 5; base c259b5c)
+
+- Minor 1, cause: a `followUp` call returns no recipient first name, and a re-rendered card kept the values of the opening call, so its Insert removed the name. Fix in flows.ts: Flow C carries the merged values of each call into the re-rendered card; `cardFields` always lists the recipient first name as a field, so the inputs never depend on which call resolved it. A card pushed by a row Insert now shows that box too. Test flows "one result on every insert path": row, first details and re-rendered Insert give the same body and subject; it fails on the old code. Addresses still reach the server only as `recipientEmailIfInternal`.
+- Minor 2: `Rendered.missing` and the subject `missing` removed; tests assert the rendered text and `promptsFor`.
+- Minor 5: removed.test.ts adds 6 texts and spellings (18 checks).
+- Checks after a clean `npm ci`: lint 0 problems, typecheck clean, 1825 tests passed, build dev Code.js 358.0 KB, index.html 376.0 KB, scopes 10 approved, format clean. No src/server or src/web change, so no Lighthouse run.

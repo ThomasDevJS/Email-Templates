@@ -94,7 +94,7 @@
 - Slice 15 one-click insert D31 (2026-11-11): PASS (on 581232a, merge of main 223f9bb into e9ef9d8). 67 files, 1818 tests, lines 97.82, Code.js 358.2 KB, index.html 376.1 KB, Lighthouse 100x15, 10 scopes + layoutProperties.secondaryColor.
   - Code: render.ts `closeGaps(parts)` (null = gap); flows.ts Flow A `insertFlow` (rc vs list lengths, unknown -> details card counted=1), Flow B `previewFlow`, Flow C `promptInsertFlow`; cards/details.ts `detailsCard`, `panelDetailsCard`.
   - Probes: 10,000 fuzz renders without a gap byte-identical to base, sanitize idempotent on outputs; apply events per path via readBuffer(world.cache).
-  - Open minors: re-rendered details card (counted, followUp) loses recipient first name (flows.ts:491); Rendered.missing unread in src; rule 2 ASCII punctuation only; rendered subject uncapped (691 chars); smoke step 11 needs a non-admin.
+  - Follow-up 1 PASS (04af35b, 1825 tests): `cardFields` always lists first name (blank box + hint); Flow C carries `mergedValues` into re-renders; Rendered.missing gone. Probe 3 templates x 6 drafts x 3 paths, 18/18 same. Open: rule 2 ASCII only; subject uncapped; smoke step 11 non-admin; spec 7.4 signatures.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
