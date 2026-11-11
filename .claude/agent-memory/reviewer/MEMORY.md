@@ -25,12 +25,8 @@
   - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts Card Service only. Write path shared/body/prepare.ts + server/handlers/body.ts. REQUEST_ID_PATTERN shared, checked on both surfaces.
   - Search shared/search/match.ts; favorites/usage side caches server/cache/sideCache.ts (FAVORITES_REV, USAGE_REV). Q21/D24 draft info in addon/event.ts (draftInfo, draftHasSubject), replacesSubject in cards/spec.ts. folderLabel in handlers/folders.ts.
 - Slice 6a (2026-11-10): FAIL (2b6b30f), retry 1 PASS (bb53d6c, 1132 tests, lines 96.56, Code.js 286.0 KB). Retry: PRINCIPAL_KEY_MAX 254 on trimmed lowercased key; dispatch buffers denied event for handler or in-lock DENIED (no double rows); grant.list sourcePath hidden above visible part; PURGE_FILES_MAX 50 after commit. Admin into others' private folders is ADR-0003 C (line 113), not a defect; my minor 3 withdrawn.
-  - Minors: grant.list sourcePath leaks ancestor names; trash.purge body loop unbounded; admin restore into others' private folders; failed old-trigger delete leaves 6; spec 6 rows for admin.folders, membership.status.
-  - New ops: admin.folders (grant.manage list op), membership.status (admin.ops). Trash: template.list {trash:true} adds folderLive, folderPath, canPurge.
 - Slice 6b (2026-11-10): FAIL (ffd3957), retry 1 PASS (f6b567f, 1238 tests, lines 96.68, Code.js 318.9 KB). Retry: shared/model/shape.ts on backup copies (VALIDATION) and every live Drive read (INTERNAL); restore writes sides first, index last, undo; purge guard; import "Nothing was imported"; lineText in 11 places. Shape check verified on data from 9 builds (64078b8..292d7ad). Open: damaged live index blocks backup.restore (runbook); undo failure loses first error.
   - Warm props: production 1 (entry.test.ts:293 pins via snapshotProps). world.ts meters live fake props, so world counts (6) are getProperty calls, not service calls.
-  - Minors: import failure says only "Internal error"; dup folder IDs; shared folders inside private tree; buffer flood drops applies; restore dialog silent on post-backup versions and purged bodies; side writes after index commit; no 5 MB smoke step; export offset paging.
-  - Architect: export.library drops privates, import drops grants, 200 cap: ADR-0002 owner-change path does not hold.
 - Slice 7 docs (2026-11-10): FAIL (039392e), retry 1 PASS (d74ad53, quick start 844 words, 1244 tests). Open minors: temp password delivery after admin reset; quick start "asks" ignores fallback; recipient address as prof: cache key 6 h.
 - Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
   - Harness: src/addon/spikeS6.ts, callbacks onS6Card/onS6Apply (param b), Reply kind s6, env gate in the flow after respond prelude. Removal list in the handoff.
@@ -38,8 +34,6 @@
 - Slice 8a UI (2026-11-10): FAIL (23bf981), retry 1 PASS (5b0aa2c, 1265 tests, index.html 340.6 KB). Retry: panel modal (main inert + aria-hidden, trapTab exported, matchMedia close), focus selector a[href] (SVG use href was counted), --star #a87400, --star-off #78838b, --field-line #7f8b93/#7c8a94 for field and button borders, contrast.test.ts token pairs (does not check CSS usage).
   First review 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
   - Must fix: 390 px panel (`.side.open .side-panel` absolute) lets Tab reach search/grid under it; no outside-click close (app.ts:74-86). `--star` #c58a00 2.99 on paper, 2.74 on canvas; star-off 2.80 on `--select` (button hover).
-  - Minors: `.owner` on tree hover 4.19; history.ts:113 full address; admin 390 px width 665 (base 506), 8c; input borders 1.58 (design system); disabled buttons exempt.
-  - Accepted all 17 mockup differences (17 deferred to 8b). XSS probe via patched harness data clean.
 - Slice 10 S7 harness (2026-11-10): PASS (f7f05a7). 58 files, 1332 tests, lines 96.48, Code.js 335.7 KB, 10 scopes, manifest adds contextualTriggers unconditional onMessageOpen.
   - `entryOf` (event.ts): draftMetadata -> compose, else gmail.messageId or messageMetadata.messageId -> message, else inbox. Compose clicks carry top-level draftMetadata (runbook.md:125 fields).
   - Interim fix: Insert only when entry compose (templateItem, preview insertButtons); TOOLBAR_HINT on home card only.
@@ -47,10 +41,8 @@
 - Slice 8c UI admin (2026-11-10): PASS (75ebb53). 56 files, 1295 tests, lines 96.45, index.html 352.9 KB (+12.3, css +7.2), Lighthouse 100x12 (incl. admin audit dark), 10 scopes. No server/shared/addon/editor change.
   - New: src/web/admin/actions.ts (actionWords Map, resultTag, purgeText), views/adminTable.ts (data-label stacking <860 px, Chromium keeps table roles), tint tokens --ok-bg/--warn-bg/--red-bg.
   - Minors: trash.ts:140 purgeText infers templates from the list (wrong when reload fails); server has goneItems, ask for it. Audit actor short name only (title). Export sentence omits private folders. Config widths uneven.
-  - Pre-existing (base too): dialog background not inert; focus to BODY after audit Next page and after Import.
 - Slice 8d web minors (2026-11-11): PASS (0cc49c8). 60 files, 1350 tests, lines 96.55, index.html 355.1 KB, Lighthouse 100x12, 10 scopes. Web only.
   - setInert (dialog.ts) on every body child but backdrop and #toasts; 13 dialogs probed. Stacked label `attr() / ""`, AX keeps 6 columnheaders. Focus ring offset -2 px on active item in 4 lists.
-  - Minors: backdrop press drops focus to BODY (no preventDefault, base too); Back/Forward leaves dialog open over new route (base too); trash.ts:128 "All 1 templates".
 - Slice 9 recipients (2026-11-10): FAIL (441ab04), retry 1 PASS (08955ca, 1414 tests, Code.js 346.6 KB). Retry: DraftRecipients null per field = no action, unknown To = filled, "Add by hand" line; prompt card uses recipientWidgets; FINISH_TYPING line; isStoredList + recipientsUnreadable on restore. Open: card-unknown/tap-known adds silently (rh lacks field state); spec 5.7/7.1 errata. First review: 60 files, 1391 tests, lines 96.58 (addon 100, server 99.31), Code.js 345.5 KB, index.html 340.6 KB unchanged, 10 scopes, Lighthouse 100x11.
   - Must fix: draftRecipients (addon/event.ts) reads missing/non-array/mixed list as [], and REPLACE actions then wipe the draft field (tests assert it). Prompt card switchLabel lacks Bcc marker, Not added, blocked. No "finish typing" line on cards.
   - Accepted: rh over to/cc/bcc/blocked, no rh -> preview card, forged rh -> card; update omission keeps lists, deny then refuses; apply/getBody blocked split; audit admin only; validator rejects injection probes.
@@ -102,6 +94,9 @@
   - Mechanism: DriveClient.readRawText = restMediaReader (UrlFetch, ScriptApp token) under both clients; monthText, appendAudit, readBackup use it. Strict fake: Advanced alt=media parses JSON, throws "HttpResponseException: Response Code: 200. Message: <text>" otherwise. Revert probe: 19 fail (8 old + 11 new).
   - Must fix: health.ts describe + daily.ts:241 store raw messages in job:<name>:lastError (Admin page shows when Late); damaged live index.json text with addresses lands there on the fixed build. Runbook: owner deletes job:daily:lastError (and tick) on dev.
   - Retry 1 PASS (ce47afd, 1928 tests): JobError + errorSummary (code + name), success deletes lastError, fileUrl ID rule ^[\w-]+$, 429 QUOTA, documentText fallback (Advanced fail -> one REST read). Leak probe 6 damaged files x 3 jobs + 6 ops: 0 hits (base: hits).
+- Slice 20b add-on fix round (2026-11-11): PASS (review on 496e4bf). 69 files, 1949 tests, lines 97.97, Code.js 369.8 KB, 10 scopes. 0 must-fix, 8 minors.
+  - Code: folder.ts LIST_MAX (fav 10, recent 5, folders 40, results 20) + `capped` cut line; only Folders can fire (server caps sidebar.ts:36-38). Worst card 84 (folder, message). event.ts mailboxesOf; addsLine(plan, reply); capSubject in renderSubject.
+  - Minors: "A reply adds n" counts a Cc already on the email; capSubject leaves trailing ZWJ; `{{{ask:N}}{ask:M}}` puts `{{ask:M}}` in draft (base same); spec 458 panel text.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -147,3 +142,5 @@
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
 - Error texts: trace every caught message to properties (job lastError), Admin screens, Cloud Logging (exceptionLogging STACKDRIVER, rethrows), failure emails; probe with a damaged file holding an address.
 - Gmail-action slices: count createDraft* per failure probe with a recording fake; forge action params (values, extra keys) and CR LF; read the message ID source at press time.
+
+- Card limit probes: build the matrix with real builders and count `addWidget` on the recording Card Service; check where the cut line sits vs collapseAfter.
