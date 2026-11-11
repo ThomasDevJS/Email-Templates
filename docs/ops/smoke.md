@@ -238,7 +238,7 @@ Passed 2026-11-11; the record is [docs/spikes/slice-10-s7.md](../spikes/slice-10
 
 ## Slice 18
 
-Side-panel New email, Reply and Reply all (spec 4.1a, 7.2, 13.11). Gmail web, dev build (`npm run deploy -- dev`, reload Gmail). The browser agent runs [test round 1 part J](test-round-1.md#part-j-side-panel), steps 1 to 12. The owner adds two checks by hand:
+Side-panel New email, Reply and Reply all (spec 4.1a, 7.2, 13.11). Gmail web, dev build (`npm run deploy -- dev`, reload Gmail). The browser agent runs [test round 1 part J](test-round-1.md#part-j-side-panel), steps 1 to 13. The owner adds two checks by hand:
 
 1. Fresh consent (Q55, replaces part H step 2): Google Account, "Security", third-party access, "Remove access" for Migway Templates. Then side panel, inbox, row "New email" on "T1 plain". Record any prompt and the scopes it names. A prompt for a scope outside the approved 10 stops the side-panel actions until the owner approves it.
 2. Apps Script editor, "Executions" (replaces part H step 3): the duration of each `onCompose` run of part J steps 2 to 4. The `template.apply` lines of part J carry no `test-` address, subject or text.

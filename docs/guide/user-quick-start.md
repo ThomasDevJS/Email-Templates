@@ -22,6 +22,7 @@ Migway Templates also opens in the panel on the right side of Gmail. It stays op
 
 - No email open: click "New email" on a template. A new email opens with the template's subject, text and recipients.
 - An email open: click "Reply" on a template. Your reply opens in the conversation with the template's text. It goes to the sender and keeps "Re:" in the subject. The template's Cc and Bcc are added; its To is not.
+- "Reply all", under "Reply" on the same template, answers everyone on the email and adds the template's Cc and Bcc.
 - Click a template's name for "Reply all", "New email", and to fill in fields first. "Add recipients" off leaves out the template's addresses.
 - The side panel always starts a new email or a reply. To insert into an email you are already writing, use the Migway Templates button in that email's toolbar.
 - Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.

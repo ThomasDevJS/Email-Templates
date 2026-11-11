@@ -247,19 +247,22 @@ describe("add-on entry points", () => {
     expect(argsOf("build")).toHaveLength(2);
   });
 
-  it("side panel rows are compose actions (Reply, New email) and end with the toolbar hint; compose shows Insert", () => {
+  it("side panel rows are compose actions (Reply and Reply all in a button set, New email) and end with the toolbar hint; compose shows Insert", () => {
     serve({ "sidebar.home": { ...HOME, recent: ["T1"] } });
     addon.onMessageOpen({ gmail: { messageId: "m1", accessToken: "t" } });
     addon.onHomepage({ gmail: { accessToken: "t" } });
     expect(argsOf("setAltText")).toEqual([
       "Reply with Welcome",
+      "Reply all with Welcome",
       "New email from Welcome",
     ]);
     expect(
       calls
         .filter((c) => c.method === "setComposeAction")
         .map((c) => c.args[1]),
-    ).toEqual(["REPLY_AS_DRAFT", "STANDALONE_DRAFT"]);
+    ).toEqual(["REPLY_AS_DRAFT", "REPLY_AS_DRAFT", "STANDALONE_DRAFT"]);
+    // Reply and Reply all sit in one button set under the row; New email sits in its row.
+    expect(argsOf("addButton")).toHaveLength(2);
     expect(argsOf("setText").filter((t) => t === TOOLBAR_HINT)).toHaveLength(2);
     calls.length = 0;
     addon.onComposeOpen({ draftMetadata: { toRecipients: [] } });

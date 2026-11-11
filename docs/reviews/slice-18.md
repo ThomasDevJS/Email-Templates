@@ -2,7 +2,7 @@
 
 Date: 2026-11-11. Branch `slice/18-side-panel`, head 504b0ee (implementer 6afcc97 plus main 699b02d). Slice diff `702df60..6afcc97`.
 
-## Verdict: PASS (first review); Follow-up 1: PASS (see "Follow-up 1" at the end)
+## Verdict: PASS (first review); Follow-up 1: PASS; Follow-up 2: PASS (see the sections at the end)
 
 No path creates a draft before `template.apply` succeeds. No path sends mail. A reply never gets a To. No message data reaches a log, a cache or a lasting action parameter. 0 must-fix, 7 minors.
 
@@ -122,3 +122,48 @@ Part J step 10 now has "Expect:"; step 11 records "sentence, red error bar, or n
 1. NOT_CONFIGURED and AUTH_* throw 2 or 3 sentences; NOT_CONFIGURED ends "then press Retry." with no Retry in an error bar. Fix: one sentence per code, e.g. "Migway Templates is not set up yet. Ask your admin." as a new wording row.
 2. The dropped Gmail error text (a `createDraft*` refusal) now reaches no screen and no log; an admin cannot tell a Gmail quota from a scope error. Fix later: log the error name only (no message) in the add-on run.
 3. Unverified in Gmail: how a compose-action throw shows on a `DecoratedText` row (banner, "Exception:" prefix, or nothing again). Part J step 11 rerun decides.
+
+## Follow-up 2 (head a5d4690, D33)
+
+Verdict: PASS. 0 must-fix, 2 minors.
+
+Change: src/addon/cards/folder.ts and home.ts only (`git diff 97595c6 a5d4690 -- src`). Rows with an email open become 2 widgets: the `DecoratedText` (title, hint, tap `onPreview`) and a button set "Reply" (filled) + "Reply all" (outlined), both `onCompose`. Inbox and compose rows keep one button in the row. `listSection` collapses after 5 whole rows. Protected paths (src/server, src/shared, src/web, appsscript.json, package files): empty diff against 97595c6. Secret patterns in added lines: 0.
+
+### Commands (clean install on a5d4690)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0 |
+| `npm run lint`, `npm run typecheck` | exit 0, no output |
+| `npm run test:coverage` | 68 files, 1932 tests passed; all files 97.15 statements, 90.97 branches |
+| `npm run build -- --env dev` | "Built dev a5d4690", Code.js 368.3 KB, index.html 379.2 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+
+### Probes (scratch copies of a5d4690 and 78ec3cf, deleted after)
+
+View: 45 templates (half with recipient counts, a third with fields, titles with `<b>&</b>`), 30 top-level folders, 1 subfolder, 10 favorites, 5 recent. Cards: home, folder page 1 (20 rows), folder page 2 (5 rows), search (20 results), for 3 entries, built by both trees.
+
+| Entry | Card | Same JSON as 78ec3cf | Widgets on the card | Sections (widgets/collapse after) | JSON bytes head / base |
+|---|---|---|---|---|---|
+| compose | home, folder 1, folder 2, search | yes, 4 of 4 | 46, 23, 8, 21 | Favorites 10/5, Folders 30/5 | 9740, 6838, 2208, 6873 (equal) |
+| inbox | home, folder 1, folder 2, search | yes, 4 of 4 | 47, 24, 9, 22 | as compose plus hint | equal |
+| message | home | no (expected) | 62 | Favorites 20/10, Recent 10, Folders 30/5 | 13,922 / 10,556 |
+| message | folder page of 20 | no | 44 | list 40, pager 2 | 12,364 / 7,874 |
+| message | search 20 | no | 42 | Results 40 | 12,399 / 7,909 |
+
+- Every message-entry row: 1 item with `onPreview {id}` and no button, then 1 button set of 2 buttons, `REPLY_AS_DRAFT`, `as` reply and replyAll, the row's own `id` (0 mismatches over 75 rows) and the same `rc`. Screen reader "Reply all with <title>".
+- Collapse: Favorites cuts after widget 10, a button set; widget 11 is the next row's item. No row is split from its buttons. Folders cut after 5 items.
+- Row "Reply all" against the real server: `createDraftReplyAll("", {htmlBody "<p>Hi all</p>", cc safety@, bcc records@})`; template Cc ann@ dropped (on the email's To as `"Doe, Ann" <ann@...>`); template To in no argument; `recipientEmailIfInternal` ""; 1 use. Same template deleted: throws "This template was deleted or moved. Open the panel again to update the list.", 0 drafts.
+- Largest response: message home 13.9 KB of JSON (+32 percent); folder page and search +57 percent. All far under any response limit seen so far.
+
+### Card Service limits
+
+docs/research/r4-platform-constraints.md:37 quotes Google: "you can't add more than 100 widgets or 100 card sections to a card", so the limit is per card, not only per section as the handoff says. Largest cards with an email open: home 62 with 30 folders (= 32 + top-level folders), folder page 43 + subfolders, search 42. Nothing here breaks at today's data.
+
+### Minors
+
+1. The home card with an email open passes 100 widgets at 69 top-level folders (before: 84). The folder card passes it at 58 subfolders with a full page (before: 78). No folder cap exists (IMPORT_FOLDERS_MAX 100 is import only). Fix: collapse is not enough; page the Folders section or cap it at 40 with "Open library" for the rest. Pre-existing in kind.
+2. Wireframe 01 "Message open" still shows one [Reply] per row (handoff names the erratum for the architect).
+
+Docs: quick start adds one line for "Reply all" under "Reply"; part J step 13 (row "Reply all" on "T3 copies", expects To and Cc kept, Cc and Bcc added, records layout) has "Expect:" and a table row; smoke "Slice 18" runs steps 1 to 13. Only Gmail can show the button set under a `DecoratedText` in the 300 px panel (step 13).
