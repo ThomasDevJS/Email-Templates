@@ -40,34 +40,46 @@ Folders are created, renamed, moved and deleted in Admin, "Folders and grants". 
 
 ## The editor
 
-| Field | Rules |
+The editor has three parts.
+
+- Header: the folder path (click a folder to open it in the library), the title, the saved state, "History" and "Save". The saved state reads "Saved as version N, <time>" with a check, "Unsaved changes" after an edit, and "Saving..." while it saves.
+- The email on a white sheet: the "Subject" line on top, the body under it. Placeholders show as blanks: a value such as "Sender name" on a light amber background with a dotted line; a question ("Ask the user") in a dashed box; a value with a fallback as "Recipient first name or there".
+- The panel on the right: "Details", "The sender fills in", and the tabs "Preview as me" and "Problems".
+
+| Details field | Rules |
 |---|---|
 | "Title" | Required, 1 to 120 characters. Shown in the panel and the library |
-| "Subject" | Optional, up to 200 characters, one line. The counter reads "n/200 (optional)" |
 | "Folder" | Where the template lives. Changing it moves the template |
 | "Tags" | Up to 10 tags, each 1 to 30 characters. Type a tag, then Enter or "Add tag" |
-| Body | The template text, with the toolbar above it |
+| "To", "Cc", "Bcc" | Addresses added to the draft at Insert. See "Recipients" below |
 
-"Preview as me" on the right shows the template with your own directory values. "History" opens the version history. "‹ Library" goes back.
+"The sender fills in" lists each question of the subject and body with how often it is used ("used once", "used 2 times"). "Preview as me" shows the email with your own directory values, the To, Cc and Bcc lines above the subject, and each question as "[Label]". "Problems" holds the errors and warnings of the last save; its tab shows the count and opens by itself when a save fails.
+
+Under about 860 pixels wide (a phone or a narrow window) the panel moves below the sheet and each part opens and closes with its heading.
+
+Users with use access (no edit) see the same screen without the toolbar, "Save" and "History", and the note "You can use this template but not change it. To change it, ask a folder manager for edit access."
 
 ### Toolbar
 
-The toolbar is one Tab stop. Arrow keys move between its buttons.
+The toolbar is one Tab stop. Arrow keys move between its buttons; Home and End jump to the first and last. Each button shows its name and shortcut when you point at it.
 
 | Button | Does |
 |---|---|
+| Undo, Redo | Undo (Ctrl+Z), redo (Ctrl+Y) |
+| "Paragraph" | Paragraph, Heading 1, Heading 2, Heading 3. The button shows the current style |
+| "Normal" | Text size: Small, Normal, Large, Huge. The button shows the current size |
 | B, I, U, S | Bold (Ctrl+B), italic (Ctrl+I), underline (Ctrl+U), strikethrough (Ctrl+Shift+X) |
-| "Text" | Paragraph, Heading 1, Heading 2, Heading 3 |
-| "Color", "Highlight" | Text color and background color |
-| "Size", "Font" | Font size and font family |
-| "Align" | Left, center, right, justify |
-| "• List", "1. List" | Bulleted and numbered lists |
-| "Quote" | Indented quote block |
-| "Line" | Horizontal line |
-| "Link" | Link (Ctrl+K). The address must start with https://, http://, mailto: or tel: |
-| "Image" | Image by its https:// address. Images are linked, not uploaded. The dialog says "Width is set to 600 pixels or less", but every inserted image gets width 600, so a smaller image is stretched |
-| "Table" | Inserts a table |
-| "{{ Placeholder" | Placeholder menu. Typing `{{` in the text opens the same menu |
+| Text color, Highlight color | Text color and background color |
+| Align text | Left, center, right, justify |
+| Bulleted list, Numbered list | Lists |
+| Quote | Indented quote block |
+| Link | Link (Ctrl+K). The address must start with https://, http://, mailto: or tel: |
+| Image | Image by its https:// address. The email links to the image; nothing is uploaded. The image keeps its own width; an image wider than 600 pixels is shown 600 pixels wide. A smaller image is never stretched |
+| Table | Inserts a table |
+| Horizontal line | Inserts a line |
+| "Insert field" | Placeholder menu. Typing `{{` in the text opens the same menu |
+
+The toolbar has no font family button. Fonts already in a template (for example pasted from Gmail) are kept.
 
 ## Placeholders and fallbacks
 
@@ -82,34 +94,41 @@ The placeholder menu lists 5 values and one question type.
 | "Recipient first name" | `{{recipient.first_name}}` | First name of the To recipient, only with exactly one To address inside Migway |
 | "Ask the user..." | `{{ask:Meeting date}}` | What the user types in the panel |
 
-- Fallback: select a chip, open "{{ Placeholder", "Add fallback...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
+- Fallback: select a blank, open "Insert field", "Add fallback...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
 - A value with no directory entry and no fallback becomes a field the user must fill. Nothing is ever inserted blank.
 - Saving warns about "Recipient first name" without a fallback: "users will be asked for it".
 - "Ask the user..." takes a label of 1 to 40 characters. The same label used several times is asked once. Questions take no fallback.
 - At most 20 questions per template, subject and text together.
 - Placeholders work in text only, never inside a link address.
-- One placeholder must keep one format. Bolding a whole chip works; bolding half of a typed `{{...}}` is an error.
+- One placeholder must keep one format. Bolding a whole blank works; bolding half of a typed `{{...}}` is an error.
 - `\{{` writes literal double braces.
 - An unknown name fails the save with a hint, for example "Unknown placeholder sender.nmae at character 7. Did you mean sender.name?".
 
 ## The Subject field
 
 - Plain text, one line, up to 200 characters. Line breaks are refused on save ("Subject must be one line").
-- Placeholders work here too. With the cursor in "Subject", "{{ Placeholder" types the text form at the cursor.
+- Placeholders work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
 - A question used in subject and text is asked once and fills both.
 - Empty subject: inserting the template never touches the draft subject.
 - In Gmail the template subject fills an empty subject box only. A subject already in the draft is kept unless the user picks "Insert with subject". Details: [quick start](user-quick-start.md).
 
 ## Recipients (To, Cc, Bcc)
 
-A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no placeholders. Save refuses a bad address ("Cc, address 2 is not an email address."), an address in two fields, and, when the owner set Script Property `RECIPIENTS_EXTERNAL` to `deny`, any address outside migway.com. Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting. The editor fields arrive with the editor redesign; until then the owner sets recipients on request, and saving the template in the editor keeps them.
+A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no placeholders.
+
+- Type an address, then Enter, comma, semicolon or space: it becomes a chip. Pasting a list makes one chip per address. Leaving the field does the same. Backspace in the empty field removes the last chip; each chip has its own × button.
+- An address outside migway.com shows "outside migway.com" under its chip. Bcc shows "Hidden from the other recipients of the email."
+- Mistakes show under the field at once, with the same text the save uses: "Cc, address 2 is not an email address. Use the form name@company.com.", "Cc holds 11 addresses. Use at most 10 per field.", "safety@migway.com is in both To and Cc. Keep it in one field.". When the owner turned outside addresses off, an outside chip turns red: "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save."
+- Save always sends all three fields; removing every chip of a field clears it.
+
+Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting.
 
 ## Saving and the "This template changed" dialog
 
-1. Click "Save" or press Ctrl+S. The button reads "Saving..." and the status ends with "Saved as version N" and the time.
-2. Errors appear in a list above the status, each as "Error: ...". Placeholder errors name the character position. Subject errors start with "Subject:". The status reads "Not saved. Fix the problems listed above."
+1. Click "Save" or press Ctrl+S. The button and the header read "Saving...", then the header reads "Saved as version N, <time>".
+2. Errors appear in the "Problems" tab, each as "Error: ...". Placeholder errors name the character position. Subject errors start with "Subject:". Recipient errors also show under their field. The line under the header reads "Not saved. Fix the problems in the Problems tab."
 3. When someone else saved a newer version while you edited, the dialog "This template changed" opens: "<name> saved version N at <time> while you edited."
-   - "Open their version" loads the newest version. Your changes are discarded.
+   - "Open their version" loads the newest version: "Opened their version. Your changes were discarded."
    - "Copy my text" puts your text on the clipboard. Then open their version and paste where needed.
    - "Cancel" keeps your text in the editor, unsaved.
 
@@ -119,9 +138,9 @@ Nothing is overwritten without this dialog.
 
 1. Row menu "History", or "History" in the editor.
 2. Versions are listed newest first, with time, author and "restored from K" where it applies.
-3. Arrow keys move the selection. Enter shows that version's subject and text on the right.
+3. Arrow keys move the selection. Enter shows that version's To, Cc and Bcc lines (when it has any), subject and text on the right.
 4. Press R or "Restore this version". The dialog asks "Create version N from version K?". "Restore" confirms.
-5. The status reads "Restored as version N." Restore copies subject and text into a new version. No version is lost.
+5. The status reads "Restored as version N." Restore copies subject, recipients and text into a new version. No version is lost. When the stored addresses of the old version cannot be read, the status adds "The Cc addresses of version K could not be read and were left empty. Add them again in the editor."
 
 All versions are kept.
 

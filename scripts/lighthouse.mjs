@@ -1,8 +1,7 @@
 // `npm run lighthouse`: builds the web app with the dev harness, serves it on 127.0.0.1 and runs the Lighthouse
-// accessibility audit on the library, editor, history, the 6 admin tabs and trash views, plus the library and the
-// admin audit tab and the editor in the dark theme (spec section 8; the design system requires 100). Chrome: CHROME_PATH, else the
-// preinstalled
-// /opt/pw-browsers/chromium. No browser is downloaded.
+// accessibility audit on the library, editor, history, the 6 admin tabs and trash views, plus the library, the
+// editor and the admin audit tab in the dark theme (spec section 8; the design system requires 100). Chrome:
+// CHROME_PATH, else the preinstalled /opt/pw-browsers/chromium. No browser is downloaded.
 import { launch } from "chrome-launcher";
 import { existsSync } from "node:fs";
 import lighthouse from "lighthouse";

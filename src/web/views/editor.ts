@@ -427,7 +427,9 @@ export function editorView(
         ? h(
             "p",
             { class: "hint" },
-            "Nothing yet. To add a question, choose Insert field, then Ask the user.",
+            readOnly
+              ? "None."
+              : "Nothing yet. To add a question, choose Insert field, then Ask the user.",
           )
         : h(
             "ul",
