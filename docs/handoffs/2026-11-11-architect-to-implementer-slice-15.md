@@ -36,9 +36,10 @@ Date: 2026-11-11. Build after slice 14 merges. Status of the design: Proposed (A
 
 - src/addon/** (flows, cards, prompts, entry if needed), src/shared/placeholders/render.ts and its tests.
 - appsscript.json (one key: `layoutProperties`; scope list unchanged).
-- docs/guide/quick-start.md (3 lines of spec 7.4), editor guide line of spec 7.1.
+- docs/guide/user-quick-start.md (3 lines of spec 7.4) and docs/guide/editor-guide.md.
+- One string in src/web/views/editor.ts (line 778 at 2f6eae3): the recipients help text (spec 7.1, D31 bracket). Slice 16 does not touch the editor view.
 - docs/ops/smoke.md: a new section "Slice 15" only.
-- Do not touch src/server/**, src/web/**, src/shared/permissions/**, the admin guide or the runbook (slice 16).
+- Do not touch src/server/**, src/shared/permissions/**, src/shared/model/**, the rest of src/web/**, the admin guide or the runbook (slice 16).
 
 ## Rules that hold
 
