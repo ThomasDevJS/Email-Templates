@@ -147,3 +147,77 @@ All are above 3:1. Row text position and keyboard behavior are unchanged from th
 ## Only the owner can check
 
 - Mouse, touch and Back in Google's frame; test-round-1 part A step 14.
+
+# Re-review: retry 2
+
+Verdict: PASS. 0 must-fix, 2 minors. The breadcrumb case is fixed. Every probed path follows the rule.
+
+Retry diff `a26e7f3..8db30c1` (one source commit). Reviewed 2026-11-11. Rule: a choice by the user reveals the selected folder; a redraw, browser Back or Forward keeps closed parents closed.
+
+## Commands (worktree 8db30c1, after `rm -rf node_modules`)
+
+| Command | Result |
+|---|---|
+| `npm ci`, `npm run lint`, `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 71 files, 1996 tests passed; statements 97.2, branches 91.02, lines 98.04 |
+| `npm run build -- --env dev` | "Built dev 8db30c1", Code.js 373.5 KB of 800 KB, index.html 381.4 KB of 400 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 16 of 16 runs at 100 |
+
+No change in `src/server`, `src/addon`, `src/shared` or `styles.css`. On a copy of a26e7f3, 2 new tests fail: app.test "opens again when the user picks the folder in the editor breadcrumb" and "changes the open state once on a double-click on the chevron". The other new tests guard behavior that already passed there.
+
+## Reveal paths (Sales closed by its arrow before each)
+
+| Path | Result |
+|---|---|
+| R1 editor breadcrumb "Quotes" | Sales open, Quotes selected |
+| R2 library tree row "Sales" | Sales open and selected |
+| R3 sidebar "All templates" | no folder selected; tree unchanged (correct) |
+| R4 deep link `#/library?folder=F-QUOTES`, new page | Sales open, Quotes selected |
+| R5 Admin row click HR | HR selected |
+| R6 Admin "New subfolder" under selected, closed Sales | Sales open, SubNew selected |
+| R7 Admin delete SubNew | Sales selected (top level, visible) |
+| R8 Admin move Support into "Sales / Quotes", both closed | Sales and Quotes open, Support selected |
+
+The library has no folder link in search results, so that path does not exist.
+
+## Keep paths (Quotes selected, Sales closed)
+
+| Path | Sales |
+|---|---|
+| K1 Admin "Rename..." of the selected folder inside closed Sales | closed |
+| K2 "Duplicate" on a list row | closed |
+| K3 "Delete" on a list row (library reload) | closed |
+| K4 10.5 s idle (no refresh timer exists) | closed |
+| K5 editor edit, Ctrl+S, Back | closed |
+| K6 pick HR, browser Back to Quotes | closed, Quotes hidden (minor A) |
+| K7 Forward to HR, Back to Quotes | closed |
+
+## Double-clicks (library and Admin, same end states)
+
+| Row state | Double-click on | End state | Admin `grant.list` |
+|---|---|---|---|
+| Closed parent, not selected | name | open, selected | 1 |
+| Selected, open parent | name | closed, selected (minor B) | 0 |
+| Selected, closed parent | name | open, selected | 1 |
+| Open parent, not selected | name | open, selected | 1 |
+| Leaf | name | selected | 1 |
+| Any parent | chevron | toggled once, 0 calls | 0 |
+
+## No regression
+
+- A chevron click sends 0 calls and focuses its row.
+- The 17-key script gives the same states and hash as base 8e82a07, library and Admin.
+- One tab stop per tree. The chevron has no tabindex, no role and `aria-hidden`. Hit test ±11.5 px in, 12.5 px out: a 24 by 24 px target.
+- Row text at x 33, y 6 in 30 px rows on base and head.
+
+## Minors
+
+- A. Back or Forward to a folder inside a parent the user closed shows that folder's page with no selected row in the tree. This follows the rule. test-round-1 part A could record it.
+- B. A double-click on the selected, open parent closes it once (its first click is a close); base left it open.
+- Open from the first review: 390 px long name scrolls in Admin (base the same); touch target.
+
+## Only the owner can check
+
+- Mouse, touch, Back and Forward in Google's frame; test-round-1 part A step 14.
