@@ -534,6 +534,13 @@ describe("trigger reinstall", () => {
   });
 });
 
+const APPLY: BufferedEvent = {
+  kind: "apply",
+  itemId: "I1",
+  actor: "a@example.com",
+  ts: "2026-11-09T12:00:00.000Z",
+};
+
 describe("event buffer cap", () => {
   it(`keeps ${String(BUFFER_MAX)} events, counts the drops and records them as one audit event`, () => {
     for (let n = 0; n < BUFFER_MAX + 7; n++)
@@ -559,24 +566,13 @@ describe("event buffer cap", () => {
     expect(runTick(world.services)).toMatchObject({ denied: 0, dropped: 0 });
   });
 
-  it("drops denied events first: a change and an apply event take the slots of denied ones in a full buffer", () => {
+  it("drops denied events first: an apply event takes the slot of a denied one in a full buffer", () => {
     for (let n = 0; n < BUFFER_MAX; n++)
       bufferEvent(world.cache, world.lock, {
         kind: "denied",
         event: denied(`d${String(n)}`),
       });
-    const change = { ...denied("export"), action: "export.library" };
-    expect(
-      bufferEvent(world.cache, world.lock, { kind: "change", event: change }),
-    ).toBe(true);
-    expect(
-      bufferEvent(world.cache, world.lock, {
-        kind: "apply",
-        itemId: "I1",
-        actor: "a@example.com",
-        ts: "2026-11-09T12:00:00.000Z",
-      }),
-    ).toBe(true);
+    expect(bufferEvent(world.cache, world.lock, APPLY)).toBe(true);
     expect(
       bufferEvent(world.cache, world.lock, {
         kind: "denied",
@@ -585,42 +581,27 @@ describe("event buffer cap", () => {
     ).toBe(false);
     const buffered = readBuffer(world.cache);
     expect(buffered.events).toHaveLength(BUFFER_MAX);
-    expect(buffered.dropped).toBe(3);
+    expect(buffered.dropped).toBe(2);
     expect(runTick(world.services)).toMatchObject({
       applies: 1,
-      changes: 1,
-      denied: BUFFER_MAX - 2,
-      dropped: 3,
+      denied: BUFFER_MAX - 1,
+      dropped: 2,
     });
-    const pending = fileIndex().pendingAudit;
-    expect(pending.some((event) => event.id === change.id)).toBe(true);
-    expect(pending.at(-1)).toMatchObject({
+    expect(fileIndex().pendingAudit.at(-1)).toMatchObject({
       action: "audit.dropped",
-      after: { dropped: 3 },
+      after: { dropped: 2 },
     });
     expect(world.services.store().readSide("usage").items["I1"]).toBeDefined();
   });
 
-  it("counts apply and denied events lost to a busy lock once, and a refused change event not at all", () => {
+  it("counts apply and denied events lost to a busy lock once", () => {
     const tryLock = world.lock.tryLock.bind(world.lock);
     world.lock.tryLock = () => false;
-    const apply: BufferedEvent = {
-      kind: "apply",
-      itemId: "I1",
-      actor: "a@example.com",
-      ts: "2026-11-09T12:00:00.000Z",
-    };
-    expect(bufferEvent(world.cache, world.lock, apply)).toBe(false);
+    expect(bufferEvent(world.cache, world.lock, APPLY)).toBe(false);
     expect(
       bufferEvent(world.cache, world.lock, {
         kind: "denied",
         event: denied("busy"),
-      }),
-    ).toBe(false);
-    expect(
-      bufferEvent(world.cache, world.lock, {
-        kind: "change",
-        event: denied("export"),
       }),
     ).toBe(false);
     world.lock.tryLock = tryLock;
@@ -631,26 +612,54 @@ describe("event buffer cap", () => {
     });
     expect(runTick(world.services)).toMatchObject({ dropped: 0 });
     world.lock.tryLock = () => false;
-    bufferEvent(world.cache, world.lock, apply);
+    bufferEvent(world.cache, world.lock, APPLY);
     world.lock.tryLock = tryLock;
     expect(runTick(world.services)).toMatchObject({ dropped: 1 });
   });
 
+  it("counts every busy-lock loss after 6 quiet hours (the count and its mark expire together)", () => {
+    const tryLock = world.lock.tryLock.bind(world.lock);
+    const lose = (n: number) => {
+      world.lock.tryLock = () => false;
+      for (let k = 0; k < n; k++) bufferEvent(world.cache, world.lock, APPLY);
+      world.lock.tryLock = tryLock;
+    };
+    lose(5);
+    expect(runTick(world.services)).toMatchObject({ dropped: 5 });
+    for (let hour = 0; hour < 5; hour++) {
+      world.clock.now += 60 * 60 * 1000;
+      expect(runTick(world.services)).toMatchObject({ dropped: 0 });
+    }
+    // The losses arrive after the 6 h TTL of the first count, before the next tick.
+    world.clock.now += 61 * 60 * 1000;
+    lose(7);
+    expect(runTick(world.services)).toMatchObject({ dropped: 7 });
+  });
+
   it("drops an apply event when the full buffer holds no denied event, and counts it", () => {
     for (let n = 0; n < BUFFER_MAX; n++)
-      bufferEvent(world.cache, world.lock, {
-        kind: "change",
-        event: denied(`c${String(n)}`),
-      });
+      bufferEvent(world.cache, world.lock, APPLY);
+    expect(bufferEvent(world.cache, world.lock, APPLY)).toBe(false);
+    expect(readBuffer(world.cache).dropped).toBe(1);
+  });
+
+  it("stores a new event in an evicted slot of a full buffer without counting a drop", () => {
+    for (let n = 0; n < BUFFER_MAX; n++)
+      bufferEvent(world.cache, world.lock, APPLY);
+    world.cache.remove("evt:7");
     expect(
       bufferEvent(world.cache, world.lock, {
-        kind: "apply",
-        itemId: "I1",
-        actor: "a@example.com",
-        ts: "2026-11-09T12:00:00.000Z",
+        kind: "denied",
+        event: denied("late"),
       }),
-    ).toBe(false);
+    ).toBe(true);
+    const buffered = readBuffer(world.cache);
+    expect(buffered.events).toHaveLength(BUFFER_MAX);
+    expect(buffered.dropped).toBe(0);
+    expect(bufferEvent(world.cache, world.lock, APPLY)).toBe(true);
     expect(readBuffer(world.cache).dropped).toBe(1);
+    expect(bufferEvent(world.cache, world.lock, APPLY)).toBe(false);
+    expect(readBuffer(world.cache).dropped).toBe(2);
   });
 });
 
