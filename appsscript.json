@@ -44,6 +44,7 @@
       "name": "Migway Templates",
       "logoUrl": "https://lh3.googleusercontent.com/d/1xtieglQMEZSrptPfMCPBFg5tS07bN3tf",
       "layoutProperties": {
+        "primaryColor": "#2a3c49",
         "secondaryColor": "#2a3c49"
       },
       "homepageTrigger": {

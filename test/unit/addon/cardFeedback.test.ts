@@ -5,7 +5,7 @@ import {
 } from "../../../src/addon/cards/details";
 import { folderCard } from "../../../src/addon/cards/folder";
 import { homeCard, searchCard } from "../../../src/addon/cards/home";
-import { renderCard } from "../../../src/addon/cards/render";
+import { SLATE, renderCard } from "../../../src/addon/cards/render";
 import {
   CALLBACKS,
   action,
@@ -70,6 +70,15 @@ const CARDS: CardSpec[] = [
     ),
   ),
 ];
+
+describe("slate", () => {
+  it("every filled button on every card kind, footers included, is slate", () => {
+    for (const card of CARDS) renderCard(card);
+    const filled = argsOf("setTextButtonStyle").filter((s) => s === "FILLED");
+    expect(filled.length).toBeGreaterThan(CARDS.length / 2);
+    expect(argsOf("setBackgroundColor")).toEqual(filled.map(() => SLATE));
+  });
+});
 
 describe("load indicator", () => {
   it("every action of every card kind shows the spinner, except Back and the library link", () => {
