@@ -4,6 +4,7 @@ import {
   SWITCH_ON,
   type ActionSpec,
   type ButtonSpec,
+  type Callback,
   type CardSpec,
   type IconName,
   type Reply,
@@ -22,13 +23,28 @@ type ComposeResponse = GoogleAppsScript.Card_Service.ComposeActionResponse;
 
 /** Brand slate of docs/design/design-system.md: the fill of the one main button. */
 export const SLATE = "#2a3c49";
+/** Brand red: error lines only (design system principle 2). */
+export const RED = "#b32025";
 
 function markup(text: string): string {
   return escapeText(text).replace(/\n/g, "<br>");
 }
 
+/**
+ * Callbacks that answer at once with no server or Gmail call: Back pops a card, the library link opens a window.
+ * A spinner there would only flash. Every other action waits on the server or Gmail and shows the spinner.
+ */
+const INSTANT: ReadonlySet<Callback> = new Set(["onBack", "onOpenLink"]);
+
+/** The one place that builds actions: click, change and compose actions all get their load indicator here. */
 function toAction(spec: ActionSpec): GoogleAppsScript.Card_Service.Action {
-  const built = CardService.newAction().setFunctionName(spec.fn);
+  const built = CardService.newAction()
+    .setFunctionName(spec.fn)
+    .setLoadIndicator(
+      INSTANT.has(spec.fn)
+        ? CardService.LoadIndicator.NONE
+        : CardService.LoadIndicator.SPINNER,
+    );
   return spec.params === undefined
     ? built
     : built.setParameters({ ...spec.params });
@@ -99,7 +115,12 @@ function toInput(spec: Extract<Widget, { kind: "input" }>) {
 function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
   switch (spec.kind) {
     case "text":
-      return CardService.newTextParagraph().setText(markup(spec.text));
+      return CardService.newTextParagraph().setText(
+        // Only the wrapper tag is markup; the text inside is escaped as everywhere.
+        spec.tone === "error"
+          ? `<font color="${RED}">${markup(spec.text)}</font>`
+          : markup(spec.text),
+      );
     case "item":
       return toItem(spec);
     case "buttons":

@@ -68,6 +68,11 @@ export interface DetailsState extends DetailsView {
 }
 
 const line = (text: string): Widget => ({ kind: "text", text });
+const errorLine = (text: string): Widget => ({
+  kind: "text",
+  text,
+  tone: "error",
+});
 
 /** `firstNameHint` goes under the recipient first name box; null for none. */
 function fieldInput(
@@ -188,7 +193,7 @@ export function detailsCard(state: DetailsState): CardSpec {
     sections: [
       ...(state.problem === ""
         ? []
-        : [{ widgets: [line(`(!) ${state.problem}`)] }]),
+        : [{ widgets: [errorLine(`(!) ${state.problem}`)] }]),
       ...fieldsSection(state, FIRST_NAME_HINT),
       ...subjectSection(state),
       ...recipientSection(state, state.addRecipients, true, []),
