@@ -1,5 +1,11 @@
 import type { Entry } from "../event";
-import { action, type ButtonSpec, type Params, type SectionSpec } from "./spec";
+import {
+  action,
+  hint,
+  type ButtonSpec,
+  type Params,
+  type SectionSpec,
+} from "./spec";
 
 /** Where to insert into an email already being written (spec 7.2): the side panel only starts new drafts. */
 export const TOOLBAR_HINT =
@@ -7,9 +13,7 @@ export const TOOLBAR_HINT =
 
 /** Every side-panel card that lists or shows templates ends with the hint; compose cards do not. */
 export function sidePanelHint(entry: Entry): SectionSpec[] {
-  return entry === "compose"
-    ? []
-    : [{ widgets: [{ kind: "text", text: TOOLBAR_HINT }] }];
+  return entry === "compose" ? [] : [{ widgets: [hint(TOOLBAR_HINT)] }];
 }
 
 /** The three side-panel actions (spec 7.2): button text, screen reader prefix, Gmail compose type. */

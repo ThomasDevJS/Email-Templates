@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  FIELDS_LINE,
+  SIGNATURE_LINE,
   detailsCard,
   panelDetailsCard,
 } from "../../../src/addon/cards/details";
+import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
+import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import { folderCard } from "../../../src/addon/cards/folder";
 import { homeCard, searchCard } from "../../../src/addon/cards/home";
 import { SLATE, renderCard } from "../../../src/addon/cards/render";
@@ -102,7 +106,7 @@ describe("red for errors only", () => {
   it("colors the (!) line and each state card's error sentence, nothing else", () => {
     for (const card of CARDS) renderCard(card);
     const colored = argsOf("setText").filter((t) =>
-      String(t).includes("<font"),
+      String(t).includes("#b32025"),
     );
     expect(new Set(colored)).toEqual(
       new Set([
@@ -129,5 +133,94 @@ describe("red for errors only", () => {
     expect(argsOf("setText")).toContain(
       red('(!) Shorten &lt;b&gt;"x"&lt;/b&gt; &amp; y'),
     );
+  });
+});
+
+describe("hints look like hints (D36)", () => {
+  const grey = (text: string) => `<font color="#5f6368">${text}</font>`;
+
+  it("a hint is a wrapped DecoratedText with the info icon and grey escaped text", () => {
+    renderCard({
+      name: "h",
+      sections: [
+        { widgets: [{ kind: "text", text: "Use <b> & go", tone: "hint" }] },
+      ],
+    });
+    expect(argsOf("newDecoratedText")).toHaveLength(1);
+    expect(argsOf("newTextParagraph")).toHaveLength(0);
+    expect(argsOf("setName")).toContain("info");
+    expect(argsOf("setWrapText")).toEqual([true]);
+    expect(argsOf("setText")).toEqual([grey("Use &lt;b&gt; &amp; go")]);
+  });
+
+  it("marks the toolbar hint, the cut line, finish typing, the fields line and the signature line, nothing else", () => {
+    const many = view({
+      folders: Array.from({ length: 41 }, (_, n) => ({
+        id: `F${String(n)}`,
+        name: "f",
+        parentId: "",
+        count: 1,
+      })),
+      templates: [template("T1", { folderId: "F0" })],
+    });
+    const plan = {
+      added: { to: ["a@example.com"], cc: [], bcc: [] },
+      notAdded: [],
+      unknown: { to: [], cc: [], bcc: [] },
+    };
+    const field = { key: "date", label: "Date", implicit: false };
+    const hints = [
+      homeCard(many, "inbox"),
+      detailsCard(details({ plan, fields: [field], order: [0] })),
+      panelDetailsCard(details(), "inbox"),
+    ].flatMap((card) =>
+      card.sections.flatMap((s) =>
+        s.widgets.flatMap((w) =>
+          w.kind === "text" && w.tone === "hint" ? [w.text] : [],
+        ),
+      ),
+    );
+    expect(hints).toEqual([
+      "Showing 40 of 41 folders. Use Search or Open library for the rest.",
+      TOOLBAR_HINT,
+      FIELDS_LINE,
+      FINISH_TYPING,
+      SIGNATURE_LINE,
+      TOOLBAR_HINT,
+    ]);
+  });
+});
+
+describe("Search button (D36)", () => {
+  it("home and results cards: an outlined Search button with the search icon under the box, same action as the box", () => {
+    for (const card of [
+      homeCard(data, "compose"),
+      searchCard(data, "x", data.templates, "message"),
+      searchCard(data, "zz", [], "inbox"),
+    ]) {
+      const [box, button] = card.sections[0]?.widgets ?? [];
+      expect(box?.kind === "input" && box.onChange).toEqual({ fn: "onSearch" });
+      expect(button).toEqual({
+        kind: "buttons",
+        buttons: [
+          {
+            text: "Search",
+            icon: "search",
+            alt: "Search templates",
+            style: "outlined",
+            action: { fn: "onSearch" },
+          },
+        ],
+      });
+    }
+  });
+
+  it("renders the icon on the button and the spinner on its action", () => {
+    renderCard(homeCard(data, "inbox"));
+    expect(argsOf("setName")).toContain("search");
+    const fns = argsOf("setFunctionName");
+    const at = fns.lastIndexOf("onSearch");
+    expect(fns.filter((fn) => fn === "onSearch")).toHaveLength(2);
+    expect(argsOf("setLoadIndicator")[at]).toBe("SPINNER");
   });
 });

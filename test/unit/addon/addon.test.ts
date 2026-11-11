@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as addon from "../../../src/addon/entry";
+import { escapeText } from "../../../src/shared/html/escape";
 import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import { CALLBACKS } from "../../../src/addon/cards/spec";
 import {
@@ -252,8 +253,10 @@ describe("add-on entry points", () => {
     addon.onMessageOpen({ gmail: { messageId: "m1", accessToken: "t" } });
     addon.onHomepage({ gmail: { accessToken: "t" } });
     expect(argsOf("setAltText")).toEqual([
+      "Search templates",
       "Reply with Welcome",
       "Reply all with Welcome",
+      "Search templates",
       "New email from Welcome",
     ]);
     expect(
@@ -261,13 +264,22 @@ describe("add-on entry points", () => {
         .filter((c) => c.method === "setComposeAction")
         .map((c) => c.args[1]),
     ).toEqual(["REPLY_AS_DRAFT", "REPLY_AS_DRAFT", "STANDALONE_DRAFT"]);
-    // Reply and Reply all sit in one button set under the row; New email sits in its row.
-    expect(argsOf("addButton")).toHaveLength(2);
-    expect(argsOf("setText").filter((t) => t === TOOLBAR_HINT)).toHaveLength(2);
+    // Reply and Reply all sit in one button set under the row; New email sits in its row; Search on each card.
+    expect(argsOf("addButton")).toHaveLength(4);
+    expect(
+      argsOf("setText").filter(
+        (t) => t === `<font color="#5f6368">${escapeText(TOOLBAR_HINT)}</font>`,
+      ),
+    ).toHaveLength(2);
     calls.length = 0;
     addon.onComposeOpen({ draftMetadata: { toRecipients: [] } });
-    expect(argsOf("setAltText")).toEqual(["Insert Welcome"]);
-    expect(argsOf("setText")).not.toContain(TOOLBAR_HINT);
+    expect(argsOf("setAltText")).toEqual([
+      "Search templates",
+      "Insert Welcome",
+    ]);
+    expect(argsOf("setText").join(" ")).not.toContain(
+      "Migway Templates button",
+    );
   });
 
   it("Insert returns UpdateDraftActionResponse with IN_PLACE_INSERT and MUTABLE_HTML", () => {

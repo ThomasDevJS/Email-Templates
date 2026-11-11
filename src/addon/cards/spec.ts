@@ -57,17 +57,29 @@ export interface ButtonSpec {
   readonly style?: "filled" | "outlined";
   /** `setComposeAction` with this `ComposedEmailType` in place of a click action; the callback returns a draft. */
   readonly compose?: "STANDALONE_DRAFT" | "REPLY_AS_DRAFT";
+  /** Material icon before the text. */
+  readonly icon?: IconName;
+}
+
+/** A hint line (D36). */
+export function hint(text: string): Widget {
+  return { kind: "text", text, tone: "hint" };
 }
 
 /** Material icon names (`newMaterialIcon().setName`): no image URL, so the add-on loads nothing from outside Google. */
-export type IconName = "star" | "schedule" | "description" | "folder";
+export type IconName =
+  "star" | "schedule" | "description" | "folder" | "info" | "search";
 
 export type Widget =
   | {
       readonly kind: "text";
       readonly text: string;
-      /** "error": a line that reports a problem, shown in brand red; it keeps its words ("(!)"), so color is extra. */
-      readonly tone?: "error";
+      /**
+       * "error": a line that reports a problem, shown in brand red; it keeps its words ("(!)"), so color is extra.
+       * "hint": guidance on what to do next (no error, no empty state, no fact about the template), shown grey with
+       * the info icon (D36).
+       */
+      readonly tone?: "error" | "hint";
     }
   | {
       readonly kind: "item";

@@ -66,6 +66,19 @@ function searchSection(query: string): SectionSpec {
         multiline: false,
         onChange: action("onSearch"),
       },
+      // Enter or leaving the box also searches (`onChange`); the button makes that visible (D36).
+      {
+        kind: "buttons",
+        buttons: [
+          {
+            text: "Search",
+            icon: "search",
+            alt: "Search templates",
+            style: "outlined",
+            action: action("onSearch"),
+          },
+        ],
+      },
     ],
   };
 }

@@ -347,6 +347,8 @@ describe("labels (plain text in Gmail)", () => {
 
   it("escapes the query echoed in the no-match text", () => {
     renderCard(searchCard(view(), "<b>x</b>", [], "compose"));
-    expect(argsOf("setText")[0]).toContain("&lt;b&gt;x&lt;/b&gt;");
+    expect(argsOf("setText")).toContainEqual(
+      expect.stringContaining("&lt;b&gt;x&lt;/b&gt;"),
+    );
   });
 });

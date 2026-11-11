@@ -85,14 +85,17 @@ describe("card size limit (slice 20b item 1)", () => {
       {
         kind: "text",
         text: "Showing 10 of 20 favorites. Use Search or Open library for the rest.",
+        tone: "hint",
       },
       {
         kind: "text",
         text: "Showing 5 of 20 recent templates. Use Search or Open library for the rest.",
+        tone: "hint",
       },
       {
         kind: "text",
         text: "Showing 40 of 200 folders. Use Search or Open library for the rest.",
+        tone: "hint",
       },
     ]);
   });
@@ -102,11 +105,13 @@ describe("card size limit (slice 20b item 1)", () => {
     expect(sub?.sections[0]?.widgets.at(-1)).toEqual({
       kind: "text",
       text: "Showing 40 of 100 folders. Use Search or Open library for the rest.",
+      tone: "hint",
     });
     const found = searchCard(data, "x", data.templates, "message");
     expect(found.sections[1]?.widgets.at(-1)).toEqual({
       kind: "text",
       text: "Showing 20 of 65 results. Use Search or Open library for the rest.",
+      tone: "hint",
     });
   });
 
