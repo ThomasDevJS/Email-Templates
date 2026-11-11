@@ -1,9 +1,11 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Surface } from "../../shared/log/logger";
 import type { IndexDoc } from "../../shared/model/data";
+import { personalTemplatesOn } from "../../shared/model/settings";
 import {
   ancestry,
   folderMap,
+  inPrivateTree,
   levelResolver,
 } from "../../shared/permissions/effective";
 import {
@@ -95,17 +97,33 @@ function recordDenied(
   bufferEvent(services.cache, services.lock, { kind: "denied", event });
 }
 
+/** Spec 7: the off text when personal templates are off and a target sits in a private tree (D29). */
+function deniedError(
+  index?: IndexDoc,
+  targets: readonly string[] = [],
+): AppError {
+  const byId = folderMap(index?.folders ?? []);
+  const privateOff =
+    index !== undefined &&
+    !personalTemplatesOn(index.settings) &&
+    targets.some((target) => inPrivateTree(ancestry(target, byId)));
+  return new AppError(
+    ErrorCode.DENIED,
+    privateOff
+      ? "Personal templates are turned off by your admin."
+      : "You don't have access to this. Ask a folder manager.",
+  );
+}
+
 function deny(
   request: DispatchRequest,
   services: Services,
   targets: readonly string[],
   roles: string,
+  index?: IndexDoc,
 ): never {
   recordDenied(request, services, ErrorCode.DENIED, targets, roles);
-  throw new AppError(
-    ErrorCode.DENIED,
-    "You don't have access to this. Ask a folder manager.",
-  );
+  throw deniedError(index, targets);
 }
 
 function actionOf(row: PolicyRow, args: unknown): PolicyAction {
@@ -140,7 +158,13 @@ function authorize(
   const access = context.access();
   const targets = row.targets?.(request.args, access.index) ?? [];
   if (!checkNeed(need, access.subject.isAdmin, access.levelOf, targets))
-    deny(request, context.services, targets, rolesOf(access, targets));
+    deny(
+      request,
+      context.services,
+      targets,
+      rolesOf(access, targets),
+      access.index,
+    );
   return placement(access.index, targets);
 }
 
@@ -155,13 +179,6 @@ function placement(index: IndexDoc, targets: readonly string[]): string {
           .join(">") || target,
     )
     .join(",");
-}
-
-function deniedError(): AppError {
-  return new AppError(
-    ErrorCode.DENIED,
-    "You don't have access to this. Ask a folder manager.",
-  );
 }
 
 /**
@@ -198,7 +215,7 @@ function recheck(
     );
   }
   if (!checkNeed(need, subject.isAdmin, levelResolver(subject, index), fresh))
-    throw deniedError();
+    throw deniedError(index, fresh);
 }
 
 function checkDomain(request: DispatchRequest, services: Services): void {

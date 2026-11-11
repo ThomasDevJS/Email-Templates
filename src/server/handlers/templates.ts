@@ -191,10 +191,7 @@ export function appliedRecipients(
   context: HandlerContext,
   item: Item,
 ): AppliedRecipients {
-  return splitBlocked(
-    recipientsOf(item),
-    recipientPolicy(context.services.props),
-  );
+  return splitBlocked(recipientsOf(item), recipientPolicy(context));
 }
 
 /**
@@ -248,7 +245,7 @@ function readDraft(context: HandlerContext, stored = NO_RECIPIENTS): Draft {
   const title = templateTitle(reqString(context.args, "title"));
   const tags = tagList(optStringArray(context.args, "tags"));
   const body = prepareFor(
-    context.services.props,
+    context,
     optString(context.args, "html"),
     optString(context.args, "subject"),
     recipientArgs(context, stored),
@@ -324,12 +321,7 @@ export function templateDuplicate(context: HandlerContext): Item {
   const draft: Draft = {
     title: copyTitle(source.title),
     tags: [...source.tags],
-    body: prepareFor(
-      context.services.props,
-      stored,
-      source.subject,
-      recipientsOf(source),
-    ),
+    body: prepareFor(context, stored, source.subject, recipientsOf(source)),
   };
   return addTemplate(context, folderId, draft, "template.duplicate");
 }

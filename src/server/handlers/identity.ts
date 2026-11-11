@@ -1,5 +1,6 @@
 import { BUILD_INFO } from "../../shared/buildInfo";
 import type { ExternalRule } from "../../shared/model/recipients";
+import { settingValue } from "../../shared/model/settings";
 import type { HandlerContext } from "../dispatch/context";
 import { recipientPolicy } from "./body";
 import { lookupProfile, type SenderProfile } from "../directory/profile";
@@ -13,18 +14,21 @@ export function ping({ caller }: HandlerContext): {
   return { pong: true, caller: caller.email, env: BUILD_INFO.env };
 }
 
-/** Caller identity and admin flag, for the web app header and navigation; the recipient switch for the editor. */
+/** Caller identity and admin flag, for the web app header and navigation; the two admin settings (D29). */
 export function me(context: HandlerContext): {
   email: string;
   isAdmin: boolean;
   env: string;
+  personalTemplates: "on" | "off";
   recipientsExternal: ExternalRule;
 } {
+  const { subject, index } = context.access();
   return {
     email: context.caller.email,
-    isAdmin: context.access().subject.isAdmin,
+    isAdmin: subject.isAdmin,
     env: BUILD_INFO.env,
-    recipientsExternal: recipientPolicy(context.services.props).external,
+    personalTemplates: settingValue(index.settings, "personalTemplates"),
+    recipientsExternal: recipientPolicy(context).external,
   };
 }
 

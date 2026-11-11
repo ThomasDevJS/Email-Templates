@@ -21,6 +21,11 @@ import { advancedDriveClient } from "../../src/server/storage/advancedDrive";
 import { driveStore } from "../../src/server/storage/driveStore";
 import { requireStoreIds } from "../../src/server/storage/setupStore";
 import type { RpcResponse } from "../../src/shared/model/protocol";
+import {
+  SETTINGS,
+  type SettingName,
+  type SettingValue,
+} from "../../src/shared/model/settings";
 import { FakeCache } from "./cache";
 import { createDrive, type FakeDrive } from "./drive";
 import {
@@ -162,4 +167,15 @@ export function setupWorld(): World {
   const world = createWorld();
   runSetup(world.services);
   return world;
+}
+
+/** Admin setting through `config.set` as the owner (an admin after setup); `from` is the other value. */
+export function setSetting(
+  world: World,
+  name: SettingName,
+  value: SettingValue,
+): void {
+  const values: readonly string[] = SETTINGS[name].values;
+  const from = values.find((other) => other !== value);
+  world.ok(OWNER, "config.set", { name, value, from });
 }

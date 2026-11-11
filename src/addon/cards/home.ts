@@ -23,8 +23,17 @@ export const openLibraryButton = {
   buttons: [{ text: "Open library", action: action("onOpenLink") }],
 } as const satisfies Widget;
 
-/** Wireframe 07 A. */
-function emptySection(): SectionSpec {
+/** Wireframe 07 A; A2 while personal templates are off (D29). */
+function emptySection(view: SidebarHome): SectionSpec {
+  if (view.personalTemplates === "off")
+    return {
+      widgets: [
+        {
+          kind: "text",
+          text: "No templates shared with you yet. Ask your admin for access to a folder.",
+        },
+      ],
+    };
   return {
     widgets: [
       { kind: "text", text: "No templates shared with you yet." },
@@ -97,7 +106,7 @@ function recentSections(view: SidebarHome, entry: Entry): SectionSpec[] {
 
 function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
   // Spec section 7 "no visible templates": an empty private folder still counts as empty.
-  if (view.templates.length === 0) return [emptySection()];
+  if (view.templates.length === 0) return [emptySection(view)];
   return [
     searchSection(""),
     favoritesSection(view, entry),

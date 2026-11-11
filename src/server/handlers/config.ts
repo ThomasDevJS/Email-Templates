@@ -1,7 +1,16 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import { TRIGGER_JOBS, type TriggerJob } from "../../shared/entryPoints";
 import type { IndexDoc } from "../../shared/model/data";
-import type { ExternalRule } from "../../shared/model/recipients";
+import {
+  allowedWords,
+  isSettingName,
+  isSettingValue,
+  settingsOf,
+  type SettingEntry,
+  type SettingName,
+  type SettingValue,
+  type Settings,
+} from "../../shared/model/settings";
 import { utf8Length } from "../../shared/text";
 import { auditEvent } from "../audit/events";
 import { INDEX_REV_KEY, loadIndexForWrite } from "../cache/indexCache";
@@ -20,10 +29,9 @@ import {
   TRIGGERS_VERSION_KEY,
 } from "../jobs/triggers";
 import { WRITE_LOCK_MS, withLock } from "../lock";
-import { recipientPolicy } from "./body";
 import { ADMIN_GROUP_KEY, RESOLVER_KEY } from "../membership/snapshot";
 import { resolverId } from "../membership/resolver";
-import type { Services } from "../services";
+import { nowIso, type Services } from "../services";
 import type { BackupDocs, SideDocs } from "../storage/port";
 import { commitLocked } from "../storage/writer";
 
@@ -86,8 +94,8 @@ export interface ConfigView {
   readonly adminGroup: string;
   readonly resolver: string;
   readonly callerIdentity: string;
-  /** `RECIPIENTS_EXTERNAL` (spec 5.7), `allow` when unset. */
-  readonly recipientsExternal: ExternalRule;
+  /** Admin settings (D29, spec 5.8), defaults filled in. */
+  readonly settings: Settings;
   readonly indexRev: string;
   readonly appVersion: string;
   readonly indexBytes: number;
@@ -106,7 +114,7 @@ export function configGet(context: HandlerContext): ConfigView {
     adminGroup: prop(ADMIN_GROUP_KEY),
     resolver: resolverId(services.props.getProperty(RESOLVER_KEY)),
     callerIdentity: prop(CALLER_IDENTITY_KEY) || "active_user",
-    recipientsExternal: recipientPolicy(services.props).external,
+    settings: settingsOf(index.settings),
     indexRev: prop(INDEX_REV_KEY),
     appVersion: services.appVersion,
     indexBytes: utf8Length(JSON.stringify(index)),
@@ -195,7 +203,7 @@ function undoSides(services: Services, replaced: Readonly<Replaced>): void {
  * Restore from backup (admin, ADR-0002 Backup). The 3 copies are read and shape-checked before the lock (a damaged
  * copy answers VALIDATION naming the file). Under the lock: admin re-check, refusal when templates of the backup
  * were emptied from the trash since, then `favorites.json` and `usage.json`, then `index.json` as the commit point
- * (`rev = current + 1`, current `pendingAudit` kept, one `backup.restore` event). A failure before the index write
+ * (`rev = current + 1`, current `pendingAudit` and `settings` kept, one `backup.restore` event). A failure before the index write
  * puts the replaced side files back. Revs and cache sets are published, so readers see the restored data at once.
  */
 export function backupRestore(context: HandlerContext): {
@@ -227,7 +235,11 @@ export function backupRestore(context: HandlerContext): {
           after: { date, rev: latest.rev + 1, items: restored.items.length },
         });
         return {
-          doc: { ...restored, pendingAudit: latest.pendingAudit },
+          doc: {
+            ...restored,
+            pendingAudit: latest.pendingAudit,
+            settings: latest.settings,
+          },
           events: [event],
           result: latest.rev + 1,
         };
@@ -237,5 +249,81 @@ export function backupRestore(context: HandlerContext): {
       undoSides(services, replaced);
       throw error;
     }
+  });
+}
+
+const SET_ARGS = ["name", "value", "from"];
+
+interface SetRequest {
+  readonly name: SettingName;
+  readonly value: SettingValue;
+  readonly from: SettingValue;
+}
+
+/** `{ name, value, from }` against the fixed list (spec 5.8); anything else is VALIDATION with the spec 7.3 texts. */
+export function setRequest(args: unknown): SetRequest {
+  const record = (args ?? {}) as Readonly<Record<string, unknown>>;
+  const name = record["name"];
+  if (!isSettingName(name))
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      `Setting ${typeof name === "string" ? name : ""} does not exist.`,
+    );
+  const value = record["value"];
+  const from = record["from"];
+  const extra = Object.keys(record).some((key) => !SET_ARGS.includes(key));
+  if (!isSettingValue(name, value) || !isSettingValue(name, from) || extra)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      `Setting ${name} takes ${allowedWords(name)}.`,
+    );
+  return { name, value, from };
+}
+
+export interface SetResult extends SettingEntry {
+  readonly name: SettingName;
+  readonly changed: boolean;
+}
+
+/**
+ * `config.set` (admin, web, ADR-0008 section 2). Under the lock on the fresh index: admin re-check, then the same
+ * value answers `changed: false` with no write; a current value other than `from` answers CONFLICT with the current
+ * entry. Else one index commit carries the change and its `config.set` event; `INDEX_REV` rises.
+ */
+export function configSet(context: HandlerContext): SetResult {
+  const { name, value, from } = setRequest(context.args);
+  const { services } = context;
+  const source = eventSource(context);
+  return withLock(services.lock, WRITE_LOCK_MS, () => {
+    const current = loadIndexForWrite(services);
+    context.recheck(current);
+    const entry: SettingEntry = settingsOf(current.settings)[name];
+    if (entry.value === value) return { name, ...entry, changed: false };
+    if (entry.value !== from)
+      throw new AppError(
+        ErrorCode.CONFLICT,
+        // The client adds "on <local time>" from `updatedAt` (spec 7.3); the server has no caller time zone.
+        `${entry.updatedBy.split("@")[0] ?? ""} changed this setting. The page now shows the current value.`,
+        { name, ...entry },
+      );
+    return commitLocked(services, (latest) => {
+      const after: SettingEntry = {
+        value,
+        updatedAt: nowIso(services),
+        updatedBy: context.caller.email,
+      };
+      const event = auditEvent(source, {
+        action: "config.set",
+        targetType: "config",
+        targetId: name,
+        before: { name, value: entry.value },
+        after: { name, value },
+      });
+      return {
+        doc: { ...latest, settings: { ...latest.settings, [name]: after } },
+        events: [event],
+        result: { name, ...after, changed: true },
+      };
+    });
   });
 }

@@ -13,13 +13,8 @@ export const RCPT_TOTAL_MAX = 20;
 /** The email address limit, as `PRINCIPAL_KEY_MAX`. */
 export const RCPT_ADDRESS_MAX = 254;
 
-/** Script Property: `allow` (default, also when unset) or `deny` (outside addresses refused, spec 5.7). */
-export const RECIPIENTS_EXTERNAL_KEY = "RECIPIENTS_EXTERNAL";
+/** Admin setting `recipientsExternal` (D29, spec 5.8): `allow` (default) or `deny` (outside addresses refused). */
 export type ExternalRule = "allow" | "deny";
-
-export function externalRule(raw: string | null): ExternalRule {
-  return raw?.trim().toLowerCase() === "deny" ? "deny" : "allow";
-}
 
 export interface RecipientPolicy {
   /** Script Property `DOMAIN`; the only inside domain in v1 (Q36). */
