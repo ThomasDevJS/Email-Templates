@@ -46,6 +46,21 @@ function multipart(meta: object, text: string): string {
   ].join("\r\n");
 }
 
+const FILE_ID = /^[\w-]+$/;
+
+/**
+ * Drive file IDs hold letters, digits, `-` and `_`; any other ID is refused before a request. Encoding alone is not
+ * enough: URL parsers read `%2e%2e` as `..`, which climbs out of `/files/`.
+ */
+export function fileUrl(base: string, fileId: string): string {
+  if (!FILE_ID.test(fileId))
+    throw new AppError(
+      ErrorCode.INTERNAL,
+      "Drive REST refused a malformed file ID",
+    );
+  return `${base}/${fileId}`;
+}
+
 function query(params: Readonly<Record<string, string>>): string {
   return Object.entries(params)
     .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
@@ -64,6 +79,11 @@ function sender(fetch: HttpFetch, token: () => string) {
     const options = buildOptions(request, token());
     const response = fetch(request.url, options);
     const code = response.getResponseCode();
+    if (code === 429)
+      throw new AppError(
+        ErrorCode.QUOTA,
+        "Service is busy. Try again in a minute.",
+      );
     if (code < 200 || code >= 300) {
       throw new AppError(
         ErrorCode.INTERNAL,
@@ -84,7 +104,7 @@ export function restMediaReader(
 ): (fileId: string) => string {
   const send = sender(fetch, token);
   return (fileId) =>
-    send({ method: "get", url: `${DRIVE_API}/${fileId}?alt=media` });
+    send({ method: "get", url: `${fileUrl(DRIVE_API, fileId)}?alt=media` });
 }
 
 export function restDriveClient(
@@ -126,7 +146,7 @@ export function restDriveClient(
     updateFile: (fileId: string, text: string, props?: AppProperties) => {
       send({
         method: "patch",
-        url: `${DRIVE_UPLOAD}/${fileId}?uploadType=multipart&fields=id`,
+        url: `${fileUrl(DRIVE_UPLOAD, fileId)}?uploadType=multipart&fields=id`,
         upload: {
           meta: props === undefined ? {} : { appProperties: props },
           text,
@@ -139,7 +159,7 @@ export function restDriveClient(
       toDriveFile(
         json({
           method: "get",
-          url: `${DRIVE_API}/${fileId}?${query({ fields: FILE_FIELDS })}`,
+          url: `${fileUrl(DRIVE_API, fileId)}?${query({ fields: FILE_FIELDS })}`,
         }),
       ),
     list: (q) => listAll(json, q),
@@ -147,14 +167,14 @@ export function restDriveClient(
       toDriveFile(
         json({
           method: "post",
-          url: `${DRIVE_API}/${fileId}/copy?fields=id`,
+          url: `${fileUrl(DRIVE_API, fileId)}/copy?fields=id`,
           json: { name, parents: [parentId] },
         }),
       ).id,
     trash: (fileId) => {
       send({
         method: "patch",
-        url: `${DRIVE_API}/${fileId}?fields=id`,
+        url: `${fileUrl(DRIVE_API, fileId)}?fields=id`,
         json: { trashed: true },
       });
     },

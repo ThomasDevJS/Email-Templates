@@ -13,6 +13,8 @@ import {
 } from "../../../src/server/storage/driveClient";
 import { bodyName, driveStore } from "../../../src/server/storage/driveStore";
 import {
+  DRIVE_API,
+  fileUrl,
   restDriveClient,
   restMediaReader,
 } from "../../../src/server/storage/restDrive";
@@ -221,6 +223,35 @@ describe("Drive client details", () => {
     });
     expect(fetchApp.requests[0]?.url).toBe(
       "https://www.googleapis.com/drive/v3/files/x?alt=media",
+    );
+  });
+
+  it("rest client refuses file IDs that could change the URL path, before any request", () => {
+    const fetchApp = createUrlFetchApp();
+    fetchApp.respondWith(() => ({ status: 200, body: "{}" }));
+    const read = restMediaReader(
+      (url, options) => fetchApp.fetch(url, options),
+      () => "tok",
+    );
+    for (const id of ["a/b", "x?y", "z#w", "..", "%2e%2e", "."])
+      expect(() => read(id)).toThrow("Drive REST refused a malformed file ID");
+    expect(fetchApp.requests).toHaveLength(0);
+    expect(read("1AbC_-9")).toBe("{}");
+    expect(fileUrl(DRIVE_API, "1AbC_-9")).toBe(`${DRIVE_API}/1AbC_-9`);
+  });
+
+  it("rest client answers QUOTA with the busy text on HTTP 429", () => {
+    const fetchApp = createUrlFetchApp();
+    fetchApp.respondWith(() => ({ status: 429, body: "" }));
+    const read = restMediaReader(
+      (url, options) => fetchApp.fetch(url, options),
+      () => "tok",
+    );
+    expect(() => read("x")).toThrow(
+      expect.objectContaining({
+        code: "QUOTA",
+        message: "Service is busy. Try again in a minute.",
+      }),
     );
   });
 
@@ -472,8 +503,7 @@ describe("Drive store port", () => {
   it("trashes files and rejects files that are not JSON", () => {
     const ids = requireStoreIds(props);
     drive.patch(ids.indexId, {}, "{not json");
-    // The Advanced service fails before the store parses (slice 19 finding); INTERNAL either way.
-    expect(() => store.readIndex()).toThrow("HttpResponseException");
+    expect(() => store.readIndex()).toThrow("index.json is not valid JSON");
     store.trash(ids.usageId);
     expect(drive.files.get(ids.usageId)?.trashed).toBe(true);
   });
