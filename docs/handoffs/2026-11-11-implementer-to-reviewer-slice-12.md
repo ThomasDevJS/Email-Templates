@@ -115,3 +115,25 @@ Nothing renders outside Gmail. The tests pin the model and the recorded Card Ser
 ## Files touched
 
 src/addon/cards/{spec,render,folder,home,preview,prompt,states,sidePanel}.ts, src/addon/flows.ts (one text), src/addon/entry.ts (one text), test/fakes/output.ts, test/unit/addon/{cards,render,addon,flows,recipientFlows}.test.ts, docs/ops/smoke.md, docs/ops/runbook.md, docs/guide/user-quick-start.md.
+
+## Follow-up (review gaps 1, 2, 4, 5, 6, 7)
+
+- Gap 1: labels never get markup. `render.ts` passes top and bottom labels through `escapeText` only (no `<br>`). The row label is one line: path, then hints, joined by " · ". Recipient markers on the preview and prompt cards are also one line, joined by " · ". Renderer tests: no `<` or `>` in any label of a home card and a preview card with recipients; a folder named `R&D <b>...` with a long path reads `R&amp;D &lt;b&gt;... / Quotes for every region · 1 field to fill · Adds To 1, Cc 1`.
+- Folder card rows: no path (the header shows it); only the hints, no label when there are none.
+- Gap 2: the no-match text repeats at most `ECHO_MAX` = 60 characters of the query, then "...". Still escaped (renderer test).
+- Gap 4: smoke Slice 4 steps 1 and 2 and deploy.md step 10 quote this build.
+- Gap 5: smoke "Slice 12" now 8 steps: icons, `<br>`, `&amp;` and slate checks in step 1; Insert regression (step 6); dev S7 section after the hint (step 7); DENIED, QUOTA and request-ID cards marked not reachable (step 8).
+- Gap 6: "sidebar" left no add-on text.
+- Gap 7: `openLibraryButton` is no longer exported.
+
+Changed texts in the follow-up (old, new):
+
+| Place | Old | New |
+|---|---|---|
+| Template row label, lists | "Sales" line, then "2 fields to fill · Adds Cc 1" line | "Sales · 2 fields to fill · Adds Cc 1" |
+| Template row label, folder card | "Sales" line, then hints line | hints only ("2 fields to fill · Adds Cc 1"), or none |
+| Recipient line markers | "outside migway.com" line, then "hidden from other recipients" line | "outside migway.com · hidden from other recipients" |
+| Search, no result, long query | the whole query | first 60 characters, then "..." |
+| Too many fields | "... The sidebar fills at most 20. ..." | "... The panel fills at most 20. ..." |
+
+Commands after `rm -rf node_modules && npm ci`: see the report of this run (lint, typecheck, test:coverage, build dev, scopes:check, format:check).

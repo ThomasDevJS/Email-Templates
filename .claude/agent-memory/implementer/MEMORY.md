@@ -119,7 +119,7 @@
 - Harness guard stays outside the error wrapper (the guard test expects a throw). `perl -0pi` multi-file edits pass the worktree guard; python heredocs do not.
 ## Slice 12 (add-on layout and wording, 2026-11-11)
 - Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.
-- `templateItem(t, entry, path, icon)`: bottom label = path, then hints " · ". `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
+- `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
 - `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT`: the one place side-panel insert replaces. Empty home (`emptySection`) belongs to the admin-settings slice.
 
 ## Slice 8c (admin UI, 2026-11-10)

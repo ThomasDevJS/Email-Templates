@@ -17,7 +17,7 @@ All commands run on the owner's machine from the repository root. The cloud sess
 7. Commit `deploy/dev.json`, then `npm run deploy -- dev` again, so the add-on bundle carries `execUrl`.
 8. In the editor, signed in as the account that owns the web app deployment, select function `setup` and click Run once. Accept the consent screen (10 scopes, spec section 9; slice 2 adds none). The execution log shows one JSON line with `"action":"setup","result":"ok"`. `setup` records Script Properties `OWNER_EMAIL`, `DOMAIN` and `ADMIN_EMAILS` (your email), creates the Drive folder "Migway Templates Data" and installs 3 triggers. Until `setup` has run, every server call answers `NOT_CONFIGURED` (since slice 4) and the sidebar shows "Migway Templates is not set up yet." A script editor other than the owner gets "setup may run only as the owner".
 9. Install the add-on test deployment: Deploy, Test deployments, Application: Google Workspace Add-on, Install.
-10. Open Gmail, compose a new message, open the Migway Templates icon in the compose toolbar. Expect the home card "Migway Templates" with Folders, or "No templates shared with you yet." on a new install.
+10. Open Gmail, compose a new message, open the Migway Templates icon in the compose toolbar. Expect the home card with "Search templates" and Folders (no card header; Gmail's bar says "Migway Templates"), or "No templates shared with you yet." on a new install.
 
 If step 10 shows "Something went wrong." with `Network: Server returned HTTP 401` or `403` in mode `head`, the `/dev` URL rejects token calls (spike S2 (d)). Set `"mode": "version"` in `deploy/dev.json`, use the `/exec` URL of the step 6 deployment as `execUrl`, commit, and deploy again. Each dev deploy then creates 1 version.
 
