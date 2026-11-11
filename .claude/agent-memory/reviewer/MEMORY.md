@@ -89,6 +89,7 @@
   - cancelDialogs: app.ts open() (route change) and editor canLeave (before the question). Minor: implementer MEMORY:126 describes it wrong.
 - Slice 14 wording (2026-11-11): FAIL (3bad2cb). Code, tests, defects a-f pass; 13 stale quotes in admin-guide 120/194/211, editor-guide 113/125, smoke 114-131 (Slice 6a/6b steps). 65 files, 1779 tests, lines 97.82, Code.js 360.4 KB, index.html 375.5 KB, Lighthouse 100x15, 10 scopes.
   - Import ReportLine has no code field; reasonOf dropped `code:` so SUBJ_/PH_ codes left the response (minor, freeze forbids a field). Chip announcer .sr-only.chip-status verified in Chromium AX tree.
+  - Retry 1 PASS (d52d084, review on top): 13 quotes fixed, 40-quote sample 0 misses, src text only + roleWords (actions.ts), 1780 tests, Code.js 360.5 KB, index.html 375.7 KB, Lighthouse 100x15. Open: import code gone from report (minor 1).
   - Doc check method: extract every "quoted" string from guides/smoke, grep first 40 chars in src; read misses by hand (most are composed strings).
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
