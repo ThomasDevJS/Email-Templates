@@ -149,7 +149,17 @@ No line holds template text, subjects, prompt values, recipient addresses or tok
 
 ## Restore from backup
 
-Use the "Settings and backups" tab: [admin guide, Backups and restore](../guide/admin-guide.md#backups-and-restore). It restores `index.json`, `favorites.json` and `usage.json` of one of the last 14 nights. Every change after that date is lost. Not yet verified on dev.
+Use the "Settings and backups" tab: [admin guide, Backups and restore](../guide/admin-guide.md#backups-and-restore). It restores `index.json`, `favorites.json` and `usage.json` of one of the last 14 nights. Every change after that date is lost. The Admins list and the settings stay as they are now; a restore does not bring back a removed admin. Not yet verified on dev.
+
+## An admin account is taken over
+
+Not yet exercised.
+
+1. A Workspace admin suspends the account and resets its sign-in.
+2. The owner opens Admin, "Audit log" tab, filters on that actor, and lists `admin.add`, `admin.remove`, `config.set`, `grant.*` and `backup.restore` events since the takeover.
+3. The owner removes every address that actor added under Admins ("Settings and backups" tab) and adds back any admin it removed.
+4. If the account is in `ADMIN_EMAILS`, the owner deletes it from the property. If it is in `ADMIN_GROUP`, a Workspace admin removes it from the group and an admin presses "Refresh groups" on the Groups tab.
+5. The owner undoes the settings and grant changes found in step 2.
 
 ## Recovery of a damaged index.json
 

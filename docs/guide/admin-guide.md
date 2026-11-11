@@ -44,7 +44,7 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 | Refresh memberships, view config | no | no | no | yes |
 | Personal folder of self | edit | edit | edit | yes |
 
-- Admin status is never granted in the app. The owner sets `ADMIN_GROUP` (one group address) and `ADMIN_EMAILS` (comma-separated addresses) in the Apps Script editor, Project Settings, Script Properties. `setup()` puts the owner in `ADMIN_EMAILS`.
+- Admins come from 3 places: the Admins list in Admin, "Settings and backups" tab, Settings; the admin group (`ADMIN_GROUP`); and the owner's list (`ADMIN_EMAILS`). Any admin adds or removes people in the Admins list. Only the owner changes `ADMIN_GROUP` and `ADMIN_EMAILS`, in the Apps Script editor, Project Settings, Script Properties. `setup()` puts the owner in `ADMIN_EMAILS`.
 - Every person has one personal folder, "My templates", with `edit` for its owner. It cannot be shared, moved or deleted.
 - Admins see and can change every personal folder (D18). The user quick start discloses this. In the library an admin sees other people's folders as "My templates (name@migway.com)". The Gmail panel hides them.
 - The Admin entry in the left rail shows for admins and `manage` holders. Admins see 6 tabs. `manage` holders see "Folders and access" and "Export and import" (folder export only).
@@ -169,6 +169,31 @@ Admin, "Settings and backups" tab, section "Settings", first on the tab. Only ad
 - Each change writes one audit event "Setting changed" with the old and new value. Under the setting: "Last change: <name> on <time>." or "Default, never changed."
 - If another admin changed the setting while your page was open, you see "<name> changed this setting on <time>. The page now shows the current value."
 - Script Property `RECIPIENTS_EXTERNAL` is no longer read. If it was set to `deny`, set "migway.com only" here and delete the property.
+
+## Admins ("Settings and backups" tab)
+
+Admin, "Settings and backups" tab, section "Admins", after the two settings. It lists the people added here, each with "Added by <name> on <time>.", then the owner's list ("Set by the owner: ...") and the admin group ("Members of ..."). The owner's list and the group cannot be changed here.
+
+Add an admin:
+
+1. Open Admin, "Settings and backups" tab.
+2. Under Admins, type the person's migway.com address in "Email address".
+3. Press "Add admin". The line reads "<address> is now an admin."
+4. The person reloads the web app. The Admin entry and all 6 tabs appear.
+
+Remove an admin:
+
+1. Press "Remove" on the person's row.
+2. Press "Remove admin" in the dialog (Cancel has the focus). They lose admin access at their next action. Their templates and folders stay.
+
+- Only people of migway.com with an account can be added. An address of a group is refused: groups go in `ADMIN_GROUP`, which the owner sets.
+- An alias is stored as the person's main address.
+- You cannot remove yourself. Your own row has no Remove button; ask another admin.
+- The list holds 20 people. Remove one first to add another.
+- Every add and remove is one entry in the Audit log ("Admin added", "Admin removed") with who did it and the address.
+- A restore from backup keeps the Admins list as it is now.
+- The Gmail panel can show a new or removed admin's old folder list for up to 10 minutes. The server checks every insert.
+- Nobody gets an email when they are added. Tell the person yourself.
 
 ## Technical details and background jobs
 

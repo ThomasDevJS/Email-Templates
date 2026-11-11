@@ -191,6 +191,19 @@ Needs: the dev deployment of this build (reload Gmail), a user with at least 1 f
 7. Side panel, no message open, then with a message open: the same home, folder, search and preview cards, with no Insert or Review on rows or the preview. Each card ends with "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." In the dev build the home card shows the section "Spike S7 (temporary)" after that line.
 8. State cards: open a folder in the panel, delete one of its templates in the library in another tab, then tap that template's title in the panel: "This template was deleted or moved. Press Refresh to update the list." with Refresh. No card header. DENIED, QUOTA and the request-ID error card are not reachable in a smoke run.
 
+## Slice 16
+
+Needs: the dev deployment of this build; the owner (in `ADMIN_EMAILS`) and the pilot user, each in their own browser; a made-up migway.com address; a group address of migway.com; an alias of a real user if one exists; the pilot has at least one folder grant. Record each result in the handoff.
+
+1. Owner opens Admin, "Settings and backups" tab, Settings. Admins shows "Set by the owner: <owner address>. These cannot be removed here." and "No admins added here yet."
+2. Owner adds the pilot user's address. Status "<address> is now an admin."; the row reads "Added by <owner name part> on <time>."; the Audit log tab shows "Admin added", actor the owner, target the pilot.
+3. Pilot reloads the web app: Admin shows the admin tabs; "Settings and backups" opens; the pilot's own row has no Remove button.
+4. Pilot tries: an outside address ("Only migway.com addresses can be admins."), a made-up migway.com address and a group address (both "No migway.com account has this address. A group goes in the admin group the owner sets."), an alias of a real user if one exists (stored as the primary address). Record the Directory error text in Executions for the made-up and the group address; any other text shows "Something went wrong" and must be reported.
+5. With the pilot's "Settings and backups" tab open, the owner removes the pilot (dialog, Cancel focused, "Remove admin"). The pilot changes a setting and presses Save: the DENIED text. Reload: no admin tabs.
+6. Pilot in Gmail presses Refresh in the add-on: the panel lists only the folders granted to the pilot.
+7. Owner restores yesterday's backup (dev only): the Admins list is unchanged; the restore event shows `liveAdminsKept: true`.
+8. Owner checks the Audit log: one "Admin added" and one "Admin removed" for the pilot, none for the refused tries. Executions: the `admin.add` and `admin.remove` log lines carry `targetId` "" and no address.
+
 ## Spike S7
 
 Open the add-on from Gmail's right side panel for this test, never from a draft's toolbar.
