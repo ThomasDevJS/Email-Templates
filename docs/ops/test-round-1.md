@@ -37,7 +37,7 @@ Gmail, "Compose". Click into the text of the draft first. Then click the Migway 
 
 ### Templates to create once
 
-The owner creates these once in the web editor before part A. In the library: "New template", "Create the template in" "Smoke 6a", "Create". Type the title in "Title" and the subject in "Subject". For To, Cc and Bcc (panel "Details" on the right) type one address and press Enter, so it becomes a chip. Press "Save". Expect: "Saved as version 1, " followed by the time.
+The owner creates these once in the web editor before part A. In the library, on "All templates": "New template", "Create the template in" "Smoke 6a", "Create". (Inside the folder "Smoke 6a" the button opens the editor at once, with that folder set.) Type the title in "Title" and the subject in "Subject". For To, Cc and Bcc (panel "Details" on the right) type one address and press Enter, so it becomes a chip. Press "Save". Expect: "Saved as version 1, " followed by the time.
 
 The table writes fields as `{{...}}`. In the text, type the words and spaces exactly as shown, and at each field use the menu: for `{{ask:Name}}` choose "Insert field", "Ask the sender...", type the name in "Field name the sender sees", OK; for `{{sender.phone}}` choose "Insert field", "Sender phone"; for `{{recipient.first_name}}` choose "Insert field", "Recipient first name". In "Subject" type the field as shown.
 
@@ -61,7 +61,7 @@ Last: in the library, click the star of "T1 plain" so it is a favorite.
 Web app, owner. About 25 minutes.
 
 1. Library, click "T2 fields". Expect: the header shows "Smoke 6a", the title, "Saved as version" with a time, "History" and "Save". The right panel shows "Details", "The sender fills in" (each field with "used once" or "used n times") and the tabs "Preview as me" and "Problems 0".
-2. Library, "New template", "Create the template in" "Smoke 6a", "Create". Title `A scratch`, text `one`, "Save". Expect: "Saved as version 1, " and the time.
+2. Library, "All templates", "New template", "Create the template in" "Smoke 6a", "Create". Title `A scratch`, text `one`, "Save". Expect: "Saved as version 1, " and the time.
 3. Press Tab until a toolbar button has focus, then the arrow keys. Expect: focus moves along the buttons; Home and End jump to the ends; hovering "Bold" shows "Bold (Ctrl+B)".
 4. Select a word, "Font", "Georgia". Expect: the word turns Georgia; "Font" again shows a check on "Georgia". Record: each font name shows in its own face (y/n).
 5. Type `{{`. Expect: the "Insert field" menu opens. Pick "Sender name": a blank chip appears. Press Backspace: the chip goes away whole.
