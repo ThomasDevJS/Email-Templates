@@ -1130,15 +1130,15 @@ const fake: GoogleScript = {
     },
   },
   history: {
-    push: (_state, _params, hash) => {
-      window.history.pushState(null, "", `#${hash}`);
+    push: (state, _params, hash) => {
+      window.history.pushState(state, "", `#${hash}`);
     },
-    replace: (_state, _params, hash) => {
-      window.history.replaceState(null, "", `#${hash}`);
+    replace: (state, _params, hash) => {
+      window.history.replaceState(state, "", `#${hash}`);
     },
     setChangeHandler: (handler) => {
-      window.addEventListener("popstate", () => {
-        handler({ location: currentLocation() });
+      window.addEventListener("popstate", (event) => {
+        handler({ state: event.state, location: currentLocation() });
       });
     },
   },

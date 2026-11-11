@@ -8,7 +8,11 @@ import {
   sinkListItem,
   splitListItem,
 } from "prosemirror-schema-list";
-import { EditorState, type Command } from "prosemirror-state";
+import {
+  EditorState,
+  type Command,
+  type SelectionBookmark,
+} from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { parseHtml } from "./load";
 import { schema } from "./schema";
@@ -25,11 +29,21 @@ export interface EditorCallbacks {
   readonly onLink: () => void;
 }
 
+/** The selection saved before a dialog opens. It follows later edits, so the insert lands where the user was. */
+export interface HeldSelection {
+  /** Puts the saved selection back, then runs the command there. */
+  run(command: Command): void;
+  /** Forgets the selection (dialog cancelled) and focuses the editor. */
+  release(): void;
+}
+
 export interface Editor {
   readonly view: EditorView;
   html(): string;
   run(command: Command): void;
   focus(): void;
+  /** Saves the selection before a dialog takes focus (focus moves can reset the caret meanwhile). */
+  hold(): HeldSelection;
   destroy(): void;
 }
 
@@ -79,6 +93,7 @@ export function createEditor(
       history(),
     ],
   });
+  const held = new Set<{ bookmark: SelectionBookmark }>();
   const view = new EditorView(mount, {
     state,
     attributes,
@@ -86,6 +101,7 @@ export function createEditor(
     editable: () => !readOnly,
     dispatchTransaction(tr) {
       view.updateState(view.state.apply(tr));
+      for (const mark of held) mark.bookmark = mark.bookmark.map(tr.mapping);
       callbacks.onChange();
     },
   });
@@ -98,6 +114,24 @@ export function createEditor(
     },
     focus: () => {
       view.focus();
+    },
+    hold: () => {
+      const mark = { bookmark: view.state.selection.getBookmark() };
+      held.add(mark);
+      return {
+        run: (command) => {
+          held.delete(mark);
+          if (view.isDestroyed) return;
+          const { tr } = view.state;
+          view.dispatch(tr.setSelection(mark.bookmark.resolve(tr.doc)));
+          command(view.state, view.dispatch);
+          view.focus();
+        },
+        release: () => {
+          held.delete(mark);
+          if (!view.isDestroyed) view.focus();
+        },
+      };
     },
     destroy: () => {
       view.destroy();

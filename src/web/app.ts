@@ -77,7 +77,10 @@ export function startApp(host: Host): AppContext {
    */
   const isOpen = () => side.classList.contains("open");
   const outside = (event: Event) => {
-    if (!side.contains(event.target as Node)) setPanel(false);
+    const target = event.target as Element;
+    // A dialog over the panel (the leave question) is not outside: its answer returns focus into the panel.
+    if (!side.contains(target) && target.closest(".backdrop") === null)
+      setPanel(false);
   };
   const setPanel = (open: boolean, focusButton = false) => {
     side.classList.toggle("open", open);
@@ -166,6 +169,12 @@ export function startApp(host: Host): AppContext {
     if (view?.canLeave?.(leave) !== false) leave();
   };
 
+  const show = (next: Route) => {
+    host.navigate(routeHash(next), false);
+    render(next);
+    main.focus();
+  };
+
   const render = (next: Route) => {
     view?.dispose();
     route = next;
@@ -199,12 +208,16 @@ export function startApp(host: Host): AppContext {
 
   /** A folder, all templates or the favorites: in place when the library shows (focus stays), else a new view. */
   const openScope = (folderId: string, onlyFavorites: boolean) => {
-    favoritesOnly = onlyFavorites;
     const next: Route = { name: "library", folderId };
     if (view?.scope === undefined) {
-      app.go(next);
+      // Favorites mode is set only when the view really leaves, so a cancelled exit leaves no state behind.
+      leaving(() => {
+        favoritesOnly = onlyFavorites;
+        show(next);
+      });
       return;
     }
+    favoritesOnly = onlyFavorites;
     route = next;
     app.pushRoute(next);
     closePanel();
@@ -249,9 +262,7 @@ export function startApp(host: Host): AppContext {
     },
     go: (next) => {
       leaving(() => {
-        host.navigate(routeHash(next), false);
-        render(next);
-        main.focus();
+        show(next);
       });
     },
     replaceRoute: (next) => {
@@ -287,8 +298,13 @@ export function startApp(host: Host): AppContext {
       element("signed-in").textContent = `Signed in as ${me.email}`;
     })
     .catch((error: unknown) => app.fail(error));
-  host.onBackForward((hash) => {
+  /** The address the app travels back to after a held Back or Forward; its change event is no route change. */
+  let returning: string | null = null;
+  host.onBackForward((hash, moved) => {
     const next = parseRoute(hash);
+    const expected = returning;
+    returning = null;
+    if (routeHash(next) === expected) return;
     const open = () => {
       favoritesOnly = false;
       render(next);
@@ -298,8 +314,13 @@ export function startApp(host: Host): AppContext {
       host.navigate(routeHash(next), false);
       open();
     });
-    if (held === false) host.navigate(routeHash(route), false);
-    else open();
+    if (held !== false) open();
+    else if (moved === 0) host.navigate(routeHash(route), false);
+    else {
+      // Travel back the same distance, so the history stays exactly as it was.
+      returning = routeHash(route);
+      host.go(-moved);
+    }
   });
   // `<base target="_top">` would send fragment links to the top window, so both links act in script.
   element("skip").addEventListener("click", (event) => {

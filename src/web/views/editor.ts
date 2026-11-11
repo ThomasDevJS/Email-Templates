@@ -23,7 +23,7 @@ import { createEditor, type Editor } from "../editor/setup";
 import { createToolbar } from "../editor/toolbar";
 import { editableFolders, folderPath } from "../library/model";
 import { formatTime, h, replace, uid } from "../ui/dom";
-import { openDialog, promptText } from "../ui/dialog";
+import { openDialog, promptText, type OpenDialog } from "../ui/dialog";
 import { icon } from "../ui/icons";
 import { openMenu } from "../ui/menu";
 import { toRpcError } from "../ui/status";
@@ -572,6 +572,7 @@ export function editorView(
   };
 
   const insertLink = async () => {
+    const held = editor?.hold();
     const href = await promptText({
       title: "Insert link",
       label: "Web address",
@@ -581,11 +582,12 @@ export function editorView(
           ? ""
           : "Use an address that starts with https://, http://, mailto: or tel:.",
     });
-    if (href !== null) editor?.run(setLink(href));
-    else editor?.focus();
+    if (href !== null) held?.run(setLink(href));
+    else held?.release();
   };
 
   const insertImage = async () => {
+    const held = editor?.hold();
     const src = await promptText({
       title: "Insert image",
       label: "Image address (https)",
@@ -594,11 +596,12 @@ export function editorView(
         /^https:\/\/\S+$/i.test(value.trim()) ? "" : "Use an https:// address.",
     });
     if (src === null) {
-      editor?.focus();
+      held?.release();
       return;
     }
+    // The width read waits for the image; the held selection keeps the insert at the caret meanwhile.
     const width = imageWidth(await naturalWidth(src));
-    editor?.run(
+    held?.run(
       insertNode(schema.nodes["image"].create({ src, alt: "", width })),
     );
   };
@@ -953,34 +956,52 @@ export function editorView(
     mount.isConnected &&
     formKey() !== savedKey;
 
+  /** The open "Leave without saving?" question; a second exit attempt while it shows only focuses it. */
+  let asking: OpenDialog | null = null;
+
   /** Leaving the editor with unsaved changes asks first; "Save and leave" leaves only after a successful save. */
   const canLeave = (leave: () => void): boolean => {
     if (!dirty()) return true;
-    openDialog({
+    if (asking !== null) {
+      asking.element.querySelector("button")?.focus();
+      return false;
+    }
+    const answer = (then: () => void) => () => {
+      asking = null;
+      then();
+      return true;
+    };
+    const from = document.activeElement;
+    asking = openDialog({
       title: "Leave without saving?",
       body: h(
         "p",
         {},
         "Your changes to this template are not saved. They are lost if you leave now.",
       ),
+      // Focus goes back to the control that started the exit, or to the body when focus was nowhere.
+      returnFocus:
+        from instanceof HTMLElement && from !== document.body
+          ? from
+          : (editor?.view.dom ?? saveButton),
+      onCancel: () => {
+        asking = null;
+      },
       actions: [
-        { label: "Keep editing", autofocus: true, run: () => true },
         {
-          label: "Discard changes",
-          run: () => {
-            leave();
-            return true;
-          },
+          label: "Keep editing",
+          autofocus: true,
+          run: answer(() => undefined),
         },
+        { label: "Discard changes", run: answer(leave) },
         {
           label: "Save and leave",
           primary: true,
-          run: () => {
+          run: answer(() => {
             void save().then((saved) => {
               if (saved) leave();
             });
-            return true;
-          },
+          }),
         },
       ],
     });
