@@ -101,6 +101,10 @@
   - Minors: trash.ts:140 purgeText infers templates from the list (wrong when reload fails); server has goneItems, ask for it. Audit actor short name only (title). Export sentence omits private folders. Config widths uneven.
   - Pre-existing (base too): dialog background not inert; focus to BODY after audit Next page and after Import.
 
+- Slice 8d web minors (2026-11-11): PASS (0cc49c8). 60 files, 1350 tests, lines 96.55, index.html 355.1 KB, Lighthouse 100x12, 10 scopes. Web only.
+  - setInert (dialog.ts) on every body child but backdrop and #toasts; 13 dialogs probed. Stacked label `attr() / ""`, AX keeps 6 columnheaders. Focus ring offset -2 px on active item in 4 lists.
+  - Minors: backdrop press drops focus to BODY (no preventDefault, base too); Back/Forward leaves dialog open over new route (base too); trash.ts:128 "All 1 templates".
+
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -125,7 +129,7 @@
 - Destructive restore paths: probe parseable-but-wrong-shape files, then check the next restore still works.
 - New read-path validation: replay old builds (git archive per slice commit, probe test with setupWorld, dump files) and feed the dumps to the new check.
 - Call counts from test/fakes/world.ts skip snapshotProps; compare with entry.test.ts warm-read test.
-- UI slices: Playwright at /opt/node-tools/node_modules/playwright (require by absolute path), `chromium.launch()` works. Dev harness `node scripts/dev-web.mjs --port N`. Base comparison: git archive base into scratchpad, symlink node_modules, serve on another port.
+- UI slices: Playwright at /opt/node22/lib/node_modules/playwright (npm root -g) (require by absolute path), `chromium.launch()` works. Dev harness `node scripts/dev-web.mjs --port N`. Base comparison: git archive base into scratchpad, symlink node_modules, serve on another port.
 - Harness data injection: page.route the HTML and replace `\"literal\"` strings in the JSON-escaped bundle; wrapping google.script.run after load does not work (runner captured at start).
 - Contrast: compute every token pair incl. hover (`--hover`), `--select`, button hover fills, disabled at 55% opacity; check overrides for hover as well as selected.
 - Run new test files against the base copy to prove fixes fail on old code (copy test file into git-archive base, npx vitest run).
