@@ -1,6 +1,6 @@
 Screen 2: Sidebar details card (preview and pre-fill in one card)
-Target of slice 15 (D31, spec 7.4, ADR-0009; Proposed 2026-11-11). Replaces the preview card and the prompt card
-of slices 4, 5 and 9. As built until slice 15: git show 2f6eae3:docs/wireframes/02-sidebar-prompt.txt.
+As built at 16df87a (slice 15 with follow-up 1, D31, spec 7.4, ADR-0009 Accepted 2026-11-11; side panel slice 18).
+Replaced the preview card and the prompt card of slices 4, 5 and 9: git show 2f6eae3:docs/wireframes/02-sidebar-prompt.txt.
 Opened by a tap on a row (not on its Insert button) in Home, Folder or Search. Pre-fill is optional: the row's
 Insert already inserts in one click; a field left blank is removed from the draft (owner decision 2026-11-11).
 
@@ -15,10 +15,10 @@ Details card, new draft (To and subject empty), template with fields and recipie
 | [ ____________________________ ]     |
 | Last day                             |  TextInput p-2; one input per field identity,
 | [ ____________________________ ]     |  subject and body share it
-| Recipient first name                 |  implicit field (no value yet, no fallback)
-| [ ____________________________ ]     |
-| Leave blank to use the To            |  input hint, only on the implicit recipient first name
-| recipient's first name, when known.  |
+| Recipient first name                 |  shown on every details card when the template holds
+| [ ____________________________ ]     |  {{recipient.first_name}} without default text; starts empty
+| Leave blank to use the To            |  input hint, only on this box; a blank box takes the name
+| recipient's first name, when known.  |  the Insert call resolves (follow-up 1)
 |--------------------------------------|
 | Replace the subject          [on ]   |  SwitchControl id subj, only when the template has a subject.
 | Driver leaving: [Driver name]        |  bottom label: subject preview. Default on (draft subject empty), off (filled), D24
@@ -60,16 +60,20 @@ Rules
   sends followUp: true, so one card counts once.
 - Values: a typed value wins; a blank field takes the value the Insert call resolves (recipient first name),
   else it is removed with the 4 space rules (ADR-0004 Amendment 2026-11-11). Over 500 characters blocks.
+  A re-rendered card carries the merged values, so every insert path gives the same text (follow-up 1).
+- Insert parameters: id, version, values, rh, counted; no title. A card pushed by a row Insert has counted=1.
 - Subject only while "Replace the subject" is on; recipients only while "Add recipients" is on. Both off =
   the old "Insert body only". Switch on with a filled draft subject = the old "Insert with subject".
 - One UpdateDraftActionResponse: body, subject (switch), To, Cc, Bcc (spec 5.7). Never setSendStatus.
-  The card closes after the insert (spike S6 step 0); no notification is possible.
+  The card closes after the insert (spike S6 step 0, owner's test round 1); no notification is possible.
+- Edit in library: Gmail web opens the library in a new Chrome window (OpenAs.OVERLAY in the code).
 - Removed against the slice 9 cards: "Fill these fields to insert", "Fields to fill: ...", "Sets the draft
   subject.", "The draft already has a subject. It is kept.", [Insert with subject], [Insert body only], [Cancel],
   the too-many-fields card, the "Review" row button.
 
-Side panel (D27, slice 18; ADR-0007 Acceptance 2026-11-11 section A2, spec 7.2). As built until slice 18:
-the same card with no Fields section, no switches and no button but "Edit in library", the old hint last.
+Side panel (D27, slice 18; ADR-0007 Acceptance 2026-11-11 section A2 and Amendment 2026-11-11, spec 7.2).
+As built at 16df87a. Part J (owner's Gmail): the boxes and the switch reach the press (Q68), and the footer
+buttons work as compose actions (Q74).
 
 Details card, side panel, message open (entry message), template with fields, To and Cc:
 +--------------------------------------+
@@ -116,10 +120,13 @@ footer [New email] (STANDALONE_DRAFT) and (Edit in library) at edit or manage.
 
 Rules (side panel)
 - Opening: template.apply followUp: true for every entry (no use counted); template.getBody is no longer called.
-- Press: boxes over 500 characters -> notification, no call. Then the message read (Reply, Reply all), one
-  template.apply (one use), the version and rh checks (a change -> notification, no draft), render as compose,
+- Press: boxes over 500 characters -> thrown sentence, no call. Then the message read (Reply, Reply all), one
+  template.apply (one use), the version and rh checks (a change -> thrown sentence, no draft), render as compose,
   GmailApp.createDraft / createDraftReply / createDraftReplyAll, ComposeActionResponse.
 - New email: template subject, To, Cc, Bcc. Reply: To = sender (Gmail), "Re:" kept, Cc and Bcc added.
   Reply all: Gmail's To and Cc kept, template Cc and Bcc added (S7 result 3). Add recipients off: none.
-- No change line and no re-render: a compose action answers with a draft or a notification only.
-- If the slice 18 smoke shows the boxes or the switch do not reach the press (Q68), the panel card drops them.
+- No change line and no re-render: a compose action answers with a draft or a thrown sentence only. Box over
+  500 characters, new version, other rh: the callback throws the sentence of spec 7.2, no draft.
+- Failures throw one plain sentence (slice 18 follow-up 1); a notification from a compose action is not shown
+  in Gmail. No request ID, no technical text.
+- A reply carries the Gmail signature below the text; a new email carries none.

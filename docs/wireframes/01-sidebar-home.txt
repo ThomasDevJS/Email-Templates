@@ -1,6 +1,6 @@
 Screen 1: Sidebar home (Gmail compose, Card Service)
-Target of slice 15 (D31, spec 7.4, ADR-0009; Proposed 2026-11-11). As built until slice 15: slice 12 layout,
-see git show 2f6eae3:docs/wireframes/01-sidebar-home.txt.
+As built at 16df87a: slice 15 (D31, spec 7.4, ADR-0009, Accepted 2026-11-11), side panel slice 18 with D33.
+Slice 12 layout: git show 2f6eae3:docs/wireframes/01-sidebar-home.txt.
 Width about 300 px. Widgets per card under 100 [R4 S9]. [Insert] is a filled slate button on every row.
 Icons: * star, @ clock, = document, # folder. Card Service limits per row (DecoratedText): one button,
 a row onClick, a start icon, a top and a bottom label [A43].
@@ -25,14 +25,14 @@ a row onClick, a start icon, a top and a bottom label [A43].
 |    24 templates                      |
 |  # Support                           |
 |    41 templates                      |
-|  # My templates                      |  private folder (D11); while personal templates are off (D29) only if it already exists
+|  # My templates                      |  personal folder (D11); while personal templates are off (D29) only if it already exists
 |    3 templates                       |
 |--------------------------------------|
 | [Open library]                       |  fixed footer, primary FILLED #2a3c49 (API: primary must be FILLED);
 +--------------------------------------+  OpenLink OVERLAY, RELOAD_ADD_ON
 
-Empty home (no visible templates; wireframe 07 A): "No templates shared with you yet." "Your private folder is
-ready: open the library to create one." [Open library]; no footer. Personal templates off (A2): "No templates
+Empty home (no visible templates; wireframe 07 A): "No templates shared with you yet." 'Your folder "My templates"
+is ready. Open the library to create a template.' [Open library]; no footer. Personal templates off (A2): "No templates
 shared with you yet. Ask your admin for access to a folder." No button.
 
 Folder card (pushed on tap):
@@ -59,21 +59,23 @@ Search card: the input with the query, RESULTS with = rows (each template once),
 Tap on a row (not the button) pushes the details card: docs/wireframes/02-sidebar-prompt.txt.
 
 Behavior (compose, slice 15)
-- Insert on any row: one template.apply call, then one UpdateDraftActionResponse. The card closes (spike S6 step 0).
-- Fields without a value: fallback when the variable has one, else removed, with the 4 space rules of
+- Insert on any row: one template.apply call, then one UpdateDraftActionResponse. The card closes (spike S6 step 0;
+  owner's test round 1 part B).
+- Fields without a value: default text when the variable has one, else removed, with the 4 space rules of
   ADR-0004 Amendment 2026-11-11, in body and subject. "Hi {{ask:Name}}, thanks" -> "Hi, thanks".
 - Subject: D24, set only into an empty draft subject.
 - Recipients: added by spec 5.7 (add, never remove; To only into an empty To). rc on the button must equal the
   counts template.apply returns; else the details card opens with the change line and nothing is inserted.
 - A template address in a draft field the event does not give as a list: details card, nothing inserted.
 - No notification after the insert: an insert response cannot carry one [A15, A44]. The draft is the result.
-- Edit in library (details card): clears add-on cache, opens /exec?view=editor&id=... in OVERLAY, card reloads on close.
+- Open library (footer) and Edit in library (details card): clear the add-on cache, open /exec (or
+  /exec?view=editor&id=...) with OpenAs.OVERLAY and OnClose.RELOAD_ADD_ON. Gmail web opens a new Chrome window
+  (owner, test round 1); the reload on close is unverified.
+- In a narrow draft Gmail moves the add-on icon into the draft toolbar's "⋮" menu (test round 1 part B).
 
 Side-panel variant (D27, slice 18; ADR-0007 Accepted 2026-11-11, spec 4.1a and 7.2)
-Opened from Gmail's right side panel. Same cards, data and row labels as above; only the row button and the
-hint differ. Entry decided by entryOf(event) in every callback. As built until slice 18: no row button, the old
-hint "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.", and in
-the dev build the "Spike S7 (temporary)" section (removed in slice 18).
+Opened from Gmail's right side panel. Same cards, data and row labels as above; only the row buttons and the
+hint differ. Entry decided by entryOf(event) in every callback. As built at 16df87a (slice 18, follow-ups 1 and 2).
 
 No message open (entry inbox, homepage trigger onHomepage):
 +--------------------------------------+
@@ -105,11 +107,13 @@ Message open (entry message, contextual trigger unconditional, onMessageOpen):
 | Search templates  ...                |
 |--------------------------------------|
 | FAVORITES                            |
-|  * Welcome email           [Reply]   |  FILLED slate; REPLY_AS_DRAFT; onCompose {id, as: reply, rc?};
-|    Sales / Onboarding                |  alt "Reply with <title>"
-|  @ Driver leaving          [Reply]   |  reply goes to the sender; template To not added,
-|    Adds To 1, Cc 1 · HR              |  Cc and Bcc added
-|  ...                                 |
+|  * Welcome email                     |  DecoratedText, no button; tap opens the details card
+|    Sales / Onboarding                |
+|    [Reply]  (Reply all)              |  ButtonSet under the row (D33): Reply FILLED slate,
+|  @ Driver leaving                    |  Reply all OUTLINED; both REPLY_AS_DRAFT, onCompose
+|    Adds To 1, Cc 1 · HR              |  {id, as: reply | replyAll, rc?}; alt "Reply with <title>",
+|    [Reply]  (Reply all)              |  "Reply all with <title>"
+|  ...                                 |  2 widgets per row; a section collapses after 5 rows
 |--------------------------------------|
 | (hint, as above)                     |
 | [Open library]                       |
@@ -122,6 +126,9 @@ Behavior (side panel)
 - One template.apply (one use), render as compose, then GmailApp.createDraft / createDraftReply.
 - New email: subject = template subject; To, Cc, Bcc = template lists. Reply: no subject option ("Re:" kept),
   Cc and Bcc only, minus addresses already in the message.
-- rc differs: notification "The recipients of this template changed. Tap its name to see them.", no draft.
-- Errors: a notification (spec 7.2), no card, no draft.
-- Gmail adds the signature to a reply, not to a new email.
+- Reply: To = sender, template Cc and Bcc added. Reply all: Gmail's To and Cc kept, template Cc and Bcc added.
+- rc differs: "The recipients of this template changed. Tap its name to see them.", no draft.
+- Errors: the callback throws one plain sentence (spec 7.2); Gmail shows it in its error bar. A notification
+  from a compose action is not shown (test round 1 part J step 11). No card, no draft, no request ID.
+- Gmail adds the signature below the text of a reply, and none to a new email.
+- Widgets: with an email open each row is 2 widgets; Gmail's limit is 100 per card (slice 20b caps every card).
