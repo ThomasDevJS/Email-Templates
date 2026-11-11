@@ -387,6 +387,47 @@ describe("export and import tab", () => {
     expect(toasts()).toBe("");
   });
 
+  it("sends one run key with every try of a start, and a new key for the next click", async () => {
+    await boot(
+      "/?latency=0&failOp=export.library&fail=BUSY&failTimes=2#/admin/transfer",
+    );
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      () => undefined,
+    );
+    interface Run {
+      withSuccessHandler(handler: (value: unknown) => void): Run;
+      withFailureHandler(handler: (error: unknown) => void): Run;
+      rpc(op: string, args: unknown, id: string): void;
+    }
+    const script = (window as unknown as { google: { script: { run: Run } } })
+      .google.script;
+    const runs: unknown[] = [];
+    const wrap = (inner: Run): Run => ({
+      withSuccessHandler: (handler) => wrap(inner.withSuccessHandler(handler)),
+      withFailureHandler: (handler) => wrap(inner.withFailureHandler(handler)),
+      rpc: (op, args, id) => {
+        const sent = args as { start?: boolean; run?: unknown };
+        if (sent.start === true) runs.push(sent.run);
+        inner.rpc(op, args, id);
+      },
+    });
+    script.run = wrap(script.run);
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    await waitStatus(/Exported 4 templates to /);
+    button("Export").click();
+    await until(() => {
+      expect(runs).toHaveLength(4);
+    });
+    expect(new Set(runs.slice(0, 3)).size).toBe(1);
+    expect(runs[0]).toMatch(/^[0-9A-Z]{8}-[0-9A-Z]{6}$/);
+    expect(runs[3]).not.toBe(runs[0]);
+  });
+
   it("retries a page that failed with a retryable error after the start", async () => {
     const { clicks } = await exportWith("fail=INTERNAL&failSkip=1&failTimes=3");
     await waitStatus(/Exported 4 templates to /);

@@ -22,6 +22,7 @@ import {
 import {
   EXPORT_PAGE,
   EXPORT_RESTART,
+  EXPORT_RETRY_S,
   EXPORT_RUN_TTL_S,
   type ExportPage,
   type ExportStart,
@@ -470,6 +471,32 @@ describe("export", () => {
       .ok<AuditQueryResult>(OWNER, "audit.query", { month: "2026-11" })
       .rows.filter((entry) => entry.action.startsWith("export."));
     expect(rows.map((entry) => entry.exportTemplates)).toEqual([total, total]);
+  });
+
+  it("gives a retried start of the same click the first run and writes one event", () => {
+    const sales = folder("Sales");
+    grant(sales.id, ANA, "manage");
+    const start = (caller: string, args: object) =>
+      world.ok<ExportStart>(caller, "export.folder", {
+        folderId: sales.id,
+        start: true,
+        ...args,
+      });
+    const first = start(OWNER, { run: "MH9X4K2A-0F3ZQ1" });
+    expect(start(OWNER, { run: "MH9X4K2A-0F3ZQ1" })).toEqual(first);
+    expect(exportEvents()).toHaveLength(1);
+    // Another click, another caller, another scope or no valid key: a new run with its own event.
+    expect(start(OWNER, { run: "MH9X4K2A-0F3ZQ2" }).token).not.toBe(
+      first.token,
+    );
+    expect(start(ANA, { run: "MH9X4K2A-0F3ZQ1" }).token).not.toBe(first.token);
+    world.ok(OWNER, "export.library", { start: true, run: "MH9X4K2A-0F3ZQ1" });
+    start(OWNER, { run: "not a key" });
+    expect(exportEvents()).toHaveLength(5);
+    // After the retry window the same key starts a new run.
+    world.clock.now += EXPORT_RETRY_S * 1000 + 1;
+    start(OWNER, { run: "MH9X4K2A-0F3ZQ1" });
+    expect(exportEvents()).toHaveLength(6);
   });
 
   it("answers no export data without a committed start for this caller and scope", () => {

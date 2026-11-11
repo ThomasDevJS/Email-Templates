@@ -7,6 +7,7 @@ import { folderPath } from "../library/model";
 import type { ExportPage, FolderRow, ImportReport } from "../rpc/api";
 import { ErrorCode } from "../../shared/errors/codes";
 import { RpcError } from "../rpc/client";
+import { requestIdNow } from "../../shared/requestId";
 import { adminLineText, lineText, toRpcError } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
 import type { AdminData, AdminFolders } from "./admin";
@@ -132,8 +133,9 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     folderId: string,
     progress: { done: number; total: number },
   ) => {
+    const run = requestIdNow();
     const { token, total } = await retrying(() =>
-      app.api.exportStart(folderId),
+      app.api.exportStart(folderId, run),
     );
     progress.total = total;
     const pageAt = (offset: number) =>

@@ -277,7 +277,8 @@ export interface Api {
   auditEvent(month: string, id: string): Promise<{ event: AuditEvent }>;
   usage(): Promise<{ since: string; rows: UsageRow[] }>;
   /** `folderId` "" exports the whole library (admin). The start records the export in the audit log. */
-  exportStart(folderId: string): Promise<ExportStart>;
+  /** `run`: one key per export click; a retried start with it gets the same run (one audit event). */
+  exportStart(folderId: string, run: string): Promise<ExportStart>;
   exportPage(
     folderId: string,
     offset: number,
@@ -357,10 +358,10 @@ export function createApi(client: RpcClient): Api {
     audit: (filter) => call("audit.query", filter),
     auditEvent: (month, id) => call("audit.query", { month, id }),
     usage: () => call("usage.report"),
-    exportStart: (folderId) =>
+    exportStart: (folderId, run) =>
       folderId === ""
-        ? call("export.library", { start: true })
-        : call("export.folder", { folderId, start: true }),
+        ? call("export.library", { start: true, run })
+        : call("export.folder", { folderId, start: true, run }),
     exportPage: (folderId, offset, token) =>
       folderId === ""
         ? call("export.library", { offset, token })
