@@ -41,8 +41,6 @@
   - setInert (dialog.ts) on every body child but backdrop and #toasts; 13 dialogs probed. Stacked label `attr() / ""`, AX keeps 6 columnheaders. Focus ring offset -2 px on active item in 4 lists.
 - Slice 9 recipients (2026-11-10): FAIL (441ab04), retry 1 PASS (08955ca, 1414 tests, Code.js 346.6 KB). Retry: DraftRecipients null per field = no action, unknown To = filled, "Add by hand" line; prompt card uses recipientWidgets; FINISH_TYPING line; isStoredList + recipientsUnreadable on restore. Open: card-unknown/tap-known adds silently (rh lacks field state); spec 5.7/7.1 errata. First review: 60 files, 1391 tests, lines 96.58 (addon 100, server 99.31), Code.js 345.5 KB, index.html 340.6 KB unchanged, 10 scopes, Lighthouse 100x11.
   - Must fix: draftRecipients (addon/event.ts) reads missing/non-array/mixed list as [], and REPLACE actions then wipe the draft field (tests assert it). Prompt card switchLabel lacks Bcc marker, Not added, blocked. No "finish typing" line on cards.
-  - Accepted: rh over to/cc/bcc/blocked, no rh -> preview card, forged rh -> card; update omission keeps lists, deny then refuses; apply/getBody blocked split; audit admin only; validator rejects injection probes.
-  - Code: shared/model/recipients.ts (validateRecipients, importRecipients, splitBlocked), addon/cards/recipients.ts (recipientPlan, recipientActions, rowHint), flows.ts needsReview. Minor: version files have no shape check.
 - Slice 12 add-on layout and wording (2026-11-11): PASS (00c91a3). 62 files, 1437 tests, lines 96.67, Code.js 347.8 KB, 10 scopes. Add-on only.
   - Probe base vs head pure flows (6 events x 5 templates, all insert params, prompt switches): 502/526 replies identical incl. 322 draft responses; 24 diffs = Open library moved to fixed footer.
   - New: CardSpec.title optional, ButtonSpec.style filled (slate #2a3c49 via setBackgroundColor) | outlined, item icon (Material names star/schedule/description/folder), SectionSpec.collapseAfter (VISIBLE_ROWS 5), LIBRARY_FOOTER, sidePanel.ts sidePanelHint.
@@ -99,6 +97,7 @@
   - Code: spec.ts hint() tone "hint" -> DecoratedText info icon + <font color="#5f6368">; 5 hint lines; Search TextButton (onSearch, icon via typeof-guarded setMaterialIcon, throw not caught). Worst cards 76/84/44. Grey 6.05 white, 2.66 #202124.
   - Recording Card Service is one shared Proxy chain: to fake a missing/throwing method wrap newX() in a Proxy that returns itself.
 - Slice 22b follow-up (2026-11-11): PASS (review on 0b90f44). 1986 tests, Code.js 373.5 KB. Error tone = DecoratedText icon error + alt "Error", no "(!)"; compose search row = Columns (try/catch fallback to stack). Minor: toIcon start icon unguarded.
+- Slice 23 tree collapse by mouse (2026-11-11): FAIL (review on 8101c13). 71 files, 1989 tests, index.html 381.2 KB, Lighthouse 100x16. Must fix: tree.ts:209 render re-expands ancestors on every reload (Duplicate, Admin rename reopen a collapsed ancestor); tree.ts:111 double-click on a closed parent name opens then closes it.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -146,3 +145,5 @@
 - Gmail-action slices: count createDraft* per failure probe with a recording fake; forge action params (values, extra keys) and CR LF; read the message ID source at press time.
 - Card limit probes: build the matrix with real builders and count `addWidget` on the recording Card Service; check where the cut line sits vs collapseAfter.- Doc command checks: run each clasp command from a dir without .clasp.json (`npx clasp <cmd> --help`, then bare); deploy steps that delete .clasp.json break later bare commands.
 - First-load/error UI: count toasts plus banners per failure, and check focus after the retry button removes itself.
+
+- Toggle UIs: probe double-click (event.detail) and every redraw path (reloads, writes) after a user collapse; state kept in a view must survive its own render.
