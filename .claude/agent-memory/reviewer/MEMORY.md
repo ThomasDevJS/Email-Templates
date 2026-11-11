@@ -101,6 +101,8 @@
   - Blocker: export event only at offset 0 (transfer.ts:129, offset 1 skips it); bufferEvent result ignored (transfer.ts:165), lock busy or buffer full of applies loses it, export still ok. Fix: event per page, refuse page when not stored (or commitLocked, ADR-0002:128).
   - Minors: old-tab `from` VALIDATION lacks reload hint; in-lock import recheck refuses whole import (spec 264 drops); lock-busy drops uncounted; smoke.md:139 RECIPIENTS_EXTERNAL.
   - config.set base = updatedAt+updatedBy; recheckRecipients in lock (body.ts); prof:<sha256>; stats.target for log targetId; cancelDialogs on Back/Forward.
+  - Retry 1 (f3f8156): FAIL (4b73c16). 1706 tests, lines 96.78, Code.js 358.3 KB. Event per page + BUSY when not buffered, rank denied<apply<change, evt:lost, web retry 200/400/600, audit join all hold. Blocker: cold export of 1,000 templates loses page events 0, 20, 40 (bd:* puts evict evt:* in the 1,000-item FIFO Script Cache), dropped 0.
+  - Minors: drawer opens page 1 only; two-tab same-admin join mis-pairs; evt:lost expiry undercount; weakerSlot skips evicted keys; "Try again in a minute" vs 5-min tick.
   - Harness CONFLICT: page.route patch `let n=Yr[e];if(n.value===t.value)` (minified names change per build).
 
 ## Check next
@@ -138,4 +140,6 @@
 - Behaviour-freeze slices: run one probe script on base and head copies, dump replies with text stripped, diff.
 - rm -rf with a shell variable path is blocked; use literal absolute paths.
 - Audit events written on one page of a paged op: probe offset > 0 and a busy or full buffer.
+- Anything kept in the Script Cache until `tick`: count the cache puts the same op makes (1,000 items, FIFO). Probe with world.clock +7 h for a cold cache.
+- Web Chromium probes: puppeteer-core in node_modules with executablePath /opt/pw-browsers/chromium-1243/chrome-linux64/chrome; dialogs are [role=dialog], not <dialog>.
 - Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.
