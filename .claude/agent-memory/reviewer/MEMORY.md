@@ -96,6 +96,7 @@
 - Slice 18 side panel D27 (2026-11-11): PASS (on 504b0ee). 67 files, 1911 tests, lines 97.12, Code.js 367.1 KB, index.html 379.2 KB, 10 scopes. 0 must-fix, 7 minors.
   - Code: addon/panel.ts composeFlow/promptComposeFlow, begin() order (as, messageId, 500 chars, token, header read, apply, rc|version+rh, rendered, one createDraft*). Ports.gmail GmailPort; test/fakes/gmail.ts createRecordingGmail(headers|null, failMethod). event.ts addressesOf (regex), internalAddress, tokenOf.
   - Follow-up 1 PASS (9cbbd87, 1912 tests): panelAnswer throws one sentence (notifications from compose actions not shown in Gmail, part J step 11); caught text dropped; 36 planted-secret runs clean. Minors: NOT_CONFIGURED/AUTH throw joined state lines.
+  - Follow-up 2 PASS (a5d4690, 1932 tests, D33): message rows = item + ButtonSet Reply/Reply all; compose and inbox cards JSON-identical to base. Card Service limit is 100 widgets per CARD (r4:37); home message = 32 + folders.
   - Minors: multi-address Reply-To uses last only; message-entry "Adds n" counts To; failed createDraft counts a use (spec ok); part J step 10 no Expect.
 - Slice 19 audit read fix (2026-11-11): FAIL (review on ad343af). Read fix correct; privacy fails. 68 files, 1924 tests, lines 97.96, Code.js 367.5 KB, 10 scopes.
   - Mechanism: DriveClient.readRawText = restMediaReader (UrlFetch, ScriptApp token) under both clients; monthText, appendAudit, readBackup use it. Strict fake: Advanced alt=media parses JSON, throws "HttpResponseException: Response Code: 200. Message: <text>" otherwise. Revert probe: 19 fail (8 old + 11 new).
@@ -132,7 +133,6 @@
 - Replace-type writes (Gmail recipient actions): probe missing, non-array and mixed input; "unknown" must never read as "empty".
 - Card Service docs: fetch developers.google.com/apps-script/reference/card-service/<class> with curl; extract <article> text. Unknown MaterialIcon name renders no icon, no error. TextButton unset style = OUTLINED. Labels plain text per add-on widget guide.
 - Behaviour-freeze slices: run one probe script on base and head copies, dump replies with text stripped, diff.
-- rm -rf with a shell variable path is blocked; use literal absolute paths.
 - Merges: diff test dirs and server dirs against both parents; run computed-style diffs on 3 dev-web servers (merge, each parent via git archive).
 - Harness RPC capture/taint: addInitScript defines a `google` setter, wrap run as wrap(r,h): withSuccessHandler stores h, withFailureHandler(f) wraps r.withFailureHandler(f), rpc calls r.withSuccessHandler(v=>h(taint(op,v))). Replies are {ok,data,...}: mutate env.data.
 - Async UI commands (await before editor.run): probe insert position with keyboard Enter; focus return moves the PM selection.
