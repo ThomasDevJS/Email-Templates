@@ -15,6 +15,7 @@ import {
   type Profile,
 } from "./rpc/api";
 import { requestIdNow } from "../shared/requestId";
+import { ErrorCode, NOT_SET_UP_TEXT } from "../shared/errors/codes";
 import { createClient } from "./rpc/client";
 import {
   authPage,
@@ -40,6 +41,12 @@ declare const google: { readonly script: GoogleScript };
 
 /** The first load may take this long before the page says it failed (test round 1: a blank page until a retry). */
 export const FIRST_LOAD_MS = 15_000;
+const WAITS_FOR_LOAD: ReadonlySet<Route["name"]> = new Set([
+  "library",
+  "trash",
+  "edit",
+  "new",
+]);
 
 function element(id: string): HTMLElement {
   const found = document.getElementById(id);
@@ -69,6 +76,8 @@ export function startApp(host: Host): AppContext {
   let recent: string[] = [];
   let profile: Profile | null = null;
   let view: View | null = null;
+  /** The first view of this page load (see `blocking`). */
+  let firstView: View | null = null;
   let route: Route = LIBRARY;
   /** The sidebar's "Favorites": the library shows only starred templates of every folder. */
   let favoritesOnly = false;
@@ -185,6 +194,7 @@ export function startApp(host: Host): AppContext {
     closePanel();
     drawSide();
     view = viewOf(next);
+    firstView ??= view;
   };
 
   const viewOf = (next: Route): View => {
@@ -293,28 +303,61 @@ export function startApp(host: Host): AppContext {
 
   /** True while main shows the first-load error or its "Loading..." line, so a late success renders the route. */
   let blocked = false;
+  /**
+   * The first-load error replaces only the first view of the page load, and only one that waits for this load
+   * (library, editor, trash); a view that drew on its own (Admin, History) keeps its page and gets the usual toast.
+   */
+  const blocking = () =>
+    main.isConnected &&
+    (blocked ||
+      view === null ||
+      (view === firstView && WAITS_FOR_LOAD.has(route.name)));
   const firstLoad = (): Promise<boolean> => {
-    const timer = window.setTimeout(stalled, FIRST_LOAD_MS);
-    return load(rerender).then((ok) => {
-      window.clearTimeout(timer);
-      if (!ok) stalled();
-      else if (blocked) {
-        blocked = false;
-        rerender();
-      }
-      return ok;
-    });
+    const timer = window.setTimeout(() => {
+      if (blocking()) stalled(null);
+    }, FIRST_LOAD_MS);
+    loading = reload();
+    return loading.then(
+      () => {
+        window.clearTimeout(timer);
+        if (blocked) {
+          blocked = false;
+          rerender();
+        }
+        return true;
+      },
+      (error: unknown) => {
+        window.clearTimeout(timer);
+        // Quiet: the banner is the one message; the auth page and views that drew keep the usual handling.
+        if (presentationOf(toRpcError(error).code) !== "auth" && blocking())
+          stalled(error);
+        else
+          app.fail(error, () => {
+            void load(rerender).then((ok) => {
+              if (ok) rerender();
+            });
+          });
+        return false;
+      },
+    );
   };
-  /** No answer in time, or a failed first load: one plain error with Reload. The auth page has replaced main. */
-  const stalled = () => {
-    if (!main.isConnected) return;
+  /** No answer in time, or a failed first load: one plain error with Reload. */
+  const stalled = (error: unknown) => {
     blocked = true;
+    const notSetUp =
+      error !== null && toRpcError(error).code === ErrorCode.NOT_CONFIGURED;
     replace(
       main,
       h(
         "div",
         { class: "banner", role: "alert" },
-        h("p", {}, "Templates could not be loaded. Press Reload to try again."),
+        h(
+          "p",
+          {},
+          notSetUp
+            ? NOT_SET_UP_TEXT
+            : "Templates could not be loaded. Press Reload to try again.",
+        ),
         h(
           "button",
           {
@@ -324,6 +367,8 @@ export function startApp(host: Host): AppContext {
                 main,
                 h("p", { class: "status", role: "status" }, "Loading..."),
               );
+              // The button is gone: focus goes to the page region, not the body.
+              main.focus();
               void firstLoad().then(showAdminLink);
             },
           },
@@ -398,7 +443,8 @@ export function startApp(host: Host): AppContext {
     const start = startRoute(location);
     // Stamps the page's first entry with its position, so a Back to it travels back in place of pushing (8b minor 2).
     host.navigate(routeHash(start), true);
-    render(start);
+    // A first load that already failed shows its banner; a success renders the route then.
+    if (!blocked) render(start);
     // Pulls keyboard focus into the page, so the first "/" or arrow key reaches the app (smoke 5b item 8).
     if (document.activeElement === document.body) main.focus();
   });

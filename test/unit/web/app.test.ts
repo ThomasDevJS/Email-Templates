@@ -1153,7 +1153,8 @@ describe("states (spec section 7, wireframe 07)", () => {
   });
 
   it("BUSY shows a toast with Retry and the request ID", async () => {
-    await boot("/?latency=0&fail=BUSY&failOp=template.list#/library");
+    // Admin draws on its own, so a failed first load keeps it and shows the toast (20a review minor 1).
+    await boot("/?latency=0&fail=BUSY&failOp=template.list#/admin");
     await until(() => {
       expect(document.querySelector(".toast")).not.toBeNull();
     });
@@ -1165,7 +1166,10 @@ describe("states (spec section 7, wireframe 07)", () => {
     expect(toast.querySelector(".request-id")?.textContent).toMatch(
       /^Request ID [0-9A-Z]+-[0-9A-Z]{6}$/,
     );
-    expect(text()).toContain("Templates could not be loaded.");
+    await until(() => {
+      expect(main().querySelector('[role="tablist"]')).not.toBeNull();
+    });
+    expect(main().querySelector(".banner")).toBeNull();
     button("Retry", toast).click();
     expect(document.querySelector(".toast")).toBeNull();
     await until(() => {
@@ -1189,11 +1193,20 @@ describe("states (spec section 7, wireframe 07)", () => {
         "Templates could not be loaded. Press Reload to try again.",
       );
     });
+    // One message: the banner, no toast (20a review must-fix 2).
+    expect(document.querySelectorAll(".toast")).toHaveLength(0);
+    button("Reload").click();
+    expect(document.activeElement).toBe(main());
+    await until(() => {
+      expect(main().querySelector('[role="alert"]')).not.toBeNull();
+    });
+    expect(document.querySelectorAll(".toast")).toHaveLength(0);
     window.history.replaceState(null, "", "/?latency=0#/library");
     button("Reload").click();
     expect(main().querySelector('[role="status"]')?.textContent).toBe(
       "Loading...",
     );
+    expect(document.activeElement).toBe(main());
     await until(() => {
       expect(main().querySelectorAll("tbody tr").length).toBeGreaterThan(0);
     });
@@ -1215,6 +1228,28 @@ describe("states (spec section 7, wireframe 07)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("a slow first load never replaces an Admin page that already drew", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await boot("/?latency=20000#/admin");
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(main().querySelector("#admin-heading")).not.toBeNull();
+      expect(main().textContent).not.toContain("Press Reload");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a first load that is not set up says so in the banner", async () => {
+    await boot("/?latency=0&fail=NOT_CONFIGURED&failOp=folder.list#/library");
+    await until(() => {
+      expect(main().querySelector('[role="alert"]')?.textContent).toContain(
+        "Migway Templates is not set up yet. Ask your admin to finish setup.",
+      );
+    });
+    expect(document.querySelectorAll(".toast")).toHaveLength(0);
   });
 
   it("INTERNAL on save shows the generic toast", async () => {
