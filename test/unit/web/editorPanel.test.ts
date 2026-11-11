@@ -807,6 +807,171 @@ describe("unsaved-changes guard", () => {
     expect(window.location.hash).toBe("#/edit/T-QUOTE");
   });
 
+  const dialogs = () => document.querySelectorAll('[role="dialog"]').length;
+
+  /** Resolves after `count` address changes by Back, Forward or the app's own trips. */
+  function popStates(count: number): Promise<void> {
+    return new Promise((resolve) => {
+      let seen = 0;
+      const listener = () => {
+        seen += 1;
+        if (seen < count) return;
+        window.removeEventListener("popstate", listener);
+        setTimeout(resolve, 0);
+      };
+      window.addEventListener("popstate", listener);
+    });
+  }
+
+  /** Library, then the editor of the first row, both entries pushed by the app (so Back and Forward know the distance). */
+  async function openFromLibrary(): Promise<void> {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelector('td[tabindex="0"]')).not.toBeNull();
+    });
+    // An entry the app pushed (the page's first entry carries no position).
+    document.querySelector<HTMLElement>("[data-nav=library]")?.click();
+    key(main().querySelector('td[tabindex="0"]') as HTMLElement, "Enter");
+    await until(() => {
+      expect(window.location.hash).toMatch(/^#\/edit\//);
+      expect(byId("title").value).not.toBe("");
+    });
+  }
+
+  it("shows one question when Back is pressed twice", async () => {
+    await openFromLibrary();
+    const length = window.history.length;
+    const editing = window.location.hash;
+    edit();
+    window.history.back();
+    await until(() => {
+      expect(dialogs()).toBe(1);
+      expect(window.location.hash).toBe(editing);
+    });
+    // The Back and the app's return trip: two address changes.
+    const returned = popStates(2);
+    window.history.back();
+    await returned;
+    expect(window.location.hash).toBe(editing);
+    expect(dialogs()).toBe(1);
+    expect(document.activeElement?.textContent).toBe("Keep editing");
+    button("Keep editing").click();
+    await until(() => {
+      expect(dialogs()).toBe(0);
+    });
+    // The cancelled Backs left the history as it was: same length, same place.
+    expect(window.history.length).toBe(length);
+    expect(window.location.hash).toBe(editing);
+    expect(byId("title").value).toBe("Changed title");
+  });
+
+  it("shows one question for a sidebar click followed by Back", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    edit();
+    document.querySelector<HTMLElement>("[data-nav=trash]")?.click();
+    expect(dialogs()).toBe(1);
+    window.history.replaceState(null, "", "#/library");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(dialogs()).toBe(1);
+    expect(window.location.hash).toBe("#/edit/T-QUOTE");
+    button("Discard changes").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/trash");
+    });
+  });
+
+  it("leaves the history as it was after Forward and Keep editing", async () => {
+    await openFromLibrary();
+    const editing = window.location.hash;
+    button("History").click();
+    await until(() => {
+      expect(window.location.hash).toMatch(/^#\/history\//);
+    });
+    window.history.back();
+    await until(() => {
+      expect(window.location.hash).toBe(editing);
+      expect(byId("title").value).not.toBe("");
+    });
+    const length = window.history.length;
+    edit();
+    window.history.forward();
+    await until(() => {
+      expect(dialogs()).toBe(1);
+      expect(window.location.hash).toBe(editing);
+    });
+    button("Keep editing").click();
+    await until(() => {
+      expect(dialogs()).toBe(0);
+    });
+    expect(window.history.length).toBe(length);
+    // The next Back goes to the library, the entry before the editor.
+    window.history.back();
+    await until(() => {
+      expect(dialogs()).toBe(1);
+    });
+    button("Discard changes").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/library");
+    });
+  });
+
+  it("keeps no Favorites mode after Favorites and Keep editing", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    edit();
+    document.querySelector<HTMLElement>("[data-nav=favorites]")?.click();
+    button("Keep editing").click();
+    await until(() => {
+      expect(dialogs()).toBe(0);
+    });
+    button("Quotes").click();
+    button("Discard changes").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/library?folder=F-QUOTES");
+      expect(main().querySelector("#list-heading")?.textContent).toBe(
+        "Sales / Quotes",
+      );
+    });
+    expect(
+      document
+        .querySelector("[data-nav=favorites]")
+        ?.hasAttribute("aria-current"),
+    ).toBe(false);
+  });
+
+  it("returns focus to the menu panel's Trash after Keep editing (narrow screen)", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    edit();
+    byId("menu-button").click();
+    const trash = document.querySelector<HTMLElement>(
+      "[data-nav=trash]",
+    ) as HTMLElement;
+    trash.focus();
+    trash.click();
+    const keep = button("Keep editing");
+    keep.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    keep.click();
+    await until(() => {
+      expect(dialogs()).toBe(0);
+    });
+    expect(byId("side").classList.contains("open")).toBe(true);
+    expect(document.activeElement).toBe(trash);
+  });
+
+  it("returns focus to the editor when the exit started with focus nowhere", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    edit();
+    (document.activeElement as HTMLElement | null)?.blur();
+    window.history.replaceState(null, "", "#/library");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    button("Keep editing").click();
+    await until(() => {
+      expect(dialogs()).toBe(0);
+    });
+    expect(document.activeElement?.classList.contains("ProseMirror")).toBe(
+      true,
+    );
+  });
+
   it("asks the browser before the page closes while changes are unsaved", async () => {
     await openEditor("/?latency=0#/edit/T-QUOTE");
     const unload = () => {
