@@ -9,6 +9,7 @@ import {
   type IconName,
   type Reply,
   type SectionSpec,
+  type Single,
   type Widget,
 } from "./spec";
 
@@ -80,16 +81,36 @@ function toButton(spec: ButtonSpec): GoogleAppsScript.Card_Service.TextButton {
       icon: GoogleAppsScript.Card_Service.MaterialIcon,
     ) => unknown;
   };
-  if (spec.icon !== undefined && typeof withIcon.setMaterialIcon === "function")
-    withIcon.setMaterialIcon(CardService.newMaterialIcon().setName(spec.icon));
+  try {
+    if (
+      spec.icon !== undefined &&
+      typeof withIcon.setMaterialIcon === "function"
+    )
+      withIcon.setMaterialIcon(
+        CardService.newMaterialIcon().setName(spec.icon),
+      );
+  } catch {
+    // A runtime that refuses the icon keeps the button, without the icon.
+  }
   return button;
 }
 
-function toIcon(name: IconName): GoogleAppsScript.Card_Service.IconImage {
-  return CardService.newIconImage().setMaterialIcon(
+function toIcon(
+  name: IconName,
+  alt?: string,
+): GoogleAppsScript.Card_Service.IconImage {
+  const icon = CardService.newIconImage().setMaterialIcon(
     CardService.newMaterialIcon().setName(name),
   );
+  return alt === undefined ? icon : icon.setAltText(alt);
 }
+
+/** Hint and error lines (D36): a wrapped DecoratedText, the tone's icon at the start, the escaped text in its color. */
+const TONES = {
+  hint: { color: GREY, icon: "info", alt: undefined },
+  // The icon's alt text says "Error" to screen readers, so the line needs no "(!)" (slice 22b).
+  error: { color: RED, icon: "error", alt: "Error" },
+} as const;
 
 // Labels are plain text in Gmail (add-on widget guide): escaped like every value, never given markup such as `<br>`.
 function toItem(spec: Extract<Widget, { kind: "item" }>) {
@@ -127,17 +148,61 @@ function toInput(spec: Extract<Widget, { kind: "input" }>) {
   return input;
 }
 
-function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
+type CardWidget = GoogleAppsScript.Card_Service.Widget;
+
+/** The part of Card Service Columns this file uses. */
+interface ColumnsApi {
+  newColumns(): {
+    addColumn(column: Column): ReturnType<ColumnsApi["newColumns"]>;
+  };
+  newColumn(): Column;
+  HorizontalSizeStyle: Readonly<Record<string, unknown>>;
+  VerticalAlignment: Readonly<Record<string, unknown>>;
+}
+interface Column {
+  setHorizontalSizeStyle(style: unknown): Column;
+  setVerticalAlignment(alignment: unknown): Column;
+  addWidget(widget: CardWidget): Column;
+}
+
+function enumValue(values: Readonly<Record<string, unknown>>, name: string) {
+  const value = values[name];
+  if (value === undefined) throw new Error("no such Card Service value");
+  return value;
+}
+
+/**
+ * shortcut: the typings lack Columns (GA 2024-07, compose dialog only). A build that throws (method or enum missing)
+ * falls back to the two widgets stacked; a Gmail that refuses Columns while drawing the card cannot be caught here.
+ */
+function toColumns(spec: Extract<Widget, { kind: "columns" }>): CardWidget[] {
+  try {
+    const api = CardService as unknown as ColumnsApi;
+    const column = (widget: Single, size: string) =>
+      api
+        .newColumn()
+        .setHorizontalSizeStyle(enumValue(api.HorizontalSizeStyle, size))
+        .setVerticalAlignment(enumValue(api.VerticalAlignment, "CENTER"))
+        .addWidget(toWidget(widget));
+    const row = api
+      .newColumns()
+      .addColumn(column(spec.fill, "FILL_AVAILABLE_SPACE"))
+      .addColumn(column(spec.fit, "FILL_MINIMUM_SPACE"));
+    return [row];
+  } catch {
+    return [toWidget(spec.fill), toWidget(spec.fit)];
+  }
+}
+
+function toWidget(spec: Single): CardWidget {
   switch (spec.kind) {
     case "text":
-      if (spec.tone === "hint")
-        return CardService.newDecoratedText()
-          .setText(colored(GREY, spec.text))
-          .setWrapText(true)
-          .setStartIcon(toIcon("info"));
-      return CardService.newTextParagraph().setText(
-        spec.tone === "error" ? colored(RED, spec.text) : markup(spec.text),
-      );
+      if (spec.tone === undefined)
+        return CardService.newTextParagraph().setText(markup(spec.text));
+      return CardService.newDecoratedText()
+        .setText(colored(TONES[spec.tone].color, spec.text))
+        .setWrapText(true)
+        .setStartIcon(toIcon(TONES[spec.tone].icon, TONES[spec.tone].alt));
     case "item":
       return toItem(spec);
     case "buttons":
@@ -153,7 +218,11 @@ function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
 function toSection(spec: SectionSpec) {
   const section = CardService.newCardSection();
   if (spec.header !== undefined) section.setHeader(markup(spec.header));
-  for (const widget of spec.widgets) section.addWidget(toWidget(widget));
+  for (const widget of spec.widgets)
+    for (const built of widget.kind === "columns"
+      ? toColumns(widget)
+      : [toWidget(widget)])
+      section.addWidget(built);
   if (spec.collapseAfter !== undefined)
     section.setCollapsible(true).setNumUncollapsibleWidgets(spec.collapseAfter);
   return section;

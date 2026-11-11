@@ -194,7 +194,7 @@ export function detailsCard(state: DetailsState): CardSpec {
     sections: [
       ...(state.problem === ""
         ? []
-        : [{ widgets: [errorLine(`(!) ${state.problem}`)] }]),
+        : [{ widgets: [errorLine(state.problem)] }]),
       ...fieldsSection(state, FIRST_NAME_HINT),
       ...subjectSection(state),
       ...recipientSection(state, state.addRecipients, true, []),

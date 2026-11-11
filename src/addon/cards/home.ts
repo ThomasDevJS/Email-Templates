@@ -55,31 +55,34 @@ function emptySection(view: SidebarHome): SectionSpec {
   };
 }
 
-function searchSection(query: string): SectionSpec {
-  return {
-    widgets: [
+/** The box and the Search button: one row in the compose dialog, stacked in the side panel (no Columns there). */
+function searchSection(query: string, entry: Entry): SectionSpec {
+  const box = {
+    kind: "input",
+    name: SEARCH_INPUT,
+    title: "Search templates",
+    value: query,
+    multiline: false,
+    onChange: action("onSearch"),
+  } as const;
+  // Enter or leaving the box also searches (`onChange`); the button makes that visible (D36).
+  const button = {
+    kind: "buttons",
+    buttons: [
       {
-        kind: "input",
-        name: SEARCH_INPUT,
-        title: "Search templates",
-        value: query,
-        multiline: false,
-        onChange: action("onSearch"),
-      },
-      // Enter or leaving the box also searches (`onChange`); the button makes that visible (D36).
-      {
-        kind: "buttons",
-        buttons: [
-          {
-            text: "Search",
-            icon: "search",
-            alt: "Search templates",
-            style: "outlined",
-            action: action("onSearch"),
-          },
-        ],
+        text: "Search",
+        icon: "search",
+        alt: "Search templates",
+        style: "outlined",
+        action: action("onSearch"),
       },
     ],
+  } as const;
+  return {
+    widgets:
+      entry === "compose"
+        ? [{ kind: "columns", fill: box, fit: button }]
+        : [box, button],
   };
 }
 
@@ -104,7 +107,7 @@ function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
   // Each template once (spec 7.4): Recent drops the favorites.
   const recent = view.recent.filter((id) => !view.favorites.includes(id));
   return [
-    searchSection(""),
+    searchSection("", entry),
     ...listSection(
       "Favorites",
       capped(
@@ -170,7 +173,7 @@ export function searchCard(
         };
   return {
     name: HOME_CARD,
-    sections: [searchSection(query), list, ...sidePanelHint(entry)],
+    sections: [searchSection(query, entry), list, ...sidePanelHint(entry)],
     footer: LIBRARY_FOOTER,
   };
 }

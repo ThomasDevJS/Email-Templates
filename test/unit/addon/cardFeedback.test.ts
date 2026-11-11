@@ -5,7 +5,6 @@ import {
   detailsCard,
   panelDetailsCard,
 } from "../../../src/addon/cards/details";
-import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
 import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import { folderCard } from "../../../src/addon/cards/folder";
 import { homeCard, searchCard } from "../../../src/addon/cards/home";
@@ -103,14 +102,14 @@ describe("load indicator", () => {
 describe("red for errors only", () => {
   const red = (text: string) => `<font color="#b32025">${text}</font>`;
 
-  it("colors the (!) line and each state card's error sentence, nothing else", () => {
+  it("colors the details problem line and each state card's error sentence, nothing else", () => {
     for (const card of CARDS) renderCard(card);
     const colored = argsOf("setText").filter((t) =>
       String(t).includes("#b32025"),
     );
     expect(new Set(colored)).toEqual(
       new Set([
-        red(`(!) ${problem}`),
+        red(problem),
         red("Cannot identify your Migway account."),
         red("Migway Templates is not set up yet."),
         red("You don't have access to this template. Ask a folder manager."),
@@ -131,8 +130,24 @@ describe("red for errors only", () => {
   it("adds only the wrapper tag: the text inside stays escaped", () => {
     renderCard(detailsCard(details({ problem: 'Shorten <b>"x"</b> & y' })));
     expect(argsOf("setText")).toContain(
-      red('(!) Shorten &lt;b&gt;"x"&lt;/b&gt; &amp; y'),
+      red('Shorten &lt;b&gt;"x"&lt;/b&gt; &amp; y'),
     );
+  });
+
+  it("an error line is a wrapped DecoratedText with the error icon, alt text Error, and no (!) on screen", () => {
+    renderCard(detailsCard(details({ problem })));
+    expect(argsOf("newTextParagraph")).not.toContainEqual(
+      expect.stringContaining("(!)"),
+    );
+    expect(argsOf("setText").join(" ")).not.toContain("(!)");
+    expect(argsOf("setName")).toContain("error");
+    expect(argsOf("setAltText")).toContain("Error");
+    calls.length = 0;
+    renderCard(CARDS.at(-1) ?? { name: "x", sections: [] });
+    expect(argsOf("newDecoratedText")).toHaveLength(1);
+    expect(argsOf("setStartIcon")).toHaveLength(1);
+    expect(argsOf("setWrapText")).toEqual([true]);
+    expect(argsOf("setAltText")).toEqual(["Error"]);
   });
 });
 
@@ -153,7 +168,7 @@ describe("hints look like hints (D36)", () => {
     expect(argsOf("setText")).toEqual([grey("Use &lt;b&gt; &amp; go")]);
   });
 
-  it("marks the toolbar hint, the cut line, finish typing, the fields line and the signature line, nothing else", () => {
+  it("marks the toolbar hint, the cut line, the fields line and the signature line, nothing else", () => {
     const many = view({
       folders: Array.from({ length: 41 }, (_, n) => ({
         id: `F${String(n)}`,
@@ -184,7 +199,6 @@ describe("hints look like hints (D36)", () => {
       "Showing 40 of 41 folders. Use Search or Open library for the rest.",
       TOOLBAR_HINT,
       FIELDS_LINE,
-      FINISH_TYPING,
       SIGNATURE_LINE,
       TOOLBAR_HINT,
     ]);
@@ -198,7 +212,10 @@ describe("Search button (D36)", () => {
       searchCard(data, "x", data.templates, "message"),
       searchCard(data, "zz", [], "inbox"),
     ]) {
-      const [box, button] = card.sections[0]?.widgets ?? [];
+      const first = card.sections[0]?.widgets ?? [];
+      const [box, button] = first.flatMap((w) =>
+        w.kind === "columns" ? [w.fill, w.fit] : [w],
+      );
       expect(box?.kind === "input" && box.onChange).toEqual({ fn: "onSearch" });
       expect(button).toEqual({
         kind: "buttons",
@@ -222,5 +239,75 @@ describe("Search button (D36)", () => {
     const at = fns.lastIndexOf("onSearch");
     expect(fns.filter((fn) => fn === "onSearch")).toHaveLength(2);
     expect(argsOf("setLoadIndicator")[at]).toBe("SPINNER");
+  });
+
+  it("compose: box and button in one row of 2 columns; side panel: stacked", () => {
+    const row = homeCard(data, "compose").sections[0]?.widgets;
+    expect(row?.map((w) => w.kind)).toEqual(["columns"]);
+    expect(
+      row?.[0]?.kind === "columns" && [row[0].fill.kind, row[0].fit.kind],
+    ).toEqual(["input", "buttons"]);
+    for (const entry of ["inbox", "message"] as const)
+      expect(
+        homeCard(data, entry).sections[0]?.widgets.map((w) => w.kind),
+      ).toEqual(["input", "buttons"]);
+    renderCard(homeCard(data, "compose"));
+    expect(argsOf("newColumns")).toHaveLength(1);
+    expect(argsOf("addColumn")).toHaveLength(2);
+    expect(argsOf("setHorizontalSizeStyle")).toEqual([
+      "FILL_AVAILABLE_SPACE",
+      "FILL_MINIMUM_SPACE",
+    ]);
+    expect(argsOf("setVerticalAlignment")).toEqual(["CENTER", "CENTER"]);
+  });
+
+  it("a Columns build that throws falls back to the stacked box and button", () => {
+    const base = createRecordingCardService();
+    calls = base.calls;
+    vi.stubGlobal(
+      "CardService",
+      new Proxy(base.service, {
+        get: (target, method) =>
+          method === "newColumns"
+            ? () => {
+                throw new Error("Columns not supported");
+              }
+            : (Reflect.get(target, method) as unknown),
+      }),
+    );
+    expect(() => renderCard(homeCard(data, "compose"))).not.toThrow();
+    expect(argsOf("addColumn")).toHaveLength(0);
+    expect(argsOf("setTitle")).toContain("Search templates");
+    expect(argsOf("setText")).toContain("Search");
+    expect(argsOf("build")).toHaveLength(1);
+  });
+
+  it("a button icon that throws leaves the card whole, the button without its icon", () => {
+    const throwing: object = new Proxy(
+      {},
+      {
+        get:
+          (_target, method) =>
+          (...args: unknown[]) => {
+            if (method === "setMaterialIcon") throw new Error("not supported");
+            calls.push({ method: String(method), args });
+            return throwing;
+          },
+      },
+    );
+    const base = createRecordingCardService();
+    calls = base.calls;
+    vi.stubGlobal(
+      "CardService",
+      new Proxy(base.service, {
+        get: (target, method) =>
+          method === "newTextButton"
+            ? () => throwing
+            : (Reflect.get(target, method) as unknown),
+      }),
+    );
+    expect(() => renderCard(homeCard(data, "inbox"))).not.toThrow();
+    expect(argsOf("setText")).toContain("Search");
+    expect(argsOf("build")).toHaveLength(1);
   });
 });

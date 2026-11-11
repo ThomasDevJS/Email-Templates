@@ -53,9 +53,13 @@ import {
   waitSeconds,
 } from "../../../src/addon/cards/states";
 
-/** Every widget of a card, footer buttons excluded. */
+/** Every widget of a card, footer buttons excluded; a row of columns as its two widgets. */
 function widgets(card: CardSpec): Widget[] {
-  return card.sections.flatMap((section) => section.widgets);
+  return card.sections.flatMap((section) =>
+    section.widgets.flatMap((w) =>
+      w.kind === "columns" ? [w.fill, w.fit] : [w],
+    ),
+  );
 }
 
 function texts(card: CardSpec): string[] {
@@ -468,7 +472,7 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
     const inputs = widgets(card).filter((w) => w.kind === "input");
     expect(inputs).toHaveLength(20);
     expect(inputs[0]).toMatchObject({ name: "p-6", title: "F5" });
-    expect(texts(card)[0]).toBe("(!) Shorten to 500 characters: F5");
+    expect(texts(card)[0]).toBe("Shorten to 500 characters: F5");
     expect(texts(card)).toContain(
       "This template has 23 fields. The first 20 are here. The rest are left out of the draft.",
     );

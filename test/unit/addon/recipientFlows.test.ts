@@ -249,7 +249,7 @@ describe("row Insert with recipients (spec 7.4 Flow A)", () => {
       const result = insertFlow(ports(), newDraft, sentRc);
       expect(result.kind).toBe("push");
       const card = cardOf(result);
-      expect(texts(card)[0]).toBe(`(!) ${CHANGED}`);
+      expect(texts(card)[0]).toBe(CHANGED);
       expect(texts(card)).toContain("new@example.com");
       expect(footerParams(card)["counted"]).toBe("1");
     }
@@ -272,7 +272,7 @@ describe("row Insert with recipients (spec 7.4 Flow A)", () => {
     expect(texts(card)).toContain(
       `The draft's Cc recipients could not be read and were not changed. Add by hand: ${CC}.`,
     );
-    expect(texts(card)).not.toContain(`(!) ${CHANGED}`);
+    expect(texts(card)).not.toContain(CHANGED);
     expect(
       insertOf(
         promptInsertFlow(
@@ -368,7 +368,7 @@ describe("details card with recipients (spec 7.4 Flows B and C)", () => {
     );
     expect(result.kind).toBe("update");
     const card = cardOf(result);
-    expect(texts(card)[0]).toBe(`(!) ${CHANGED}`);
+    expect(texts(card)[0]).toBe(CHANGED);
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({
         text: "Add recipients",
