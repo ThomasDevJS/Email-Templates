@@ -79,12 +79,19 @@ function listed(context: HandlerContext, folderId: string): ItemView[] {
   const live = new Set(
     index.folders.filter((f) => f.deletedAt === "").map((f) => f.id),
   );
-  return index.items
-    .filter((item) => item.deletedAt === "")
-    .filter((item) => live.has(item.folderId))
-    .filter((item) => folderId === "" || item.folderId === folderId)
-    .map((item) => ({ ...item, level: levelOf(item.folderId) }))
-    .filter((item) => atLeast(item.level, "use"));
+  return (
+    index.items
+      .filter((item) => item.deletedAt === "")
+      .filter((item) => live.has(item.folderId))
+      .filter((item) => folderId === "" || item.folderId === folderId)
+      // Lists absent on items before slice 9 read as [] (spec 5.7); the library search matches them.
+      .map((item) => ({
+        ...item,
+        ...recipientsOf(item),
+        level: levelOf(item.folderId),
+      }))
+      .filter((item) => atLeast(item.level, "use"))
+  );
 }
 
 export interface TrashView extends ItemView {

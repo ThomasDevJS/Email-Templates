@@ -259,6 +259,22 @@ describe("library model", () => {
     expect(ids("nothing")).toEqual([]);
   });
 
+  it("matches To, Cc and Bcc addresses by local part or full address prefix, never the domain alone", () => {
+    const items = [
+      { ...item("1", "Offer", "Q"), to: ["buyer@client.example"] },
+      { ...item("2", "Hello", "Q"), cc: ["ops@migway.com"] },
+      { ...item("3", "Note", "Q"), bcc: ["buyer.two@migway.com"] },
+      item("4", "Legacy", "Q"),
+    ];
+    const ids = (query: string) =>
+      searchItems(items, FOLDERS, query, []).map((entry) => entry.id);
+    expect(ids("buyer")).toEqual(["3", "1"]);
+    expect(ids("ops@migway.com")).toEqual(["2"]);
+    expect(ids("buyer@client")).toEqual(["1"]);
+    expect(ids("migway")).toEqual([]);
+    expect(ids("client.example")).toEqual([]);
+  });
+
   it("breaks equal scores by the caller's last use", () => {
     const items = [item("1", "Note A", "Q"), item("2", "Note B", "Q")];
     expect(
