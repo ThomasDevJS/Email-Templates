@@ -75,3 +75,9 @@ Left:
 - Minor 4: a Remove on a held access row during the background read is allowed by design (1 write, error path works).
 - Minor 5: in dark mode the bar uses the dark `--slate` (#dfe6eb) for contrast on the dark page; D37 names #2a3c49 for light only (`src/web/styles.css` `.busy-bar::before`).
 - A click into another field during a save is blocked (mousedown); Tab moves between fields.
+
+## Retry 2 (review docs/reviews/slice-24.md, newest section)
+
+- Fixed: while the page is busy (`data-blocked` on an ancestor of the editor), Ctrl+K does nothing and `{{` stays as text (`src/web/editor/setup.ts` `pageBusy`, `bracesRule`, `link`). Typing, Backspace, Delete, paste, undo, redo, Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+Shift+X, list keys keep working.
+- Tests: editor.test "while the page is busy, {{ stays as text and opens no picker" and "while the page is busy, Ctrl+K opens nothing and Ctrl+B still bolds" (both fail on 78172c8).
+- Checked every editor shortcut and input rule: the keymap (`setup.ts`: Mod-z, Mod-y, Shift-Mod-z, Mod-b, Mod-i, Mod-u, Mod-Shift-x, Mod-k, Enter, Mod-], Mod-[) and `baseKeymap` change only the text, except Mod-k (link dialog). The only input rule is `bracesRule` (field picker). Other keydown handlers sit on buttons, the toolbar or the tab list (blocked by the guard) or only edit their own box (tags, recipient chips). Ctrl+S during a call still starts a save when none runs (`saving` guard), as before.
