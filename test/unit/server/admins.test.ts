@@ -260,6 +260,9 @@ describe("admin.add refusals (criterion 4): own code, check order, nothing writt
       level: "warn",
       action: "directory.users.get",
       errorCode: "ADMIN_CHECK:503",
+      // Links the line to the admin.add line of the same request; no actor address (slice 16 retry 1 minor 1).
+      requestId: "TESTREQ0-000001",
+      actor: "",
     });
   });
 
