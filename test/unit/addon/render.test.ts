@@ -6,8 +6,8 @@ import {
 } from "../../../src/addon/cards/render";
 import type { CardSpec } from "../../../src/addon/cards/spec";
 import { homeCard, searchCard } from "../../../src/addon/cards/home";
-import { previewCard } from "../../../src/addon/cards/preview";
-import { template, view } from "./fixtures";
+import { detailsCard } from "../../../src/addon/cards/details";
+import { details, template, view } from "./fixtures";
 import {
   createRecordingCardService,
   type RecordedCall,
@@ -325,21 +325,21 @@ describe("labels (plain text in Gmail)", () => {
     const escaped =
       "R&amp;D &lt;b&gt;Research and development of long names&lt;/b&gt;";
     expect(labels()).toEqual([
-      `${escaped} / Quotes for every region · 1 field to fill · Adds To 1, Cc 1`,
+      `Adds To 1, Cc 1 · 1 field to fill · ${escaped} / Quotes for every region`,
       "2 templates",
     ]);
     calls.length = 0;
     renderCard(
-      previewCard(template("T1"), "x", "S", false, "compose", {
-        plan: {
-          added: { to: ["a@example.com"], cc: [], bcc: ["b@example.com"] },
-          notAdded: [],
-          unknown: { to: [], cc: [], bcc: [] },
-        },
-        rh: "RH",
-        domain: "migway.com",
-        changed: false,
-      }),
+      detailsCard(
+        details({
+          subject: "S",
+          plan: {
+            added: { to: ["a@example.com"], cc: [], bcc: ["b@example.com"] },
+            notAdded: [],
+            unknown: { to: [], cc: [], bcc: [] },
+          },
+        }),
+      ),
     );
     expect(labels().length).toBeGreaterThan(2);
     for (const text of labels()) expect(String(text)).not.toMatch(/[<>]/);

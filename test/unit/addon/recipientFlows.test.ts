@@ -17,10 +17,11 @@ import {
   type Ports,
 } from "../../../src/addon/flows";
 import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
+import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import { FakeCache } from "../../fakes/cache";
 import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
-/** Template recipients in the add-on (spec 5.7, wireframe 02): Review rows, cards, `rh` check, actions. */
+/** Template recipients in the add-on (spec 5.7, 7.4, wireframe 02): rows with `rc`, the details card, `rh`, actions. */
 const ANA = "ana@example.com";
 const TO = "payroll@example.com";
 const CC = "safety@example.com";
@@ -111,11 +112,6 @@ const buttons = (card: CardSpec): ButtonSpec[] =>
         ? [w.button]
         : [],
   );
-const named = (card: CardSpec, text: string) => {
-  const found = buttons(card).find((b) => b.text === text);
-  if (found === undefined) throw new Error(`no button ${text}`);
-  return found.action.params ?? {};
-};
 
 function folderCardOf(entry: Entry = "compose"): CardSpec {
   return cardOf(folderFlow(ports(entry), { folderId: sales.id, page: "1" }));
@@ -134,56 +130,74 @@ const reply: AddonEvent = {
   },
 };
 
+/** The Insert params of the row of `item` on the folder card, as Gmail sends them back. */
+function rowParams(item: Item): Record<string, string> {
+  const row = widgets(folderCardOf()).find(
+    (w) => w.kind === "item" && w.text === item.title,
+  );
+  if (row?.kind !== "item" || row.button === undefined)
+    throw new Error("no row button");
+  return { ...row.button.action.params };
+}
+
+const footerParams = (card: CardSpec) =>
+  card.footer?.primary.action.params ?? {};
+
+const form = (
+  values: Record<string, string>,
+  base: AddonEvent = newDraft,
+): AddonEvent => ({
+  ...base,
+  commonEventObject: {
+    formInputs: Object.fromEntries(
+      Object.entries(values).map(([k, v]) => [
+        k,
+        { stringInputs: { value: [v] } },
+      ]),
+    ),
+  },
+});
+
 describe("list rows", () => {
-  it("a template with recipients shows the hint and Review (preview card); others keep Insert", () => {
+  it("every row has Insert; a template with recipients shows the hint and carries rc (AC 1)", () => {
     const item = create();
+    const fields = create("<p>{{ask:Driver}}</p>");
     world.ok(OWNER, "template.create", {
       folderId: sales.id,
       title: "Plain",
       html: "<p>x</p>",
     });
-    const home = folderCardOf();
-    const rows = widgets(home).flatMap((w) =>
+    const rows = widgets(folderCardOf()).flatMap((w) =>
       w.kind === "item" && w.button ? [w] : [],
     );
-    const row = rows.find((w) => w.text === item.title);
-    expect(row).toMatchObject({
+    expect(rows.map((w) => w.button?.text)).toEqual([
+      "Insert",
+      "Insert",
+      "Insert",
+    ]);
+    expect(rows.find((w) => w.text === item.title)).toMatchObject({
       bottomLabel: "Adds To 1, Cc 1, Bcc 1",
       button: {
-        text: "Review",
-        alt: "Review Driver leaving",
+        text: "Insert",
+        alt: "Insert Driver leaving",
         style: "filled",
-        action: { fn: "onPreview", params: { id: item.id } },
+        action: { fn: "onInsert", params: { id: item.id, rc: "1,1,1" } },
       },
     });
-    expect(rows.find((w) => w.text === "Plain")).toMatchObject({
-      button: { text: "Insert" },
-    });
-  });
-
-  it("Review of a template with prompts goes through Insert to the prompt card", () => {
-    const item = create("<p>{{ask:Driver}}</p>");
-    const row = widgets(folderCardOf()).find(
-      (w) => w.kind === "item" && w.text === item.title,
-    );
-    expect(row).toMatchObject({
-      button: { text: "Review", action: { fn: "onInsert" } },
-    });
-    const card = cardOf(insertFlow(ports(), newDraft, { id: item.id }));
-    expect(widgets(card)).toContainEqual({
-      kind: "item",
-      text: "Add recipients",
-      bottomLabel: "Adds 3 recipients.",
-      toggle: { name: "rcpt", selected: true },
-    });
-    // The same lines as the preview card: markers, then the finish-typing line.
-    expect(widgets(card)).toContainEqual({
-      kind: "item",
-      topLabel: "Bcc",
-      text: BCC,
-      bottomLabel: "outside example.com · hidden from other recipients",
-    });
-    expect(texts(card)).toContain(FINISH_TYPING);
+    expect(
+      rows
+        .filter((w) => w.text === item.title)
+        .map((w) => w.button?.action.params),
+    ).toEqual([
+      { id: item.id, rc: "1,1,1" },
+      { id: fields.id, rc: "1,1,1" },
+    ]);
+    expect(
+      Object.keys(
+        rows.find((w) => w.text === "Plain")?.button?.action.params ?? {},
+      ),
+    ).toEqual(["id"]);
+    expect(JSON.stringify(rows)).not.toContain("Review");
   });
 
   it("side panel rows show the hint and no button", () => {
@@ -196,26 +210,12 @@ describe("list rows", () => {
   });
 });
 
-describe("preview card and Insert", () => {
-  it("lists every address with markers, then inserts body, subject and one action per field", () => {
-    const item = create("<p>Hi</p>", "Leaving");
-    const card = cardOf(previewFlow(ports(), newDraft, { id: item.id }));
-    expect(card.sections.map((s) => s.header)).toContain("Recipients");
-    expect(texts(card)).toEqual(
-      expect.arrayContaining([TO, CC, BCC, "Adds 3 recipients."]),
-    );
-    expect(widgets(card)).toContainEqual({
-      kind: "item",
-      topLabel: "Bcc",
-      text: BCC,
-      bottomLabel: "outside example.com · hidden from other recipients",
-    });
-    expect(buttons(card).map((b) => b.text)).toEqual([
-      "Insert",
-      "Insert body only",
-    ]);
-    const done = insertOf(insertFlow(ports(), newDraft, named(card, "Insert")));
-    expect(done).toMatchObject({
+describe("row Insert with recipients (spec 7.4 Flow A)", () => {
+  it("equal rc: one insert reply with body, subject and recipientActions(lists, draft, true) (AC 6)", () => {
+    const item = create("<p>Hi {{ask:Driver}}</p>", "Leaving");
+    expect(insertFlow(ports(), newDraft, rowParams(item))).toEqual({
+      kind: "insert",
+      html: "<p>Hi</p>",
       subject: "Leaving",
       recipients: { to: [TO], cc: [CC], bcc: [BCC] },
     });
@@ -223,16 +223,7 @@ describe("preview card and Insert", () => {
 
   it("in a reply: To not added, Cc keeps the draft list first, subject kept", () => {
     const item = create("<p>Hi</p>", "Leaving");
-    const card = cardOf(previewFlow(ports(), reply, { id: item.id }));
-    expect(texts(card)).toContain(
-      `Not added: ${TO}. The draft already has a To recipient.`,
-    );
-    expect(buttons(card).map((b) => b.text)).toEqual([
-      "Insert",
-      "Insert with subject",
-      "Insert body only",
-    ]);
-    const done = insertOf(insertFlow(ports(), reply, named(card, "Insert")));
+    const done = insertOf(insertFlow(ports(), reply, rowParams(item)));
     expect(done.subject).toBeNull();
     expect(done.recipients).toEqual({
       cc: ["boss@example.com", CC],
@@ -240,116 +231,100 @@ describe("preview card and Insert", () => {
     });
   });
 
-  it("a draft whose Cc list cannot be read: Cc is not touched and the card says what to add by hand", () => {
+  it("a different or absent rc pushes the details card with the change line and inserts nothing (AC 6)", () => {
+    const item = create();
+    const params = rowParams(item);
+    setLists(item, { cc: [CC, "new@example.com"] });
+    for (const sentRc of [params, { id: item.id }]) {
+      const result = insertFlow(ports(), newDraft, sentRc);
+      expect(result.kind).toBe("push");
+      const card = cardOf(result);
+      expect(texts(card)[0]).toBe(`(!) ${CHANGED}`);
+      expect(texts(card)).toContain("new@example.com");
+      expect(footerParams(card)["counted"]).toBe("1");
+    }
+    const card = cardOf(insertFlow(ports(), newDraft, params));
+    const done = insertOf(
+      promptInsertFlow(ports(), form({ rcpt: "on" }), footerParams(card)),
+    );
+    expect(done.recipients.cc).toEqual([CC, "new@example.com"]);
+    expect(sent.at(-1)?.args).toMatchObject({ followUp: true });
+  });
+
+  it("a template address in a draft field the event cannot read pushes the details card, no insert (AC 7)", () => {
     const item = create();
     const odd: AddonEvent = {
       draftMetadata: { toRecipients: [], ccRecipients: "x", bccRecipients: [] },
     };
-    const card = cardOf(previewFlow(ports(), odd, { id: item.id }));
+    const result = insertFlow(ports(), odd, rowParams(item));
+    expect(result.kind).toBe("push");
+    const card = cardOf(result);
     expect(texts(card)).toContain(
       `The draft's Cc recipients could not be read and were not changed. Add by hand: ${CC}.`,
     );
-    expect(texts(card)).toContain(FINISH_TYPING);
+    expect(texts(card)).not.toContain(`(!) ${CHANGED}`);
     expect(
-      insertOf(insertFlow(ports(), odd, named(card, "Insert"))).recipients,
+      insertOf(
+        promptInsertFlow(
+          ports(),
+          form({ rcpt: "on" }, odd),
+          footerParams(card),
+        ),
+      ).recipients,
     ).toEqual({ to: [TO], bcc: [BCC] });
   });
 
-  it("Insert body only sends no subject and no recipients", () => {
-    const item = create("<p>Hi</p>", "Leaving");
-    const card = cardOf(previewFlow(ports(), newDraft, { id: item.id }));
-    expect(
-      insertOf(insertFlow(ports(), newDraft, named(card, "Insert body only"))),
-    ).toEqual({
-      kind: "insert",
-      html: "<p>Hi</p>",
-      subject: null,
-      recipients: {},
-    });
-  });
-
-  it("changed recipients under the open card: no insert, the card says so and carries the new hash", () => {
-    const item = create();
-    const card = cardOf(previewFlow(ports(), newDraft, { id: item.id }));
-    const shown = named(card, "Insert");
-    setLists(item, { cc: ["new@example.com"] });
-    const again = insertFlow(ports(), newDraft, shown);
-    expect(again.kind).toBe("update");
-    const updated = cardOf(again);
-    expect(texts(updated)[0]).toBe(`(!) ${CHANGED}`);
-    expect(texts(updated)).toContain("new@example.com");
-    expect(named(updated, "Insert")["rh"]).not.toBe(shown["rh"]);
-    expect(
-      insertOf(insertFlow(ports(), newDraft, named(updated, "Insert")))
-        .recipients.cc,
-    ).toEqual(["new@example.com"]);
-  });
-
-  it("a one-click Insert from a stale row never adds recipients: it pushes the preview card", () => {
-    const item = create();
-    const result = insertFlow(ports(), newDraft, { id: item.id });
-    expect(result.kind).toBe("push");
-    expect(texts(cardOf(result))).toContain(TO);
-    expect(texts(cardOf(result))).not.toContain(`(!) ${CHANGED}`);
-  });
-
-  it("deny: the blocked address is listed as not added and never inserted", () => {
+  it("deny: rc counts the allowed addresses; the blocked one is never inserted", () => {
     const item = create();
     setSetting(world, "recipientsExternal", "deny");
-    const card = cardOf(previewFlow(ports(), newDraft, { id: item.id }));
-    expect(texts(card)).toContain(
-      `Not added: ${BCC}. Outside example.com, turned off by your admin.`,
-    );
-    expect(
-      insertOf(insertFlow(ports(), newDraft, named(card, "Insert"))).recipients,
-    ).toEqual({ to: [TO], cc: [CC] });
-  });
-
-  it("side panel preview lists the recipients with no Insert", () => {
-    const item = create();
-    const card = cardOf(
-      previewFlow(ports("message"), undefined, { id: item.id }),
-    );
-    expect(texts(card)).toContain(CC);
-    expect(buttons(card)).toEqual([]);
+    const params = rowParams(item);
+    expect(params["rc"]).toBe("1,1,0");
+    expect(insertOf(insertFlow(ports(), newDraft, params)).recipients).toEqual({
+      to: [TO],
+      cc: [CC],
+    });
   });
 
   it("no draft address reaches the server", () => {
     const item = create();
+    insertFlow(ports(), reply, rowParams(item));
     const card = cardOf(previewFlow(ports(), reply, { id: item.id }));
-    insertFlow(ports(), reply, named(card, "Insert"));
+    promptInsertFlow(ports(), form({ rcpt: "on" }, reply), footerParams(card));
     const args = JSON.stringify(sent.map((s) => s.args));
     expect(args).not.toContain("example.org");
     expect(args).not.toContain("boss@");
   });
 });
 
-describe("prompt card", () => {
+describe("details card with recipients (spec 7.4 Flows B and C)", () => {
   function opened(item: Item, event: AddonEvent = newDraft) {
-    const card = cardOf(insertFlow(ports(), event, { id: item.id }));
-    const params = card.footer?.primary.action.params ?? {};
-    return { card, params };
+    const card = cardOf(previewFlow(ports(), event, { id: item.id }));
+    return { card, params: footerParams(card) };
   }
 
-  const form = (
-    values: Record<string, string>,
-    base: AddonEvent = newDraft,
-  ): AddonEvent => ({
-    ...base,
-    commonEventObject: {
-      formInputs: Object.fromEntries(
-        Object.entries(values).map(([k, v]) => [
-          k,
-          { stringInputs: { value: [v] } },
-        ]),
-      ),
-    },
+  it("lists every address with markers under Recipients, with the switch on", () => {
+    const item = create("<p>{{ask:Driver}}</p>");
+    const { card, params } = opened(item);
+    expect(card.sections.map((s) => s.header)).toContain("Recipients");
+    expect(widgets(card)).toContainEqual({
+      kind: "item",
+      text: "Add recipients",
+      bottomLabel: "Adds 3 recipients.",
+      toggle: { name: "rcpt", selected: true },
+    });
+    expect(widgets(card)).toContainEqual({
+      kind: "item",
+      topLabel: "Bcc",
+      text: BCC,
+      bottomLabel: "outside example.com · hidden from other recipients",
+    });
+    expect(texts(card)).toContain(FINISH_TYPING);
+    expect(params["rh"]).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it("the switch on adds the recipients; off adds none", () => {
     const item = create("<p>{{ask:Driver}}</p>");
     const { params } = opened(item);
-    expect(params["rh"]).toMatch(/^[0-9a-f]{16}$/);
     expect(
       insertOf(
         promptInsertFlow(ports(), form({ "p-1": "Jo", rcpt: "on" }), params),
@@ -361,17 +336,29 @@ describe("prompt card", () => {
     ).toEqual({});
   });
 
-  it("changed recipients: no insert, the card says so with the switch on", () => {
+  it("both switches off: the body action only, no subject, no recipients (AC 11)", () => {
+    const item = create("<p>Hi</p>", "Leaving");
+    const { params } = opened(item);
+    expect(promptInsertFlow(ports(), form({}), params)).toEqual({
+      kind: "insert",
+      html: "<p>Hi</p>",
+      subject: null,
+      recipients: {},
+    });
+  });
+
+  it("changed recipients under the open card: no insert, the card says so with the switch on and a new rh", () => {
     const item = create("<p>{{ask:Driver}}</p>");
     const { params } = opened(item);
     setLists(item, { bcc: [] });
-    const card = cardOf(
-      promptInsertFlow(ports(), form({ "p-1": "Jo", rcpt: "on" }), {
-        ...params,
-        version: "2",
-      }),
+    const result = promptInsertFlow(
+      ports(),
+      form({ "p-1": "Jo", rcpt: "on" }),
+      { ...params, version: "2" },
     );
-    expect(texts(card).at(-1)).toBe(`(!) ${CHANGED}`);
+    expect(result.kind).toBe("update");
+    const card = cardOf(result);
+    expect(texts(card)[0]).toBe(`(!) ${CHANGED}`);
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({
         text: "Add recipients",
@@ -379,9 +366,10 @@ describe("prompt card", () => {
         toggle: { name: "rcpt", selected: true },
       }),
     );
+    expect(footerParams(card)["rh"]).not.toBe(params["rh"]);
   });
 
-  it("in a reply the prompt card lists the To as not added and the Bcc marker, like the preview card", () => {
+  it("in a reply the card lists the To as not added and the Bcc marker", () => {
     const item = create("<p>{{ask:Driver}}</p>");
     const { card } = opened(item, reply);
     expect(texts(card)).toEqual(
@@ -390,26 +378,33 @@ describe("prompt card", () => {
         FINISH_TYPING,
       ]),
     );
-    expect(widgets(card)).toContainEqual({
-      kind: "item",
-      topLabel: "Bcc",
-      text: BCC,
-      bottomLabel: "outside example.com · hidden from other recipients",
-    });
   });
 
-  it("Insert body only: no switch, no recipients", () => {
-    const item = create("<p>{{ask:Driver}}</p>", "Leaving");
-    const card = cardOf(
-      insertFlow(ports(), newDraft, { id: item.id, subject: "skip" }),
+  it("deny: the blocked address is listed as not added", () => {
+    const item = create();
+    setSetting(world, "recipientsExternal", "deny");
+    const { card } = opened(item);
+    expect(texts(card)).toContain(
+      `Not added: ${BCC}. Outside example.com, turned off by your admin.`,
     );
-    expect(texts(card)).not.toContain("Add recipients");
-    const params = card.footer?.primary.action.params ?? {};
-    expect(params).not.toHaveProperty("rh");
-    expect(
-      insertOf(
-        promptInsertFlow(ports(), form({ "p-1": "Jo", rcpt: "on" }), params),
-      ),
-    ).toMatchObject({ subject: null, recipients: {} });
   });
+
+  it.each(["inbox", "message"] as const)(
+    "side panel %s: getBody, the recipients, no Insert, no inputs, the hint last (AC 16)",
+    (entry) => {
+      const item = create("<p>{{ask:Driver}}</p>", "Leaving");
+      const card = cardOf(
+        previewFlow(ports(entry), undefined, { id: item.id }),
+      );
+      expect(sent.map((s) => s.op)).toEqual([
+        "sidebar.home",
+        "template.getBody",
+      ]);
+      expect(texts(card)).toContain(CC);
+      expect(buttons(card)).toEqual([]);
+      expect(card).not.toHaveProperty("footer");
+      expect(widgets(card).filter((w) => w.kind === "input")).toEqual([]);
+      expect(texts(card).at(-1)).toBe(TOOLBAR_HINT);
+    },
+  );
 });

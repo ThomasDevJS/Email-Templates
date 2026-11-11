@@ -10,11 +10,11 @@ import {
 } from "../../../src/addon/event";
 import {
   answersByKey,
-  checkAnswers,
   displayOrder,
   inputName,
-  isClean,
-  problemText,
+  moreFieldsText,
+  shortenText,
+  tooLong,
 } from "../../../src/addon/prompts";
 import {
   BODY_TTL_S,
@@ -38,24 +38,24 @@ describe("prompt rules (wireframe 02)", () => {
     expect([0, 19].map(inputName)).toEqual(["p-1", "p-20"]);
   });
 
-  it("flags blank and over-long values and words the error line", () => {
-    const check = checkAnswers(FIELDS, ["x", " ", "y".repeat(501)]);
-    expect(check).toEqual({ blank: [1], tooLong: [2] });
-    expect(isClean(check)).toBe(false);
-    expect(problemText(FIELDS, check)).toBe(
-      "Fill 1 field: Beta\nShorten to 500 characters: Your phone",
+  it("flags over-long values only, blank is allowed, and words the shorten line (spec 7.4)", () => {
+    const long = tooLong(["x", " ", "y".repeat(501), "z".repeat(501)]);
+    expect(long).toEqual([2, 3]);
+    expect(tooLong(["", " ", "y".repeat(500)])).toEqual([]);
+    expect(shortenText(FIELDS, [1, 2])).toBe(
+      "Shorten to 500 characters: Beta, Your phone",
     );
-    expect(problemText(FIELDS, checkAnswers(FIELDS, []))).toBe(
-      "Fill 3 fields: Alpha, Beta, Your phone",
-    );
-    expect(isClean(checkAnswers(FIELDS, ["a", "b", "y".repeat(500)]))).toBe(
-      true,
+  });
+
+  it("words the more-than-20 line", () => {
+    expect(moreFieldsText(23)).toBe(
+      "This template has 23 fields. The first 20 are here. The rest are left out of the draft.",
     );
   });
 
   it("orders flagged fields first, the rest in template order", () => {
-    expect(displayOrder(3, { blank: [2], tooLong: [1] })).toEqual([1, 2, 0]);
-    expect(displayOrder(3, { blank: [], tooLong: [] })).toEqual([0, 1, 2]);
+    expect(displayOrder(3, [1, 2])).toEqual([1, 2, 0]);
+    expect(displayOrder(3, [])).toEqual([0, 1, 2]);
   });
 
   it("keys answers by prompt identity", () => {
@@ -167,18 +167,11 @@ describe("draft diagnostics and the subject rule (D24)", () => {
   });
 
   it.each([
-    [undefined, false, true],
-    [undefined, true, false],
-    ["use", false, true],
-    ["use", true, true],
-    ["skip", false, false],
-    ["skip", true, false],
-  ])(
-    "replacesSubject: choice %s, draft subject %s gives %s",
-    (choice, filled, expected) => {
-      expect(replacesSubject(choice, filled)).toBe(expected);
-    },
-  );
+    [false, true],
+    [true, false],
+  ])("replacesSubject: draft subject %s gives %s (D24)", (filled, expected) => {
+    expect(replacesSubject(filled)).toBe(expected);
+  });
 });
 
 describe("User Cache view and bodies", () => {

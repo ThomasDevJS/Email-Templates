@@ -29,30 +29,18 @@ export function templatesLabel(count: number): string {
   return `${String(count)} template${count === 1 ? "" : "s"}`;
 }
 
-/** The row's main action, its one filled button. */
+/**
+ * The row's one filled button (spec 7.4): Insert in one click. With a recipient hint it carries `rc`, the counts the
+ * row showed; Insert compares them with the lists at insert time (ADR-0006 Amendment 2026-11-11).
+ */
 export function insertButton(template: SidebarTemplate): ButtonSpec {
+  const rc =
+    rowHint(template.rc) === "" ? {} : { rc: (template.rc ?? []).join(",") };
   return {
     text: "Insert",
     alt: `Insert ${template.title}`,
     style: "filled",
-    action: action("onInsert", { id: template.id }),
-  };
-}
-
-/**
- * Row button (spec 5.7): a template with recipients never inserts in one click. "Review" opens the preview card,
- * or the prompt card (through Insert) when the template has prompts; either card lists every address.
- */
-export function rowButton(template: SidebarTemplate): ButtonSpec {
-  if (rowHint(template.rc) === "") return insertButton(template);
-  return {
-    text: "Review",
-    alt: `Review ${template.title}`,
-    style: "filled",
-    action:
-      template.prompts.length > 0
-        ? action("onInsert", { id: template.id })
-        : action("onPreview", { id: template.id }),
+    action: action("onInsert", { id: template.id, ...rc }),
   };
 }
 
@@ -66,18 +54,21 @@ export function folderItem(folder: SidebarFolder): Widget {
   };
 }
 
-/** One plain-text line: the folder path, then the hints that apply ("Sales · 2 fields to fill · Adds Cc 1"). */
+/**
+ * One plain-text line (spec 7.4): recipient hint, fields hint, folder path ("Adds Cc 1 · 2 fields to fill · Sales").
+ * The recipient hint goes first so a cut label keeps it.
+ */
 function rowLabel(template: SidebarTemplate, path: string): string {
   const prompts = template.prompts.length;
-  return [path, prompts > 0 ? fieldsLabel(prompts) : "", rowHint(template.rc)]
+  return [rowHint(template.rc), prompts > 0 ? fieldsLabel(prompts) : "", path]
     .filter((part) => part !== "")
     .join(" · ");
 }
 
 /**
- * One row layout in every list: the icon of its section, the title, the folder path ("" on a folder card) and hints below, a tap that
- * opens the preview, and Insert or Review in the compose toolbar only: from the side panel a draft response does
- * nothing (ADR-0007, interim fix of spec 13.7).
+ * One row layout in every list: the icon of its section, the title, the hints and folder path ("" on a folder card)
+ * below, a tap that opens the details card, and Insert in the compose toolbar only: from the side panel a draft
+ * response does nothing (ADR-0007, interim fix of spec 13.7).
  */
 export function templateItem(
   template: SidebarTemplate,
@@ -92,7 +83,7 @@ export function templateItem(
     text: template.title,
     ...(bottom === "" ? {} : { bottomLabel: bottom }),
     onClick: action("onPreview", { id: template.id }),
-    ...(entry === "compose" ? { button: rowButton(template) } : {}),
+    ...(entry === "compose" ? { button: insertButton(template) } : {}),
   };
 }
 

@@ -15,7 +15,8 @@ import {
 } from "./spec";
 
 /**
- * Home card (wireframe 01): Search, Favorites, Recent, Folders, and Open library in the fixed footer. No header:
+ * Home card (wireframe 01): Search, Favorites, Recent without the favorites, Folders, and Open library in the fixed
+ * footer. No header:
  * Gmail's bar already names the add-on. Typing in Search replaces the card with the results card (`onSearch`); an
  * empty query brings Home back.
  */
@@ -49,10 +50,6 @@ function emptySection(view: SidebarHome): SectionSpec {
   };
 }
 
-/** The search hint, in plain words (wireframe 01 showed the bare syntax). */
-export const SEARCH_HINT =
-  "Tip: add folder:Sales or tag:pricing to narrow the search.";
-
 function searchSection(query: string): SectionSpec {
   return {
     widgets: [
@@ -62,14 +59,13 @@ function searchSection(query: string): SectionSpec {
         title: "Search templates",
         value: query,
         multiline: false,
-        hint: SEARCH_HINT,
         onChange: action("onSearch"),
       },
     ],
   };
 }
 
-/** A template row of Favorites, Recent or search results, with its folder path below the title (wireframe 01). */
+/** A template row of Favorites, Recent or search results, with its hints and folder path below the title. */
 function listed(
   view: SidebarHome,
   entry: Entry,
@@ -87,6 +83,8 @@ function byIds(view: SidebarHome, ids: readonly string[]): SidebarTemplate[] {
 function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
   // Spec section 7 "no visible templates": an empty private folder still counts as empty.
   if (view.templates.length === 0) return [emptySection(view)];
+  // Each template once (spec 7.4): Recent drops the favorites.
+  const recent = view.recent.filter((id) => !view.favorites.includes(id));
   return [
     searchSection(""),
     ...listSection(
@@ -95,7 +93,7 @@ function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
     ),
     ...listSection(
       "Recent",
-      byIds(view, view.recent).map(listed(view, entry, "schedule")),
+      byIds(view, recent).map(listed(view, entry, "schedule")),
     ),
     ...listSection("Folders", view.folders.map(folderItem)),
   ];

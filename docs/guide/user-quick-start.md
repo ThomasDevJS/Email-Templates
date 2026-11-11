@@ -10,34 +10,44 @@ Migway Templates adds a panel to the Gmail compose window. One click puts a save
 2. Click into the message text where the template should go. Do this first: while the panel is open, you cannot type in the draft.
 3. Click the Migway Templates icon at the bottom of the compose window. In a narrow window it may sit under "More options".
 4. Find the template under "Favorites" (star icon), "Recent" (clock icon), "Folders" or "Search templates". Favorites and Recent show only when they hold a template.
-5. Click "Insert" next to it. The text goes in where your cursor was.
+5. Click "Insert" next to it. The text goes in where your cursor was, and the panel closes.
 
-Click a template's title to see a preview with the subject, the start of the text and "Fields to fill".
+Insert puts the template into the draft at once. Fields you did not fill are left out. Read the draft before you send.
 
-## Fill the asked fields
+Tap a template's name to see it first and fill in its fields.
 
-Some templates ask for a value, for example a product name.
+## Fill in fields first
 
-1. After "Insert", the panel shows "Fill these fields to insert".
-2. Fill every box (plain text, up to 500 characters) and click "Insert".
-3. An empty box stops the insert and shows "(!) Fill 1 field: ...". Your draft stays unchanged.
-4. "Cancel" goes back without inserting.
+Some templates have fields, for example a driver name. Their row says "2 fields to fill".
 
-Some fields fill themselves from the Migway directory: your name, title, phone, department, and the first name of a single Migway recipient. When a value is unknown, the panel asks you for it. Details: [editor guide](editor-guide.md).
+- "Insert" on the row leaves those fields out: "Hi [Driver name], thanks" becomes "Hi, thanks". Type the missing words in the draft.
+- To fill them first, tap the template's name. The panel shows "Fill in now, or leave blank and type in the draft.", one box per field, the subject, the recipients and the start of the text.
+- Fill the boxes you want (plain text, up to 500 characters) and click "Insert". A box left blank is left out of the draft.
+- A value over 500 characters stops the insert and shows "(!) Shorten to 500 characters: ...". Your draft stays unchanged.
+- Gmail's back arrow goes back to the list without inserting.
+
+Some fields fill themselves from the Migway directory: your name, title, phone, department, and the first name of a single Migway recipient. When a value is unknown, the field uses its default text, or is left out when it has none. Details: [editor guide](editor-guide.md).
 
 ## The subject line
 
-- Empty subject box: "Insert" fills it with the template subject. The preview says "Sets the draft subject."
-- Subject already there (typed or a reply): "Insert" keeps it. The preview says "The draft already has a subject. It is kept."
-- To replace it anyway: open the preview and click "Insert with subject".
-- To keep an empty subject box empty: preview, "Insert body only".
+- Empty subject box: "Insert" fills it with the template subject.
+- Subject already there (typed or a reply): "Insert" keeps it.
+- To replace it anyway: tap the template's name, turn on "Replace the subject", click "Insert".
+- To keep an empty subject box empty: tap the template's name, turn off "Replace the subject".
 - Replies keep "Re: ...", so they stay in their conversation.
 - Forwards should keep their subject too. Not yet verified in Gmail.
-- On the fill-in panel, the switch "Replace the subject" decides. It starts on for an empty subject box, off otherwise.
 
 ## Templates that add recipients
 
-Some templates add fixed addresses to To, Cc or Bcc, for example safety in Cc. Their row says "Adds Cc 1" and has "Review" in place of "Insert". Review opens a card that lists every address: "outside migway.com" marks an address outside the company, "hidden from other recipients" marks Bcc. Insert adds them and never removes an address already in the draft. An address already there is listed as "Not added". In a reply, or when you typed a To address, the template's To is not added ("The draft already has a To recipient."); type it yourself if you need it. "Insert body only" adds neither the subject nor any address. On the fill-in panel, the switch "Add recipients" decides. Finish typing addresses before you insert: an address that is not yet a chip in the draft can be lost.
+Some templates add fixed addresses to To, Cc or Bcc, for example safety in Cc.
+
+Templates that add recipients say so on the row, for example Adds Cc 1. The draft shows the addresses after the insert. Finish typing addresses before you insert.
+
+- "Insert" adds them and never removes an address already in the draft. An address already there is not added again.
+- In a reply, or when you typed a To address, the template's To is not added. Type it yourself if you need it.
+- Tap the template's name to see every address first: "outside migway.com" marks an address outside the company, "hidden from other recipients" marks Bcc, "Not added" says why an address is left out.
+- To insert without the addresses: tap the template's name and turn off "Add recipients".
+- When the template's addresses changed since the panel loaded, "Insert" opens the template with "(!) The recipients of this template changed. Check them and press Insert again." Nothing is inserted until you click "Insert" there.
 
 ## Search, Favorites and Recent
 

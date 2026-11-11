@@ -31,14 +31,11 @@
 - scripts/web.mjs (`webPage({harness})`, `servePage`, `DEV_PAGE_VALUES`), dev-web.mjs, lighthouse.mjs. build.mjs uses webPage.
 - Tests: test/unit/web/* (jsdom per file, `stubLayout` for ProseMirror), app.test.ts boots harness + app via dynamic import and `vi.resetModules`.
 
-## Lessons (slice 3)
-- PM DOMParser reads `element.style` and DOMSerializer writes `style.cssText`: colors become `rgb()`. Parse the `style` attribute text and serialize by hand.
-- `<base target="_top">` in HtmlService sends `#` links to the top window; handle nav in script.
-- Lighthouse `label-content-name-mismatch`: aria-label must contain the visible text. Scrollable `pre` needs `tabindex=0`.
+## Lessons (slice 3): PM serializes style as rgb(), parse the style attribute by hand; `<base target="_top">` sends # links to the top window; aria-label must contain the visible text; scrollable `pre` needs tabindex=0.
 
 ## Code map (after slice 4)
 - `src/addon/`: entry.ts (12 callbacks, `respond` = guard, QUOTA `notBefore` wait, flow, render), flows.ts (`Ports` = call, User Cache, nowMs, userEmail, execUrl; home, folder, preview, insert, promptInsert, openLink, spike flows), view.ts (`view:*` chunks 600 s, `body:<id>`), event.ts (params, formInputs, `internalRecipient`), prompts.ts (p-n names, 20 fields, 500 chars).
-- `src/addon/cards/`: spec.ts (`CardSpec`, `Reply`, `CALLBACKS`), render.ts (only Card Service code, escapes all text), home, folder (20 per page), preview, prompt, states (`stateCard`, `waitSeconds`), spike (TEMPORARY).
+- `src/addon/cards/`: spec.ts (`CardSpec`, `Reply`, `CALLBACKS`), render.ts (only Card Service code, escapes all text), home, folder (20 per page), details (slice 15; preview and prompt cards gone), states (`stateCard`, `waitSeconds`).
 - Server: handlers/sidebar.ts (`sidebarHome`, `templateApply`, `senderOf`, `recipientFirstName`), handlers/spikeS4.ts (TEMPORARY). Shared: model/sidebar.ts, placeholders/preview.ts, cache/{chunked,store}.ts (moved from server), spike/s4Fixtures.ts (TEMPORARY).
 - `callServer` returns `{ requestId, response }`; blank execUrl gives NOT_CONFIGURED. Unset `DOMAIN` gives NOT_CONFIGURED.
 - Tests: test/unit/addon/flows.test.ts wires `Ports.call` to `world.call(..., "addon")` (real server); fixtures.ts holds view data (never import one test file from another: its tests run twice).
@@ -58,7 +55,7 @@
 ## Code map (after slice 5)
 - Subject: shared/placeholders/subject.ts (`SUBJECT_MAX`, `controlIndex`, `oneLine`); `scanBody(html, attrTokens, subject)` scans subject first, `field: "subject"`; `renderSubject`, `promptsFor(html, values, subject)`; `prepareBody(raw, options, subject)`; `prepareFor(props, html, subject)`, `readableBody(props, stored, subject)`.
 - Old data: `readIndexDoc`, `withSubject`, `Unmigrated<T>` in shared/model/data.ts (driveStore read + `cachedIndex`).
-- Add-on: `insertReply(html, subject)` pure builder (spec.ts); `SKIP_SUBJECT`, `SUBJECT_SWITCH`, `SWITCH_ON`, `SEARCH_INPUT` in spec.ts; Widget item `toggle`, input `hint`/`onChange`; `searchFlow`, `onSearch`; `folderItem`/`templateItem` live in cards/folder.ts.
+- Add-on: `insertReply(html, subject)` pure builder (spec.ts); `SUBJECT_SWITCH`, `SWITCH_ON`, `SEARCH_INPUT` in spec.ts; Widget item `toggle`, input `hint`/`onChange`; `searchFlow`, `onSearch`; `folderItem`/`templateItem` in cards/folder.ts.
 - Search: shared/search/match.ts (`parseQuery`, `score`, `rank`, `fold`). Server `search` in handlers/sidebar.ts (`visibleTemplates`, `visiblePath`), `searchBody` in templates.ts, `ft:<bodyFileId>` + `bodyTexts` (25 misses) in body.ts.
 - Favorites/Recent: handlers/favorites.ts (`callerLists`, `callerRecent`, `favoriteSet/Unset` under lock); cache/sideCache.ts (`FAVORITES_REV`, `USAGE_REV`, `readSideCached`, `publishSide`, `writeSideLocked`); setup and tick publish.
 - Web: `searchItems` (library/model.ts), `AppContext.favorites/recent/setFavorite`, grid star + `GridActions.isFavorite/toggleFavorite`, `subjectPickerItems` (picker.ts).
@@ -93,7 +90,7 @@
 ## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
 - shared/model/recipients.ts: `validateRecipients`, `importRecipients`, `splitBlocked`, `recipientsOf` (absent = []), `RECIPIENTS_EXTERNAL_KEY`. `to/cc/bcc` OPTIONAL on Item/BodyFile so src/web builds unchanged.
 - `prepareBody(raw, opts, subject, {lists, policy})`; server `prepareFor(props, html, subject, lists)`, `recipientPolicy(props)` (body.ts). `template.update` keeps lists left out of args (`keptStringArray`).
-- Add-on: cards/recipients.ts (`recipientPlan`, `recipientActions` = draft list + new, REPLACE), `draftRecipients` (event.ts), `Ports.hash` (`rh`), Review rows (`rowButton`), prompt card `rcpt` switch; prompt card `rh` absent = body only.
+- Add-on: cards/recipients.ts (`recipientPlan`, `recipientActions` = draft list + new, REPLACE), `draftRecipients` (event.ts), `Ports.hash` (`rh`).
 - Retry 1: draft lists are known or unknown (`DraftRecipients`, null); an unknown field never gets a replace action. `recipientWidgets` is the single source of recipient lines on both cards. Version-file lists: `isStoredList`, `unreadableRecipients`.
 ## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
 - Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry`; cards take `entry`; `onMessageOpen` + `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
@@ -103,9 +100,7 @@
 - `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
 - `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT`: the one place side-panel insert replaces. Empty home (`emptySection`) belongs to the admin-settings slice.
 
-## Slice 8c (admin UI, 2026-11-10)
-- `views/adminTable.ts` (`adminTable`, `tableRow` with `data-label`, `noteRow`, `toneTag`); `admin/actions.ts` (`actionWords`, `resultTag`, `purgeText`). Tint tokens `--ok-bg`, `--warn-bg`, `--red-bg`.
-- Admin h1 then tab h2s (Lighthouse heading order). Admin tables stack under 860 px via `td[data-label]::before`.
+## Slice 8c (admin UI): views/adminTable.ts, admin/actions.ts; admin h1 then tab h2s; tables stack under 860 px.
 
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
@@ -147,3 +142,8 @@
 - `docs/design/wording.md` is the glossary (things, actions, words never on screen) and the table of 220 changed texts. Review FAIL on stale doc quotes: after any rename, sweep every quoted text in docs/guide and docs/ops/smoke.md against src (not only the renamed ones); errors say "My templates", address boxes are "To, Cc and Bcc" (never "field"), one text per state on all surfaces. New text: check the glossary first. Access = "Who has access", "Give access", "Can use/edit/manage"; field, field name, default text, sender; personal (never private); Delete vs Remove; entry (audit); insert (never apply).
 - Web: `exportFailedText(done, total, answer)` (adminTransfer.ts; null = no answer, NETWORK only); editor chip announcer `.sr-only.chip-status`; `JOB_WORDS` (adminConfig.ts). Server: `IMPORT_SETTING_CHANGED`, `recheckOrExplain` (transfer.ts). Harness `?exportPage=<n>`, `fail=NETWORK`.
 - Wording tooling that worked: one batch file (file, old, new, reason) applied by a script that also rewrites the same quotes in test/ and docs/, then a table generated from the rows. The guard blocks `git` chained after other commands and long python heredocs: script files via Write, `git` as its own call.
+## Slice 15 (one-click insert, D31, 2026-11-11)
+- render.ts `closeGaps(parts)` (null = gap, 4 rules, U+0020 only); typed answer beats a resolved variable. Tests test/unit/shared/gaps.test.ts.
+- flows.ts `applyNow(ports, id, extra)` = one template.apply + cached body; Flow A `insertFlow` (`rc` "t,c,b" vs list lengths, unknown draft field -> details card `counted=1`); Flow B `previewFlow` (compose followUp, side panel getBody + `panelDetailsCard`); Flow C `promptInsertFlow` (`counted=1` -> followUp; `mergedValues`).
+- cards/details.ts `detailsCard(DetailsState)`, `panelDetailsCard(view, entry)`; test fixture `details()` in test/unit/addon/fixtures.ts. prompts.ts `tooLong`, `shortenText`, `moreFieldsText`. `replacesSubject(draftHasSubject)`.
+- Worktree guard: python edits via a script file in the scratchpad, run alone; never chain `git` or `rm` with other commands.

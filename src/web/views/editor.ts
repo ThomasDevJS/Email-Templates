@@ -781,7 +781,7 @@ export function editorView(
       h(
         "p",
         { class: "hint rcpt-help", id: "rcpt-help" },
-        "Added to the draft when someone inserts this template. The sender sees every address before it is added.",
+        "Added to the draft when someone inserts this template. The row in Gmail shows how many; the draft shows them after the insert.",
       ),
     );
     // The toolbar and its menu take focus too; only a field or the body changes the "Insert field" target.

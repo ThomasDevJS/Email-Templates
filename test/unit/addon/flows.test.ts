@@ -17,6 +17,7 @@ import {
   type Ports,
 } from "../../../src/addon/flows";
 import { readBody, readView } from "../../../src/addon/view";
+import { FIELDS_LINE, FIRST_NAME_HINT } from "../../../src/addon/cards/details";
 import { readBuffer } from "../../../src/server/audit/buffer";
 import { FakeCache } from "../../fakes/cache";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
@@ -118,6 +119,9 @@ const EMPTY_RH = createHash("sha256")
 
 const toBob: AddonEvent = { draftMetadata: { toRecipients: [BOB] } };
 
+const applies = () =>
+  readBuffer(world.cache).events.filter((event) => event.kind === "apply");
+
 describe("home (spec 4.1 steps 1 and 2)", () => {
   it("calls sidebar.home on a cache miss and reads the User Cache after that", () => {
     create("Welcome", "<p>Hi</p>");
@@ -202,18 +206,42 @@ describe("folder card flow", () => {
   });
 });
 
-describe("preview flow", () => {
-  it("shows plain text with [Label] placeholders and caches the body", () => {
+describe("details card flow (spec 7.4 Flow B)", () => {
+  it("opens with template.apply followUp, no getBody and no apply event; caches the body", () => {
     const item = create(
       "Quote",
       "<p>Hi {{recipient.first_name|there}},</p><p>Date: {{ask:Meeting date}}</p>",
     );
-    const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
-    expect(texts(card)).toEqual([
-      "Hi [Recipient first name],\nDate: [Meeting date]",
-      "Fields to fill: Meeting date",
+    const card = cardOf(previewFlow(ports(), toBob, { id: item.id }));
+    expect(card.sections[0]?.header).toBe("Fields");
+    expect(inputs(card).map((i) => [i.name, i.title])).toEqual([
+      ["p-1", "Meeting date"],
     ]);
+    expect(texts(card)).toEqual([
+      FIELDS_LINE,
+      "Hi [Recipient first name],\nDate: [Meeting date]",
+    ]);
+    expect(sent).toEqual([
+      { op: "sidebar.home", args: {} },
+      {
+        op: "template.apply",
+        args: { id: item.id, knownVersion: 0, followUp: true },
+      },
+    ]);
+    expect(applies()).toHaveLength(0);
     expect(readBody(cache, item.id)?.version).toBe(1);
+  });
+
+  it("shows an input only for fields without a value; the recipient first name gets the hint", () => {
+    const item = create(
+      "Quote",
+      "<p>{{sender.name}} {{sender.phone}} {{recipient.first_name}}</p>",
+    );
+    const card = cardOf(previewFlow(ports(), toBob, { id: item.id }));
+    expect(inputs(card).map((i) => [i.title, i.hint])).toEqual([
+      ["Your phone", undefined],
+      ["Recipient first name", FIRST_NAME_HINT],
+    ]);
   });
 
   it("reports a template outside the view as removed", () => {
@@ -240,7 +268,7 @@ describe("preview flow", () => {
   });
 });
 
-describe("insert flow (spec 4.1 steps 3 to 5)", () => {
+describe("row Insert (spec 7.4 Flow A)", () => {
   it("inserts in one click when nothing needs asking, with escaped values", () => {
     world.directory.users.set(ANA, { name: { fullName: "Ana <Lima> & Co" } });
     const item = create(
@@ -281,23 +309,30 @@ describe("insert flow (spec 4.1 steps 3 to 5)", () => {
     expect(JSON.stringify(sent)).not.toContain("outside.example");
   });
 
-  it("pushes the prompt card for prompts and unresolved values without a fallback", () => {
-    const item = create(
-      "Quote",
-      "<p>{{ask:Meeting date}} {{sender.phone}} {{ask:meeting  DATE}}</p>",
-    );
-    const card = cardOf(insertFlow(ports(), undefined, { id: item.id }));
-    expect(inputs(card).map((i) => [i.name, i.title])).toEqual([
-      ["p-1", "Meeting date *"],
-      ["p-2", "Your phone *"],
-    ]);
+  it("removes fields without a value with the gap rules, no card (AC 2)", () => {
+    const item = world.ok<Item>(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "Load",
+      subject: "Load {{ask:Load number}}",
+      html: "<p>Hi {{ask:Driver name}}, load {{ask:Load number}} is ready. {{sender.phone}}</p>",
+    });
+    const done = insertFlow(ports(), undefined, { id: item.id });
+    expect(done).toEqual({
+      kind: "insert",
+      html: "<p>Hi, load is ready.</p>",
+      subject: "Load",
+      recipients: {},
+    });
+    expect(JSON.stringify(done)).not.toMatch(/\{\{|Driver name|Load number/);
+    expect(applies()).toHaveLength(1);
   });
 
-  it("refuses a template that needs more than 20 fields", () => {
+  it("inserts a template with more than 20 fields in one click", () => {
     const asks = Array.from({ length: 20 }, (_, n) => `{{ask:Q${String(n)}}}`);
-    const item = create("Big", `<p>${asks.join(" ")} {{sender.title}}</p>`);
-    const card = cardOf(insertFlow(ports(), undefined, { id: item.id }));
-    expect(texts(card)[0]).toContain("needs 21 fields");
+    const item = create("Big", `<p>${asks.join(" ")} {{sender.title}} x</p>`);
+    expect(htmlOf(insertFlow(ports(), undefined, { id: item.id }))).toBe(
+      "<p>x</p>",
+    );
   });
 
   it("pushes DENIED and drops the view for a caller without use", () => {
@@ -397,24 +432,25 @@ describe("subject (spec 5.6, wireframe 02)", () => {
     ).toBeNull();
   });
 
-  it("Insert body only leaves the subject out and does not ask its prompts", () => {
-    const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
-    expect(
-      insertOf(
-        insertFlow(ports(), undefined, { id: item.id, subject: "skip" }),
-      ),
-    ).toEqual({
+  it("a subject of fields without a value only sends no subject action; a template double space stays (AC 5)", () => {
+    const item = withSubject("{{ask:Topic}}", "<p>Hi  team {{ask:Name}}</p>");
+    expect(insertOf(insertFlow(ports(), undefined, { id: item.id }))).toEqual({
       kind: "insert",
-      html: "<p>Hi</p>",
+      html: "<p>Hi  team</p>",
       subject: null,
       recipients: {},
     });
   });
 
-  it("the preview card shows the subject with [Label] and Insert body only", () => {
+  it("the details card shows the subject with [Label] on the switch", () => {
     const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
     const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
-    expect(texts(card)).toContain("Quote for [Product]");
+    expect(widgets(card)).toContainEqual({
+      kind: "item",
+      text: "Replace the subject",
+      bottomLabel: "Quote for [Product]",
+      toggle: { name: "subj", selected: true },
+    });
     expect(readBody(cache, item.id)?.subject).toBe(item.subject);
   });
 
@@ -423,14 +459,8 @@ describe("subject (spec 5.6, wireframe 02)", () => {
       "Quote for {{ask:Product}}",
       "<p>{{ask:product}} {{ask:Date}}</p>",
     );
-    const card = cardOf(insertFlow(ports(), undefined, { id: item.id }));
-    expect(inputs(card).map((i) => i.title)).toEqual(["Product *", "Date *"]);
-    expect(widgets(card)).toContainEqual(
-      expect.objectContaining({
-        text: "Replace the subject",
-        toggle: { name: "subj", selected: true },
-      }),
-    );
+    const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
+    expect(inputs(card).map((i) => i.title)).toEqual(["Product", "Date"]);
     const params = card.footer?.primary.action.params ?? {};
     const submit = (form: Record<string, string>) =>
       insertOf(promptInsertFlow(ports(), formEvent(form), params));
@@ -441,14 +471,20 @@ describe("subject (spec 5.6, wireframe 02)", () => {
       recipients: {},
     });
     expect(submit({ "p-1": "Pen", "p-2": "Mon" }).subject).toBeNull();
+    expect(submit({ subj: "on" })).toMatchObject({
+      html: "<p></p>",
+      subject: "Quote for",
+    });
   });
 
-  it("a blocked prompt card Insert keeps the switch state", () => {
+  it("a blocked details Insert keeps the switch state", () => {
     const item = withSubject("{{ask:Product}}", "<p>x</p>");
     const params =
-      cardOf(insertFlow(ports(), undefined, { id: item.id })).footer?.primary
+      cardOf(previewFlow(ports(), undefined, { id: item.id })).footer?.primary
         .action.params ?? {};
-    const card = cardOf(promptInsertFlow(ports(), formEvent({}), params));
+    const card = cardOf(
+      promptInsertFlow(ports(), formEvent({ "p-1": "y".repeat(501) }), params),
+    );
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({ toggle: { name: "subj", selected: false } }),
     );
@@ -498,14 +534,9 @@ describe("draft subject rule (D24)", () => {
       );
   });
 
-  it("an empty draft subject: Insert body only and the switch turned off send no subject", () => {
+  it("an empty draft subject: the details switch starts on; turned off it sends no subject", () => {
     const item = withSubject("Quote for {{ask:Product}}", "<p>Hi</p>");
-    expect(
-      subjectOf(
-        insertFlow(ports(), newDraft, { id: item.id, subject: "skip" }),
-      ),
-    ).toBeNull();
-    const card = cardOf(insertFlow(ports(), newDraft, { id: item.id }));
+    const card = cardOf(previewFlow(ports(), newDraft, { id: item.id }));
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({ toggle: { name: "subj", selected: true } }),
     );
@@ -531,37 +562,12 @@ describe("draft subject rule (D24)", () => {
     });
   });
 
-  it("a draft subject: the preview card says it is kept and offers Insert with subject", () => {
-    const item = withSubject("Quote 7", "<p>Hi</p>");
-    const card = cardOf(previewFlow(ports(), reply, { id: item.id }));
-    expect(texts(card)).toContain(
-      "The draft already has a subject. It is kept.",
-    );
-    expect(texts(card)).not.toContain("Sets the draft subject.");
-    const buttons = widgets(card).flatMap((w) =>
-      w.kind === "buttons" ? w.buttons : [],
-    );
-    expect(buttons.map((b) => [b.text, b.action.params])).toEqual([
-      ["Insert", { id: item.id, rh: EMPTY_RH }],
-      ["Insert with subject", { id: item.id, subject: "use", rh: EMPTY_RH }],
-    ]);
-    const plain = buttons[0]?.action.params ?? {};
-    expect(subjectOf(insertFlow(ports(), reply, plain))).toBeNull();
-  });
-
-  it("a draft subject: Insert with subject replaces it", () => {
-    const item = withSubject("Quote 7", "<p>Hi</p>");
-    expect(
-      subjectOf(insertFlow(ports(), reply, { id: item.id, subject: "use" })),
-    ).toBe("Quote 7");
-  });
-
-  it("a draft subject: the prompt card switch starts off; turning it on sends the subject", () => {
+  it("a draft subject: the details switch starts off; turning it on replaces the subject", () => {
     const item = withSubject(
       "Quote for {{ask:Product}}",
       "<p>{{ask:Product}}</p>",
     );
-    const card = cardOf(insertFlow(ports(), reply, { id: item.id }));
+    const card = cardOf(previewFlow(ports(), reply, { id: item.id }));
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({ toggle: { name: "subj", selected: false } }),
     );
@@ -580,14 +586,14 @@ describe("draft subject rule (D24)", () => {
     ).toBe("Quote for Pen");
   });
 
-  it("a draft subject: a template changed under the prompt card keeps the switch off", () => {
+  it("a draft subject: a template changed under the details card keeps the switch off", () => {
     const item = withSubject(
       "Quote for {{ask:Product}}",
       "<p>{{ask:Product}}</p>",
     );
     const params =
-      cardOf(insertFlow(ports(), reply, { id: item.id })).footer?.primary.action
-        .params ?? {};
+      cardOf(previewFlow(ports(), reply, { id: item.id })).footer?.primary
+        .action.params ?? {};
     world.ok(OWNER, "template.update", {
       id: item.id,
       baseVersion: 1,
@@ -598,7 +604,11 @@ describe("draft subject rule (D24)", () => {
       html: "<p>{{ask:Product}}!</p>",
     });
     const card = cardOf(
-      promptInsertFlow(ports(), replyForm({ "p-1": "Pen" }), params),
+      promptInsertFlow(
+        ports(),
+        replyForm({ "p-1": "Pen", subj: "on" }),
+        params,
+      ),
     );
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({ toggle: { name: "subj", selected: false } }),
@@ -606,7 +616,7 @@ describe("draft subject rule (D24)", () => {
   });
 });
 
-describe("prompt card Insert (wireframe 02)", () => {
+describe("details Insert (spec 7.4 Flow C)", () => {
   let item: Item;
   const values = JSON.stringify({ "sender.name": "Ana Lima" });
 
@@ -615,20 +625,24 @@ describe("prompt card Insert (wireframe 02)", () => {
       "Quote",
       "<p>{{sender.name}}: {{ask:Topic}} / {{ask:Notes}} / {{ask:topic}}</p>",
     );
-    insertFlow(ports(), undefined, { id: item.id });
+    previewFlow(ports(), undefined, { id: item.id });
     sent = [];
   });
 
-  const submit = (form: Record<string, string>, version = "1") =>
+  const submit = (
+    form: Record<string, string>,
+    version = "1",
+    extra: Record<string, string> = {},
+  ) =>
     promptInsertFlow(ports(), formEvent(form), {
       id: item.id,
-      title: "Quote",
       version,
       values,
       rh: EMPTY_RH,
+      ...extra,
     });
 
-  it("inserts escaped values, newlines as <br>; re-checks use without the body or a second event", () => {
+  it("inserts escaped values, newlines as <br>; one template.apply without followUp, one apply event", () => {
     expect(
       htmlOf(submit({ "p-1": 'Q3 <plan> & "x"', "p-2": "one\ntwo" })),
     ).toBe(
@@ -637,17 +651,25 @@ describe("prompt card Insert (wireframe 02)", () => {
     expect(sent).toEqual([
       {
         op: "template.apply",
-        args: {
-          id: item.id,
-          knownVersion: 1,
-          followUp: true,
-        },
+        args: { id: item.id, knownVersion: 1, recipientEmailIfInternal: "" },
       },
     ]);
-    const applies = readBuffer(world.cache).events.filter(
-      (event) => event.kind === "apply",
-    );
-    expect(applies).toHaveLength(1);
+    expect(applies()).toHaveLength(1);
+  });
+
+  it("call log of one user path: open, a blocked Insert, a fixed Insert give one apply event (AC 8)", () => {
+    const blocked = cardOf(submit({ "p-1": "x".repeat(501), "p-2": "ok" }));
+    const params = blocked.footer?.primary.action.params ?? {};
+    expect(params["counted"]).toBe("1");
+    expect(
+      htmlOf(promptInsertFlow(ports(), formEvent({ "p-1": "a" }), params)),
+    ).toBe("<p>Ana Lima: a / / a</p>");
+    expect(sent.map((s) => s.args)).toEqual([
+      { id: item.id, knownVersion: 1, recipientEmailIfInternal: "" },
+      { id: item.id, knownVersion: 1, followUp: true },
+    ]);
+    expect(sent.map((s) => s.op)).not.toContain("template.getBody");
+    expect(applies()).toHaveLength(1);
   });
 
   it("blocks the insert with DENIED when the grant was removed while the card was open", () => {
@@ -661,20 +683,20 @@ describe("prompt card Insert (wireframe 02)", () => {
     expect(texts(cardOf(reply))[0]).toContain("You don't have access");
   });
 
-  it("blocks a blank field: no insert, card updated with the error line and the field first", () => {
-    const reply = submit({ "p-1": "Pricing", "p-2": "  " });
-    expect(reply.kind).toBe("update");
-    const card = cardOf(reply);
-    expect(inputs(card).map((i) => [i.name, i.value])).toEqual([
-      ["p-2", "  "],
-      ["p-1", "Pricing"],
-    ]);
-    expect(texts(card).at(-1)).toBe("(!) Fill 1 field: Notes");
+  it("a blank field is removed with the gap rules; a typed value wins", () => {
+    expect(htmlOf(submit({ "p-1": "Pricing", "p-2": "  " }))).toBe(
+      "<p>Ana Lima: Pricing / / Pricing</p>",
+    );
+    expect(htmlOf(submit({}))).toBe("<p>Ana Lima: / /</p>");
   });
 
-  it("blocks values over 500 characters", () => {
-    const card = cardOf(submit({ "p-1": "x".repeat(501), "p-2": "ok" }));
-    expect(texts(card).at(-1)).toBe("(!) Shorten to 500 characters: Topic");
+  it("blocks values over 500 characters: shorten line first, those fields first, counted=1", () => {
+    const reply = submit({ "p-1": "ok", "p-2": "x".repeat(501) });
+    expect(reply.kind).toBe("update");
+    const card = cardOf(reply);
+    expect(texts(card)[0]).toBe("(!) Shorten to 500 characters: Notes");
+    expect(inputs(card).map((i) => i.name)).toEqual(["p-2", "p-1"]);
+    expect(card.footer?.primary.action.params?.["counted"]).toBe("1");
   });
 
   it("re-renders when the template changed since the card opened", () => {
@@ -686,14 +708,17 @@ describe("prompt card Insert (wireframe 02)", () => {
     });
     cache.removeAll([`body:${item.id}`]);
     const card = cardOf(submit({ "p-1": "a", "p-2": "b" }));
-    expect(texts(card).at(-1)).toBe(
+    expect(texts(card)[0]).toBe(
       "(!) The template changed. Check the fields and press Insert again.",
     );
     expect(sent.map((s) => s.op)).toEqual(["template.apply"]);
-    expect(card.footer?.primary.action.params?.["version"]).toBe("2");
+    expect(card.footer?.primary.action.params).toMatchObject({
+      version: "2",
+      counted: "1",
+    });
   });
 
-  it("loads the body when the cache lost it; broken values become an implicit prompt", () => {
+  it("loads the body when the cache lost it; broken values become an implicit field", () => {
     cache.removeAll([`body:${item.id}`]);
     const reply = promptInsertFlow(
       ports(),
@@ -702,8 +727,25 @@ describe("prompt card Insert (wireframe 02)", () => {
     );
     expect(htmlOf(reply)).toBe("<p>N: a / b / a</p>");
     expect(sent).toMatchObject([
-      { op: "template.apply", args: { knownVersion: 0, followUp: true } },
+      {
+        op: "template.apply",
+        args: { knownVersion: 0, recipientEmailIfInternal: "" },
+      },
     ]);
+  });
+
+  it("a blank implicit field takes the value the Insert call resolves", () => {
+    const named = create("Hello", "<p>Hi {{recipient.first_name}}</p>");
+    refreshFlow(ports());
+    const card = cardOf(previewFlow(ports(), toBob, { id: named.id }));
+    expect(inputs(card).map((i) => i.title)).toEqual(["Recipient first name"]);
+    const params = card.footer?.primary.action.params ?? {};
+    const at = (form: Record<string, string>) =>
+      htmlOf(
+        promptInsertFlow(ports(), { ...formEvent(form), ...toBob }, params),
+      );
+    expect(at({})).toBe("<p>Hi Bob</p>");
+    expect(at({ "p-1": "Robert" })).toBe("<p>Hi Robert</p>");
   });
 
   it("reports a removed template when the server omits a body the cache lost", () => {
