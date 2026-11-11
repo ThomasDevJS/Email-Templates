@@ -71,7 +71,7 @@ export type PanelReply = Extract<Reply, { kind: "compose" | "notify" }>;
 
 const notify = (text: string): PanelReply => ({ kind: "notify", text });
 
-/** Text lines of the state card, for the codes whose card has no Retry worth showing in a notification. */
+/** Text lines of the account state card, which has no button. */
 function stateLines(failure: Failure): string {
   return stateCard(failure, {
     retry: action("onRefresh"),
@@ -100,6 +100,8 @@ export function failureText(failure: Failure): string {
     case ErrorCode.NOT_FOUND:
       return PANEL_NOT_FOUND;
     case ErrorCode.NOT_CONFIGURED:
+      // The state card's "then press Retry" names a button an error bar does not have.
+      return "Migway Templates is not set up yet. Ask your admin to finish setup.";
     case ErrorCode.AUTH_NO_USER:
     case ErrorCode.AUTH_DOMAIN:
       return stateLines(failure);

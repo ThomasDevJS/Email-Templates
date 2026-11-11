@@ -515,7 +515,7 @@ describe("server failures (AC 10)", () => {
     [ErrorCode.NETWORK, WRONG],
     [
       ErrorCode.NOT_CONFIGURED,
-      "Migway Templates is not set up yet. Ask your admin to finish setup, then press Retry.",
+      "Migway Templates is not set up yet. Ask your admin to finish setup.",
     ],
     [
       ErrorCode.AUTH_NO_USER,
