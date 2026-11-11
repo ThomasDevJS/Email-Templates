@@ -85,3 +85,27 @@ rm -rf node_modules && npm ci
 npm run lint && npm run typecheck && npm run test:coverage
 npm run build -- --env dev && npm run scopes:check && npm run format:check && npm run lighthouse
 ```
+
+## Retry 1 (2026-11-11, review docs/reviews/slice-09.md, FAIL at 441ab04)
+
+Commits f0db88a (item 4), 5d75b43 (items 1 to 3), plus this docs commit.
+
+1. Unknown draft lists. `draftRecipients` (src/addon/event.ts) returns per field a list or `null`. The first source holding the key (`draftMetadata`, then `gmail`) decides; an array of strings, empty included, is known; a missing key, null, a string, an object or an array with a non-string entry is unknown. `recipientActions` (src/addon/cards/recipients.ts) never sends an action for an unknown field. An unknown To counts as filled. `recipientPlan` gains `unknown` (template addresses per unknown field). The cards say: "The draft's Cc recipients could not be read and were not changed. Add by hand: <addresses>." The old tests are replaced by 15 cases (5 bad values x To, Cc, Bcc), unknown To, all 3 unknown (`insertReply` then holds body and subject only), and a real-server flow with an unreadable Cc. The side panel preview (no draft, no insert) lists the addresses as for an empty draft.
+2. Prompt card disclosure. `switchLabel` is removed. The prompt card shows the "Add recipients" switch (bottom label "Adds n recipients.", only when Insert adds one), then `recipientWidgets`, the same function the preview card uses: field, "outside <domain>", "hidden from other recipients", "Not added" with the reason, `blocked`, unknown fields.
+3. Finish typing. `recipientWidgets` ends with "Finish typing addresses in the draft first: an address still being typed is lost." whenever Insert adds an address, so both cards show it.
+4. Version file lists. `isStoredList` (shared, also used by the index shape check) and `unreadableRecipients`. `recipientsOf` reads a list that fails the rule as `[]`, no write. `version.restore` returns `recipientsUnreadable: ["cc", ...]` with the item. Test: a version file with `cc: "x@y.zz"` and `bcc: [1]`: `version.get` gives `[]`, restore succeeds and names both.
+
+Truth table as built:
+
+| Template address | Draft To empty | Draft To filled | Draft field unknown |
+|---|---|---|---|
+| To | added | not added, "The draft already has a To recipient." | not added, add by hand |
+| Cc, Bcc | added | added | not added, add by hand |
+| already in a known draft field (any case, inside `<...>`) | not added, "It is already in the draft." | same | same |
+| `blocked` (`deny`) | never added | never added | never added |
+
+For the architect (spec 7.1 erratum, not edited here): the prompt card switch bottom label is now "Adds 2 recipients.", followed by the preview card's recipient lines. Spec 7.1 also needs the unknown-field text "The draft's <Field> recipients could not be read and were not changed. Add by hand: <addresses>." and the line "Finish typing addresses in the draft first: an address still being typed is lost." Spec 5.7's truth table needs the "Draft field unknown" column.
+
+Left for later: the `prof:` cache key holding an internal recipient's address (last fix round). Smoke "Slice 9" now says the console must target the app's inner frame `userHtmlFrame`.
+
+Checks from a clean install: see the report of this retry.
