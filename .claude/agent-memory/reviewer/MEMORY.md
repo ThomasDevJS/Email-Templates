@@ -23,10 +23,7 @@
 ## Slice log
 - Slices 1-4b (2026-11-09/10): all PASS after retries. Lessons kept below. Open minors: readPreviousSnapshot swallows Drive errors; template.get not re-sanitized; prompt Insert renders from body cache; failed trigger reinstall can leave <3 triggers; admin can duplicate others' private templates (D11).
   - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Sanitizer src/shared/sanitize, placeholders src/shared/placeholders. REQUEST_ID_PATTERN shared, checked on both surfaces.
-- Slice 2 (2026-11-09): FAIL (195ab90, stale authorization under concurrent move), retry 1 fix 6052320: PASS (64078b8). 22 files, 439 tests, 99.39% lines, Code.js 103.4 KB, 10 scopes.
-- Slice 3 (2026-11-09): PASS (review 8ba6797 on 41575e3). 32 files, 745 tests, lines 94.61% (shared 100, server 99.06, web reported only). Code.js 226.0 KB, index.html 271.0 KB, Lighthouse 100/100/100, 10 scopes.
-  - Sanitizer src/shared/sanitize (htmlparser2 12.0.0), placeholders src/shared/placeholders, write path src/shared/body/prepare.ts + server/handlers/body.ts. Web app src/web (ProseMirror, no framework), dev harness scripts/dev-web.mjs.
-  - Open minors: template.get not re-sanitized (editor loads through it); QUOTA retry not delayed 60 s; PH_BACKSLASH false positive across mark runs; bodySize dead in src; chrome-launcher undeclared; spec 6 lacks template.getBody; ADR paste-preview sanitize not done.
+- Slices 2-3 (2026-11-09): PASS (64078b8, 8ba6797). Sanitizer src/shared/sanitize, placeholders src/shared/placeholders, write path shared/body/prepare.ts + server/handlers/body.ts, web app src/web (ProseMirror), harness scripts/dev-web.mjs. Open: template.get not re-sanitized; QUOTA retry not delayed; PH_BACKSLASH false positive across marks.
 - Slice 4 (2026-11-10): FAIL (2ac580f), retry 1 PASS (054129a, 846 tests, Code.js 259.2 KB). First review: 40 files, 842 tests, lines 95.95% (addon 100, shared 100, server 99.08), Code.js 258.9 KB, 10 scopes.
   - Blocker: home.ts:54 empty state needs folders AND templates empty; every caller gets a private folder on first folder.list, so the empty state never shows (smoke Slice 4 step 8 fails). Fix: templates.length === 0.
   - Minors: prompt Insert renders from body:<id> cache (6 h) with no re-check; unused payload fields placeholders/own/rev; smoke Slice 1 step 3 stale Ping; setRequiredWidgets not tried.
@@ -106,6 +103,9 @@
   - Open minors: no smoke step for Host.go (smoke.md:157); first entry has null state, Back to it still pushes (host.ts:75, app.ts:318); chip texts in visible status line shift toolbar 27 px (editor.ts:743), recommend .sr-only status; caret before node after insert at doc start (base too); Back+Discard extra entry; `me` failure blocks editor.
   - Probes in scratchpad/8b-r1/p: insert.cjs (72 runs), nav.cjs, worst.cjs (history.go no-op/no-state/silent), engine4.cjs (needs 60 ms per key or link selection varies on both builds).
 
+- Slice 8b merge with main fe33d50 (2026-11-11): PASS (a5d4527 on 0a59b34). 65 files, 1774 tests, lines 97.77, Code.js 358.6 KB, index.html 374.3 KB, Lighthouse 100x15, 10 scopes. Server/addon/shared diff vs main empty.
+  - Merge method: `git show --remerge-diff <merge>`; symbol union check (git grep declarations per commit, trace absentees to merge base); test lines removed vs one parent must be removed by the other from base; computed-style diff per element vs the parent owning each view (0 diffs).
+  - cancelDialogs: app.ts open() (route change) and editor canLeave (before the question). Minor: implementer MEMORY:126 describes it wrong.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -120,13 +120,12 @@
 - Server props are a per-request snapshot since 4b (runtime.ts snapshotProps, triggers live). Any read-check-write across executions under a lock must read live.
 - Log fields from clients (requestId, op, timing): check format and length on the server, both surfaces.
 - ESLint probes without editing src/: pipe code to `npx eslint --stdin --stdin-filename <existing src file>` (new paths hit the projectService parse error).
-- Coverage text reporter hides 100% files; read the summary lines.
 - Read handlers for TOCTOU: authorization data vs data inside the lock. Tests by implementers cover the sequence, not concurrent changes of the target.
 - npm audit count from npm ci (16) differs from advisory count in handoffs (3); compare like with like. Runtime: `npm audit --omit=dev` (0 in slice 3).
 - Check state conditions against side effects of other ops (e.g. folder.list creates the private folder).
 - Handoff "Verified" sections go stale after late commits; rerun everything, trust own numbers.
 - Sanitizer probes: use a scratch copy and `sanitizeHtml`; web probes need `// @vitest-environment jsdom` and `--silent=false` to see console output.
-- Lighthouse: `npm run lighthouse` uses /opt/pw-browsers/chromium, about 1 min.
+- Lighthouse: `npm run lighthouse` uses /opt/pw-browsers/chromium, about 1 min. Coverage text reporter hides 100% files; read the summary lines.
 - Destructive restore paths: probe parseable-but-wrong-shape files, then check the next restore still works.
 - New read-path validation: replay old builds (git archive per slice commit, probe test with setupWorld, dump files) and feed the dumps to the new check.
 - Call counts from test/fakes/world.ts skip snapshotProps; compare with entry.test.ts warm-read test.
@@ -140,6 +139,7 @@
 - Card Service docs: fetch developers.google.com/apps-script/reference/card-service/<class> with curl; extract <article> text. Unknown MaterialIcon name renders no icon, no error. TextButton unset style = OUTLINED. Labels plain text per add-on widget guide.
 - Behaviour-freeze slices: run one probe script on base and head copies, dump replies with text stripped, diff.
 - rm -rf with a shell variable path is blocked; use literal absolute paths.
+- Merges: diff test dirs and server dirs against both parents; run computed-style diffs on 3 dev-web servers (merge, each parent via git archive).
 - Harness RPC capture/taint: addInitScript defines a `google` setter, wrap run as wrap(r,h): withSuccessHandler stores h, withFailureHandler(f) wraps r.withFailureHandler(f), rpc calls r.withSuccessHandler(v=>h(taint(op,v))). Replies are {ok,data,...}: mutate env.data.
 - Async UI commands (await before editor.run): probe insert position with keyboard Enter; focus return moves the PM selection.
 - Guards/dialogs: probe two exits in a row (click then Back, Back twice) for stacked dialogs. History fixes: test Back to the first entry (no state) separately; patch History.prototype.go and popstate in addInitScript.
