@@ -97,13 +97,11 @@
   - Probes all clean: 20 off writes x owner/admin DENIED off text, 4 races, 0 Drive writes on 18 reads, on-again identical, bad backup settings VALIDATION before lock.
   - Minors: recipient policy not re-checked in lock; Save focus to BODY (disabled while focused); client CONFLICT ignores details; name echo unbounded; smoke Slice 9 steps 5-6 use dead property; spec 5.8 grant/admin.folders errata.
   - Daily purges private trash while off (ADR-0008 line 92, accepted).
-- Slice 13 fix round (2026-11-11): FAIL (3ca3920). 64 files, 1698 tests, lines 96.73, Code.js 356.0 KB, index.html 361.1 KB, Lighthouse 100x14, 10 scopes. 13 of 14 items pass.
-  - Blocker: export event only at offset 0 (transfer.ts:129, offset 1 skips it); bufferEvent result ignored (transfer.ts:165), lock busy or buffer full of applies loses it, export still ok. Fix: event per page, refuse page when not stored (or commitLocked, ADR-0002:128).
-  - Minors: old-tab `from` VALIDATION lacks reload hint; in-lock import recheck refuses whole import (spec 264 drops); lock-busy drops uncounted; smoke.md:139 RECIPIENTS_EXTERNAL.
+- Slice 13 fix round (2026-11-11): FAIL (3ca3920, export event only at offset 0, buffer result ignored), retry 1 FAIL (f3f8156, page events evicted by export's own bd:* puts at 1,000 templates), retry 2 PASS (ca18ca9 on c96a38b). 1710 tests, lines 96.79, Code.js 358.6 KB, index.html 361.8 KB, Lighthouse 100x14, 10 scopes.
+  - Retry 2 mechanism: export `start: true` commits one export.* event via `commit` into pendingAudit, then token `exp:<newId>` (actor, kind, folderId, 600 s sliding) in Script Cache; pages refuse VALIDATION EXPORT_RESTART without it; pages read bodies with keep=false. Buffer holds apply+denied only; evt:lost "<lost> <seen>"; full buffer reuses evicted slot first.
+  - Open minors: retry text "did not answer" for BUSY; NETWORK retry of a landed start writes 2 events; audit "started" gives no partial-download hint; token from Math.random (bound to actor, harmless); in-lock import recheck refuses whole import; spec/ADR export passages for architect.
   - config.set base = updatedAt+updatedBy; recheckRecipients in lock (body.ts); prof:<sha256>; stats.target for log targetId; cancelDialogs on Back/Forward.
-  - Retry 1 (f3f8156): FAIL (4b73c16). 1706 tests, lines 96.78, Code.js 358.3 KB. Event per page + BUSY when not buffered, rank denied<apply<change, evt:lost, web retry 200/400/600, audit join all hold. Blocker: cold export of 1,000 templates loses page events 0, 20, 40 (bd:* puts evict evt:* in the 1,000-item FIFO Script Cache), dropped 0.
-  - Minors: drawer opens page 1 only; two-tab same-admin join mis-pairs; evt:lost expiry undercount; weakerSlot skips evicted keys; "Try again in a minute" vs 5-min tick.
-  - Harness CONFLICT: page.route patch `let n=Yr[e];if(n.value===t.value)` (minified names change per build).
+  - Dev harness: no export audit row, no recipients in the sample; `failSkip`/`failTimes`/`failOp` simulate failures. Harness CONFLICT patch: page.route on minified names (change per build).
 
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
@@ -143,3 +141,4 @@
 - Anything kept in the Script Cache until `tick`: count the cache puts the same op makes (1,000 items, FIFO). Probe with world.clock +7 h for a cold cache.
 - Web Chromium probes: puppeteer-core in node_modules with executablePath /opt/pw-browsers/chromium-1243/chrome-linux64/chrome; dialogs are [role=dialog], not <dialog>.
 - Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.
+- Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
