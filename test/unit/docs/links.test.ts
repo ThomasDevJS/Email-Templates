@@ -9,6 +9,7 @@ const DOCS = [
   "docs/guide/editor-guide.md",
   "docs/guide/admin-guide.md",
   "docs/ops/runbook.md",
+  "docs/ops/test-round-1.md",
 ];
 
 const ROOT = resolve(import.meta.dirname, "../../..");

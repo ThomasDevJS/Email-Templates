@@ -99,8 +99,6 @@
 - `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
 - `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT`: the one place side-panel insert replaces. Empty home (`emptySection`) belongs to the admin-settings slice.
 
-## Slice 8c (admin UI): views/adminTable.ts, admin/actions.ts; admin h1 then tab h2s; tables stack under 860 px.
-
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
@@ -139,9 +137,11 @@
 ## Slice 16 (in-app admins, D32, 2026-11-11)
 - shared/model/admins.ts `adminEntriesOf`, `appAdminsOf`, `ADMINS_MAX`; `isAdminEmail(..., appAdmins thunk)`; `subjectFor(email, snapshot, props, index thunk)`; dispatch recheck passes the in-lock index. Handler handlers/admins.ts: refusals = VALIDATION + `details.reason`.
 - Web views/adminAdmins.ts (form `novalidate`: jsdom and browsers block submit of a bad `type=email`). Harness `?admins=none`. Test lock races with `beforeNextLock` (wrap `world.lock.tryLock`).
+- Retry 1: `lockedSubject` (dispatch.ts) for every in-lock re-check; `adminLineText` + `ADMIN_DENIED_TEXT` for admin-only actions; Directory failures log `errorCode` "<reason>:<status>"; results carry `email`. The web client never retries.
 ## Slice 15 (one-click insert, D31, 2026-11-11)
 - render.ts `closeGaps(parts)` (null = gap, 4 rules, U+0020 only); typed answer beats a resolved variable. Tests test/unit/shared/gaps.test.ts.
 - flows.ts `applyNow(ports, id, extra)` = one template.apply + cached body; Flow A `insertFlow` (`rc` "t,c,b" vs list lengths, unknown draft field -> details card `counted=1`); Flow B `previewFlow` (compose followUp, side panel getBody + `panelDetailsCard`); Flow C `promptInsertFlow` (`counted=1` -> followUp; `mergedValues`).
 - cards/details.ts `detailsCard(DetailsState)`, `panelDetailsCard(view, entry)`; test fixture `details()` in test/unit/addon/fixtures.ts. prompts.ts `tooLong`, `shortenText`, `moreFieldsText`. `replacesSubject(draftHasSubject)`.
 - Worktree guard: python edits via a script file in the scratchpad, run alone; never chain `git` or `rm` with other commands.
-- Retry 1: `lockedSubject` (dispatch.ts) for every in-lock re-check; `adminLineText` + `ADMIN_DENIED_TEXT` for admin-only actions; Directory failures log `errorCode` "<reason>:<status>"; results carry `email`. The web client never retries.
+## Slice 17 (docs: smoke sweep, docs/ops/test-round-1.md, 2026-11-11)
+- Quote check script: extract double-quoted texts, search src with escapes undone and spaces collapsed; hand-check built texts. Admins never lose folder access: access-loss steps need the second account. Web version shows as "Version dev-<sha>" under the short name; "Signed in as" is sr-only.
