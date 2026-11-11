@@ -362,3 +362,4 @@ New texts. Paths are relative to `src/`.
 |---|---|
 | `web/index.html`, `web/app.ts` | Loading... (first paint, until the first view draws) |
 | `web/app.ts` | Templates could not be loaded. Press Reload to try again. / Reload (button) |
+| `web/ui/status.ts` | Migway Templates is not set up yet. Ask your admin to finish setup. (NOT_CONFIGURED; was "Something went wrong. Try again.") |

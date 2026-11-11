@@ -1,3 +1,7 @@
+/** The NOT_CONFIGURED sentence of the server and of the web app (spec section 7). */
+export const NOT_SET_UP_TEXT =
+  "Migway Templates is not set up yet. Ask your admin to finish setup.";
+
 /** Error codes returned in `error.code` of every server response (ADR-0003 Part A, spec section 7). */
 export const ErrorCode = {
   /** Caller email is blank: the server cannot identify the account. */

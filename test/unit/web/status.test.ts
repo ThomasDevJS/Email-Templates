@@ -4,6 +4,7 @@ import { ErrorCode } from "../../../src/shared/errors/codes";
 import { RpcError } from "../../../src/web/rpc/client";
 import {
   lineText,
+  messageOf,
   QUOTA_RETRY_MS,
   showToast,
 } from "../../../src/web/ui/status";
@@ -39,6 +40,22 @@ describe("toast Retry (spec section 7)", () => {
 
   it("BUSY enables Retry at once", () => {
     expect(retryOf(ErrorCode.BUSY, vi.fn()).disabled).toBe(false);
+  });
+});
+
+describe("NOT_CONFIGURED (errata 5 item 9)", () => {
+  it("shows the server's setup sentence, also in the toast", () => {
+    const error = new RpcError(
+      ErrorCode.NOT_CONFIGURED,
+      "Advanced service Drive is not enabled",
+      "REQ-1",
+      false,
+    );
+    const text =
+      "Migway Templates is not set up yet. Ask your admin to finish setup.";
+    expect(messageOf(error)).toBe(text);
+    showToast(document.body, error);
+    expect(document.body.textContent).toContain(text);
   });
 });
 

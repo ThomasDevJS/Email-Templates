@@ -1,4 +1,8 @@
-import { AppError, ErrorCode } from "../../shared/errors/codes";
+import {
+  AppError,
+  ErrorCode,
+  NOT_SET_UP_TEXT,
+} from "../../shared/errors/codes";
 import {
   EMPTY_FAVORITES,
   EMPTY_USAGE,
@@ -78,10 +82,7 @@ export function readStoreIds(props: PropertyStore): Partial<StoreIds> {
 export function requireStoreIds(props: PropertyStore): StoreIds {
   const ids = readStoreIds(props);
   if (ids.membersId === undefined) {
-    throw new AppError(
-      ErrorCode.NOT_CONFIGURED,
-      "Migway Templates is not set up yet. Ask your admin to finish setup.",
-    );
+    throw new AppError(ErrorCode.NOT_CONFIGURED, NOT_SET_UP_TEXT);
   }
   return ids as StoreIds;
 }
