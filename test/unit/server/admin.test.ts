@@ -476,6 +476,27 @@ describe("grants", () => {
     expect(grant(sales.id, key, "use", "ou").principalKey).toBe(key);
   });
 
+  it("logs the grant's folder as targetId on grant.remove, ok and denied, never the principal", () => {
+    const sales = folder("Sales");
+    const added = grant(sales.id, ANA, "use");
+    const lastLine = () =>
+      JSON.parse(world.lines.at(-1) ?? "{}") as Record<string, unknown>;
+    expect(codeOf(ANA, "grant.remove", { grantId: added.id })).toBe("DENIED");
+    expect(lastLine()).toMatchObject({
+      action: "grant.remove",
+      targetId: sales.id,
+      result: "denied",
+    });
+    world.lines.length = 0;
+    world.ok(OWNER, "grant.remove", { grantId: added.id });
+    expect(lastLine()).toMatchObject({
+      action: "grant.remove",
+      targetId: sales.id,
+      result: "ok",
+    });
+    expect(world.lines.join("\n")).not.toContain(ANA);
+  });
+
   it("answers NOT_FOUND when the grant was removed by someone else", () => {
     const sales = folder("Sales");
     const added = grant(sales.id, ANA, "use");

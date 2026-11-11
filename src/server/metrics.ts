@@ -17,6 +17,8 @@ export interface RequestStats {
   readonly surface: Surface;
   readonly calls: Record<CallKind, number>;
   readonly ms: Record<Phase, number>;
+  /** First target folder dispatch resolved; the log's `targetId` when the args name no `id` or `folderId` (`grant.remove`). */
+  target: string;
 }
 
 export function newStats(surface: Surface): RequestStats {
@@ -32,6 +34,7 @@ export function newStats(surface: Surface): RequestStats {
       lockMs: 0,
       dirMs: 0,
     },
+    target: "",
   };
 }
 

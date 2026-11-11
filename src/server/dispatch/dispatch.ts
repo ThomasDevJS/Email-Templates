@@ -160,6 +160,7 @@ function authorize(
   }
   const access = context.access();
   const targets = row.targets?.(request.args, access.index) ?? [];
+  context.services.stats.target = targets.find((t) => t !== ROOT) ?? "";
   if (!checkNeed(need, access.subject.isAdmin, access.levelOf, targets))
     deny(
       request,
