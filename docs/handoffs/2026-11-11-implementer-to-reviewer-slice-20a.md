@@ -40,3 +40,30 @@ Branch `slice/20a-fix-web-server` from `claude/gracious-franklin-3n8zbq` 16df87a
 `npm ci` ok; `npm run lint` clean; `npm run typecheck` clean; `npm run test:coverage` 68 files, 1948 passed, lines 98.03, branches 91.05; `npm run build -- --env dev` Code.js 369.5 KB of 800, index.html 380.2 KB of 400; `npm run scopes:check` 10 scopes approved; `npm run format:check` clean; `npm run lighthouse` 16 of 16 runs at 100.
 
 Dev only: first-load timing in Google's frame, Back/Forward trips, caret in desktop Chrome, NOT_CONFIGURED page before `setup()`.
+
+## Retry 1 (review docs/reviews/slice-20a.md, FAIL on 2)
+
+Head after retry: see the last commit on the branch. Each new test fails on the code before its fix.
+
+| Item | State | Test | Commit |
+|---|---|---|---|
+| MF1 open-script | fixed: `npx clasp open-script <scriptId>` from `deploy/<env>.json` (guide step 9, deploy.md dev 6 and prod 2); clasp switch is `npx clasp logout`, `npx clasp login`, check `npx clasp show-authorized-user` | none (docs) | f22579f |
+| MF2 two errors, focus | fixed: first load fails quietly into the banner (no toast), Reload focuses main, no extra toast per Reload | app.test "a failed first load shows one plain error..." | 0fb8fea |
+| m1 banner over a drawn view | fixed: the banner replaces only the first view of the page load, and only library, trash, editor; Admin and History get the toast | app.test "a slow first load never replaces an Admin page", "BUSY shows a toast..." (now on #/admin) | 0fb8fea |
+| m2 NOT_CONFIGURED first load | fixed: the banner says the setup sentence, no toast | app.test "a first load that is not set up..." | 0fb8fea |
+| m3 tab switch during folder write | fixed: `refresh(after)` starts with the write; a tab opened meanwhile waits for the new list | admin.test "a tab opened while a folder write is listed..." | ee1ce1d |
+| m6 concurrent starts | fixed: reuse check, commit and `exps:` put in one `withLock` | server adminReports "writes one event for two tries of one click that run at the same time" | c9012eb |
+| m7 version number | fixed: step 12 makes version 2 after the editor's version 1 (deploy.mjs `create-version` then `list-versions` count); editor behavior marked not yet tried | none | f22579f |
+| m8 which clasp account | fixed: `show-authorized-user` in guide step 4 and deploy.md | none | f22579f |
+| m9 errata 5 guide text | fixed: scope reasons for the side panel; prod logo owner in the unknown table | none | f22579f |
+
+Commands run for MF1 (clasp 3.4.1 from node_modules, empty scratch directory): `clasp --version`; `clasp --help`; `clasp <c> --help` for login, create-script, open-script, show-authorized-user, create-deployment, create-version, push, pull, list-versions, logout; `clasp open-script` without ID ("Script ID not set, unable to open IDE."); `clasp --json open-script <example id>` (prints the `/d/<id>/edit` URL); `clasp show-authorized-user` ("You are logged in as ..."); `npm run setup:check`. Read `node_modules/@google/clasp/build/src/commands/open-script.js`, `login.js` (an existing login gets a warning and is replaced), `scripts/deploy.mjs`, `scripts/lib/deployConfig.mjs`, `scripts/lib/claspOutput.mjs`, `package.json` scripts. Every command in both documents exists with the flags written.
+
+Left:
+- m4 caret before a menu field (Sender name) inserted at a paragraph start: base behavior, `src/web/editor/setup.ts` `run` (not `hold().run`).
+- m5 `src/web/views/adminAudit.ts:152`: a Details click on another row while one loads is ignored; the status already reads "Loading entry details...".
+- m3 tail: an import's `folders.refresh()` does not redraw the open "Export and import" lists (`src/web/views/adminTransfer.ts` `send`); redrawing would drop the report.
+- m10 spec 6 `run` arg, spec 7.3 line 533, wireframe 06 line 119: architect.
+- m11 `src/server/runtime.ts:128` `getUuid` plus `computeDigest` per ID: time on Apps Script not measured (dev).
+
+Checks (clean install): `npm ci` ok; lint, typecheck clean; `npm run test:coverage` 69 files, 1969 passed, lines 98.01; build Code.js 371.2 KB, index.html 380.8 KB; scopes 10 approved; format clean; Lighthouse 16 of 16 at 100.
