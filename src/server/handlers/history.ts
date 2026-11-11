@@ -131,7 +131,7 @@ export function versionRestore(
     .store()
     .readBody(findVersion(context, known, from).fileId);
   const prepared = prepareFor(
-    context.services.props,
+    context,
     old.html,
     old.subject,
     recipientsOf(old),

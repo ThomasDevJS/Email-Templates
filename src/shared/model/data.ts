@@ -1,3 +1,5 @@
+import type { StoredSettings } from "./settings";
+
 /**
  * Stored records (spec section 5, ADR-0002 Layout). Times are ISO 8601 UTC strings; an empty string means "not set".
  * Every mutable record carries `version`; `index.json` carries `rev`.
@@ -94,6 +96,8 @@ export interface IndexDoc {
   readonly grants: readonly Grant[];
   readonly items: readonly Item[];
   readonly pendingAudit: readonly AuditEvent[];
+  /** D29 (slice 11): admin settings; absent reads as the defaults (`settingsOf`, spec 5.8). */
+  readonly settings?: StoredSettings | undefined;
 }
 
 export interface BodyFile {

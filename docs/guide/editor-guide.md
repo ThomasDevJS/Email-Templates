@@ -2,7 +2,7 @@
 
 For managers and editors who write templates. The [quick start](user-quick-start.md) covers inserting templates in Gmail.
 
-You edit templates in folders where you hold the level `edit` or `manage`. Every person can edit their own "My templates" folder. The [admin guide](admin-guide.md) explains levels and grants.
+You edit templates in folders where you hold the level `edit` or `manage`. Every person can edit their own "My templates" folder while an admin has personal templates on; when they are off, "My templates" is read only ("Personal templates are turned off by your admin."). The [admin guide](admin-guide.md) explains levels and grants.
 
 ## The library
 
@@ -102,7 +102,7 @@ The placeholder menu lists 5 values and one question type.
 
 ## Recipients (To, Cc, Bcc)
 
-A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no placeholders. Save refuses a bad address ("Cc, address 2 is not an email address."), an address in two fields, and, when the owner set Script Property `RECIPIENTS_EXTERNAL` to `deny`, any address outside migway.com. Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting. The editor fields arrive with the editor redesign; until then the owner sets recipients on request, and saving the template in the editor keeps them.
+A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no placeholders. Save refuses a bad address ("Cc, address 2 is not an email address."), an address in two fields, and, when an admin set "Outside recipients" to "migway.com only" (Admin, Config, Settings), any address outside migway.com. Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting. The editor fields arrive with the editor redesign; until then the owner sets recipients on request, and saving the template in the editor keeps them.
 
 ## Saving and the "This template changed" dialog
 

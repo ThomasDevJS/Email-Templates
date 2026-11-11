@@ -10,7 +10,7 @@ import type {
   ImportReport,
 } from "../../../src/server/handlers/transfer";
 import { mutateIndex } from "../../../src/server/storage/writer";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 /** Template recipients on the server (D26, spec 5.7, section 6): write paths, apply view, counts, switch. */
 const ANA = "ana@example.com";
@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 function deny(): void {
-  world.props.setProperty("RECIPIENTS_EXTERNAL", "deny");
+  setSetting(world, "recipientsExternal", "deny");
 }
 
 function create(fields: Record<string, unknown> = {}): Item {
@@ -238,7 +238,7 @@ describe("duplicate, restore, version.get", () => {
   });
 });
 
-describe("RECIPIENTS_EXTERNAL=deny", () => {
+describe("recipientsExternal=deny (admin setting, D29)", () => {
   it("refuses outside addresses on create; inside ones save", () => {
     deny();
     expect(
@@ -323,8 +323,23 @@ describe("sidebar counts and the switch value", () => {
     deny();
     expect(world.ok(ANA, "me")).toMatchObject({ recipientsExternal: "deny" });
     expect(world.ok(OWNER, "config.get")).toMatchObject({
-      recipientsExternal: "deny",
+      settings: { recipientsExternal: { value: "deny", updatedBy: OWNER } },
     });
+  });
+
+  it("ignores the retired Script Property RECIPIENTS_EXTERNAL (Q50)", () => {
+    const item = create();
+    world.props.setProperty("RECIPIENTS_EXTERNAL", "deny");
+    expect(world.ok(ANA, "me")).toMatchObject({ recipientsExternal: "allow" });
+    expect(
+      world.ok<ApplyResult>(ANA, "template.apply", {
+        id: item.id,
+        knownVersion: 1,
+      }),
+    ).toMatchObject({ blocked: [] });
+    expect(JSON.stringify(world.ok(OWNER, "config.get"))).not.toContain(
+      "RECIPIENTS_EXTERNAL",
+    );
   });
 });
 

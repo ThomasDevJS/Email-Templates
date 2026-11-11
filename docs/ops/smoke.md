@@ -148,6 +148,21 @@ Needs: the dev deployment of this build (reopen the add-on). The web editor has 
 8. Regression: new draft, row "Smoke 9 plain" shows Insert and no "Adds" line. One tap inserts `Plain` at the cursor.
 9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `draft` with counts and `hasSubject` only. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
 
+## Slice 11
+
+Needs: the dev deployment of this build; the owner (admin) in two browser tabs on Admin, Config; the pilot account with an existing "My templates" folder holding at least one template; a second domain account that never opened the library ("new user"); a shared folder with the pilot at `use` and one template whose Cc holds `s11-out@example.com`. Nothing is sent: discard every draft.
+
+1. Before the run, Apps Script editor, Script Properties: note whether `RECIPIENTS_EXTERNAL` exists (Q50). If it is `deny`, write that down; the app ignores it from now on.
+2. Config tab, Settings: "Personal templates" shows Off and "Default, never changed."; "Outside recipients" shows Allowed and "Default, never changed.". The Environment list has no `RECIPIENTS_EXTERNAL` row.
+3. Pilot, library, "My templates": the line "Personal templates are turned off by your admin. You can still insert these templates." and no New template button; the row menu has no Edit, Move, Duplicate or Delete. Gmail draft: the pilot inserts a personal template; the text arrives. Opening one in the editor and pressing Save answers "Personal templates are turned off by your admin."
+4. New user, library: no "My templates" folder; with no shared folder: "No templates shared with you yet. Ask your admin for access to a folder." Gmail panel, compose: the same sentence and no button.
+5. Owner, tab 1: Personal templates, On, Save: no dialog, "Saved. Personal templates are on for every user from their next action." and "Last change: <owner> on <time>.". New user reloads the library: "My templates" appears. Pilot reloads: New template is back, an edit saves.
+6. Owner, tab 2 (not reloaded, still shows Off): pick On, Save: "<owner> changed this setting on <time>. The page now shows the current value."; the group shows On.
+7. Owner, tab 1: Off, Save: the dialog "Turn off personal templates?" with Cancel focused; Cancel keeps On; Save, "Turn off": saved. The pilot's templates and favorites are all still listed and insertable.
+8. Outside recipients: "example.com only" (migway.com on dev), Save, confirm "Allow only migway.com". Gmail draft, Review the template with `s11-out@example.com`: "Not added: s11-out@example.com. Outside migway.com, turned off by your admin." Editor Save of that template answers the `RCPT_EXTERNAL` text. Back to Allowed, Save (no dialog): Insert adds the address again.
+9. Audit log tab: 4 "Setting changed" rows (steps 5, 7, 8 twice) with before and after in the details; step 6 wrote none. Executions: the `config.set` log lines carry `targetId` "" and no "on", "off", "allow" or "deny".
+10. If step 1 found `RECIPIENTS_EXTERNAL`: delete it, and set "migway.com only" in Settings if it was `deny`.
+
 ## Slice 12
 
 Needs: the dev deployment of this build (reload Gmail), a user with at least 1 favorite, 1 recent template, 1 template with prompts, the Slice 9 template "Smoke 9 recipients", the template "Smoke 9 plain", and a folder named `R&D <b>` holding one template. Take one screenshot of each card in steps 1 to 7 and attach it to the handoff. Compare each with the card sketches in docs/handoffs/2026-11-11-implementer-to-reviewer-slice-12.md.

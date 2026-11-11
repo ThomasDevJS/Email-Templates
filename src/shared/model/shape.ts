@@ -4,6 +4,7 @@
  * these files and on backup copies before a restore, so a damaged file is refused before anything uses it.
  */
 import { isStoredList } from "./recipients";
+import { settingsProblem } from "./settings";
 
 type Json = Readonly<Record<string, unknown>>;
 
@@ -69,7 +70,8 @@ export function indexProblem(doc: unknown): string {
     records(doc["pendingAudit"], "pendingAudit event", {
       id: isString,
       ts: isString,
-    })
+    }) ||
+    settingsProblem(doc["settings"])
   );
 }
 

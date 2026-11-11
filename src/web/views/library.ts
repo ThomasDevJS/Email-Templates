@@ -1,6 +1,11 @@
 import { atLeast } from "../../shared/permissions/levels";
 import { parseQuery } from "../../shared/search/match";
-import { folderPath, searchItems, subtreeIds } from "../library/model";
+import {
+  folderPath,
+  privateReadOnly,
+  searchItems,
+  subtreeIds,
+} from "../library/model";
 import type { ItemRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
 import { icon } from "../ui/icons";
@@ -67,6 +72,8 @@ export function libraryView(
   const heading = h("h1", { id: "list-heading" }, "Templates");
   const count = h("span", { class: "count" });
   const actions = h("div", { class: "list-actions" });
+  /** Spec 7.2: the reason sits where New template would be, above the list. */
+  const notice = h("p", { class: "page-note", role: "note" });
   const status = h("p", {
     class: "status",
     role: "status",
@@ -121,6 +128,12 @@ export function libraryView(
     );
 
   const emptyState = (query: string) => {
+    if (app.folders().length === 0)
+      return h(
+        "p",
+        { class: "empty", role: "status" },
+        "No templates shared with you yet. Ask your admin for access to a folder.",
+      );
     if (query !== "")
       return h(
         "p",
@@ -233,6 +246,11 @@ export function libraryView(
     heading.textContent = folderName();
     count.textContent = String(items.length);
     replace(actions, canCreate() ? newButton() : null);
+    const readOnly = !onlyFavorites && privateReadOnly(app.folders(), folderId);
+    notice.hidden = !readOnly;
+    notice.textContent = readOnly
+      ? "Personal templates are turned off by your admin. You can still insert these templates."
+      : "";
     // The status region announces the text search; the list stays busy until its reply (slice 5b minors 3, 4).
     list.setAttribute("aria-busy", String(searching()));
     if (searching()) status.textContent = SEARCHING;
@@ -317,6 +335,7 @@ export function libraryView(
         ),
         actions,
       ),
+      notice,
       list,
       status,
     ),

@@ -45,6 +45,7 @@ const HOME: SidebarHome = {
   ],
   favorites: [],
   recent: [],
+  personalTemplates: "on",
 };
 
 const NO_LISTS = { to: [], cc: [], bcc: [], blocked: [] };

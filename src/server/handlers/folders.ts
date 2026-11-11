@@ -9,6 +9,7 @@ import {
   inPrivateTree,
   levelResolver,
 } from "../../shared/permissions/effective";
+import { personalTemplatesOn } from "../../shared/model/settings";
 import { atLeast, type AccessLevel } from "../../shared/permissions/levels";
 import { auditEvent, type EventSource } from "../audit/events";
 import { optString, reqString } from "../dispatch/args";
@@ -63,7 +64,9 @@ export function newFolder(
   };
 }
 
-function hasPrivateFolder(index: IndexDoc, email: string): boolean {
+/** True when the caller has a private folder, or none may be created (personal templates off, D29). */
+function noPrivateFolderNeeded(index: IndexDoc, email: string): boolean {
+  if (!personalTemplatesOn(index.settings)) return true;
   const owner = email.toLowerCase();
   return index.folders.some(
     (folder) =>
@@ -73,14 +76,17 @@ function hasPrivateFolder(index: IndexDoc, email: string): boolean {
   );
 }
 
-/** D11: every caller gets one private top-level folder on first use. Returns the index after the change. */
+/**
+ * D11: every caller gets one private top-level folder on first use, only while personal templates are on (D29).
+ * Returns the index after the change.
+ */
 function ensurePrivateFolder(context: HandlerContext): IndexDoc {
   const { index } = context.access();
   const email = context.caller.email;
-  if (hasPrivateFolder(index, email)) return index;
+  if (noPrivateFolderNeeded(index, email)) return index;
   const source = eventSource(context);
   return commit(context, (current) => {
-    if (hasPrivateFolder(current, email))
+    if (noPrivateFolderNeeded(current, email))
       return { doc: current, events: [], result: current };
     const folder = newFolder(context, {
       parentId: "",

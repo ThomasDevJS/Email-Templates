@@ -6,7 +6,12 @@ import {
   usageReport,
 } from "../handlers/admin";
 import { auditQuery } from "../handlers/audit";
-import { backupList, backupRestore, configGet } from "../handlers/config";
+import {
+  backupList,
+  backupRestore,
+  configGet,
+  configSet,
+} from "../handlers/config";
 import {
   folderCreate,
   folderDelete,
@@ -79,6 +84,7 @@ export const HANDLERS: HandlerTable = {
   "audit.query": auditQuery,
   "usage.report": usageReport,
   "config.get": configGet,
+  "config.set": configSet,
   "backup.list": backupList,
   "backup.restore": backupRestore,
 };

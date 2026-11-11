@@ -422,6 +422,9 @@ describe("error presentation (spec section 7)", () => {
     expect(of(ErrorCode.DENIED)).toBe(
       "You don't have access to this template. Ask a folder manager.",
     );
+    expect(
+      of(ErrorCode.DENIED, "Personal templates are turned off by your admin."),
+    ).toBe("Personal templates are turned off by your admin.");
     expect(of(ErrorCode.NOT_FOUND)).toBe("This template was removed or moved.");
     expect(of(ErrorCode.BUSY)).toBe("Busy, try again.");
     expect(of(ErrorCode.QUOTA)).toBe("Service is busy. Try again in a minute.");

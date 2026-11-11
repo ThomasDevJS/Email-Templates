@@ -1,13 +1,14 @@
-import { formatBytes, recipientsText } from "../admin/model";
+import { formatBytes } from "../admin/model";
 import type { ConfigView, JobRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace } from "../ui/dom";
 import { lineText, skeletonRows } from "../ui/status";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
+import { settingsSection } from "./adminSettings";
 import type { AppContext, View } from "./context";
 
 /**
- * Tab "Config" (admin, read only, wireframe 06): settings, index size with the 3 MB warning, job health (a job
+ * Tab "Config" (admin, wireframe 06): the admin settings (D29), then read only: environment, index size with the 3 MB warning, job health (a job
  * late by more than 2 intervals shows "Late" with its last error), and the 14 daily backups with Restore.
  */
 const JOB_COLUMNS: readonly Column[] = [
@@ -30,18 +31,14 @@ function jobStatus(job: JobRow): HTMLElement {
   );
 }
 
-function settings(data: ConfigView): HTMLElement {
+function environment(data: ConfigView): HTMLElement {
   const size = `${formatBytes(data.indexBytes)}${
     data.indexBytes >= data.indexWarnBytes
       ? ` (warning: over ${formatBytes(data.indexWarnBytes)}, the index should be split, ADR-0002)`
       : ` (warning at ${formatBytes(data.indexWarnBytes)})`
   }`;
-  const recipients = recipientsText(data.recipientsExternal, data.domain);
   const facts: [string, string][] = [
     ["Domain", data.domain],
-    ...(recipients === null
-      ? []
-      : [["Outside recipients", recipients] as [string, string]]),
     ["ADMIN_GROUP", data.adminGroup || "not set"],
     ["MEMBERSHIP_RESOLVER", data.resolver],
     ["CALLER_IDENTITY", data.callerIdentity],
@@ -216,8 +213,9 @@ export function configTab(app: AppContext, panel: HTMLElement): View {
         body.setAttribute("aria-busy", "false");
         replace(
           body,
-          h("h2", { class: "first" }, "Settings"),
-          settings(data),
+          settingsSection(app, data),
+          h("h2", {}, "Environment"),
+          environment(data),
           data.triggersError === ""
             ? null
             : h(

@@ -3,14 +3,14 @@ import { CACHE_TTL_S, CHUNK_BYTES } from "../../shared/cache/chunked";
 import type { Item } from "../../shared/model/data";
 import {
   NO_RECIPIENTS,
-  RECIPIENTS_EXTERNAL_KEY,
-  externalRule,
   type RecipientPolicy,
   type Recipients,
 } from "../../shared/model/recipients";
+import { settingValue } from "../../shared/model/settings";
 import { scanBody } from "../../shared/placeholders/validate";
 import { sanitize } from "../../shared/sanitize/sanitize";
 import { utf8Length } from "../../shared/text";
+import type { HandlerContext } from "../dispatch/context";
 import { DOMAIN_KEY } from "../guards";
 import type { PropertyStore, Services } from "../services";
 
@@ -97,11 +97,18 @@ export function imgHosts(props: PropertyStore): string[] {
     .filter((host) => host !== "");
 }
 
-/** `DOMAIN` and `RECIPIENTS_EXTERNAL` from the request's property snapshot (no extra Properties call). */
-export function recipientPolicy(props: PropertyStore): RecipientPolicy {
+/**
+ * `DOMAIN` from the request's property snapshot and the admin setting `recipientsExternal` from the request's
+ * index (D29, spec 5.8): no extra Properties or Drive call.
+ */
+export function recipientPolicy(context: HandlerContext): RecipientPolicy {
+  const domain = context.services.props.getProperty(DOMAIN_KEY) ?? "";
   return {
-    domain: (props.getProperty(DOMAIN_KEY) ?? "").trim().toLowerCase(),
-    external: externalRule(props.getProperty(RECIPIENTS_EXTERNAL_KEY)),
+    domain: domain.trim().toLowerCase(),
+    external: settingValue(
+      context.access().index.settings,
+      "recipientsExternal",
+    ),
   };
 }
 
@@ -110,14 +117,15 @@ export function recipientPolicy(props: PropertyStore): RecipientPolicy {
  * switch. Throws VALIDATION with `details.problems`.
  */
 export function prepareFor(
-  props: PropertyStore,
+  context: HandlerContext,
   html: string,
   subject: string,
   recipients: Recipients = NO_RECIPIENTS,
 ): PreparedBody {
-  return prepareBody(html, { imgHosts: imgHosts(props) }, subject, {
+  const hosts = imgHosts(context.services.props);
+  return prepareBody(html, { imgHosts: hosts }, subject, {
     lists: recipients,
-    policy: recipientPolicy(props),
+    policy: recipientPolicy(context),
   });
 }
 

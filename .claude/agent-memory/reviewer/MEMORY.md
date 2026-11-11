@@ -23,6 +23,26 @@
 ## Slice log
 - Slices 1-4b (2026-11-09/10): all PASS after retries. Lessons kept below. Open minors: readPreviousSnapshot swallows Drive errors; template.get not re-sanitized; prompt Insert renders from body cache; failed trigger reinstall can leave <3 triggers; admin can duplicate others' private templates (D11).
   - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Sanitizer src/shared/sanitize, placeholders src/shared/placeholders. REQUEST_ID_PATTERN shared, checked on both surfaces.
+- Slice 1 (2026-11-09): FAIL then PASS on retry 1 (501090f). Blocker was npm ci EUSAGE (@types/node peer). 144 tests, 99.34% lines.
+- Slice 2 (2026-11-09): FAIL (195ab90, stale authorization under concurrent move), retry 1 fix 6052320: PASS (64078b8). 22 files, 439 tests, 99.39% lines, Code.js 103.4 KB, 10 scopes.
+  - Fix: dispatch returns target placement; handlers/commit.ts rechecks inside the lock (CONFLICT reason moved, DENIED on lost level). races.test.ts 9 tests.
+  - Open minor: readPreviousSnapshot swallows Drive errors, mergeGroup can then write members.json with one group. Add-on 404 at first hop (deploy issue, s2.md).
+
+- Slice 3 (2026-11-09): PASS (review 8ba6797 on 41575e3). 32 files, 745 tests, lines 94.61% (shared 100, server 99.06, web reported only). Code.js 226.0 KB, index.html 271.0 KB, Lighthouse 100/100/100, 10 scopes.
+  - Sanitizer src/shared/sanitize (htmlparser2 12.0.0), placeholders src/shared/placeholders, write path src/shared/body/prepare.ts + server/handlers/body.ts. Web app src/web (ProseMirror, no framework), dev harness scripts/dev-web.mjs.
+  - Open minors: template.get not re-sanitized (editor loads through it); QUOTA retry not delayed 60 s; PH_BACKSLASH false positive across mark runs; bodySize dead in src; chrome-launcher undeclared; spec 6 lacks template.getBody; ADR paste-preview sanitize not done.
+
+- Slice 4 (2026-11-10): FAIL (2ac580f), retry 1 PASS (054129a, 846 tests, Code.js 259.2 KB). First review: 40 files, 842 tests, lines 95.95% (addon 100, shared 100, server 99.08), Code.js 258.9 KB, 10 scopes.
+  - Blocker: home.ts:54 empty state needs folders AND templates empty; every caller gets a private folder on first folder.list, so the empty state never shows (smoke Slice 4 step 8 fails). Fix: templates.length === 0.
+  - Minors: prompt Insert renders from body:<id> cache (6 h) with no re-check; unused payload fields placeholders/own/rev; smoke Slice 1 step 3 stale Ping; setRequiredWidgets not tried.
+  - Accepted: unset DOMAIN -> NOT_CONFIGURED; sidebar hides others' private folders from admins (server filter, library still shows); apply event buffered at prompt card open (spec 4.1 step 3).
+  - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts only Card Service code. Spike S4 harness TEMPORARY (spike.s4, onSpikeCard, onSpikeInsert, src/shared/spike).
+
+- Slice 4b (2026-11-10): FAIL (78a3d34), retry 1 PASS (20bd55a, 891 tests, Code.js 266.5 KB). Retry: shared REQUEST_ID_PATTERN enforced in handleRpc (VALIDATION, server ID logged), action logged only for policy ops, ensureTriggers live re-check, tick runs ensureTriggers, readers never set INDEX_REV (setup publishes). Open: failed reinstall can leave <3 triggers (delete-first); spec 16 wording.
+  First review (714adf0): 42 files, 879 tests, lines 96.27% (addon 100, server 99.31, shared 100, web 95.12), Code.js 265.8 KB, index.html 278.2 KB, 10 scopes, Lighthouse 100x3.
+  - Blocker: client requestId not format-checked on server. doPost logs any non-empty string (handle.ts:107, protocol.ts:69); rpc accepts [A-Za-z0-9-]{8,64} (entry.ts:123). Fix: shared XXXXXXXX-XXXXXX pattern, replace non-matching IDs on both surfaces.
+  - Accepted: 9bbd262 bundle as JSON literal + (0, eval) (fuzzed 191k strings, round-trips); lock-free loadIndex; body cache bd:<bodyFileId> behind dispatch; requestTiming bounds 0..600000 ints.
+  - Defect 7 iframe focus unverified; owner checks Tab into tree, Shift+F10 vs Chrome menu.
 
 - Slice 5 (2026-11-10): PASS (b534836). 46 files, 952 tests, lines 96.33% (addon 100, server 99.31, shared 100, web 95.5), Code.js 276.2 KB, index.html 284.2 KB, 10 scopes, Lighthouse 100x3.
   - Subject: src/shared/placeholders/subject.ts, renderSubject (one pass, oneLine), insertReply (cards/spec.ts). Cards escape via markup(); history subject via withChips(escapeText()).
@@ -33,7 +53,6 @@
 - Slice 5b (2026-11-10): PASS (c50c953). 46 files, 983 tests, lines 96.41 (addon 100, server 99.31, shared 100, web 95.52), Code.js 279.8 KB, index.html 284.9 KB, 10 scopes, Lighthouse 100x3. New tests on old src: 38 fail.
   - Q21: DRAFT_FIELDS/requestDraft in shared/model/protocol.ts (null -> VALIDATION, not logged), draftInfo/isReplyDraft in addon/event.ts, replacesSubject in cards/spec.ts, "Insert with subject" = subject "use".
   - Owner label: folderLabel in server/handlers/folders.ts (folder.list only; sidebar filters others' privates).
-  - Minors: smoke 5b step 9 needs 2 versions; admin folder.rename stores labelled name (no UI yet); stale search.body error toasts; "Searching text..." not announced; spec 5.6/11 and wireframe 02 lack reply rule and `draft` field.
 
 - Slice 5c (2026-11-10): PASS (1611869). 1001 tests, lines 96.41, Code.js 280.3 KB, 10 scopes, Lighthouse 100x3. New tests on old src: 21 fail.
   - D24: draftHasSubject (addon/event.ts) reads gmail.subject and draftMetadata.subject; replacesSubject(choice, draftHasSubject). Gmail compose event has no threadId/messageId.
@@ -60,11 +79,9 @@
   First review FAIL (039392e). 52 files, 1244 tests, Code.js 318.9 KB, 10 scopes. 64 doc claims checked against src.
   - Must fix: runbook.md:21 password and 2SV handover person to person (fix: Workspace admin resets, new holder enrolls). Quick start D18 omits insert log lines (actor + targetId) and usage.json recent per email.
   - Minors: Recent "about 5 min" is up to 15 (tick + 10 min view cache); forward subject unverified; grid "By" column; QUOTA Retry not disabled (notice); image width fixed 600; quick start 1,087 words.
-  - Confirmed spec/ADR errata: spec 7 NOT_CONFIGURED/AUTH/SERVER texts, spec 8/12 4 vs 10 Lighthouse views, NOT_IMPLEMENTED dead in status.ts, ADR-0004 profile clear not built.
 
 - Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
   - Harness: src/addon/spikeS6.ts, callbacks onS6Card/onS6Apply (param b), Reply kind s6, env gate in the flow after respond prelude. Removal list in the handoff.
-  - Minors: callback ms excludes build() and Gmail; mixed-type list reads as missing; Gmail error text may quote an address in Executions; step 4 confounded if F1 fails.
   - UpdateDraftActionResponse has no navigation or notification: harness results show in the draft only.
 - Slice 8a UI (2026-11-10): FAIL (23bf981), retry 1 PASS (5b0aa2c, 1265 tests, index.html 340.6 KB). Retry: panel modal (main inert + aria-hidden, trapTab exported, matchMedia close), focus selector a[href] (SVG use href was counted), --star #a87400, --star-off #78838b, --field-line #7f8b93/#7c8a94 for field and button borders, contrast.test.ts token pairs (does not check CSS usage).
   First review 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
@@ -75,7 +92,6 @@
   - `entryOf` (event.ts): draftMetadata -> compose, else gmail.messageId or messageMetadata.messageId -> message, else inbox. Compose clicks carry top-level draftMetadata (runbook.md:125 fields).
   - Interim fix: Insert only when entry compose (templateItem, preview insertButtons); TOOLBAR_HINT on home card only.
   - Harness src/addon/spikeS7.ts, callbacks onS7Card/onS7Compose/onS7Notify, Reply kinds s7, s7Error; s7Visible wraps after the guard.
-  - Minors: hint missing on folder/search/preview; smoke lacks Drafts/Executions check and "reopen harness"; spec 10 no onMessageOpen row, failures uncached (1 server call per message open); no compose regression step; messageMetadata fallback not in spec.
 
 - Slice 8c UI admin (2026-11-10): PASS (75ebb53). 56 files, 1295 tests, lines 96.45, index.html 352.9 KB (+12.3, css +7.2), Lighthouse 100x12 (incl. admin audit dark), 10 scopes. No server/shared/addon/editor change.
   - New: src/web/admin/actions.ts (actionWords Map, resultTag, purgeText), views/adminTable.ts (data-label stacking <860 px, Chromium keeps table roles), tint tokens --ok-bg/--warn-bg/--red-bg.
@@ -95,6 +111,11 @@
   - New: CardSpec.title optional, ButtonSpec.style filled (slate #2a3c49 via setBackgroundColor) | outlined, item icon (Material names star/schedule/description/folder), SectionSpec.collapseAfter (VISIBLE_ROWS 5), LIBRARY_FOOTER, sidePanel.ts sidePanelHint.
   - Gaps: bottom label `\n`-><br> plus escaping vs Google guide 'labels must use plain text' (unverified, smoke step 1); no-match echoes unbounded query; folder rows repeat header path, snippet gone (wireframe 01 had it); stale smoke.md:47-48, deploy.md:20.
   - Follow-up 9d48a79, 85d6d50: PASS, 1440 tests. Labels escapeText only, one line joined ' · '; folder rows hints only; ECHO_MAX 60 (cut by UTF-16 unit, can split a surrogate pair: minor). Draft responses still identical to base.
+- Slice 11 admin settings (2026-11-11): PASS (f84a021). 64 files, 1664 tests, lines 96.68 (server 99.31, web 91.92), Code.js 351.4 KB, index.html 359.5 KB, Lighthouse 100x14, 10 scopes.
+  - settings in index.json (shared/model/settings.ts, settingsOf fills defaults per reader). config.set web admin.ops, in-lock recheck, `from` = value (A-B-A overwrite silent). Off rule in levelResolver before admin rule: private = use for owner/admin.
+  - Probes all clean: 20 off writes x owner/admin DENIED off text, 4 races, 0 Drive writes on 18 reads, on-again identical, bad backup settings VALIDATION before lock.
+  - Minors: recipient policy not re-checked in lock; Save focus to BODY (disabled while focused); client CONFLICT ignores details; name echo unbounded; smoke Slice 9 steps 5-6 use dead property; spec 5.8 grant/admin.folders errata.
+  - Daily purges private trash while off (ADR-0008 line 92, accepted).
 
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
@@ -130,3 +151,4 @@
 - Card Service docs: fetch developers.google.com/apps-script/reference/card-service/<class> with curl; extract <article> text. Unknown MaterialIcon name renders no icon, no error. TextButton unset style = OUTLINED. Labels plain text per add-on widget guide.
 - Behaviour-freeze slices: run one probe script on base and head copies, dump replies with text stripped, diff.
 - rm -rf with a shell variable path is blocked; use literal absolute paths.
+- Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.

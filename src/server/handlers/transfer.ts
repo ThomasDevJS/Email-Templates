@@ -187,7 +187,7 @@ function reasonOf(error: unknown): string {
  * dropped; too many refuses the whole file).
  */
 function prepareItems(context: HandlerContext, file: ImportFile): Prepared[] {
-  const policy = recipientPolicy(context.services.props);
+  const policy = recipientPolicy(context);
   return file.items.map((record): Prepared => {
     if (!record.ok)
       return { ok: false, label: record.label, reason: record.reason };
@@ -208,12 +208,7 @@ function prepareItems(context: HandlerContext, file: ImportFile): Prepared[] {
           fileFolderId: meta.folderId,
           title: templateTitle(meta.title),
           tags: tagList(meta.tags),
-          body: prepareFor(
-            context.services.props,
-            html,
-            oneLine(meta.subject),
-            recipients,
-          ),
+          body: prepareFor(context, html, oneLine(meta.subject), recipients),
           dropped,
         },
       };

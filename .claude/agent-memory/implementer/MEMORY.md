@@ -74,16 +74,10 @@
 - Favorites/Recent: handlers/favorites.ts (`callerLists`, `callerRecent`, `favoriteSet/Unset` under lock); cache/sideCache.ts (`FAVORITES_REV`, `USAGE_REV`, `readSideCached`, `publishSide`, `writeSideLocked`); setup and tick publish.
 - Web: `searchItems` (library/model.ts), `AppContext.favorites/recent/setFavorite`, grid star + `GridActions.isFavorite/toggleFavorite`, `subjectPickerItems` (picker.ts).
 
-## Lessons (slice 5)
-- Worktree guard rejects bash heredocs with python edits; use scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>` blocks) written with the Write tool, or the Edit tool.
-
 ## Code map (after slice 5b)
 - D24 (slice 5c): `DRAFT_FIELDS`, `requestDraft` with `hasSubject` (protocol.ts); `draftInfo`, `draftHasSubject` (addon/event.ts); truth table `replacesSubject`, `WITH_SUBJECT` (cards/spec.ts). Gmail compose events carry no threadId/messageId. `ports(event)` sends `draft` on every call; server logs `draft` only when valid, else VALIDATION.
 - `folderLabel` in folders.ts: `folder.list` renames other users' private folders "My templates (owner)".
 - Web: `formatTime` local; `conflictText` in status.ts; `DialogAction.autofocus`; rowMenu takes `{ busy, done }`; library `bodyPending`.
-
-## Lessons (slice 5b)
-- Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
 
 ## Code map (after slice 6a)
 - Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
@@ -106,6 +100,8 @@
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
 - Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
 - Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire`. Lighthouse dark: Chrome `--force-dark-mode`.
+- Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire` (s11/shot.mjs + `servePage`); plain chromium `--screenshot` hangs. Lighthouse dark: `--force-dark-mode`.
+- The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
 ## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
@@ -132,6 +128,12 @@
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
 - Focus ring rule: on the active item (`outline-offset: -2px`), never around a listbox. Stacked labels `content: attr(data-label) / ""`.
 - CSS-only fixes get a text test in test/unit/web/styles.test.ts. Old-code check: copy src/web to scratchpad, `git checkout HEAD -- src/web`, run, copy back.
+
+## Slice 11 (admin settings, D29, 2026-11-11)
+- shared/model/settings.ts: `SETTINGS` list, `settingsOf` (defaults at read, never written), `personalTemplatesOn`, `settingsProblem` (in `indexProblem`), `PERSONAL_OFF_TEXT`. `IndexDoc.settings` optional.
+- Off rule in `levelResolver` before the admin rule; dispatch `deniedError(index, targets)` picks the off text. `recipientPolicy(context)` reads the setting; the property reader is gone.
+- `config.set` in handlers/config.ts (withLock + loadIndexForWrite + recheck, no-op returns before any write). Binary settings: CONFLICT unreachable; client shows the conflict text on `changed: false` with a newer entry.
+- Tests: `setSetting(world, name, value)` in test/fakes/world.ts; D11 tests turn personal templates on in `beforeEach`. Enforcement table in test/unit/server/settings.test.ts. Harness `?personal=off`, `?access=none`.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.

@@ -172,6 +172,22 @@ describe("home card (wireframe 01)", () => {
     expect(card).not.toHaveProperty("footer");
   });
 
+  it("shows the empty state of wireframe 07 A2 while personal templates are off", () => {
+    const card = homeCard(
+      view({
+        folders: [],
+        subfolders: [],
+        templates: [],
+        personalTemplates: "off",
+      }),
+      "compose",
+    );
+    expect(texts(card)).toEqual([
+      "No templates shared with you yet. Ask your admin for access to a folder.",
+    ]);
+    expect(buttons(card)).toEqual([]);
+  });
+
   it("shows the empty state when the only folder is the caller's empty private folder", () => {
     const card = homeCard(
       view({

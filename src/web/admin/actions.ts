@@ -36,6 +36,7 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
     "membership.refresh": "Memberships refreshed",
     "membership.status": "Memberships viewed",
     "config.get": "Config viewed",
+    "config.set": "Setting changed",
     "audit.query": "Audit log viewed",
     "audit.dropped": "Audit events dropped",
     "usage.report": "Usage viewed",
