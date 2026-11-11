@@ -247,9 +247,7 @@ describe("editor layout (slice 8b)", () => {
       main().querySelectorAll('[role="tab"]')[0]?.getAttribute("aria-selected"),
     ).toBe("true");
     expect(links().map((link) => link.textContent)).toEqual([
-      expect.stringMatching(
-        /^Error: Subject: Unknown placeholder sender\.nmae/,
-      ),
+      expect.stringMatching(/^Error: Subject: Unknown field sender\.nmae/),
       expect.stringMatching(/^Error: Cc, address 1/),
     ]);
     // A collapsed Details section (narrow screen) opens first.

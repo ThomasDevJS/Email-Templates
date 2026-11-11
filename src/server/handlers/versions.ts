@@ -23,7 +23,7 @@ export function checkBaseVersion(
   if (baseVersion === null || baseVersion === record.version) return;
   throw new AppError(
     ErrorCode.CONFLICT,
-    `Changed by ${record.updatedBy} at ${record.updatedAt}.`,
+    `${record.updatedBy} changed this at ${record.updatedAt}. Reload the page and try again.`,
     {
       currentVersion: record.version,
       updatedBy: record.updatedBy,

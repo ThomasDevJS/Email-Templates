@@ -65,7 +65,7 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 - A grant to a principal that already has one on the folder changes its level.
 - "Remove" on a row deletes the grant at once, with no confirmation.
 - A group must exist and the owner account must be able to see its member list. Otherwise the grant is refused: "Group ... was not found or its members are not visible."
-- Grants on private folders are refused ("Private folders cannot be shared").
+- Grants on private folders are refused ("Personal folders cannot be shared.").
 - Grant changes apply to the next request. Group membership changes in Google Groups apply within 15 minutes, or at once after "Refresh now".
 - Known limit: after a grant change the library tree does not reload. Reload the page to see the new tree.
 

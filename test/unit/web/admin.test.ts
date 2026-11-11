@@ -402,7 +402,9 @@ describe("folders and grants", () => {
     button("Delete", dialog()).click();
     expect(status()).toContain("Deleting folder...");
     await until(() => {
-      expect(status()).toContain("Only an empty folder can be deleted");
+      expect(status()).toContain(
+        "Only an empty folder can be deleted. Move or delete its templates and subfolders first.",
+      );
     });
   });
 

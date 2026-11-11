@@ -138,7 +138,10 @@ export function auditQuery(
   if (filter === null) {
     const event = data.events.find((entry) => entry.id === id);
     if (event === undefined)
-      throw new AppError(ErrorCode.NOT_FOUND, "This event was not found.");
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        "This audit entry was not found. Reload the list.",
+      );
     return { event };
   }
   return {

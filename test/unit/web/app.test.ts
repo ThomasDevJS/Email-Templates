@@ -599,7 +599,7 @@ describe("editor (screen 4, flow 4.2)", () => {
     button("Save").click();
     await until(() => {
       expect(main().querySelector(".problems")?.textContent).toContain(
-        "Error: Subject: Unknown placeholder sender.nmae",
+        "Error: Subject: Unknown field sender.nmae",
       );
     });
     subject.value = "Offer";
@@ -663,7 +663,7 @@ describe("editor (screen 4, flow 4.2)", () => {
       expect(window.location.hash).toMatch(/^#\/edit\/T-\d+$/);
     });
     expect(main().querySelector(".problems")?.textContent).toContain(
-      "Warning: recipient.first_name has no fallback",
+      "Warning: Recipient first name has no default text",
     );
   });
 

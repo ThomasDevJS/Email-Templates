@@ -262,7 +262,7 @@ describe("template create, get, update (save sequence)", () => {
           {
             code: "PH_UNKNOWN",
             message:
-              "Unknown placeholder sender.nmae at character 4. Did you mean sender.name?",
+              "Unknown field sender.nmae at character 4. Did you mean sender.name?",
             offset: 3,
           },
         ],

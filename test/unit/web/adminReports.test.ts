@@ -464,7 +464,7 @@ describe("export and import tab", () => {
       );
     });
     expect(text()).toContain(
-      "A template with this title is already in this folder",
+      "A template with this title is already in this folder.",
     );
     const report = [...main().querySelectorAll(".import-report table")];
     expect(report.map((t) => t.querySelector("caption")?.textContent)).toEqual([

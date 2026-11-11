@@ -504,7 +504,10 @@ function auditQuery(args: Record<string, unknown>) {
   if (id !== "") {
     const event = AUDIT.find((entry) => entry.id === id);
     if (event === undefined)
-      throw new AppError(ErrorCode.NOT_FOUND, "This event was not found.");
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        "This audit entry was not found. Reload the list.",
+      );
     return { event };
   }
   const page = typeof args["page"] === "number" ? args["page"] : 0;
@@ -578,12 +581,15 @@ function importOp(args: Record<string, unknown>) {
   try {
     file = JSON.parse(str(args, "file")) as typeof file;
   } catch {
-    throw new AppError(ErrorCode.VALIDATION, "The file is not valid JSON");
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "The file cannot be read. Choose a file exported from Migway Templates.",
+    );
   }
   if (file.schemaVersion !== 1)
     throw new AppError(
       ErrorCode.VALIDATION,
-      "Unsupported schema version: this app reads version 1",
+      "This export file has a format this app cannot read. Export the templates again.",
     );
   const list = file.items ?? [];
   const taken = new Set(
@@ -620,7 +626,7 @@ function importOp(args: Record<string, unknown>) {
         kind: "template",
         name: entry.meta?.title ?? "",
         outcome: "skipped",
-        reason: "A template with this title is already in this folder",
+        reason: "A template with this title is already in this folder.",
       })),
   };
 }
@@ -638,7 +644,7 @@ function devFolder(id: string): (typeof folders)[number] {
   if (found === undefined)
     throw new AppError(
       ErrorCode.NOT_FOUND,
-      "This folder was removed or moved.",
+      "This folder was deleted or moved.",
     );
   return found;
 }
@@ -684,7 +690,7 @@ function folderName(args: Record<string, unknown>): string {
   if (name === "" || name.length > 80)
     throw new AppError(
       ErrorCode.VALIDATION,
-      "Folder name must be 1 to 80 characters",
+      "Folder name must be 1 to 80 characters.",
     );
   return name;
 }
@@ -704,7 +710,7 @@ function item(id: string): Item {
   if (found === undefined)
     throw new AppError(
       ErrorCode.NOT_FOUND,
-      "This template was removed or moved.",
+      "This template was deleted or moved.",
     );
   return found;
 }
@@ -714,7 +720,7 @@ function live(id: string): Item {
   if (found.deletedAt !== "")
     throw new AppError(
       ErrorCode.NOT_FOUND,
-      "This template was removed or moved.",
+      "This template was deleted or moved.",
     );
   return found;
 }
@@ -761,12 +767,12 @@ function title(args: Record<string, unknown>): string {
   if (value === "")
     throw new AppError(
       ErrorCode.VALIDATION,
-      "Title must be 1 to 120 characters",
+      "Title must be 1 to 120 characters.",
       {
         problems: [
           {
             code: "TITLE",
-            message: "Title must be 1 to 120 characters",
+            message: "Title must be 1 to 120 characters.",
             offset: null,
           },
         ],
@@ -927,7 +933,7 @@ const OPS: Readonly<Record<string, Op>> = {
     if (busy)
       throw new AppError(
         ErrorCode.VALIDATION,
-        "Only an empty folder can be deleted",
+        "Only an empty folder can be deleted. Move or delete its templates and subfolders first.",
       );
     return changeFolder(args, { deletedAt: NOW, deletedBy: ME });
   },
@@ -951,7 +957,7 @@ const OPS: Readonly<Record<string, Op>> = {
     if (str(args, "principalType") === "group" && key.startsWith("missing"))
       throw new AppError(
         ErrorCode.VALIDATION,
-        `Group ${key} was not found or its members are not visible`,
+        `Group ${key} was not found or its members are not visible. Check the address.`,
       );
     seq += 1;
     const added = {
@@ -971,7 +977,7 @@ const OPS: Readonly<Record<string, Op>> = {
     if (index < 0)
       throw new AppError(
         ErrorCode.NOT_FOUND,
-        "This grant was removed or moved.",
+        "This access was deleted or moved.",
       );
     grants.splice(index, 1);
     return { removed: str(args, "grantId") };
@@ -1006,21 +1012,21 @@ const OPS: Readonly<Record<string, Op>> = {
     jobs: [
       {
         name: "tick",
-        schedule: "every 5 min",
+        schedule: "Every 5 minutes",
         lastOk: NOW,
         status: "ok",
         lastError: "",
       },
       {
         name: "refreshMembers",
-        schedule: "every 15 min",
+        schedule: "Every 15 minutes",
         lastOk: "2026-11-09T10:00:00.000Z",
         status: "late",
         lastError: "2026-11-09T10:15:00.000Z Error: GroupsApp unavailable",
       },
       {
         name: "daily",
-        schedule: "daily, 02:00 to 03:00",
+        schedule: "Every night, 02:00 to 03:00",
         lastOk: "2026-11-09T02:01:00.000Z",
         status: "ok",
         lastError: "",
@@ -1031,7 +1037,10 @@ const OPS: Readonly<Record<string, Op>> = {
   "backup.list": () => ({ dates: BACKUPS }),
   "backup.restore": (args) => {
     if (!BACKUPS.includes(str(args, "date")))
-      throw new AppError(ErrorCode.NOT_FOUND, "This backup was removed.");
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        "This backup no longer exists. Reload the page and pick another.",
+      );
     return { date: str(args, "date"), rev: 43 };
   },
   "membership.status": () => MEMBERSHIPS,

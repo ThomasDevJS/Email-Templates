@@ -94,12 +94,12 @@ function labelOf(record: unknown, key: string, position: number): string {
 function parseFolder(raw: unknown, position: number): Parsed<ExportFolder> {
   const label = labelOf(raw, "name", position);
   if (!isRecord(raw))
-    return { ok: false, reason: "Not a folder record", label };
+    return { ok: false, reason: "This entry is not a folder.", label };
   const id = str(raw, "id");
   const parentId = str(raw, "parentId") ?? "";
   const name = str(raw, "name");
   if (id === null || id === "" || name === null)
-    return { ok: false, reason: "Folder needs an id and a name", label };
+    return { ok: false, reason: "The folder has no ID or no name.", label };
   return { ok: true, value: { id, parentId, name }, label };
 }
 
@@ -115,16 +115,28 @@ function parseItem(raw: unknown, position: number): Parsed<ExportItem> {
   const label = labelOf(meta, "title", position);
   const html = isRecord(raw) ? str(raw, "html") : null;
   if (!isRecord(meta) || html === null)
-    return { ok: false, reason: "Template needs meta and html", label };
+    return {
+      ok: false,
+      reason: "The template is incomplete in the file.",
+      label,
+    };
   const title = str(meta, "title");
   const tags = stringList(meta["tags"]);
   if (title === null || tags === null)
-    return { ok: false, reason: "Template needs a title and text tags", label };
+    return {
+      ok: false,
+      reason: "The template has no title, or its tags are not text.",
+      label,
+    };
   const to = stringList(meta["to"]);
   const cc = stringList(meta["cc"]);
   const bcc = stringList(meta["bcc"]);
   if (to === null || cc === null || bcc === null)
-    return { ok: false, reason: "To, Cc and Bcc must be lists of text", label };
+    return {
+      ok: false,
+      reason: "To, Cc and Bcc are not lists of addresses.",
+      label,
+    };
   return {
     ok: true,
     value: {
@@ -146,10 +158,11 @@ function parseItem(raw: unknown, position: number): Parsed<ExportItem> {
 
 function list(file: Json, key: string, max: number): unknown[] {
   const value = file[key] ?? [];
-  if (!Array.isArray(value)) throw invalid(`${key} must be a list`);
+  if (!Array.isArray(value))
+    throw invalid("The file is damaged. Export the templates again.");
   if (value.length > max)
     throw invalid(
-      `The file has more than ${String(max)} ${key}. Export smaller folders and import them one by one.`,
+      `The file has more than ${String(max)} ${key === "items" ? "templates" : key}. Export smaller folders and import them one by one.`,
     );
   return value;
 }
@@ -161,18 +174,23 @@ function list(file: Json, key: string, max: number): unknown[] {
 export function parseImportFile(text: string): ImportFile {
   if (utf8Length(text) > IMPORT_MAX_BYTES)
     throw invalid(
-      `The file is larger than ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB`,
+      `The file is larger than ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB. Export smaller folders and import them one by one.`,
     );
   let file: unknown;
   try {
     file = JSON.parse(text);
   } catch {
-    throw invalid("The file is not valid JSON");
+    throw invalid(
+      "The file cannot be read. Choose a file exported from Migway Templates.",
+    );
   }
-  if (!isRecord(file)) throw invalid("The file is not a Migway export");
+  if (!isRecord(file))
+    throw invalid(
+      "This is not a Migway Templates export. Choose a file exported from Migway Templates.",
+    );
   if (file["schemaVersion"] !== EXPORT_SCHEMA_VERSION)
     throw invalid(
-      `Unsupported schema version: this app reads version ${String(EXPORT_SCHEMA_VERSION)}`,
+      "This export file has a format this app cannot read. Export the templates again.",
     );
   const folders = list(file, "folders", IMPORT_FOLDERS_MAX).map(parseFolder);
   refuseDuplicateIds(folders);
@@ -190,7 +208,7 @@ function refuseDuplicateIds(folders: readonly Parsed<ExportFolder>[]): void {
     const first = seen.get(record.value.id);
     if (first !== undefined)
       throw invalid(
-        `Folders #${String(first + 1)} and #${String(n + 1)} of the file have the same id`,
+        `Folders #${String(first + 1)} and #${String(n + 1)} of the file have the same ID. Export the templates again.`,
       );
     seen.set(record.value.id, n);
   }
