@@ -173,6 +173,13 @@ Symptom: every action answers an error with "index.json is damaged: ...", "Setti
 
 Unverified: that Upload new version keeps the file ID and its app properties. Changes after the backup date are lost. An owner-run `restoreBackup(date)` would replace these steps (Q31, not built).
 
+## Audit log does not load (fixed in slice 19)
+
+- Symptom: Audit log tab shows "The audit log could not be loaded. Press Retry in the message." for a month whose file exists. Executions show `audit.query` with `INTERNAL`. The nightly job fails at `auditRolled`, so "Nightly backup and cleanup" turns "Late" after 48 h, and `pendingAudit` in `index.json` keeps growing. Above 200 KB the 5-minute job fails too.
+- Cause: builds before slice 19 read `audit/YYYY-MM.jsonl` with the Advanced Drive service, which parses the file as JSON and throws ("Response Code: 200") once the file has 2 lines.
+- Fix: deploy slice 19 or later. Month files are now read through Drive REST. No manual step: the next nightly job (or the 5-minute job above 200 KB) moves every pending event into the month file. No event is lost; a repeated event is skipped by its ID.
+- Check: the Audit log tab loads the current month and shows today's rows. After the next nightly job, "Nightly backup and cleanup" shows "OK". Optional cleanup: the old `job:daily:lastError` Script Property may hold audit lines from the failed runs; the owner can delete it.
+
 ## Version pruning
 
 - Apps Script keeps at most 200 versions per script. No API deletes versions.

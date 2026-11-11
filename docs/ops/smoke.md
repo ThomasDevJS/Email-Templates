@@ -248,3 +248,13 @@ Side-panel New email, Reply and Reply all (spec 4.1a, 7.2, 13.11). Gmail web, de
 | 1     | prompt, scopes, error text     |        |
 | 2     | `onCompose` ms, steps 2 to 4   |        |
 | 2     | log lines free of values (y/n) |        |
+
+## Slice 19
+
+Audit month files of 2 or more lines load (dev build, `npm run deploy -- dev`). Run as an admin.
+
+1. Admin, "Audit log" tab, current month: the list loads, with no "The audit log could not be loaded." message.
+2. Rename a folder, then reload the tab: the row "Folder renamed" of today shows at the top. Open it: the details drawer shows before and after.
+3. Choose the previous month, if listed, and back: both load.
+4. Admin, "Settings and backups": after the next 5-minute job, "Save insert counts and refused actions" shows "OK".
+5. The next morning: "Nightly backup and cleanup" shows "OK", and the Audit log still shows yesterday's rows (now read from the month file).

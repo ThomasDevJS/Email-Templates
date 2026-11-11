@@ -143,6 +143,7 @@
 - render.ts `closeGaps(parts)` (null = gap, 4 rules, U+0020 only); typed answer beats a resolved variable. Tests test/unit/shared/gaps.test.ts.
 - flows.ts `applyNow(ports, id, extra)` = one template.apply + cached body; Flow A `insertFlow` (`rc` "t,c,b" vs list lengths, unknown draft field -> details card `counted=1`); Flow B `previewFlow` (compose followUp, side panel getBody + `panelDetailsCard`); Flow C `promptInsertFlow` (`counted=1` -> followUp; `mergedValues`).
 - cards/details.ts `detailsCard(DetailsState)`, `panelDetailsCard(view, entry)`; test fixture `details()` in test/unit/addon/fixtures.ts. prompts.ts `tooLong`, `shortenText`, `moreFieldsText`. `replacesSubject(draftHasSubject)`.
-- Worktree guard: python edits via a script file in the scratchpad, run alone; never chain `git` or `rm` with other commands.
-## Slice 17 (docs: smoke sweep, docs/ops/test-round-1.md, 2026-11-11)
-- Quote check script: extract double-quoted texts, search src with escapes undone and spaces collapsed; hand-check built texts. Admins never lose folder access: access-loss steps need the second account. Web version shows as "Version dev-<sha>" under the short name; "Signed in as" is sr-only.
+- Slice 17 (docs smoke sweep): quote check script: extract double-quoted texts, search src with escapes undone and spaces collapsed; hand-check built texts. Admins never lose folder access: access-loss steps need the second account. Web version shows as "Version dev-<sha>" under the short name; "Signed in as" is sr-only.
+## Slice 19 (audit read fix, 2026-11-11)
+- Advanced `Drive.Files.get` alt=media parses media as JSON: 2+ line JSON Lines throw "Response Code: 200". `DriveClient.readRawText` = Drive REST media (`restMediaReader`) under both clients; used by audit.query, `appendAudit`, `readBackup`. Fake Files.get now parses/throws like the platform; `World.urlFetch` and `installGlobals` answer Drive REST.
+- Worktree guard: python edits via a script file in the scratchpad, run alone; never chain `git` or `rm` with other commands. `job:<name>:lastError` stores raw exception messages (can hold content).
