@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderCard, renderReply } from "../../../src/addon/cards/render";
+import {
+  SLATE,
+  renderCard,
+  renderReply,
+} from "../../../src/addon/cards/render";
 import type { CardSpec } from "../../../src/addon/cards/spec";
 import {
   createRecordingCardService,
@@ -39,7 +43,7 @@ const CARD: CardSpec = {
           button: {
             text: "Insert",
             alt: "Insert Item",
-            filled: true,
+            style: "filled",
             disabled: true,
             action: { fn: "onInsert", params: { id: "T1" } },
           },
@@ -91,6 +95,7 @@ describe("renderCard", () => {
     expect(argsOf("setAltText")).toEqual(["Insert Item"]);
     expect(argsOf("setDisabled")).toEqual([true]);
     expect(argsOf("setTextButtonStyle")).toEqual(["FILLED"]);
+    expect(argsOf("setBackgroundColor")).toEqual([SLATE]);
     expect(argsOf("setFieldName")).toEqual(["p-1"]);
     expect(argsOf("setValue")).toEqual(["v"]);
     expect(argsOf("setMultiline")).toEqual([true]);
@@ -109,6 +114,41 @@ describe("renderCard", () => {
     expect(argsOf("setHeader")).toHaveLength(1);
     expect(argsOf("setTopLabel")).toEqual([]);
     expect(argsOf("setPrimaryButton")).toEqual([]);
+  });
+
+  it("renders start icons by Material name, outlined buttons, collapsible sections, and no header without a title", () => {
+    renderCard({
+      name: "c4",
+      sections: [
+        {
+          header: "Folders",
+          collapseAfter: 5,
+          widgets: [
+            { kind: "item", icon: "folder", text: "Sales" },
+            { kind: "item", text: "No icon" },
+          ],
+        },
+        { widgets: [{ kind: "text", text: "x" }] },
+      ],
+      footer: {
+        primary: {
+          text: "Open library",
+          action: { fn: "onOpenLink" },
+          style: "outlined",
+        },
+      },
+    });
+    expect(SLATE).toBe("#2a3c49");
+    expect(argsOf("setHeader")).toEqual(["Folders"]);
+    expect(argsOf("newCardHeader")).toEqual([]);
+    expect(argsOf("setName")).toEqual(["c4", "folder"]);
+    expect(argsOf("setMaterialIcon")).toHaveLength(1);
+    expect(argsOf("setStartIcon")).toHaveLength(1);
+    expect(argsOf("setIconUrl")).toEqual([]);
+    expect(argsOf("setCollapsible")).toEqual([true]);
+    expect(argsOf("setNumUncollapsibleWidgets")).toEqual([5]);
+    expect(argsOf("setTextButtonStyle")).toEqual(["OUTLINED"]);
+    expect(argsOf("setBackgroundColor")).toEqual([]);
   });
 
   it("renders an input hint and change action, and an item switch", () => {

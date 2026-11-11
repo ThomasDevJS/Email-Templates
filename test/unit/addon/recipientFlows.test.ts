@@ -148,10 +148,11 @@ describe("list rows", () => {
     );
     const row = rows.find((w) => w.text === item.title);
     expect(row).toMatchObject({
-      bottomLabel: "Adds To 1, Cc 1, Bcc 1",
+      bottomLabel: "Sales\nAdds To 1, Cc 1, Bcc 1",
       button: {
         text: "Review",
         alt: "Review Driver leaving",
+        style: "filled",
         action: { fn: "onPreview", params: { id: item.id } },
       },
     });
@@ -190,7 +191,7 @@ describe("list rows", () => {
     const row = widgets(folderCardOf("inbox")).find(
       (w) => w.kind === "item" && w.text === "Driver leaving",
     );
-    expect(row).toMatchObject({ bottomLabel: "Adds To 1, Cc 1, Bcc 1" });
+    expect(row).toMatchObject({ bottomLabel: "Sales\nAdds To 1, Cc 1, Bcc 1" });
     expect(row).not.toHaveProperty("button");
   });
 });

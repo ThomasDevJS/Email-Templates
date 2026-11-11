@@ -121,8 +121,8 @@ const toBob: AddonEvent = { draftMetadata: { toRecipients: [BOB] } };
 describe("home (spec 4.1 steps 1 and 2)", () => {
   it("calls sidebar.home on a cache miss and reads the User Cache after that", () => {
     create("Welcome", "<p>Hi</p>");
-    expect(texts(homeFlow(ports()))).toContain("Sales (1)");
-    expect(homeFlow(ports()).title).toBe("Migway Templates");
+    expect(texts(homeFlow(ports()))).toContain("Sales");
+    expect(homeFlow(ports()).title).toBeUndefined();
     expect(sent.map((s) => s.op)).toEqual(["sidebar.home"]);
     expect(readView(cache)?.templates).toHaveLength(1);
   });
@@ -153,7 +153,7 @@ describe("home (spec 4.1 steps 1 and 2)", () => {
     };
     const card = homeFlow(down);
     expect(texts(card)).toEqual([
-      "Something went wrong.",
+      "Something went wrong. Press Retry.",
       "Request ID REQ-9",
       "Network: Server returned HTTP 401",
     ]);
@@ -165,7 +165,7 @@ describe("home (spec 4.1 steps 1 and 2)", () => {
     create("Late", "<p>x</p>");
     const reply = refreshFlow(ports());
     expect(reply.kind).toBe("root");
-    expect(texts(cardOf(reply))).toContain("Sales (1)");
+    expect(texts(cardOf(reply))).toContain("Sales");
   });
 });
 
@@ -180,7 +180,7 @@ describe("folder card flow", () => {
     ).toBe("update");
     const gone = folderFlow(ports(), { folderId: "GONE" });
     expect(texts(cardOf(gone))).toEqual([
-      "This template was removed or moved.",
+      "This template was removed or moved. Press Refresh to update the list.",
     ]);
     expect(readView(cache)).toBeNull();
   });
@@ -219,7 +219,9 @@ describe("preview flow", () => {
   it("reports a template outside the view as removed", () => {
     expect(
       texts(cardOf(previewFlow(ports(), undefined, { id: "NOPE" }))),
-    ).toEqual(["This template was removed or moved."]);
+    ).toEqual([
+      "This template was removed or moved. Press Refresh to update the list.",
+    ]);
   });
 
   it("shows DENIED when access was lost after the view was cached", () => {
@@ -318,7 +320,9 @@ describe("insert flow (spec 4.1 steps 3 to 5)", () => {
       },
     };
     const card = cardOf(insertFlow(stale, undefined, { id: item.id }));
-    expect(texts(card)).toEqual(["This template was removed or moved."]);
+    expect(texts(card)).toEqual([
+      "This template was removed or moved. Press Refresh to update the list.",
+    ]);
   });
 });
 
@@ -332,7 +336,7 @@ describe("search, favorites and recent (spec 4.4, wireframe 01)", () => {
     expect(sent[1]?.args).toEqual({ query: "quote" });
     const home = searchFlow(ports(), formEvent({ q: "" }));
     expect(home.kind).toBe("update");
-    expect(texts(cardOf(home))).toContain("Sales (2)");
+    expect(texts(cardOf(home))).toContain("Sales");
     expect(sent).toHaveLength(2);
   });
 
@@ -683,7 +687,7 @@ describe("prompt card Insert (wireframe 02)", () => {
     cache.removeAll([`body:${item.id}`]);
     const card = cardOf(submit({ "p-1": "a", "p-2": "b" }));
     expect(texts(card).at(-1)).toBe(
-      "(!) The template changed. Check the fields and insert again.",
+      "(!) The template changed. Check the fields and press Insert again.",
     );
     expect(sent.map((s) => s.op)).toEqual(["template.apply"]);
     expect(card.footer?.primary.action.params?.["version"]).toBe("2");
@@ -715,7 +719,7 @@ describe("prompt card Insert (wireframe 02)", () => {
       values,
     });
     expect(texts(cardOf(reply))).toEqual([
-      "This template was removed or moved.",
+      "This template was removed or moved. Press Refresh to update the list.",
     ]);
   });
 
