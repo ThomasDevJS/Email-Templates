@@ -20,7 +20,7 @@ Access lives on folders. A grant gives one principal one level on one folder. Su
 | `use` | user | List, search, preview, insert and star templates |
 | `edit` | manager-editor | `use`, plus create, edit, duplicate, move, delete, restore templates, and version history |
 | `manage` | folder manager | `edit`, plus subfolders, rename, move or delete the folder, grants on its subtree, export of the folder |
-| admin | member of Script Property `ADMIN_GROUP`, or listed in `ADMIN_EMAILS` | `manage` on every folder, private ones included, plus the admin-only rows below |
+| admin | member of Script Property `ADMIN_GROUP`, or listed in `ADMIN_EMAILS` | `manage` on every folder, private ones included (only `use` on private folders while personal templates are off), plus the admin-only rows below |
 
 Role matrix (ADR-0003 Part C). "yes on source and target" means the level is needed on both folders.
 
@@ -152,11 +152,29 @@ Import (admins only):
 - A file close to 5 MB is not yet verified on Apps Script. The browser may refuse the upload; then nothing is written.
 - Export and import do not move an app to a new owner. See the runbook.
 
+## Settings (Config tab)
+
+Admin, Config tab, section "Settings", first on the tab. Only admins see the Config tab; anyone else gets "You don't have access" from the server. Each setting has its own radio group and Save button. Save stays disabled until you pick another value.
+
+| Setting | Default | On (or Allowed) | Off (or migway.com only) |
+|---|---|---|---|
+| Personal templates | Off | Every user gets a private folder "My templates" on their first library visit and can create, change and delete templates there. | No new "My templates" folder is created. Users who already have one keep it and can still open, preview, star and insert its templates. Nobody can create, change, duplicate, move, delete, restore or see the history of a template in a private folder, admins included. Their edit buttons are gone; the library shows "Personal templates are turned off by your admin. You can still insert these templates." |
+| Outside recipients | Allowed | Templates may add addresses outside migway.com to To, Cc and Bcc. | Saving a template with an outside address fails. Templates keep stored outside addresses, but Insert skips them and the card lists them as "Not added". |
+
+- A fresh install and an install from before this setting read as the defaults. `setup()` never changes a setting.
+- Turning a setting off asks first ("Turn off personal templates?" or "Allow only migway.com recipients?"); Cancel has the focus. Turning it on saves at once.
+- Nothing is deleted when personal templates go off. Turning them on again brings back every action, with every template, version, favorite and Recent entry where it was. Templates deleted from a private folder stay in the trash and are purged after 30 days as usual.
+- To clean up or move personal templates while the setting is off, turn it on, do the work, and turn it off again. Both changes appear in the audit log.
+- The server applies a change from the next request on. The Gmail panel can show its old list for up to 10 minutes; inserting stays allowed.
+- Each change writes one audit event "Setting changed" with the old and new value. Under the setting: "Last change: <name> on <time>." or "Default, never changed."
+- If another admin changed the setting while your page was open, you see "<name> changed this setting on <time>. The page now shows the current value."
+- Script Property `RECIPIENTS_EXTERNAL` is no longer read. If it was set to `deny`, set "migway.com only" here and delete the property.
+
 ## Config and job health
 
-Not yet verified on dev. The tab is read only.
+Not yet verified on dev. Below Settings the tab is read only.
 
-- Settings: Domain, `ADMIN_GROUP`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `INDEX_REV`, App version, Index size. The index size warns above 3 MB.
+- Environment: Domain, `ADMIN_GROUP`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `INDEX_REV`, App version, Index size. The index size warns above 3 MB.
 - Jobs: Job, Schedule, Last OK, Status.
 
 | Job | Schedule | Work |
