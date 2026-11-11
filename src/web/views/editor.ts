@@ -21,8 +21,9 @@ import { safeHref, schema } from "../editor/schema";
 import { backslashProblems } from "../editor/serialize";
 import { createEditor, type Editor } from "../editor/setup";
 import { createToolbar } from "../editor/toolbar";
-import { editableFolders, folderPath } from "../library/model";
+import { editableFolders, folderPath, privateReadOnly } from "../library/model";
 import { formatTime, h, replace, uid } from "../ui/dom";
+import { PERSONAL_OFF_TEXT } from "../../shared/model/settings";
 import {
   cancelDialogs,
   openDialog,
@@ -848,7 +849,17 @@ export function editorView(
   const load = async () => {
     await loading;
     const id = current.id !== "" ? current.id : "id" in start ? start.id : "";
-    if (!built) readOnly = id !== "" && !canEdit(id);
+    if (!built) {
+      readOnly = id !== "" && !canEdit(id);
+      const folderId = app.items().find((entry) => entry.id === id)?.folderId;
+      // Personal templates off (slice 11): the owner keeps `use` on the own folder; the note names that reason.
+      if (
+        readOnly &&
+        folderId !== undefined &&
+        privateReadOnly(app.folders(), folderId)
+      )
+        notice.textContent = `${PERSONAL_OFF_TEXT} You can still insert this template.`;
+    }
     const caller = me ?? app.api.me();
     if (id === "") {
       me = await caller;

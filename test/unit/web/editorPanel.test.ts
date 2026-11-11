@@ -1090,4 +1090,19 @@ describe("merge with the main line (slices 11 and 13 meet slice 8b)", () => {
     expect(dialogs()).toHaveLength(0);
     expect(document.querySelectorAll("[inert]")).toHaveLength(0);
   });
+
+  it("personal templates off: a personal template opens read-only with the reason, and leaving never asks", async () => {
+    await openEditor("/?latency=0&sample=freight&personal=off#/edit/T-BOOKED");
+    expect(main().querySelector(".read-only-note")?.textContent).toBe(
+      "Personal templates are turned off by your admin. You can still insert this template.",
+    );
+    expect(main().querySelector('[role="toolbar"]')).toBeNull();
+    expect(button("Save").hidden).toBe(true);
+    edit();
+    document.querySelector<HTMLElement>("[data-nav=trash]")?.click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/trash");
+    });
+    expect(dialogs()).toHaveLength(0);
+  });
 });
