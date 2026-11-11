@@ -944,7 +944,7 @@ describe("import", () => {
       expect(
         errorOf(OWNER, "import", { folderId: target.id, file, dryRun: true }),
       ).toBe(
-        "Templates cannot be imported into a personal folder. Pick a shared folder.",
+        'Templates cannot be imported into "My templates". Pick a shared folder.',
       );
   });
 

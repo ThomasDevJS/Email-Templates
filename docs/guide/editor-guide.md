@@ -13,9 +13,9 @@ Open it with "Open library" in the Gmail panel, or with the library address your
 | Folder tree (left) | "All templates" and every folder you can see. Arrow keys move, Enter opens, Right and Left expand and collapse |
 | "Trash" (below the tree) | Deleted templates of folders you can edit |
 | "Search templates" | Filters by title, subject, folder and tag as you type. Press `/` to jump here |
-| "★ Favorites" | Shows only your starred templates. Press it again to see all |
-| "+ New template" | New template in the selected folder. Shown only where you can edit |
-| Template list | Columns Favorite, Title, Folder, Updated, By, Actions |
+| "Favorites" (left, under "All templates") | Shows only your starred templates. "All templates" shows all again |
+| "New template" | New template in the selected folder. Shown only where you can edit |
+| Template list | Columns Favorite, Template, Folder, Tags, Updated, By, Actions |
 
 - Search terms match the start of words, ignore case and accents, and allow one typo in words of 5 letters or more.
 - `folder:` and `tag:` narrow the list, for example `folder:sales tag:pricing`.
@@ -53,7 +53,7 @@ The editor has three parts.
 | "Tags" | Up to 10 tags, each 1 to 30 characters. Type a tag, then Enter or "Add tag" |
 | "To", "Cc", "Bcc" | Addresses added to the draft at Insert. See "Recipients" below |
 
-"The sender fills in" lists each field the sender fills in, from the subject and the text, with how often it is used ("used once", "used 2 times"). "Preview as me" shows the email with your own directory values, the To, Cc and Bcc lines above the subject, and each question as "[Label]". "Problems" holds the errors and warnings of the last save; its tab shows the count and opens by itself when a save fails.
+"The sender fills in" lists each field the sender fills in, from the subject and the text, with how often it is used ("used once", "used 2 times"). "Preview as me" shows the email with your own directory values, the To, Cc and Bcc lines above the subject, and each field the sender fills in as its name in brackets, for example "[Product]". "Problems" holds the errors and warnings of the last save; its tab shows the count and opens by itself when a save fails.
 
 Under about 860 pixels wide (a phone or a narrow window) the panel moves below the sheet and each part opens and closes with its heading.
 
@@ -110,7 +110,7 @@ The "Insert field" menu lists 5 values and "Ask the sender...".
 
 ## The Subject field
 
-- Plain text, one line, up to 200 characters. Line breaks are refused on save ("Subject must be one line").
+- Plain text, one line, up to 200 characters. Line breaks are refused on save ("The subject must be one line").
 - Fields work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
 - A field name used in subject and text is asked once and fills both.
 - Empty subject: inserting the template never touches the draft subject.
@@ -118,11 +118,11 @@ The "Insert field" menu lists 5 values and "Ask the sender...".
 
 ## Recipients (To, Cc, Bcc)
 
-A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no fields.
+A template can add fixed addresses to To, Cc and Bcc: at most 10 each in To, Cc and Bcc and 20 together, plain `name@company.com` addresses, no template fields.
 
 - Type an address, then Enter, comma, semicolon or space: it becomes a chip. Pasting a list makes one chip per address. Leaving the field does the same. Backspace in the empty field removes the last chip; each chip has its own × button.
 - An address outside migway.com shows "outside migway.com" under its chip. Bcc shows "Hidden from the other recipients of the email."
-- Mistakes show under the field at once, with the same text the save uses: "Cc, address 2 is not an email address. Use the form name@company.com.", "Cc holds 11 addresses. Use at most 10 per field.", "safety@migway.com is in both To and Cc. Keep it in one field.". When an admin set "Outside recipients" to "migway.com only" (Admin, Config, Settings), an outside chip turns red and Save refuses it: "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save."
+- Mistakes show under To, Cc or Bcc at once, with the same text the save uses: "Cc, address 2 is not an email address. Use the form name@company.com.", "Cc holds 11 addresses. Use at most 10 in Cc.", "safety@migway.com is in both To and Cc. Keep it in one of them.". When an admin set "Outside recipients" to "migway.com only" (Admin, Settings and backups, Settings), an outside chip turns red and Save refuses it: "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save."
 - Save always sends all three fields; removing every chip of a field clears it.
 
 Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting.

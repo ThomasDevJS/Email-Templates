@@ -236,14 +236,16 @@ function checkMoveTarget(
   parentId: string,
 ): void {
   if (inPrivateTree(chainOf(current, folder.id)))
-    throw validation("Personal folders and their subfolders cannot be moved.");
+    throw validation(
+      'The folder "My templates" and its subfolders cannot be moved.',
+    );
   if (parentId === "") return;
   liveFolder(current, parentId);
   const targetChain = chainOf(current, parentId);
   if (targetChain.some((entry) => entry.id === folder.id))
     throw validation("A folder cannot move into itself or its subfolders.");
   if (inPrivateTree(targetChain))
-    throw validation("A shared folder cannot move into a personal folder.");
+    throw validation('A shared folder cannot move into "My templates".');
   checkDepth(current, parentId, subtreeHeight(current, folder.id));
 }
 
@@ -263,7 +265,7 @@ export function folderMove(context: HandlerContext): Folder {
 
 function checkEmpty(current: IndexDoc, folder: Folder): void {
   if (folder.kind === "private")
-    throw validation("Personal folders cannot be deleted.");
+    throw validation('The folder "My templates" cannot be deleted.');
   const busy =
     current.items.some(
       (item) => item.folderId === folder.id && item.deletedAt === "",

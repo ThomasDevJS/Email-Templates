@@ -65,7 +65,7 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 - A grant to a principal that already has one on the folder changes its level.
 - "Remove" on a row deletes the grant at once, with no confirmation.
 - A group must exist and the owner account must be able to see its member list. Otherwise the grant is refused: "Group ... was not found or its members are not visible. Check the address."
-- Grants on personal folders are refused ("Personal folders cannot be shared.").
+- Access cannot be given on a "My templates" folder: 'The folder "My templates" cannot be shared.'
 - Grant changes apply to the next request. Group membership changes in Google Groups apply within 15 minutes, or at once after "Refresh groups".
 - Known limit: after a grant change the library tree does not reload. Reload the page to see the new tree.
 
@@ -73,7 +73,7 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 
 The app reads group members through Apps Script GroupsApp (`groupsapp_direct`). It sees direct members only.
 
-- A person who is in a child group, and not directly in the granted group, gets no access.
+- A person who is in a group inside the group, and not directly in the group that has access, gets no access.
 - The Groups tab warns: "Warning: members of <inner groups> get no access through <group>. Add them to <group> directly."
 - Use flat role groups: add people to the granted group directly.
 - D7 is open: the Workspace edition, nested groups and admin API limits are not confirmed. Nested groups need the Directory resolver, which needs an admin role for the owner and is not active in v1.
@@ -117,7 +117,7 @@ Not yet verified on dev.
 Export:
 
 1. "Export and import". Admins pick "Whole library (shared folders)" or "One folder and its subfolders". `manage` holders see "Export folder" only.
-2. "Download JSON" (admins) or "Export folder". The status counts "Exporting... n of m templates." and ends with the file name, `migway-templates-<library or folder name>-<date>.json`.
+2. "Export" (admins) or "Export folder". The status counts "Exporting n of m templates..." and ends with "Exported n templates to <file name>.", the file being `migway-templates-<library or folder name>-<date>.json`.
 
 What an export leaves out:
 
@@ -208,7 +208,7 @@ Not yet verified on dev. Below Settings the tab is read only.
 | `refreshMembers` | Every 15 minutes | group member lists |
 | `daily` | Every night, 02:00 to 03:00 (script time zone) | audit roll, trash purge after 30 days, file cleanup, backup, audit retention |
 
-- Status "ok", "late" (no success for more than 2 intervals) or "never ran". A late job shows its last error.
+- Status "OK", "Late" (no success for more than 2 intervals) or "Never ran". A late job shows its last error.
 - "The background jobs could not be set up again: ..." appears when a trigger update after a deploy failed. Tell the owner.
 
 ## Backups and restore
@@ -216,7 +216,7 @@ Not yet verified on dev. Below Settings the tab is read only.
 Not yet verified on dev.
 
 - The `daily` job copies `index.json`, `favorites.json` and `usage.json` each night and keeps 14 days. Template versions and audit files are never changed after writing, so they need no copy.
-- To restore: "Settings and backups", "Backups", pick a "Backup date", "Restore from backup". The dialog "Restore the backup of <date>?" has the focus on "Cancel". "Restore <date>" confirms.
+- To restore: "Settings and backups", "Backups", press "Restore" next to the date. The dialog "Restore the backup of <date>?" has the focus on "Cancel". "Restore <date>" confirms.
 
 The two risks the dialog names:
 
@@ -233,7 +233,7 @@ Further limits:
 
 - Deleted templates stay 30 days in the Trash view (below the library folder tree), then the `daily` job removes them for good.
 - Admins see every deleted template, also those whose folder is gone.
-- "Empty trash now..." asks "Remove all n templates in the trash for good? This cannot be undone." "Cancel" has the focus. "Empty trash" confirms; the status reads "Removed n items for good."
+- "Empty trash now..." asks "Empty the trash? All n templates in it are deleted for good, and so are deleted folders. This cannot be undone." "Cancel" has the focus. "Empty trash" confirms; the status reads "Emptied the trash: n templates deleted for good."
 - It also removes deleted folders. Each click trashes up to 50 stored files; the nightly job removes the rest.
 - An emptied template cannot be restored from any older backup. Empty the trash only when needed.
 - The Trash view and "Empty trash now" are not yet verified on dev.

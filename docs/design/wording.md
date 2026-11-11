@@ -12,6 +12,7 @@ Readers: office staff of a trucking company (recruiters, dispatchers, safety, ac
 4. Sentence case. No all caps. No em or en dashes. A status line and a toast end with a period.
 5. An empty state says what belongs here and how to start.
 6. Raw technical names appear only under "Technical details" (web) and in the line "Details for your admin: ..." (Gmail panel).
+7. One state, one text on every surface. Busy: "The library is busy. Try again in a few seconds." Too many requests: "Service is busy. Try again in a minute." Deleted: "This template was deleted or moved."
 
 ## Things
 
@@ -20,10 +21,12 @@ Readers: office staff of a trucking company (recruiters, dispatchers, safety, ac
 | template | one saved email text with title, subject, text, tags and recipients | item, record |
 | title, subject, text | the three parts of a template | body (one exception below), HTML |
 | folder | holds templates and subfolders | |
-| My templates, personal folder, personal templates | each person's own folder and its templates | private folder |
+| My templates | each person's own folder, by the name users see. Every error names it this way: 'The folder "My templates" cannot be deleted.' | private folder, personal folder (in errors) |
+| personal folder, personal templates | the kind of folder and the setting, on admin screens only, and always next to the owner or "(each user's My templates)" | private |
 | library | the web page with all templates | web app |
 | panel | Migway Templates inside Gmail | sidebar, add-on, card |
-| field | a blank in a template that gets a value at insert | placeholder, token, chip, variable |
+| field | a blank in a template that gets a value at insert, and nothing else | placeholder, token, chip, variable |
+| To, Cc and Bcc; recipients | the address boxes of a template and their addresses | field (for an address box) |
 | field the sender fills in | a field whose value the sender types at insert ("Ask the sender...") | prompt, question |
 | field name | the name the sender sees above the box | label, prompt label |
 | default text | the text a field shows when its value is unknown | fallback |
@@ -77,9 +80,9 @@ Exceptions, on purpose:
 - The Gmail panel shows "Details for your admin: ..." with the raw network message. `docs/ops/deploy.md` step 10 needs it.
 - "Insert body only" stays in the panel. "Insert text only" reads as "plain text, no formatting".
 - "Audit log", "Denied", "Conflict", "Error" stay: short result words that staff of a regulated business know. Conflict means someone else saved first.
-- Messages for requests the screens cannot send (wrong argument type, unknown op, a damaged data file) keep their developer wording: `src/server/dispatch/args.ts`, `dispatch.ts` (unknown op), `handle.ts`, `shared/model/shape.ts`, `shared/model/settings.ts`, `grants.ts` (type and level names), `audit.ts` (filter formats), `storage/*`, `membership/*`, `jobs/*`.
+- Messages for requests the screens cannot send (wrong argument type, unknown op, a damaged data file) keep their developer wording: `src/server/dispatch/args.ts`, `dispatch.ts` (unknown op), `handle.ts`, `shared/model/shape.ts`, `shared/model/settings.ts`, `grants.ts` (type and level names), `config.ts` (setting name and value checks), `audit.ts` (filter formats), `storage/*`, `membership/*`, `jobs/*`.
 
-## Changed texts (216)
+## Changed texts (220)
 
 `{name}` stands for a value filled in at run time. A cell with " / " lists the texts of one source line. Paths are relative to `src/`. Tests and guides quote the new texts; `src/web/dev-harness.ts` repeats the server texts and is not listed.
 
@@ -123,7 +126,6 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `web/views/adminAudit.ts` | Actor | User | "actor" is an internal word |
 | `web/views/adminAudit.ts` | Target | Template or folder | "target" is an internal word |
 | `web/views/adminAudit.ts` | {label} JSON | {label}, raw data | "JSON" is an internal word |
-| `web/views/adminAudit.ts` | no level | no access | "level" becomes "access" |
 | `web/views/adminAudit.ts` | Event details | Entry details | a log holds entries |
 | `web/views/adminAudit.ts` | Loading event details... | Loading entry details... | a log holds entries |
 | `web/views/adminAudit.ts` | Audit events | Audit entries | a log holds entries |
@@ -135,6 +137,7 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `web/views/adminAudit.ts` | Apply | Filter | the button says what happens; "apply" is the internal word for insert |
 | `web/views/adminAudit.ts` | The audit log could not be loaded. Use Retry in the message. | The audit log could not be loaded. Press Retry in the message. | one phrase for the Retry button |
 | `web/views/adminAudit.ts` | Target (second use, under Technical details) | Internal ID | the raw value sits next to the internal name |
+| `web/views/adminAudit.ts` | {user} (manage), the bare level, or (no level) | {user} (Can manage), (Can edit), (Can use), (admin) or (no access) | the audit drawer uses the words of the access table |
 | `web/views/adminConfig.ts` | Last OK | Last good run | plain column name |
 | `web/views/adminConfig.ts` | (warning: over {formatBytes(data.indexWarnBytes)}, the index should be split, ADR-0002) | (over {formatBytes(data.indexWarnBytes)}: tell the developer, the library data is too large) | "index" and an ADR number were on screen |
 | `web/views/adminConfig.ts` | (warning at {formatBytes(data.indexWarnBytes)}) | (the app warns at {formatBytes(data.indexWarnBytes)}) | "index" and an ADR number were on screen |
@@ -234,7 +237,7 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `web/views/trash.ts` | The trash could not be loaded. Use Retry in the message, or reload the page. | The trash could not be loaded. Press Retry in the message, or reload the page. | one phrase for the Retry button |
 | `web/views/trash.ts` | Deleted templates stay {TRASH_DAYS} days, then are removed. | Deleted templates stay here {TRASH_DAYS} days. After that they are deleted for good. | Remove is for lists; what cannot be restored is "deleted for good" |
 
-### Gmail add-on cards (5)
+### Gmail add-on cards (6)
 
 | Where | Old text | New text | Reason |
 |---|---|---|---|
@@ -243,8 +246,9 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `addon/cards/states.ts` | Ask the owner to finish setup, then press Retry. | Ask your admin to finish setup, then press Retry. | users know the admin, not the owner of the script |
 | `addon/cards/states.ts` | This template was removed or moved. Press Refresh to update the list. | This template was deleted or moved. Press Refresh to update the list. | one verb: Delete (Remove is for lists); same as the library |
 | `addon/cards/states.ts` | Network: {failure.message} | Details for your admin: {failure.message} | says who the technical line is for |
+| `addon/cards/states.ts` | Busy right now. Press Retry in a few seconds. | The library is busy. Try again in a few seconds. | one busy text on the web pages and the Gmail cards |
 
-### Server and shared messages that reach the screen (72)
+### Server and shared messages that reach the screen (75)
 
 | Where | Old text | New text | Reason |
 |---|---|---|---|
@@ -261,14 +265,14 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `server/handlers/folders.ts` | Folders can be at most {FOLDER_DEPTH_MAX} levels deep | A folder can be at most {FOLDER_DEPTH_MAX} levels deep. Put it higher up. | says what to do; period |
 | `server/handlers/folders.ts` | A folder cannot move into itself or its subfolders | A folder cannot move into itself or its subfolders. | says what to do; period |
 | `server/handlers/folders.ts` | Only an empty folder can be deleted | Only an empty folder can be deleted. Move or delete its templates and subfolders first. | says what to do; period |
-| `server/handlers/folders.ts` | Private folders and their subfolders cannot move | Personal folders and their subfolders cannot be moved. | one name for the My templates folder: personal |
-| `server/handlers/folders.ts` | Shared folders cannot move into a private folder | A shared folder cannot move into a personal folder. | one name for the My templates folder: personal |
-| `server/handlers/folders.ts` | Private folders cannot be deleted | Personal folders cannot be deleted. | one name for the My templates folder: personal |
+| `server/handlers/folders.ts` | Private folders and their subfolders cannot move | The folder "My templates" and its subfolders cannot be moved. | errors name the folder as users see it: My templates |
+| `server/handlers/folders.ts` | Shared folders cannot move into a private folder | A shared folder cannot move into "My templates". | errors name the folder as users see it: My templates |
+| `server/handlers/folders.ts` | Private folders cannot be deleted | The folder "My templates" cannot be deleted. | errors name the folder as users see it: My templates |
 | `server/handlers/grants.ts` | Principal must be at most {PRINCIPAL_KEY_MAX} characters | The group, user or domain must be at most {PRINCIPAL_KEY_MAX} characters. | "principal" is an internal word; raw type names were on screen |
 | `server/handlers/grants.ts` | {type} needs an email address | Enter the email address of the {type}. | "principal" is an internal word; raw type names were on screen |
 | `server/handlers/grants.ts` | domain needs a domain name | Enter a domain name, for example example.com. | "principal" is an internal word; raw type names were on screen |
 | `server/handlers/grants.ts` | ou needs a path starting with / | An org unit path starts with /. | "principal" is an internal word; raw type names were on screen |
-| `server/handlers/grants.ts` | Private folders cannot be shared | Personal folders cannot be shared. | one name for the My templates folder: personal |
+| `server/handlers/grants.ts` | Private folders cannot be shared | The folder "My templates" cannot be shared. | errors name the folder as users see it: My templates |
 | `server/handlers/grants.ts` | Group {key} was not found or its members are not visible | Group {key} was not found or its members are not visible. Check the address. | period; says what to check |
 | `server/handlers/indexOps.ts` | {what} was removed or moved. | {what} was deleted or moved. | one verb: Delete (Remove is for lists) |
 | `server/handlers/indexOps.ts` | This grant | This access | "grant" becomes "access" |
@@ -280,8 +284,9 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `server/handlers/transfer.ts` | {codes.length} address{s} dropped: {parts.join(", ")} | {codes.length} address{s} not imported: {parts.join(", ")} | "dropped" becomes "not imported" |
 | `server/handlers/transfer.ts` | Its folder was not imported | Its folder was not imported. | period |
 | `server/handlers/transfer.ts` | A template with this title is already in this folder | A template with this title is already in this folder. | period |
-| `server/handlers/transfer.ts` | Templates cannot be imported into a private folder. Pick a shared folder. | Templates cannot be imported into a personal folder. Pick a shared folder. | one name for the My templates folder: personal |
+| `server/handlers/transfer.ts` | Templates cannot be imported into a private folder. Pick a shared folder. | Templates cannot be imported into "My templates". Pick a shared folder. | errors name the folder as users see it: My templates |
 | `server/handlers/transfer.ts` | the library could not be written | the library could not be saved | "written" becomes "saved" |
+| `server/handlers/transfer.ts` | already in an earlier field | already in To or Cc | "field" is the template blank only; the address boxes are To, Cc and Bcc |
 | `server/handlers/transfer.ts` | Nothing was imported: {what}. Run the import again. / Nothing was imported: {what}: {server message}. Run the import again. | Nothing was imported because {what}. Run the import again. / Nothing was imported because {what}. {server message} | one colon chain became two sentences; the server message keeps its own advice |
 | `server/handlers/transfer.ts` | Nothing was imported: the library could not be written: 1 problem to fix. Run the import again. (setting changed mid-import) | Nothing was imported. The setting "Outside recipients" changed during the import. Run the import again. | defect d: says what happened and what to do; code, details and outcome unchanged |
 | `server/handlers/versions.ts` | Changed by {record.updatedBy} at {record.updatedAt}. | {record.updatedBy} changed this at {record.updatedAt}. Reload the page and try again. | says what to do next |
@@ -302,6 +307,8 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `server/transfer/plan.ts` | Its parent folder was not imported | Its parent folder was not imported. | full sentences |
 | `server/transfer/plan.ts` | Folders can be at most {FOLDER_DEPTH_MAX} levels deep | A folder can be at most {FOLDER_DEPTH_MAX} levels deep. | full sentences |
 | `server/transfer/plan.ts` | Its parent chain has a cycle | Its parent folders form a loop in the file. | full sentences |
+| `shared/model/recipients.ts` | {address} is in both {To} and {Cc}. Keep it in one field. | {address} is in both {To} and {Cc}. Keep it in one of them. | "field" is the template blank only; the address boxes are To, Cc and Bcc |
+| `shared/model/recipients.ts` | {Cc} holds {n} addresses. Use at most {max} per field. | {Cc} holds {n} addresses. Use at most {max} in {Cc}. | "field" is the template blank only; the address boxes are To, Cc and Bcc |
 | `shared/model/validate.ts` | {field} must be 1 to {max} characters | {field} must be 1 to {max} characters. | period; says what to do |
 | `shared/model/validate.ts` | At most {TAGS_MAX} tags | Use at most {TAGS_MAX} tags. | period; says what to do |
 | `shared/placeholders/validate.ts` | Prompt label must be 1 to {LABEL_MAX} characters, without { } \| \ < > | A field name must be 1 to {LABEL_MAX} characters, without { } \| \ < > | "prompt label" becomes "field name" (the editor's word) |

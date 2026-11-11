@@ -673,7 +673,7 @@ describe("state cards (wireframe 07, spec section 7)", () => {
   });
 
   it.each([
-    [ErrorCode.BUSY, ["Busy right now. Press Retry in a few seconds."]],
+    [ErrorCode.BUSY, ["The library is busy. Try again in a few seconds."]],
     [
       ErrorCode.NETWORK,
       ["Something went wrong. Press Retry.", "Details for your admin: m"],

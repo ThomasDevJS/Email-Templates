@@ -376,7 +376,7 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
     ).toHaveLength(1);
     type(byId("rcpt-bcc"), "safety@example.com");
     expect(errorOf("bcc")).toBe(
-      "safety@example.com is in both Cc and Bcc. Keep it in one field.",
+      "safety@example.com is in both Cc and Bcc. Keep it in one of them.",
     );
     button("Remove not-an-address from Cc").click();
     expect(errorOf("cc")).toBe("");
@@ -387,9 +387,7 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
         ",",
       ),
     );
-    expect(errorOf("to")).toBe(
-      "To holds 11 addresses. Use at most 10 per field.",
-    );
+    expect(errorOf("to")).toBe("To holds 11 addresses. Use at most 10 in To.");
   });
 
   it("sends to, cc and bcc on every save; an empty list clears the field", async () => {
