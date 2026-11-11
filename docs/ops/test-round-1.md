@@ -156,7 +156,7 @@ Web app, owner; Gmail for steps 9 and 12. About 30 minutes. This part turns pers
 
 Gmail, owner. Run it after part B and 5 minutes of waiting, so "Recent" has rows. About 20 minutes. Take one screenshot of each card in steps 1 to 6 and attach it to the report.
 
-1. Add-on in a draft's toolbar. Click "Open library" and close what it opens: the add-on keeps its list for 10 minutes, and this fetches a fresh one. Home card. Expect: no card header; "Search templates" with no hint below it; "Favorites" with a star icon row "T1 plain"; "Recent" with clock icon rows and without "T1 plain"; "Folders" with folder icon rows and "n templates" below each.
+1. Add-on in a draft's toolbar. Click "Open library" and close what it opens: the add-on keeps its list for 10 minutes, and this fetches a fresh one. Home card. Expect: no card header; "Search templates" with no hint below it and an outlined "Search" button with a search icon under it; "Favorites" with a star icon row "T1 plain"; "Recent" with clock icon rows and without "T1 plain"; "Folders" with folder icon rows and "n templates" below each.
 2. Same card. Expect: each template row has one "Insert" button; "Open library" sits in a fixed bar at the bottom. Record: the color of "Insert" and of "Open library" (dark slate, blue, other).
 3. Find "T4 fields and copies" under "Recent" (part B step 4 inserted it); if it is not there, search `copies` and use the row under "Results". Expect: its row reads "Adds Cc 1, Bcc 1 · 2 fields to fill · Smoke 6a". Record: the line fits on one line, wraps, or is cut.
 4. Open the folder "Smoke 6a". Expect: the header "Smoke 6a"; the subfolder `R&D <b>` first with a folder icon; then template rows with a document icon and only their hints below the title (no folder path, nothing below "T1 plain"). Record: the folder name reads exactly `R&D <b>`, with no `&amp;` or `&lt;` (y/n).
@@ -240,7 +240,7 @@ Web app. The browser agent acts as the owner in every step not marked "Second te
 
 Gmail web, dev build of slice 18, browser agent, about 25 minutes. Run it in Gmail's right side panel: click the Migway Templates icon in the panel on the right edge of Gmail, not in a draft's toolbar, except step 12. Needs the templates of "Templates to create once" and one automated notification message in the inbox (from a no-reply sender); open no other message. Discard every draft when its step ends; at the end, Drafts holds no draft of this part. In this part, "row New email" and "row Reply" mean the button on a template row.
 
-1. Inbox, no message open, open the add-on in the side panel. Expect: each template row has a "New email" button; the last line of the card reads "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar."; no "Spike S7" section. Record: row labels on one line, wrapped or cut.
+1. Inbox, no message open, open the add-on in the side panel. Expect: each template row has a "New email" button; the last line of the card, in grey with an "i" icon, reads "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar."; no "Spike S7" section. Record: row labels on one line, wrapped or cut.
 2. Row "New email" on "T1 plain". Expect: a new email window with Subject "T1 subject", text "T1 text.", To empty. Record: the window opened (y/n); a Gmail signature is in it (y/n, expected n).
 3. Row "New email" on "T6 recipients". Expect: To `test-to@<your domain>`; Cc `test-cc@<your domain>` and `test-out@example.com`; Bcc `test-bcc@<your domain>`; Subject "T6 subject"; text "Hello".
 4. Row "New email" on "T2 fields". Expect: Subject "Load"; text "Hi, load is ready." followed by your phone when the directory has one; no "{{".
@@ -285,3 +285,19 @@ Gmail web, dev build of slice 21, browser agent, about 10 minutes. Needs "T1 pla
 | 3    | spinner in the side panel (y/n); top bar color                      |        |
 | 4    | red line readable, light theme (y/n)                                |        |
 | 5    | card background; red line and Insert readable, dark theme (y/n)     |        |
+
+## Part L: hints and the Search button
+
+Gmail web, dev build of slice 22, a person (not the browser agent), about 5 minutes. Needs "T1 plain" of "Templates to create once". Discard every draft when its step ends.
+
+1. Inbox, no message open, open the add-on in the side panel. Expect: the last line "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar." in grey with an "i" icon at its start. Record: it reads as a hint, set apart from the list (y/n).
+2. Same panel. Under "Search templates" an outlined "Search" button with a search icon. Type `plain`, then click "Search" without pressing Enter. Expect: "Results" with "T1 plain" and the box and button still on top. Record: one result card or a flicker of two (one or two).
+3. New draft, open the add-on from the draft's toolbar. Repeat step 2 there. Record: the button shows and searches (y/n).
+4. Gmail, Settings (gear), "Themes", choose "Dark", save. Open the side panel as in step 1. Record: the grey hint is readable (y/n); the "i" icon shows (y/n). Then choose the theme that was set before, save.
+
+| Step | Record                                     | Result |
+| ---- | ------------------------------------------ | ------ |
+| 1    | hint set apart (y/n)                       |        |
+| 2    | result card: one or two                    |        |
+| 3    | Search button works in the popup (y/n)     |        |
+| 4    | grey hint readable, icon shows, dark (y/n) |        |
