@@ -148,6 +148,8 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
   const pager = h("div", { class: "list-actions" });
   let page = 0;
   let ticket = 0;
+  /** One details load at a time: a click and an Enter on the same row open one drawer (8b merge note). */
+  let opening = false;
 
   const labelled = (label: string, input: HTMLElement) => {
     const id = uid("audit");
@@ -178,16 +180,23 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
       "Details",
     );
     open.addEventListener("click", () => {
+      if (opening) return;
+      opening = true;
       status.textContent = "Loading entry details...";
-      app.api.auditEvent(entry.ts.slice(0, 7), entry.id).then(
-        ({ event }) => {
-          status.textContent = "";
-          details(event, open);
-        },
-        (error: unknown) => {
-          status.textContent = lineText(error, app.fail(error));
-        },
-      );
+      app.api
+        .auditEvent(entry.ts.slice(0, 7), entry.id)
+        .then(
+          ({ event }) => {
+            status.textContent = "";
+            details(event, open);
+          },
+          (error: unknown) => {
+            status.textContent = lineText(error, app.fail(error));
+          },
+        )
+        .finally(() => {
+          opening = false;
+        });
     });
     const { word, tone } = resultTag(entry.result);
     return tableRow(

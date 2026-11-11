@@ -187,6 +187,23 @@ describe("audit log tab", () => {
     ).toContainEqual(["template.get", "Template opened"]);
   });
 
+  it("opens one drawer for a click and an Enter on the same row", async () => {
+    await boot("/?latency=20#/admin/audit");
+    await until(() => {
+      expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(50);
+    });
+    const opener = main().querySelector<HTMLButtonElement>(
+      ".admin-table tbody button",
+    ) as HTMLButtonElement;
+    opener.click();
+    opener.click();
+    await until(() => {
+      expect(dialog()).not.toBeNull();
+    });
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+  });
+
   it("opens the details drawer with before and after, traps focus and returns it", async () => {
     await boot("/?latency=0#/admin/audit");
     await until(() => {
