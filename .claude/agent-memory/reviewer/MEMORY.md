@@ -29,7 +29,6 @@
   - Warm props: production 1 (entry.test.ts:293 pins via snapshotProps). world.ts meters live fake props, so world counts (6) are getProperty calls, not service calls.
 - Slice 7 docs (2026-11-10): FAIL (039392e), retry 1 PASS (d74ad53, quick start 844 words, 1244 tests). Open minors: temp password delivery after admin reset; quick start "asks" ignores fallback; recipient address as prof: cache key 6 h.
 - Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
-  - UpdateDraftActionResponse has no navigation or notification: harness results show in the draft only.
 - Slice 8a UI (2026-11-10): FAIL (23bf981), retry 1 PASS (5b0aa2c, 1265 tests, index.html 340.6 KB). Retry: panel modal (main inert + aria-hidden, trapTab exported, matchMedia close), focus selector a[href] (SVG use href was counted), --star #a87400, --star-off #78838b, --field-line #7f8b93/#7c8a94 for field and button borders, contrast.test.ts token pairs (does not check CSS usage).
   First review 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
   - Must fix: 390 px panel (`.side.open .side-panel` absolute) lets Tab reach search/grid under it; no outside-click close (app.ts:74-86). `--star` #c58a00 2.99 on paper, 2.74 on canvas; star-off 2.80 on `--select` (button hover).
@@ -95,10 +94,9 @@
 - Slice 20b add-on fix round (2026-11-11): PASS (review on 496e4bf). 69 files, 1949 tests, lines 97.97, Code.js 369.8 KB, 10 scopes. 0 must-fix, 8 minors.
   - Code: folder.ts LIST_MAX (fav 10, recent 5, folders 40, results 20) + `capped` cut line; only Folders can fire (server caps sidebar.ts:36-38). Worst card 84 (folder, message). event.ts mailboxesOf; addsLine(plan, reply); capSubject in renderSubject.
   - Minors: "A reply adds n" counts a Cc already on the email; capSubject leaves trailing ZWJ; `{{{ask:N}}{ask:M}}` puts `{{ask:M}}` in draft (base same); spec 458 panel text.
-- Slice 20a web+server fix round (2026-11-11): FAIL (review on c7e6beb = c1cc732 + main ef3805c). 69 files, 1965 tests, lines 98.03, Code.js 371.0 KB, index.html 380.3 KB, Lighthouse 100x16, 10 scopes.
+- Slice 20a web+server fix round (2026-11-11): FAIL (review on c7e6beb = c1cc732 + main ef3805c). 69 files, 1965 tests, lines 98.03, Code.js 371.0 KB, index.html 380.3 KB, Lighthouse 100x16, 10 scopes. Retry 1 PASS (review on 6c51ea1, 1978 tests, index.html 380.8 KB): quiet first load into banner, focus main, WAITS_FOR_LOAD library/trash/edit/new; folders.refresh(after) + pending tab wait; export start reuse+commit in one withLock (hold still 1 index get+update).
   - Must fix: admin-guide:273 `npx clasp open-script` fails after `.clasp.json` deleted ("Script ID not set"); first-load failure shows banner + toast (two alerts, two retry buttons) and Reload drops focus to BODY.
   - Server clean: `exps:<run>` 60 s bound to actor/kind/folderId + live token; newId = digestIndex(sha256(getUuid)), 80 bits, format unchanged. Leak probe 12 runs 0 hits.
-  - Probes in scratchpad/20a/p: first.cjs (first paint/fail/20 s), slowlist.cjs (delay one op via window.__op hook), folders.cjs, nav2.cjs, drawer.cjs, caret2.cjs, insert.cjs (menu "Ask the sender...").
 - Slice 21 card feedback D35 (2026-11-11): FAIL (review on 9e338cb). Code clean; part K step 2 "Same popup" after a row Insert that closes the card. 71 files, 1958 tests, Code.js 370.4 KB, 10 scopes.
   - Code: render.ts toAction sole Action builder, INSTANT {onBack, onOpenLink} = NONE else SPINNER; Widget text tone "error" -> <font color="#b32025"> around escaped text (details (!) line, state card first line). primaryColor slate. cardLook snapshot (5de6f7f) passes on base.
   - #b32025: 6.67 on white, 2.41 on #202124. No red passes 4.5 on both; part K must record dark card background.

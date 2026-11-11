@@ -121,3 +121,98 @@ Dispatch authorizes every retry before the handler. The token and the `run` key 
 - NOT_CONFIGURED page before `setup()` on a fresh project.
 - `Utilities.getUuid` and digest cost per import.
 - Every part 2 step of the admin guide.
+
+# Re-review: retry 1
+
+Verdict: PASS. 0 must-fix, 3 new minors. Both must-fix items are closed.
+
+Retry diff `c7e6beb..a7fb2c9` (f22579f, 0fb8fea, ee1ce1d, c9012eb, handoff). Sanity run on 6c51ea1 = a7fb2c9 plus a merge of the main line a9f6e4f (slice 21). Reviewed 2026-11-11.
+
+## Commands (worktree 6c51ea1, after `rm -rf node_modules`)
+
+| Command | Result |
+|---|---|
+| `npm ci` | exit 0; 16 audit findings, unchanged |
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 71 files, 1978 tests passed; statements 97.18, branches 90.99, lines 98.02 |
+| `npm run build -- --env dev` | "Built dev 6c51ea1", Code.js 371.7 KB of 800 KB, index.html 380.8 KB of 400 KB |
+| `npm run scopes:check` | "Scope check passed: 10 scopes, all approved." |
+| `npm run format:check` | "All matched files use Prettier code style!" |
+| `npm run lighthouse` | 16 of 16 runs at 100 |
+
+## Must-fix 1, open-script: closed
+
+- `admin-guide.md` step 9 and `deploy.md` dev step 6 and prod point 2 say `npx clasp open-script <scriptId>`. With the dev ID from `deploy/dev.json`, from an empty directory, clasp 3.4.1 printed "Open https://script.google.com/d/<id>/edit in your browser to continue." and opened nothing. `--json` prints the same URL.
+- Every clasp command in both documents exists in 3.4.1 with the flags written (`--help` exit 0): `login`, `logout`, `create --type --title --rootDir`, `open-script`, `show-authorized-user`. No login, logout or push was run.
+- Step 12 now quotes "Deployment now serves version 2 (<sha>)." and "Versions used 2 of 200; prune at 150." These match `scripts/deploy.mjs` and `scripts/lib/claspOutput.mjs:48`. The editor's version 1 is marked not yet tried.
+
+## Must-fix 2, first load: closed
+
+Dev harness on 6c51ea1, Chromium.
+
+| Case | Banner (`role="alert"`) | Toasts | Focus |
+|---|---|---|---|
+| `template.list` fails, library | 1, "Templates could not be loaded. Press Reload to try again." | 0 | `main` |
+| Reload by keyboard, fails again (2 rounds) | "Loading..." then 1 banner | 0 after each round | `main` |
+| Editor route, fails | 1 | 0 | `main` |
+| Not set up (every op fails) | 1, "Migway Templates is not set up yet. Ask your admin to finish setup." | 1 (minor A) | `main` |
+| Trash route, every `template.list` fails | 1 | 1 (minor B) | `main` |
+| Fast load | none | 0 | `main` |
+
+`app.test.ts` checks one message, focus and the not-set-up text.
+
+## Minor 3 (first review minor 1), Admin and History keep their page: closed
+
+- `template.list` fails: Admin and History keep their page and show the toast "Something went wrong. Try again." with Retry.
+- `template.list` delayed 20 s: Admin and History never show the banner. The editor kept its unsaved text at 16 s and 22 s. Trash shows the banner at 15 s and redraws at 20 s, as designed (`WAITS_FOR_LOAD`, `app.ts:44-49`).
+
+## Minor 4 (first review minor 3), tab during a folder write: closed
+
+The probe created a folder, then opened a tab at once:
+
+| Case | Result |
+|---|---|
+| Latency 120 and 800 ms, "Export and import" opened at once | Skeleton, then both lists hold the new folder; 0 stale draws |
+| Latency 800, "Groups" | Groups opens normally; "Folders and access" then shows the folder |
+| `folder.create` fails | Tab opens with the old list after the refresh; 1 toast |
+| `admin.folders` fails after the create | Tab opens with the old list; 1 toast; the folder appears after Admin reopens |
+
+## Minor 5 (first review minor 6), concurrent starts: closed
+
+Vitest probe on a head copy. A wrapped fake lock counted Drive calls between `tryLock` and `releaseLock`. The second start ran while the first waited for the lock.
+
+| Probe | Head | Pre-fix c7e6beb |
+|---|---|---|
+| Same caller, same `run`, interleaved | same token, 1 event, 1 index write | 2 tokens, 2 events, 2 index writes |
+| Other caller, same `run`, interleaved | 2 runs, 2 events | same |
+| Same caller, other `run`, interleaved | 2 runs, 2 events | same |
+| Drive calls while the start holds the lock | index get + index update | index get + index update |
+| Drive calls while a retry hit holds the lock | none | lock not taken |
+| BUSY start, then retry | 1 event | 1 event |
+
+Worst lock hold of a start: one `index.json` read and one `index.json` write, the same as before and the same as `folder.rename`. Inside the lock it adds 2 Script Cache reads, one UUID plus digest, and 2 cache puts. Recheck and commit match `commit()` (`mutateIndex` = `withLock` + `commitLocked` + `context.recheck`).
+
+## New tests fail on the pre-fix code
+
+5 new tests from 6c51ea1 were copied into a c7e6beb copy. All 5 fail there and pass on head: app.test "a failed first load shows one plain error with Reload...", "a slow first load never replaces an Admin page...", "a first load that is not set up..."; admin.test "a tab opened while a folder write is listed..."; adminReports "writes one event for two tries of one click that run at the same time".
+
+## Scope, merge, secrets
+
+- Retry files: `docs/guide/admin-guide.md`, `docs/ops/deploy.md`, the handoff, `src/server/handlers/transfer.ts`, `src/web/app.ts`, `src/web/views/admin.ts`, `src/web/views/adminFolders.ts`, 3 test files. No add-on, placeholders, manifest, scripts or package files.
+- Merge 6c51ea1: every file's change equals its parent's change against the merge base ef3805c. `--remerge-diff` only removes conflict markers in the reviewer memory; both note sets are kept. Slice 21 files (`src/addon/cards/*`, `appsscript.json`) come from the main line unchanged; slice 21 was reviewed on its own.
+- Added lines: 0 hits for keys, tokens or private keys. No addresses. URLs: `script.google.com/d/<scriptId>/edit`, the user settings page.
+
+## New minors
+
+- A. Not set up: banner plus 1 toast with the same sentence, from the `profile.me` call (`app.ts:382-389`, `.catch(app.fail)`). Only before `setup()`.
+- B. Trash as the first page: its own list (`template.list` with `trash: true`, `api.ts:330`) fails with the same server problem and adds a toast under the banner.
+- C. A retry that hits `exps:` now takes the lock and answers BUSY when the lock is held, where c7e6beb answered at once. The web client retries BUSY.
+
+Open from the first review: minors 4 (menu field caret), 5 (audit Details on another row), 3 tail (import does not redraw open lists), 10 (spec, architect), 11 (UUID cost, dev).
+
+## Only the owner can check
+
+- First load, banner and focus in Google's frame on `/exec`; Back and Forward stamps.
+- `npx clasp logout` and `login` with two accounts, `show-authorized-user` naming the prod account, the editor's New deployment creating version 1.
+- Lock wait of export starts under real Drive latency.
