@@ -156,7 +156,7 @@ Web app, owner; Gmail for steps 9 and 12. About 30 minutes. This part turns pers
 
 Gmail, owner. Run it after part B and 5 minutes of waiting, so "Recent" has rows. About 20 minutes. Take one screenshot of each card in steps 1 to 6 and attach it to the report.
 
-1. Add-on in a draft's toolbar. Click "Open library" and close what it opens: the add-on keeps its list for 10 minutes, and this fetches a fresh one. Home card. Expect: no card header; "Search templates" with no hint below it and an outlined "Search" button with a search icon under it; "Favorites" with a star icon row "T1 plain"; "Recent" with clock icon rows and without "T1 plain"; "Folders" with folder icon rows and "n templates" below each.
+1. Add-on in a draft's toolbar. Click "Open library" and close what it opens: the add-on keeps its list for 10 minutes, and this fetches a fresh one. Home card. Expect: no card header; "Search templates" with no hint below it and an outlined "Search" button with a search icon in the same row, right of the box (under the box if the row does not fit); "Favorites" with a star icon row "T1 plain"; "Recent" with clock icon rows and without "T1 plain"; "Folders" with folder icon rows and "n templates" below each.
 2. Same card. Expect: each template row has one "Insert" button; "Open library" sits in a fixed bar at the bottom. Record: the color of "Insert" and of "Open library" (dark slate, blue, other).
 3. Find "T4 fields and copies" under "Recent" (part B step 4 inserted it); if it is not there, search `copies` and use the row under "Results". Expect: its row reads "Adds Cc 1, Bcc 1 · 2 fields to fill · Smoke 6a". Record: the line fits on one line, wraps, or is cut.
 4. Open the folder "Smoke 6a". Expect: the header "Smoke 6a"; the subfolder `R&D <b>` first with a folder icon; then template rows with a document icon and only their hints below the title (no folder path, nothing below "T1 plain"). Record: the folder name reads exactly `R&D <b>`, with no `&amp;` or `&lt;` (y/n).
@@ -292,12 +292,12 @@ Gmail web, dev build of slice 22, a person (not the browser agent), about 5 minu
 
 1. Inbox, no message open, open the add-on in the side panel. Expect: the last line "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar." in grey with an "i" icon at its start. Record: it reads as a hint, set apart from the list (y/n).
 2. Same panel. Under "Search templates" an outlined "Search" button with a search icon. Type `plain`, then click "Search" without pressing Enter. Expect: "Results" with "T1 plain" and the box and button still on top. Record: how often the spinner showed after the click (once or twice).
-3. New draft, open the add-on from the draft's toolbar. Repeat step 2 there. Record: the button shows and searches (y/n). Then click the name "T2 fields" (search `fields` if needed), type 501 characters in "Driver name", click "Insert". Expect: the red line "Shorten to 500 characters: Driver name" with no "(!)". Record: a round error icon starts the line (y/n).
+3. New draft, open the add-on from the draft's toolbar. Repeat step 2 there. Record: the button shows and searches (y/n); the box and the button sit in one row in the popup (y/n), while the side panel of step 2 shows the button under the box (y/n). Then click the name "T2 fields" (search `fields` if needed), type 501 characters in "Driver name", click "Insert". Expect: the red line "Shorten to 500 characters: Driver name" with no "(!)". Record: a round error icon starts the line (y/n).
 4. Gmail, Settings (gear), "Themes", choose "Dark", save. Open the side panel as in step 1. Record: the grey hint is readable (y/n); the "i" icon shows (y/n). Then choose the theme that was set before, save.
 
-| Step | Record                                                                   | Result |
-| ---- | ------------------------------------------------------------------------ | ------ |
-| 1    | hint set apart (y/n)                                                     |        |
-| 2    | spinner after the click: once or twice                                   |        |
-| 3    | Search button works in the popup (y/n); error icon on the red line (y/n) |        |
-| 4    | grey hint readable, icon shows, dark (y/n)                               |        |
+| Step | Record                                                                                                                          | Result |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 1    | hint set apart (y/n)                                                                                                            |        |
+| 2    | spinner after the click: once or twice                                                                                          |        |
+| 3    | Search button works in the popup (y/n); one row in the popup, stacked in the side panel (y/n); error icon on the red line (y/n) |        |
+| 4    | grey hint readable, icon shows, dark (y/n)                                                                                      |        |
