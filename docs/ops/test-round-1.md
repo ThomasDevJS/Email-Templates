@@ -33,7 +33,7 @@ In this plan, `<your domain>` is the part after the @ in the owner's address. Wh
 
 ### How to open the add-on in Gmail
 
-Gmail, "Compose". Click into the text of the draft first. Then click the Migway Templates icon in the bottom toolbar of the draft window. The card opens over the draft. In this plan, "row Insert" means the "Insert" button on a template row, and "tap the name" means a click on the template title, which opens the details card.
+Gmail, "Compose". Click into the text of the draft first. Then click the Migway Templates icon (a red "M") in the bottom toolbar of the draft window. In a narrow draft window Gmail moves it into the "⋮" menu of that toolbar, as "Migway Templates". Click nothing else in that toolbar. The card opens over the draft. In this plan, "row Insert" means the "Insert" button on a template row, and "tap the name" means a click on the template title, which opens the details card.
 
 ### Templates to create once
 
@@ -86,14 +86,14 @@ Gmail, owner, the add-on in a draft's toolbar. About 25 minutes. Discard every d
 1. New draft, click into the text. Open the add-on, folder "Smoke 6a", row Insert on "T1 plain". Expect: "T1 text." at the cursor, Subject "T1 subject". Record: the card closed after the insert (y/n).
 2. New draft, row Insert on "T2 fields". Expect: Subject "Load", text "Hi, load is ready." followed by your phone when the directory has one, else nothing. No card, no "{{" left.
 3. New draft, row Insert on "T3 copies". Expect: Cc `test-cc@<your domain>` and Bcc `test-bcc@<your domain>` added, the Bcc line visible. Record: the card closed (y/n).
-4. Open a received message, "Reply", click into the text, row Insert on "T4 fields and copies". Expect: To and the "Re:" subject kept, Cc and Bcc added, the fields left out of the text.
+4. Open a received message, "Reply", click into the text, row Insert on "T4 fields and copies". Expect: To kept, Cc and Bcc added, the fields left out of the text. The "Re:" subject does not show in an inline reply; skip it, or check it after "Pop out reply".
 5. New empty draft, folder "Smoke 6a". Expect: the row "T6 recipients" says "Adds To 1, Cc 2, Bcc 1". Row Insert. Expect: text "Hello", Subject "T6 subject", all 4 addresses in their boxes, the Bcc line open.
 6. New draft. In To type `test-a@<your domain>`, in Cc `test-b@<your domain>`, each followed by Enter so it is a chip. Click into the text, row Insert on "T6 recipients". Expect: To holds only `test-a@`; Cc holds `test-b@`, `test-cc@`, `test-out@`; Bcc holds `test-bcc@`. No address lost. Record: anything on screen said that `test-to@` was not added (y/n). The owner judges whether a notice is needed.
 7. New draft, Cc `test-cc@<your domain>` as a chip. Row Insert on "T6 recipients". Expect: one `test-cc@` chip, not two.
 8. Open a received message, "Forward", row Insert on "T6 recipients". Expect: To gets `test-to@<your domain>`; the "Fwd:" subject is kept.
-9. New draft, type `old` in Subject, row Insert on "T1 plain". Expect: the text changes, Subject stays `old`.
+9. New draft, type `old` in Subject, click at the start of the text, row Insert on "T1 plain". Expect: the text changes, Subject stays `old`.
 10. New draft, no To. Row Insert on "T7 first name". Expect: "Hello" and nothing after it.
-11. New draft, To: the second account's address as a chip. Row Insert on "T7 first name". Expect: "Hello" followed by that person's first name, when the directory has one.
+11. New draft, To: the second account's address as a chip (the owner gives the address with this part; report the step as blocked without it). Row Insert on "T7 first name". Expect: "Hello" followed by that person's first name, when the directory has one.
 12. New draft, row Insert on "T5 paragraphs". Expect: "Hi team," and "Thanks" with no "{{" between them. Record: the empty middle paragraph shows as a blank line (y/n). Yes is accepted for v1.
 
 | Step | Record                                     | Result |
