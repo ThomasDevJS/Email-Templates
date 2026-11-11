@@ -209,7 +209,11 @@ describe("config.set", () => {
       ],
       [
         { ...set("on"), from: "off" },
-        "Setting personalTemplates takes on or off.",
+        "This page is out of date. Reload it and save again.",
+      ],
+      [
+        { name: "personalTemplates", value: "on", from: "off" },
+        "This page is out of date. Reload it and save again.",
       ],
       [
         set("on", "recipientsExternal"),

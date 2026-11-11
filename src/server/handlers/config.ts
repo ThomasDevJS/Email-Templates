@@ -280,9 +280,15 @@ function echoName(name: unknown): string {
 const isBase = (value: unknown): value is string =>
   typeof value === "string" && value.length <= BASE_MAX;
 
-/** `{ name, value, baseAt, baseBy }` against the fixed list (spec 5.8); anything else is VALIDATION (spec 7.3 texts). */
+/** `{ name, value, baseAt, baseBy }` against the fixed list (spec 5.8); anything else is VALIDATION (spec 7.3 texts), old `from` args a reload hint. */
 export function setRequest(args: unknown): SetRequest {
   const record = (args ?? {}) as Readonly<Record<string, unknown>>;
+  // A tab loaded before `baseAt`, `baseBy` replaced `from` (slice 13) sends the old args.
+  if ("from" in record)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "This page is out of date. Reload it and save again.",
+    );
   const name = record["name"];
   if (!isSettingName(name))
     throw new AppError(
