@@ -89,24 +89,19 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 6. Otherwise the add-on pushes the prompt card. Its Insert calls `template.apply` again with `followUp: true`. The server re-checks `use` on that call and buffers no second apply event, so one Insert tap counts once. A grant removed while the card is open gives DENIED and leaves the draft unchanged. Then the callback validates every field, renders body and subject, inserts. Blank fields keep the card with an error. Recipient lists that changed since the card showed them keep the card with an error (section 5.7).
 7. Usage counts the first Insert tap. A cancelled prompt card still counts in `applyCount` and Recent (accepted, Q14: usage is analytics).
 
-### 4.1a Flow: apply from the side panel (D27, added 2026-11-10)
+### 4.1a Flow: apply from the side panel (D27, added 2026-11-10, rewritten 2026-11-11 after spike S7)
 
-Mechanism and options in ADR-0007. Proposed until the owner approves. Every step after 4 depends on spike S7 (section 14.2). D31 (2026-11-11): after S7 the panel follows the one-click rules of section 7.4 through compose actions (ADR-0009 section 6); steps 3 and 7 then change: no "Review", no blank-field notification.
+Mechanism: ADR-0007, Accepted 2026-11-11, section "Acceptance 2026-11-11" (A1 to A10). Facts: docs/spikes/slice-10-s7.md. Built in slice 18 (section 13.11). Built before it (slices 10 and 12): `entryOf`, the contextual trigger `unconditional` with `onMessageOpen`, panel cards without Insert, `sidePanelHint`, `ButtonSpec.compose`.
 
-Built so far (slice 10, layout in slice 12): steps 1 and 2; the manifest entry `contextualTriggers` `unconditional` with `onMessageOpen`; in `inbox` and `message` the cards show no Insert, "Insert with subject" or "Insert body only" and end with the footer hint of section 7.2 (`sidePanelHint`, src/addon/cards/sidePanel.ts); the S7 harness, dev build only. Not built: steps 3 to 8, the panel row and preview buttons, the line under the header (the home card has no header since slice 12).
-
-1. User opens Migway Templates from Gmail's right side panel. With no message open Gmail calls `onHomepage`; with a message open it calls `onMessageOpen` (contextual trigger `unconditional`, event with `gmail.messageId`). Both call `homeFlow` with the cached view `view:*`, as the compose trigger does.
-2. `entryOf(event)`: `compose` when `draftMetadata` is present, `message` when a message ID is present (`gmail.messageId`, else the deprecated `messageMetadata.messageId`; only a non-blank string counts), else `inbox`. Lists, search, favorites, Recent, folders and preview are the compose cards; only the row button, the preview buttons, the header line and the footer hint read the entry.
-3. Row button: `inbox` "New email", `message` "Reply". Same rules as 4.1 step 4: prompts open the prompt card; recipients show "Review" and open the preview card. Preview buttons: `inbox` "New email"; `message` "Reply", "Reply all", "New email".
-4. The button carries `setComposeAction` (`STANDALONE_DRAFT` for New email, `REPLY_AS_DRAFT` for Reply and Reply all). Its callback calls `template.apply` (server re-checks `use`, buffers one apply event; `followUp: true` from the prompt card), renders body and subject, and decides recipients with `recipientActions` against the computed draft (ADR-0007 section 3).
-5. Callback calls `GmailApp.setCurrentMessageAccessToken(e.gmail.accessToken)`, then:
-   - New email: `GmailApp.createDraft(to, subject, "", { htmlBody, cc, bcc })`. `to`, `cc`, `bcc` comma-joined from the template (minus `blocked`). Subject: the rendered template subject, or "" (D24: a new draft has an empty subject).
-   - Reply: `GmailApp.getMessageById(messageId).createDraftReply("", { htmlBody, cc, bcc })`. Gmail sets To and "Re:" subject. Template To is listed "Not added" (D26). No `subject` option (D24).
-   - Reply all: `createDraftReplyAll` with the same options. `cc` content follows S7 step 4.
-6. Returns `CardService.newComposeActionResponseBuilder().setGmailDraft(draft).build()`. Gmail opens the draft in a compose window. The user edits and sends it.
-7. Prompt card in the panel: same fields and switches (`subj` hidden for replies, `rcpt`); footer "Create email" or "Create reply" carries the compose action. A blank field returns the notification "Fill 1 field: <label>" and no draft, or the S7 fallback ("Check" then a confirm card).
-8. Errors (DENIED, NOT_FOUND, BUSY, QUOTA, TIMEOUT) return a notification with the section 7 sidebar text and create no draft.
-9. Usage and logs as 4.1 step 7 and section 11; the `draft` object gains `via`.
+1. The user opens Migway Templates from Gmail's right side panel. No message open: `onHomepage`. A message open: `onMessageOpen` (event with `gmail.messageId`, S7 result 2). Both call `homeFlow` with the cached view `view:*`.
+2. `entryOf(event)`: `compose` when `draftMetadata` is present, `message` when a message ID is present, else `inbox`. Every callback derives it from its own event.
+3. Rows (home, folder, search): one `FILLED` slate button. `inbox` "New email" (`STANDALONE_DRAFT`), `message` "Reply" (`REPLY_AS_DRAFT`). Action `onCompose` with `id`, `as` (`new` or `reply`) and `rc` as compose rows. The row tap opens the details card (`onPreview`).
+4. Details card: `template.apply` `followUp: true` (no apply event). Inputs as compose, "Add recipients" switch, no subject switch, signature line, footer per section 7.2. Its buttons call `onPromptCompose` with `id`, `as` (`new`, `reply`, `replyAll`), `version`, `values`, `rh`.
+5. `onCompose` and `onPromptCompose`, in order: `as` in the fixed list; Reply and Reply all need a message ID in the event; a details press checks every box for 500 characters; `GmailApp.setCurrentMessageAccessToken(e.gmail.accessToken)`; Reply and Reply all read the message (`getMessageById`, `getReplyTo`, `getFrom`; Reply all also `getTo`, `getCc`); one `template.apply` without `followUp`, with `recipientEmailIfInternal` = the reply address when internal (Reply only), else ""; the `rc` check (row) or the `version` and `rh` checks (details); render body and subject as compose (section 7.4: typed value, value, default text, else removed); recipients by section 5.7 against the computed draft (ADR-0007 A4).
+6. Gmail call: New email `GmailApp.createDraft(to, subject, "", { htmlBody, cc, bcc })`; Reply `message.createDraftReply("", { htmlBody, cc, bcc })`; Reply all `message.createDraftReplyAll("", { htmlBody, cc, bcc })`. `cc` and `bcc` only when not empty; replies get no `subject` option and no To. Return `ComposeActionResponse` with `setGmailDraft(draft)`; Gmail opens the draft (a new window, or an inline reply in the conversation).
+7. Every refusal or failure answers with a notification and no navigation (ADR-0007 A8). No state card in the panel action callbacks.
+8. Usage: one apply event per press that reaches `template.apply` (Q43). Logs: the `draft` object as today; no new key (Q67).
+9. The panel never changes a draft that is already open. The hint at the end of the cards says where to do that (section 7.2).
 
 ### 4.2 Flow: edit and restore (DoD 2)
 
@@ -444,28 +439,54 @@ Editor (wireframe 04, Details panel, slice 8b):
 
 Config tab: [Amended 2026-11-10, D29: the read-only row "Set by the owner in Script Properties (RECIPIENTS_EXTERNAL)" is replaced by the "Outside recipients" setting of section 7.3.]
 
-### 7.2 Side-panel texts (D27, added 2026-11-10)
+### 7.2 Side-panel texts (D27, added 2026-11-10, rewritten 2026-11-11 for slice 18)
 
-Wireframe 01, side-panel variant. Entries from `entryOf` (section 4.1a).
+Wireframes 01 and 02, side-panel variants. Entries from `entryOf` (section 4.1a). Mechanism: ADR-0007 "Acceptance 2026-11-11". As built until slice 18 (slices 10, 12, 15): no panel buttons, the details card without inputs, the hint "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.", the "Spike S7 (temporary)" section in the dev build.
 
 | Place | `inbox` (no message open) | `message` (message open) |
 |---|---|---|
-| Line above the lists (not built; waits for S7) | "Start a new email from a template." | "Reply to this email with a template, or start a new one." |
-| Row button | "New email", screen reader "New email from <title>" | "Reply", screen reader "Reply with <title>" |
-| Row button, template with recipients | "Review" (as compose) | "Review" |
-| Preview buttons | "New email" | "Reply", "Reply all", "New email" |
-| Prompt card footer | "Create email" | "Create reply" (or "Create email" when opened from "New email") |
-| Footer hint (both; built in slice 10, text of slice 12) | "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." Last section of home, folder, search and preview cards | same |
+| Row button (`FILLED` slate) | "New email", screen reader "New email from <title>" | "Reply", screen reader "Reply with <title>" |
+| Row label | as compose (section 7.4) | same |
+| Details card footer, primary (`FILLED` slate) | "New email" | "Reply" |
+| Details card footer, secondary (`OUTLINED`) | "Edit in library" (edit or manage only) | "Reply all" |
+| Details card, last button section (`OUTLINED`) | none | "New email"; "Edit in library" (edit or manage only) |
+| Details card, input hint of the implicit recipient first name | none | "Leave blank to use the first name of the person you reply to, when known." |
+| Details card, template with a To address | none | "A reply goes to the sender, so the template's To is not added. New email adds it." |
+| Details card, signature line (before the text preview) | 'Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.' | same |
+| Hint, last section of home, folder, search and details cards | "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar." | same |
 
-D31 (slice 15): panel cards change only where they share code with compose: Recent without favorites, label order, no search hint, the details card in place of the preview card (no inputs, no Insert while the panel inserts nothing). As built until the panel pass (slices 10 and 12): rows and preview cards in `inbox` and `message` carry no Insert or panel button; a tap on a title opens the preview; the hint ends each card. The dev build adds the "Spike S7 (temporary)" section after the hint.
+Unchanged from compose (section 7.4): the fields line, input titles, the more-than-20 line, "Add recipients" with "Adds n recipients.", the `recipientWidgets` lines without the finish-typing line, the text preview, "Open library" footer on home, folder and search cards. No "Replace the subject" switch in the panel. No line above the lists.
 
-Preview card lines, side panel only:
-- Signature: "Your Gmail signature is not added. Use the signature button in the draft." (dropped if S7 shows Gmail adds it.)
-- Reply subject: "The reply keeps its subject, so it stays in the conversation." (template has a subject)
-- New email: "Opens a new email with this template." Reply: "Opens a reply with this template."
-- Recipients: section 7.1 lines; in a reply the template To reads "Not added: <address>. The reply already has a To recipient."
+Screen reader text of the details buttons: "New email from <title>", "Reply with <title>", "Reply all with <title>".
 
-Notifications (compose-action callbacks): "Fill 1 field: <label>" (blank prompt); section 7 sidebar texts for errors. If S7 shows the panel cannot create drafts: the row buttons are removed and the card shows the footer hint as its first line (fallback, ADR-0007).
+Notifications of the panel action callbacks (ADR-0007 A8):
+
+| Case | Text |
+|---|---|
+| QUOTA | "Service is busy. Try again in a minute." |
+| BUSY | "The library is busy. Try again in a few seconds. Request ID <id>" |
+| DENIED | the server text: "You don't have access to this template. Ask a folder manager." or "Personal templates are turned off by your admin." |
+| NOT_FOUND | "This template was deleted or moved. Open the panel again to update the list." |
+| TIMEOUT, SERVER | "Something went wrong. Try again. Request ID <id>"; NETWORK adds " Details for your admin: <message>" |
+| NOT_CONFIGURED, AUTH_* | the lines of the state card, joined by one space |
+| Message cannot be read | "This email can no longer be read. Open it again, or use New email." |
+| Reply without an open message | "Open the email you want to answer, then press Reply again." |
+| A box over 500 characters | "Each box takes up to 500 characters. Shorten the long one and try again." |
+| New template version | "This template changed. Go back and open it again." |
+| Other lists (`rh`) | "The recipients of this template changed. Go back and open it again." |
+| Row counts differ (`rc`) | "The recipients of this template changed. Tap its name to see them." |
+| Gmail refuses the draft | "Something went wrong. Try again. Details for your admin: <error message>" |
+| Draft made, not opened | "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it." |
+
+Quick start lines (slice 18, docs/guide/user-quick-start.md, new section "Use the side panel" after "Insert a template"):
+- "Migway Templates also opens in the panel on the right side of Gmail. It stays open while you read your email."
+- "No email open: click "New email" on a template. A new email opens with the template's subject, text and recipients."
+- "An email open: click "Reply" on a template. Your reply opens in the conversation with the template's text. It goes to the sender and keeps "Re:" in the subject. The template's Cc and Bcc are added; its To is not."
+- "Click a template's name for "Reply all", "New email", and to fill in fields first. "Add recipients" off leaves out the template's addresses."
+- "The side panel always starts a new email or a reply. To insert into an email you are already writing, use the Migway Templates button in that email's toolbar."
+- "Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar."
+- "Each click makes a draft. A draft you close stays in Drafts; delete it there if you do not need it."
+- Known limits, one line: "Forwarding is not in the side panel. Forward in Gmail, then use the button in the email's toolbar."
 
 Empty states:
 
@@ -528,7 +549,7 @@ After an add or a remove the list shows the op's `admins`; focus moves to the st
 
 ### 7.4 Compose card: one-click insert and details card (D31, added 2026-11-11)
 
-Proposed until the owner approves. Mechanism and options: ADR-0009 (cards), ADR-0004 Amendment 2026-11-11 (fields), ADR-0006 Amendment 2026-11-11 (recipients). Built in slice 15 (section 13.9). Compose entry only; the side panel keeps its built cards until spike S7 (section 7.2, ADR-0009 section 6). No server change.
+Proposed until the owner approves. Mechanism and options: ADR-0009 (cards), ADR-0004 Amendment 2026-11-11 (fields), ADR-0006 Amendment 2026-11-11 (recipients). Built in slice 15 (section 13.9). Compose entry only; the side panel keeps its built cards until spike S7 (section 7.2, ADR-0009 section 6). [S7 passed 2026-11-11: slice 18 brings the panel to the same pipeline through compose actions, sections 4.1a and 7.2.] No server change.
 
 Rule for a field without a value (explicit `{{ask:Label}}`, or a variable with no value and no fallback), owner decision 2026-11-11: it is removed. Value order: typed answer, else the variable's value, else its fallback, else "". Then the cleanup of ADR-0004 Amendment 2026-11-11 runs on each text run and on the subject. A gap is where a token rendered as empty text; gaps are handled left to right; "space" is U+0020 only:
 1. Space on both sides of the gap: drop the space after it.
@@ -596,7 +617,7 @@ Smoke "Slice 15" (Gmail web, compose toolbar, dev build; the implementer copies 
 9. Details card of T4 in a draft with a subject: subject switch off. Turn "Add recipients" off, Insert: body only, subject and recipients unchanged.
 10. Home: a template that is a favorite and recently used shows only under Favorites; no hint under the search input; "Open library" is slate; record the color of "Edit in library" on a details card (slate or blue).
 11. Remove your grant on T1's folder in the library, row Insert on T1 (view cached): the DENIED card, draft unchanged.
-12. Side panel (no draft): rows show no Insert; a row tap opens the details card with no inputs and no Insert; the hint ends the card.
+12. Side panel (no draft): rows show no Insert; a row tap opens the details card with no inputs and no Insert; the hint ends the card. [Slice 18 replaces this step with test round part J.]
 13. Row Insert on T5: record whether the empty middle paragraph shows as a blank line (y/n). Yes is accepted for v1; it is noted in the handoff.
 
 ## 8. Accessibility
@@ -642,7 +663,7 @@ Conditional, added only when the stated event happens:
 | admin.directory.group.member.readonly | Groups Reader granted, `MEMBERSHIP_RESOLVER=directory` | Nested membership |
 | directory.readonly | Q9: `domain_public` lacks title or phone | `searchDirectoryPeople`, replaces `admin.directory.user.readonly` |
 
-Side panel (D27, ADR-0007, added 2026-11-10): no new scope. Compose actions (`GmailApp.createDraft`, `createDraftReply`, `createDraftReplyAll`, `ComposeActionResponse`) use `gmail.addons.current.action.compose` ("temporarily create new drafts messages and replies") with the event's `gmail.accessToken`; `getMessageById` and `getFrom` of the open message use `gmail.addons.current.message.metadata` [A29], [A34]. The Apps Script reference pages of those methods list only `mail.google.com` [A32], [A33]; spike S7 settles which holds. The new contextual trigger names no scope in the manifest reference [A37]. Any consent prompt in S7 that names a scope outside the 10 stops the side-panel insert; owner approval needed before any manifest scope change. Reading the Gmail signature would need a restricted scope (`gmail.settings.basic`); not requested (ADR-0007 section 5).
+Side panel (D27, ADR-0007, Accepted 2026-11-11 after spike S7): no new scope. Per action (ADR-0007 A7): `template.apply` as compose; `GmailApp.setCurrentMessageAccessToken(e.gmail.accessToken)`; New email `GmailApp.createDraft` and Reply, Reply all `createDraftReply`, `createDraftReplyAll` on `gmail.addons.current.action.compose`; `getMessageById`, `getReplyTo`, `getFrom`, `getTo`, `getCc` of the open message on `gmail.addons.current.message.metadata`; `ComposeActionResponse` needs none. S7 (dev-56bf795, these 10 scopes) ran `setCurrentMessageAccessToken`, `createDraft`, `getMessageById`, `createDraftReply` and `createDraftReplyAll` with no prompt; `https://mail.google.com/` is not needed (Q44). The header reads are checked in test round part J; the fresh-consent run is part H (Q55). The contextual trigger names no scope [A37]. Reading the Gmail signature would need a restricted scope (`gmail.settings.basic`); not requested: Gmail adds the signature to replies itself (ADR-0007 A5).
 
 No restricted scope is in the default list. `https://mail.google.com/` must never appear [R4 S7]; the build fails on any scope outside these two tables (ADR-0005). Slice 1 confirms that Cache, Properties and Lock need no extra scope and that the Advanced Drive service runs on `drive.file` alone (Q16).
 
@@ -691,7 +712,7 @@ Field added 2026-11-10 (slices 5b and 5c), add-on calls only:
 |---|---|
 | `draft` | `{ fields, to, cc, bcc, hasSubject }`. `fields`: the compose event field names present, each from the fixed list `messageId`, `threadId`, `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients`, `subject`, in that order. A field counts as present when its value is not undefined, null or "". `to`, `cc`, `bcc`: recipient counts, integers 0 to 1,000. `hasSubject`: boolean, true when the draft subject has a non-space character. The server requires exactly these 5 keys; any other key, name, repeated name, count or a non-boolean `hasSubject` answers VALIDATION "Draft fields must come from the fixed list", and the rejected value is not logged |
 
-Field added 2026-11-10 (D27, ADR-0007), inside `draft`: `via`, one of `compose`, `new`, `reply`, `replyAll`. The server requires it on add-on calls from the Gmail panel pass on and checks it against that list. Panel calls send the counts of the computed draft (ADR-0007 section 3). No message ID, thread ID or address is logged.
+Field planned 2026-11-10 (D27), inside `draft`: `via`. [Dropped 2026-11-11, ADR-0007 A6, Q67: not built, no server change. `draft.fields` already names `draftMetadata` on compose calls and `messageId` on panel calls with a message open; panel calls send counts 0 and `hasSubject` false from `draftInfo(event)`.] No message ID, thread ID or address is logged.
 
 Example: `"draft":{"fields":["draftMetadata","toRecipients","subject"],"to":1,"cc":0,"bcc":0,"hasSubject":true}`.
 
@@ -797,6 +818,7 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | Wording pass on web and add-on texts with open review minors | 14, in build; sections 7 to 7.3 follow its result |
 | 7.4 One-click insert, details card, home card order (D31) | 15, after 14 merges (section 13.9) |
 | 5.8 Admins list, `admin.add`, `admin.remove`, 7.3 Admins texts (D32) | 16, in parallel with 15 (section 13.10) |
+| 4.1a, 7.2 Side-panel insert: New email, Reply, Reply all through compose actions; S7 harness removed (D27) | 18 (section 13.11) |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -891,7 +913,7 @@ After slice 9: the panel insert reuses `recipientActions`, the `rh` check and th
 8. Quick start: one paragraph "Side panel or toolbar" with the 4 differences of ADR-0007 section 2.
 9. Smoke "Gmail panel": the S7 cases on the built code, plus prompts, a template with recipients, a DENIED template, and a compose-toolbar Insert (regression).
 
-Interim fix built in slice 10 (review PASS, dev-e2eb0ae): in the panel, rows and preview show no Insert and each card ends with the footer hint. Items 2 and 3 are built too (manifest contextual trigger, `entryOf`). The S7 harness stays in the dev build until S7 runs; items 1 and 4 to 9 wait for it.
+[2026-11-11: S7 passed; items 1 and 4 to 9 are slice 18, section 13.11, with the changes of ADR-0007 "Acceptance 2026-11-11" (no `via`, no prompt card, no first line).] Interim fix built in slice 10 (review PASS, dev-e2eb0ae): in the panel, rows and preview show no Insert and each card ends with the footer hint. Items 2 and 3 are built too (manifest contextual trigger, `entryOf`). The S7 harness stays in the dev build until S7 runs; items 1 and 4 to 9 wait for it.
 
 ### 13.8 Slice 11: admin settings (D29, added 2026-11-10)
 
@@ -970,6 +992,57 @@ Corrections for the implementer (text to apply, slice 16):
 - docs/ops/runbook.md, new section "An admin account is taken over": 1. A Workspace admin suspends the account and resets its sign-in. 2. The owner opens Admin, Audit log, filters on that actor, and lists `admin.add`, `admin.remove`, `config.set`, `grant.*` and `backup.restore` events since the takeover. 3. The owner removes every address that actor added under Admins and adds back any admin it removed. 4. If the account is in `ADMIN_EMAILS`, the owner deletes it from the property; if it is in `ADMIN_GROUP`, a Workspace admin removes it from the group and an admin presses "Refresh memberships now". 5. The owner undoes the settings and grant changes found in step 2.
 - Runbook, section "Restore from backup": add "The Admins list and the settings stay as they are now; a restore does not bring back a removed admin."
 
+### 13.11 Slice 18: side-panel insert (D27, added 2026-11-11)
+
+After spike S7 (passed 2026-11-11, docs/spikes/slice-10-s7.md). Spec 4.1a, 7.2, 9; ADR-0007 "Acceptance 2026-11-11"; wireframes 01 and 02 side-panel variants. No new scope, no manifest change (no trigger changes), no server change.
+
+Files the slice owns: src/addon/** and its tests; docs/guide/user-quick-start.md (section "Use the side panel" and the known-limits line of section 7.2); docs/ops/smoke.md (new section "Slice 18"; the section "Spike S7" becomes one line pointing to docs/spikes/slice-10-s7.md); docs/ops/test-round-1.md (new part J only). Not touched: src/server/**, src/shared/model/protocol.ts, appsscript.json.
+
+Work:
+1. Remove the S7 harness (ADR-0007 A10).
+2. `Reply` kind `compose` (the `GmailDraft`), rendered as `ComposeActionResponse`; a Gmail port in `Ports` (`setCurrentMessageAccessToken`, `createDraft`, `getMessageById`) so tests pass a recording fake; `tokenOf(event)` moves to event.ts.
+3. Row button per entry (`inbox` "New email", `message` "Reply", `compose` "Insert"); callbacks `onCompose` (row) and `onPromptCompose` (details), both in `CALLBACKS` and src/addon/entry.ts, wrapped in one catch.
+4. `previewFlow`: `template.apply` `followUp: true` for every entry; `panelPreview` and the panel's `template.getBody` call go away; `panelDetailsCard` becomes the details card with the panel differences of ADR-0007 A2.
+5. Computed drafts and Gmail calls of ADR-0007 A3, A4; notifications of section 7.2.
+6. `TOOLBAR_HINT` text of section 7.2.
+7. Quick start lines of section 7.2; smoke "Slice 18" = test round part J below.
+
+Acceptance criteria (each checked by a unit test, a build check or the named part J step):
+1. Entry `inbox`: every row on home, folder and search cards has one button "New email", `FILLED` slate, `compose: STANDALONE_DRAFT`, action `onCompose` with `id`, `as: new`, plus `rc` when the row shows a recipient hint; screen reader "New email from <title>".
+2. Entry `message`: the same rows carry "Reply", `REPLY_AS_DRAFT`, `as: reply`, screen reader "Reply with <title>". Entry `compose`: rows unchanged ("Insert", `onInsert`); the slice 15 row tests pass unchanged.
+3. New email (row): `setCurrentMessageAccessToken` is the first Gmail call, with the event token; one `template.apply` without `followUp` and with `recipientEmailIfInternal: ""`; then one `createDraft(to, subject, "", options)` where `to` is the template To comma-joined, `subject` the rendered subject, `options.htmlBody` the rendered body, `cc` and `bcc` present only when not empty. The reply kind is `compose`.
+4. Reply (row): `getMessageById(event message ID)`; `recipientEmailIfInternal` is the reply-to address, else the From address, inside `<...>`, lower case, only when its domain equals the caller's, else ""; `createDraftReply("", options)` with no `subject` key; the template To is in no argument; template Cc or Bcc addresses equal to the reply address are dropped.
+5. Reply all (details): `createDraftReplyAll("", options)`, `recipientEmailIfInternal: ""`, `options.cc` holds only template Cc addresses absent from the reply address, `getTo()` and `getCc()` (header strings with display names and commas parse to bare addresses; test cases with `"Doe, Ann" <ann@x>`).
+6. Rendering: T2 of test round 1 by row gives subject "Load" and body "Hi, load is ready." plus the phone part (the slice 15 render tests run through the panel path); blocked addresses appear in no Gmail call argument.
+7. Row `rc` differs from the apply lists: notification "The recipients of this template changed. Tap its name to see them.", view cache cleared, no `createDraft*` call.
+8. Details card, both panel entries: opened with one `template.apply` `followUp: true` and no `template.getBody` call; inputs as compose; no subject switch; "Add recipients" switch when the plan adds an address; no finish-typing line; the signature line; footer and last section as section 7.2; the hint last.
+9. Details press: typed values win; a blank field takes the resolved value, else it is removed; "Add recipients" off gives no `to`, `cc` or `bcc` (empty `recipient` for New email); a box over 500 characters gives the notification and makes no server or Gmail call; a new version or another `rh` gives its notification and no Gmail call.
+10. Each server failure code gives the section 7.2 notification and no Gmail call; DENIED and NOT_FOUND clear the view cache.
+11. `getMessageById` or a header read that throws or returns null gives "This email can no longer be read. Open it again, or use New email." and no `template.apply` call. `as: reply` or `replyAll` with no message ID in the event gives "Open the email you want to answer, then press Reply again." and no call. An `as` outside `new`, `reply`, `replyAll` gives the SERVER notification and no call.
+12. A throw inside `createDraft*` gives "Something went wrong. Try again. Details for your admin: <message>"; a throw after it returned gives the Drafts notification. No callback of the slice can end in an uncaught exception (test with a throwing fake per step).
+13. Hint: `inbox` and `message` cards end with the new `TOOLBAR_HINT`; `compose` cards have none.
+14. Harness gone: no src/addon/spikeS7.ts, no `onS7` name in src, no `s7` or `s7Error` Reply kind, no "Spike S7" text in src (grep test). Manifest unchanged: the same 10 scopes and the same 3 triggers (build check). `git diff --stat` shows no file under src/server or src/shared/model.
+15. Server arguments of every panel call hold only `id`, `knownVersion`, and `recipientEmailIfInternal` or `followUp` (call log test); the `draft` object keeps its 5 keys.
+16. Test round part J steps 1 to 12 run on dev; the handoff records steps 5, 6, 7 and 10, which decide Q68, Q69 and Q74.
+
+Test round 1, part J (the implementer adds it to docs/ops/test-round-1.md after part I; Gmail web, dev build of slice 18, browser agent, about 25 minutes). Run it in Gmail's right side panel: click the Migway Templates icon in the panel on the right edge of Gmail, not in a draft's toolbar, except step 12. Needs the templates of "Templates to create once" and one automated notification message in the inbox (from a no-reply sender); open no other message. Discard every draft when its step ends; at the end, Drafts holds no draft of this part.
+1. Inbox, no message open, open the add-on in the side panel. Expect: each template row has a "New email" button; the last line of the card reads "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar."; no "Spike S7" section. Record: row labels on one line, wrapped or cut.
+2. Row "New email" on "T1 plain". Expect: a new email window with Subject "T1 subject", text "T1 text.", To empty. Record: the window opened (y/n); a Gmail signature is in it (y/n, expected n).
+3. Row "New email" on "T6 recipients". Expect: To `test-to@<your domain>`; Cc `test-cc@<your domain>` and `test-out@example.com`; Bcc `test-bcc@<your domain>`; Subject "T6 subject"; text "Hello".
+4. Row "New email" on "T2 fields". Expect: Subject "Load"; text "Hi, load is ready." followed by your phone when the directory has one; no "{{".
+5. Click the name "T2 fields". Expect: a card with boxes "Load number" and "Driver name", the line 'Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.', and a "New email" button at the bottom. Type `77` in "Load number" and `Ann` in "Driver name", click "New email". Expect: Subject "Load 77", text "Hi Ann, load 77 is ready.". Record: the typed values arrived (y/n).
+6. Back to the list. Click the name "T3 copies", turn off "Add recipients", click "New email". Expect: no Cc and no Bcc. Record: the switch was followed (y/n).
+7. Open the one automated notification message. Expect: the card reloads and rows show "Reply". Row "Reply" on "T3 copies". Expect: a reply in the conversation, To the sender, Subject "Re: ...", Cc `test-cc@<your domain>`, Bcc `test-bcc@<your domain>`, text "T3 text.". Record: the signature is there and above or below the text; click the "..." (show trimmed content) in the reply: the earlier message is quoted (y/n).
+8. Same message. Row "Reply" on "T6 recipients". Expect: To is only the sender; `test-to@<your domain>` is not added; Cc both test addresses; Bcc `test-bcc@<your domain>`; Subject "Re: ...".
+9. Same message. Click the name "T6 recipients". Expect: the line "A reply goes to the sender, so the template's To is not added. New email adds it."; "Reply" and "Reply all" at the bottom; a "New email" button above them. Click "Reply all". Expect: the reply keeps every Cc the message had and adds the 2 template Cc; Bcc `test-bcc@<your domain>`.
+10. Same message. Double-click the row "Reply" on "T1 plain". Record: how many reply drafts opened (1 or 2). Discard all.
+11. Library in a new tab: "New template" in "Smoke 6a", title "T9 temp", text `T9`, Save. In Gmail, close the message. In the panel click "Open library", close the library window, then open the folder "Smoke 6a" in the panel. Expect: "T9 temp" is listed. In the library tab delete "T9 temp". Panel: row "New email" on "T9 temp". Expect: "This template was deleted or moved. Open the panel again to update the list." and no new email. T9 stays in the trash.
+12. Regression, compose toolbar: Compose, click into the text, open Migway Templates from the draft's toolbar, row "Insert" on "T1 plain". Expect: text and subject inserted as in part B.
+
+Part H additions (by hand, owner; the implementer adds them as part J steps 13 and 14 marked "by hand"): 13. Fresh consent: "Remove access", then side panel, inbox, row "New email" on "T1 plain": record any prompt and the scopes it names (replaces part H step 2, which names the removed harness; Q55). 14. Apps Script editor, Executions: the duration of each `onCompose` run of steps 2 to 4, and the `template.apply` lines of part J carry no `test-` address, subject or text.
+
+Decisions taken by part J: step 5 no (values lost) or step 6 no (switch ignored): Q68 fallback. Step 2 or 5 shows no window or an error: Q74 fallback. Step 7 or 9 shows an error naming a scope: owner informed; ADR-0007 A7 fallback. Step 10 two drafts: accepted (Q69).
+
 ## 14. Spikes
 
 | ID | Slice | Question | Pass condition |
@@ -979,7 +1052,7 @@ Corrections for the implementer (text to apply, slice 16):
 | S4 | 4, first task | Draft insert on Gmail web (ADR-0004 table) | Resolved 2026-11-10: F1 to F9 inserted on Gmail web, 204,837 bytes (F7) included. Allowlist unchanged, cap 100 KB. Android and iOS runs dropped by the owner (D22). Harness removed in slice 5 |
 | S5 | 5, first task | Body and subject actions in one `UpdateDraftActionResponse` on Gmail web; subject replaced, not appended; reply drafts (Q20, Q21) | Resolved 2026-11-10 on dev-32a446c: body and subject in one response, no new scope (Q20 closed). A replaced reply subject started a new thread; the event carries no `threadId` or `messageId` (dev-4a233d4). Rule D24 (section 5.6) keeps any filled subject; smoke "Slice 5c" on dev-848206f: the reply stayed in its conversation (Q21 closed) |
 | S6 | 9, first task | Body, subject, To, Cc and Bcc actions in one `UpdateDraftActionResponse` on Gmail web; add or replace; new draft, typed recipients, reply, forward; address already present; permission prompt | Passed 2026-11-10 on dev-ec0ccb2 from the compose toolbar (docs/spikes/slice-09-s6.md): all 5 actions apply from one response with no prompt; actions replace a field, so the build sends the draft list plus the new addresses (decision table row 2); event lists are arrays of bare addresses. Step 7 (fresh consent) is still open, by hand; a prompt there stops D26 (Q55) |
-| S7 | Gmail panel pass, first task | Compose actions from the side panel: new draft, reply, reply all; scopes; signature; open compose window (D27) | Open. Pass: New email and Reply create drafts with HTML body, subject and recipients, no permission prompt. Steps and fallbacks in section 14.2 |
+| S7 | Gmail panel pass, first task | Compose actions from the side panel: new draft, reply, reply all; scopes; signature; open compose window (D27) | Passed 2026-11-11 on dev-56bf795 from the side panel (docs/spikes/slice-10-s7.md): New email, Reply and Reply all made drafts with HTML body, subject and recipients, no prompt; Reply all `cc` adds; signature in replies only; a notification works from a compose action; an open window keeps its text. Open: fresh consent (Q55), form inputs (Q68), callback ms. Build: slice 18 |
 
 ### 14.1 Spike S6: recipient actions (D26)
 
@@ -1041,6 +1114,8 @@ Decision table:
 | Step 7 first window changed | The add-on cannot detect an open compose window. Owner informed; the quick start warns |
 | Step 8 draft left in Drafts | Expected Gmail behavior; quick start says so |
 
+Result (owner, test round 1 part G, dev-56bf795, 2026-11-11): steps 2 to 8 pass; step 4 add; step 5 signature in the reply only; step 1 (fresh consent) and step 9 (form inputs) not run; callback ms not measured. Decision table row 1 with the changes of ADR-0007 "Acceptance 2026-11-11". Record: docs/spikes/slice-10-s7.md.
+
 ## 15. Open questions for the owner
 
 | ID | Question | Recommendation |
@@ -1083,13 +1158,13 @@ Decision table:
 | Q37 (D26) | Recipients in private folders (D11) | Allowed. The owner of the folder could type the same addresses; the same validation and switch apply |
 | Q38 (D26) | Check that an address exists | No. `safety@` is probably a group; a check needs Directory group reads per address; a wrong internal address bounces back to the sender |
 | Q39 (D26) | Search by address | Web app library only, local part or full address prefix, weight 1, the caller's visible templates. Sidebar search unchanged |
-| Q40 (D27) | Add a contextual trigger (`unconditional`) so the side panel knows the open message and offers Reply | Yes, if spike S7 shows no consent prompt. It costs one execution per message opened with the panel open; the view cache avoids a server call |
-| Q41 (D27) | Gmail signature in drafts made from the side panel | Not added in v1; the card says so. Reading it needs a restricted scope (`gmail.settings.basic` or `gmail.readonly`); signatures as templates are v2 |
-| Q42 (D27) | Row button with a message open: "Reply" or "Reply all" | "Reply"; "Reply all" and "New email" on the preview card. Matches Gmail's own default |
-| Q43 (D27) | A panel draft the user discards still counts as a use | Accept, as for a cancelled prompt card (Q14) |
-| Q44 (D27) | If S7 shows `createDraft` needs `https://mail.google.com/` | Do not add it: full mailbox access, banned by the build. Ship the hint only; a copy page in the web app (option c) is a v1.1 item if the owner wants it |
-| Q45 (D27) | Reply all if `options.cc` replaces Gmail's copied Cc | Pass the merged list (original To and Cc minus the user, plus template Cc), read with the metadata scope; addresses never logged |
-| Q46 (D27) | Forward from the side panel | Not in v1. `ComposedEmailType` has no forward type [A31]; forward from Gmail and use the toolbar |
+| Q40 (D27) | Add a contextual trigger (`unconditional`) so the side panel knows the open message and offers Reply | Resolved 2026-11-11 (S7): built in slice 10; `onMessageOpen` runs with the message ID and no prompt. Fresh consent still by hand (Q55) |
+| Q41 (D27) | Gmail signature in drafts made from the side panel | Resolved 2026-11-11 (S7 result 4): Gmail adds it to replies, not to a new email. No scope; the details card and the quick start say how to add it to a new email (ADR-0007 A5) |
+| Q42 (D27) | Row button with a message open: "Reply" or "Reply all" | Resolved: "Reply"; the details card has "Reply" and "Reply all" in the footer and "New email" below (ADR-0007 A2) |
+| Q43 (D27) | A panel draft the user discards still counts as a use | Resolved: yes, one use per press that reaches `template.apply` (ADR-0007 A6) |
+| Q44 (D27) | If S7 shows `createDraft` needs `https://mail.google.com/` | Resolved: it does not. S7 made all 3 kinds of draft under the 10 scopes. The scope stays banned |
+| Q45 (D27) | Reply all if `options.cc` replaces Gmail's copied Cc | Resolved: it adds (S7 result 3). Only the template's new Cc go in `options.cc` (ADR-0007 A4) |
+| Q46 (D27) | Forward from the side panel | Not in v1. `ComposedEmailType` has no forward type [A31]; forward from Gmail and use the toolbar. Quick start says so |
 | Q47 (D29) | Dev reads as `off` after the slice 11 deploy (no settings stored), so the owner and pilot users lose personal creation on dev | Accept. The owner turns it on in Config > Settings if the pilot needs it; prod starts `off` as D29 says |
 | Q48 (D29) | While off, owners cannot delete or move their own personal templates, and admins drop to `use` on private folders (one level rule) | Accept. An admin who must clean up or promote a personal template turns the switch on, does the work, turns it off; both changes are audited. The alternative (admins keep `manage`, 7 per-op target checks) costs more code and tests |
 | Q49 (D29) | A third setting now (candidates: `IMG_HOSTS`, `LOG_LEVEL`, admin group) | No. `IMG_HOSTS` and `ADMIN_GROUP` are security config and stay owner-set in Script Properties; `LOG_LEVEL` is for the owner. A new setting is one row in the fixed list when asked |
@@ -1110,6 +1185,14 @@ Decision table:
 | Q64 (D32) | Check that an added address is a real account | Yes, with the Directory read the app already has (no new scope). A typo in a privilege grant would give admin to whoever gets that address later; recipients keep no check (Q38) |
 | Q65 (D32) | Any admin may remove any in-app admin, including the one who added them | Yes, one admin level. The owner's `ADMIN_EMAILS` and the group stay out of the app's reach, so recovery always has an admin |
 | Q66 (D32) | Tell the added person by email | No. Sending mail needs a Gmail send scope (new consent). The adder tells them; the Audit log records it |
+| Q67 (D27) | Log which panel button made a draft (`via`: new, reply, replyAll) | No. It needs a protocol and server change; nothing reads it. `draft.fields` already tells compose (`draftMetadata`) from the panel with a message open (`messageId`) |
+| Q68 (D27) | A compose-action callback may not receive the details card's boxes and switch (S7 step 9 not run) | Build them; part J steps 5 and 6 check. If either fails: the panel details card drops its boxes and the "Add recipients" switch (a press then works like the row: blank fields removed, recipients added), until Google documents a way |
+| Q69 (D27) | Two quick presses may open two drafts and count two uses | Accept, no guard. Nothing is sent; the user discards one. A 5 s guard would also refuse a wanted second email. Part J step 10 records Gmail's behavior |
+| Q70 (D27) | "New email" does not fill the recipient first name from the template's single To | Accept. It would need a second server call per press or an address in card parameters. Reply fills it from the person replied to; Reply all, like a draft with several To, does not |
+| Q71 (D27) | No "Replace the subject" switch in the side panel | Accept. A new email always gets the template subject; a reply always keeps "Re: ..." (D24). The user edits the subject in the window that opens |
+| Q72 (D27) | Row counts that changed give a notification, not the details card | Accept. Pushing a card from a compose action is unverified; the notification is verified (S7). The user taps the name and sees the new addresses |
+| Q73 (D27) | Reply all: a template Cc already in the conversation, or equal to the user's own address, is not added | Accept. The address is on the email already, or Gmail leaves the sender out of a reply all |
+| Q74 (D27) | A compose action on a row button (`DecoratedText`) and on a footer button (`FixedFooter`) is unverified; S7 used a `ButtonSet` | Build it; part J steps 2 and 5 check. If a place fails: that place gets no compose button; rows keep only the tap to the details card and the card's actions move into a `ButtonSet` section |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance
