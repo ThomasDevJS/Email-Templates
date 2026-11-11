@@ -14,8 +14,6 @@ export {
   onPreview,
   onPromptInsert,
   onRefresh,
-  onS6Apply,
-  onS6Card,
   onS7Card,
   onS7Compose,
   onS7Notify,

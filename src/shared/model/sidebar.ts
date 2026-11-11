@@ -1,4 +1,5 @@
 import type { AccessLevel } from "../permissions/levels";
+import type { AppliedRecipients } from "./recipients";
 
 /**
  * Payloads of the sidebar ops (spec section 4.1). Server handlers build them; the add-on caches `SidebarHome` in
@@ -25,6 +26,11 @@ export interface SidebarTemplate {
   /** Normalized prompt labels; `n fields to fill` on the home and folder cards. */
   readonly prompts: readonly string[];
   readonly level: AccessLevel;
+  /**
+   * Counts of the To, Cc and Bcc addresses Insert may add (spec 5.7, `deny` applied), never the addresses. Absent
+   * when there are none, and in views cached before slice 9.
+   */
+  readonly rc?: readonly [number, number, number];
 }
 
 export interface SidebarHome {
@@ -47,7 +53,8 @@ export interface Sender {
   readonly department: string;
 }
 
-export interface ApplyResult {
+/** Recipients (spec 5.7) travel on every call, outside the `knownVersion` rule; the add-on never caches them. */
+export interface ApplyResult extends AppliedRecipients {
   readonly id: string;
   readonly title: string;
   readonly version: number;

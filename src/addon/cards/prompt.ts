@@ -1,6 +1,13 @@
 import { subjectPreview } from "../../shared/placeholders/preview";
 import type { PromptField } from "../../shared/placeholders/render";
 import { inputName } from "../prompts";
+import { recipientCount } from "../../shared/model/recipients";
+import {
+  RECIPIENT_SWITCH,
+  addsLine,
+  recipientWidgets,
+  type RecipientPlan,
+} from "./recipients";
 import {
   SKIP_SUBJECT,
   SUBJECT_SWITCH,
@@ -22,6 +29,14 @@ export interface PromptState {
   readonly subject: string;
   /** State of the "Replace the subject" switch, on by default (wireframe 02). */
   readonly replaceSubject: boolean;
+  /** `rh` of the lists the card was built from (spec 5.7); "" for "Insert body only" (no recipients). */
+  readonly rh: string;
+  /** What Insert does with the recipients, null for "Insert body only" (no switch, no lines). */
+  readonly recipients: RecipientPlan | null;
+  /** The caller's domain, for the "outside" marker. */
+  readonly domain: string;
+  /** State of the "Add recipients" switch, on by default (wireframe 02). */
+  readonly addRecipients: boolean;
   readonly values: Readonly<Record<string, string>>;
   readonly fields: readonly PromptField[];
   readonly entered: readonly string[];
@@ -56,12 +71,34 @@ function subjectSwitch(state: PromptState): Widget[] {
   ];
 }
 
+/**
+ * Wireframe 02: "Add recipients" with "Adds n recipients." below, only when Insert would add one, then the same
+ * recipient lines as the preview card (`recipientWidgets`).
+ */
+function recipientSection(state: PromptState): Widget[] {
+  const plan = state.recipients;
+  if (plan === null) return [];
+  const toggle: Widget[] =
+    recipientCount(plan.added) === 0
+      ? []
+      : [
+          {
+            kind: "item",
+            text: "Add recipients",
+            bottomLabel: addsLine(plan),
+            toggle: { name: RECIPIENT_SWITCH, selected: state.addRecipients },
+          },
+        ];
+  return [...toggle, ...recipientWidgets(plan, state.domain)];
+}
+
 export function promptCard(state: PromptState): CardSpec {
   const problem: Widget[] =
     state.problem === ""
       ? []
       : [{ kind: "text", text: `(!) ${state.problem}` }];
   const skip = state.subject === "" ? { subject: SKIP_SUBJECT } : {};
+  const rh = state.rh === "" ? {} : { rh: state.rh };
   return {
     name: `prompt-${state.id}`,
     title: state.title,
@@ -71,6 +108,7 @@ export function promptCard(state: PromptState): CardSpec {
           { kind: "text", text: "Fill these fields to insert" },
           ...state.order.flatMap((index) => input(state, index)),
           ...subjectSwitch(state),
+          ...recipientSection(state),
           ...problem,
         ],
       },
@@ -86,6 +124,7 @@ export function promptCard(state: PromptState): CardSpec {
           version: String(state.version),
           values: JSON.stringify(state.values),
           ...skip,
+          ...rh,
         }),
       },
       secondary: { text: "Cancel", action: action("onBack") },

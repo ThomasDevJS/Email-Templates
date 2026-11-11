@@ -109,11 +109,11 @@
 - The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
-## Slice 9 task 1 (spike S6 harness, 2026-11-10)
-- TEMPORARY: src/addon/spikeS6.ts (pure builders, flows gated on env `dev`), `onS6Card`/`onS6Apply`, Reply kind `s6`, `s6Response` in render.ts, home `s6Sections`. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-09-s6.md.
-- `UpdateDraftActionResponse` cannot update the card or notify; harness results go into the draft body.
-- Env-gated card tests: `vi.hoisted` mutable `BUILD_INFO` mock in its own file. Adding to `CALLBACKS` auto-covers the guard test.
-
+## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
+- shared/model/recipients.ts: `validateRecipients`, `importRecipients`, `splitBlocked`, `recipientsOf` (absent = []), `RECIPIENTS_EXTERNAL_KEY`. `to/cc/bcc` OPTIONAL on Item/BodyFile so src/web builds unchanged.
+- `prepareBody(raw, opts, subject, {lists, policy})`; server `prepareFor(props, html, subject, lists)`, `recipientPolicy(props)` (body.ts). `template.update` keeps lists left out of args (`keptStringArray`).
+- Add-on: cards/recipients.ts (`recipientPlan`, `recipientActions` = draft list + new, REPLACE), `draftRecipients` (event.ts), `Ports.hash` (`rh`), Review rows (`rowButton`), prompt card `rcpt` switch; prompt card `rh` absent = body only.
+- Retry 1: draft lists are known or unknown (`DraftRecipients`, null); an unknown field never gets a replace action. `recipientWidgets` is the single source of recipient lines on both cards. Version-file lists: `isStoredList`, `unreadableRecipients`.
 ## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
 - Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry` set in `ports(event)`; `templateItem(t, entry, below)`, `folderCard(..., entry)`, `homeCard(view, entry)`, `searchCard(..., entry)`, `previewCard(..., entry)`; `TOOLBAR_HINT` (home.ts); `onMessageOpen` + manifest `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
 - TEMPORARY: src/addon/spikeS7.ts, `onS7Card/Compose/Notify`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-10-s7.md.

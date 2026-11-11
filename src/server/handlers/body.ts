@@ -1,9 +1,17 @@
 import { prepareBody, type PreparedBody } from "../../shared/body/prepare";
 import { CACHE_TTL_S, CHUNK_BYTES } from "../../shared/cache/chunked";
 import type { Item } from "../../shared/model/data";
+import {
+  NO_RECIPIENTS,
+  RECIPIENTS_EXTERNAL_KEY,
+  externalRule,
+  type RecipientPolicy,
+  type Recipients,
+} from "../../shared/model/recipients";
 import { scanBody } from "../../shared/placeholders/validate";
 import { sanitize } from "../../shared/sanitize/sanitize";
 import { utf8Length } from "../../shared/text";
+import { DOMAIN_KEY } from "../guards";
 import type { PropertyStore, Services } from "../services";
 
 /**
@@ -89,16 +97,28 @@ export function imgHosts(props: PropertyStore): string[] {
     .filter((host) => host !== "");
 }
 
+/** `DOMAIN` and `RECIPIENTS_EXTERNAL` from the request's property snapshot (no extra Properties call). */
+export function recipientPolicy(props: PropertyStore): RecipientPolicy {
+  return {
+    domain: (props.getProperty(DOMAIN_KEY) ?? "").trim().toLowerCase(),
+    external: externalRule(props.getProperty(RECIPIENTS_EXTERNAL_KEY)),
+  };
+}
+
 /**
- * Sanitize and validate a body and subject with this deployment's image host list. Throws VALIDATION with
- * `details.problems`.
+ * Sanitize and validate a body, subject and recipients with this deployment's image host list and recipient
+ * switch. Throws VALIDATION with `details.problems`.
  */
 export function prepareFor(
   props: PropertyStore,
   html: string,
   subject: string,
+  recipients: Recipients = NO_RECIPIENTS,
 ): PreparedBody {
-  return prepareBody(html, { imgHosts: imgHosts(props) }, subject);
+  return prepareBody(html, { imgHosts: imgHosts(props) }, subject, {
+    lists: recipients,
+    policy: recipientPolicy(props),
+  });
 }
 
 /**

@@ -9,7 +9,8 @@ import type { ExportFolder, Parsed } from "./format";
  * Templates go to their mapped folder (the target when the file names none); a template whose title is already in
  * that folder is skipped. Nothing here writes; the handler runs it before the lock (Validate) and inside it (Import).
  */
-export type Outcome = "created" | "skipped" | "failed";
+/** `imported`: placed with a change the report names (dropped recipient addresses, spec 5.7). */
+export type Outcome = "created" | "imported" | "skipped" | "failed";
 
 export interface ReportLine {
   readonly kind: "folder" | "template";

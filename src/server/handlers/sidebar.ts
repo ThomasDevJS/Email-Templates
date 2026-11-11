@@ -1,5 +1,10 @@
 import type { Folder, IndexDoc, Item } from "../../shared/model/data";
 import {
+  recipientsOf,
+  splitBlocked,
+  type RecipientPolicy,
+} from "../../shared/model/recipients";
+import {
   SIDEBAR_SNIPPET_CHARS,
   type ApplyResult,
   type Sender,
@@ -21,9 +26,10 @@ import type { HandlerContext } from "../dispatch/context";
 import { lookupProfile } from "../directory/profile";
 import { DOMAIN_KEY } from "../guards";
 import { nowIso } from "../services";
-import { readStoredBody, readableBody } from "./body";
+import { readStoredBody, readableBody, recipientPolicy } from "./body";
 import { callerLists, callerRecent } from "./favorites";
 import { liveItem } from "./indexOps";
+import { appliedRecipients } from "./templates";
 
 /** Wireframe 01: Favorites max 10, Recent max 5; spec 4.4: search top 20. */
 export const FAVORITES_SHOWN = 10;
@@ -63,7 +69,19 @@ function visibleFolders(
   return visible;
 }
 
-function toTemplate(item: Item, levelOf: LevelOf): SidebarTemplate {
+/** Row hint counts (spec 5.7): only for templates Insert may add an address with. */
+function countsOf(item: Item, policy: RecipientPolicy) {
+  const { to, cc, bcc } = splitBlocked(recipientsOf(item), policy);
+  return to.length + cc.length + bcc.length === 0
+    ? {}
+    : { rc: [to.length, cc.length, bcc.length] as const };
+}
+
+function toTemplate(
+  item: Item,
+  levelOf: LevelOf,
+  policy: RecipientPolicy,
+): SidebarTemplate {
   return {
     id: item.id,
     folderId: item.folderId,
@@ -73,6 +91,7 @@ function toTemplate(item: Item, levelOf: LevelOf): SidebarTemplate {
     version: item.currentVersion,
     prompts: item.prompts,
     level: levelOf(item.folderId),
+    ...countsOf(item, policy),
   };
 }
 
@@ -114,12 +133,14 @@ function visibleTemplates(context: HandlerContext) {
   const templates = index.items
     .filter((item) => item.deletedAt === "" && visible.has(item.folderId))
     .sort((a, b) => a.title.localeCompare(b.title));
-  return { visible, parentOf, templates, levelOf };
+  const policy = recipientPolicy(context.services.props);
+  const listed = (item: Item) => toTemplate(item, levelOf, policy);
+  return { visible, parentOf, templates, listed };
 }
 
 export function sidebarHome(context: HandlerContext): SidebarHome {
-  const { visible, parentOf, levelOf, ...found } = visibleTemplates(context);
-  const templates = found.templates.map((item) => toTemplate(item, levelOf));
+  const { visible, parentOf, listed, ...found } = visibleTemplates(context);
+  const templates = found.templates.map(listed);
   const counts = subtreeCounts(templates, parentOf);
   const folders: SidebarFolder[] = [...visible.values()]
     .map(({ folder, own }) => ({ ...folder, own }))
@@ -168,7 +189,7 @@ export function search(context: HandlerContext): {
 } {
   const query = parseQuery(optString(context.args, "query"));
   if (isEmptyQuery(query)) return { results: [] };
-  const { visible, parentOf, templates, levelOf } = visibleTemplates(context);
+  const { visible, parentOf, templates, listed } = visibleTemplates(context);
   const recent = callerRecent(
     context.services,
     context.caller.email,
@@ -187,9 +208,7 @@ export function search(context: HandlerContext): {
     recent,
   );
   return {
-    results: ranked
-      .slice(0, SEARCH_RESULTS)
-      .map((item) => toTemplate(item, levelOf)),
+    results: ranked.slice(0, SEARCH_RESULTS).map(listed),
   };
 }
 
@@ -245,6 +264,7 @@ export function templateApply(context: HandlerContext): ApplyResult {
     subject: fresh ? item.subject : null,
     sender: senderOf(context),
     recipientFirstName: followUp ? "" : recipientFirstName(context),
+    ...appliedRecipients(context, item),
   };
   if (!followUp)
     bufferEvent(context.services.cache, context.services.lock, {

@@ -4,6 +4,7 @@ import type {
   SidebarTemplate,
 } from "../../shared/model/sidebar";
 import type { Entry } from "../event";
+import { rowHint } from "./recipients";
 import {
   action,
   type ButtonSpec,
@@ -27,6 +28,22 @@ export function insertButton(template: SidebarTemplate): ButtonSpec {
   };
 }
 
+/**
+ * Row button (spec 5.7): a template with recipients never inserts in one click. "Review" opens the preview card,
+ * or the prompt card (through Insert) when the template has prompts; either card lists every address.
+ */
+export function rowButton(template: SidebarTemplate): ButtonSpec {
+  if (rowHint(template.rc) === "") return insertButton(template);
+  return {
+    text: "Review",
+    alt: `Review ${template.title}`,
+    action:
+      template.prompts.length > 0
+        ? action("onInsert", { id: template.id })
+        : action("onPreview", { id: template.id }),
+  };
+}
+
 export function folderItem(folder: SidebarFolder): Widget {
   return {
     kind: "item",
@@ -36,8 +53,9 @@ export function folderItem(folder: SidebarFolder): Widget {
 }
 
 /**
- * Title, "n fields to fill", a line below (the snippet in folders, the folder path elsewhere), and Insert in the
- * compose toolbar only: from the side panel a draft response does nothing (ADR-0007, interim fix of spec 13.7).
+ * Title, "n fields to fill", a line below (the recipient hint "Adds Cc 1" when the template has recipients, else the
+ * snippet in folders and the folder path elsewhere), and Insert or Review in the compose toolbar only: from the side
+ * panel a draft response does nothing (ADR-0007, interim fix of spec 13.7).
  */
 export function templateItem(
   template: SidebarTemplate,
@@ -45,13 +63,14 @@ export function templateItem(
   below = template.snippet,
 ): Widget {
   const prompts = template.prompts.length;
+  const bottom = rowHint(template.rc) || below;
   return {
     kind: "item",
     text: template.title,
     ...(prompts > 0 ? { topLabel: fieldsLabel(prompts) } : {}),
-    ...(below === "" ? {} : { bottomLabel: below }),
+    ...(bottom === "" ? {} : { bottomLabel: bottom }),
     onClick: action("onPreview", { id: template.id }),
-    ...(entry === "compose" ? { button: insertButton(template) } : {}),
+    ...(entry === "compose" ? { button: rowButton(template) } : {}),
   };
 }
 

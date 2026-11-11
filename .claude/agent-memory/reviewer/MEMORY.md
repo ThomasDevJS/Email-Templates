@@ -104,6 +104,10 @@
 - Slice 8d web minors (2026-11-11): PASS (0cc49c8). 60 files, 1350 tests, lines 96.55, index.html 355.1 KB, Lighthouse 100x12, 10 scopes. Web only.
   - setInert (dialog.ts) on every body child but backdrop and #toasts; 13 dialogs probed. Stacked label `attr() / ""`, AX keeps 6 columnheaders. Focus ring offset -2 px on active item in 4 lists.
   - Minors: backdrop press drops focus to BODY (no preventDefault, base too); Back/Forward leaves dialog open over new route (base too); trash.ts:128 "All 1 templates".
+- Slice 9 recipients (2026-11-10): FAIL (441ab04), retry 1 PASS (08955ca, 1414 tests, Code.js 346.6 KB). Retry: DraftRecipients null per field = no action, unknown To = filled, "Add by hand" line; prompt card uses recipientWidgets; FINISH_TYPING line; isStoredList + recipientsUnreadable on restore. Open: card-unknown/tap-known adds silently (rh lacks field state); spec 5.7/7.1 errata. First review: 60 files, 1391 tests, lines 96.58 (addon 100, server 99.31), Code.js 345.5 KB, index.html 340.6 KB unchanged, 10 scopes, Lighthouse 100x11.
+  - Must fix: draftRecipients (addon/event.ts) reads missing/non-array/mixed list as [], and REPLACE actions then wipe the draft field (tests assert it). Prompt card switchLabel lacks Bcc marker, Not added, blocked. No "finish typing" line on cards.
+  - Accepted: rh over to/cc/bcc/blocked, no rh -> preview card, forged rh -> card; update omission keeps lists, deny then refuses; apply/getBody blocked split; audit admin only; validator rejects injection probes.
+  - Code: shared/model/recipients.ts (validateRecipients, importRecipients, splitBlocked), addon/cards/recipients.ts (recipientPlan, recipientActions, rowHint), flows.ts needsReview. Minor: version files have no shape check.
 
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
@@ -135,3 +139,4 @@
 - Run new test files against the base copy to prove fixes fail on old code (copy test file into git-archive base, npx vitest run).
 - Overlay panels: Tab past the last item and check where focus lands; check outside click.
 - Entry gating by event fields: verify the field exists on action (click) events too, from live logs, before trusting the classifier.
+- Replace-type writes (Gmail recipient actions): probe missing, non-array and mixed input; "unknown" must never read as "empty".

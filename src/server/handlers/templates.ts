@@ -1,10 +1,19 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { BodyFile, IndexDoc, Item } from "../../shared/model/data";
+import {
+  NO_RECIPIENTS,
+  recipientsOf,
+  splitBlocked,
+  type AppliedRecipients,
+  type RecipientField,
+  type Recipients,
+} from "../../shared/model/recipients";
 import { TITLE_MAX, tagList, templateTitle } from "../../shared/model/validate";
 import { atLeast, type AccessLevel } from "../../shared/permissions/levels";
 import type { PreparedBody } from "../../shared/body/prepare";
 import { auditEvent, type EventSource } from "../audit/events";
 import {
+  keptStringArray,
   optBool,
   optString,
   optStringArray,
@@ -21,6 +30,7 @@ import {
   prepareFor,
   readStoredBody,
   readableBody,
+  recipientPolicy,
 } from "./body";
 import { callerLists, callerRecent, type CallerLists } from "./favorites";
 import { commit } from "./commit";
@@ -157,14 +167,17 @@ export function searchBody(context: HandlerContext): {
   return { ids: found.map((item) => item.id), skipped };
 }
 
-/** Item (with its subject) and body for the editor. The body is sanitized again on read, like `template.getBody`. */
+/**
+ * Item (with its subject and recipients, `[]` when stored before slice 9) and body for the editor. The body is
+ * sanitized again on read, like `template.getBody`.
+ */
 export function templateGet(context: HandlerContext): {
   item: Item;
   html: string;
 } {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   return {
-    item,
+    item: { ...item, ...recipientsOf(item) },
     html: readableBody(
       context.services.props,
       readStoredBody(context.services, item),
@@ -173,10 +186,21 @@ export function templateGet(context: HandlerContext): {
   };
 }
 
+/** Recipients as apply and preview see them (spec 5.7): with `deny`, outside addresses move to `blocked`. */
+export function appliedRecipients(
+  context: HandlerContext,
+  item: Item,
+): AppliedRecipients {
+  return splitBlocked(
+    recipientsOf(item),
+    recipientPolicy(context.services.props),
+  );
+}
+
 /**
  * Current body and subject for apply and preview (level use): sanitized HTML, the subject, placeholder names and
- * prompt labels over both. The stored body is already sanitized; sanitizing again on read costs one parse and
- * covers bodies stored before slice 3.
+ * prompt labels over both, and the recipients under the current switch. The stored body is already sanitized;
+ * sanitizing again on read costs one parse and covers bodies stored before slice 3.
  */
 export function templateGetBody(context: HandlerContext): {
   id: string;
@@ -185,12 +209,13 @@ export function templateGetBody(context: HandlerContext): {
   html: string;
   placeholders: string[];
   prompts: string[];
-} {
+} & AppliedRecipients {
   const item = liveItem(context.access().index, reqString(context.args, "id"));
   return {
     id: item.id,
     version: item.currentVersion,
     subject: item.subject,
+    ...appliedRecipients(context, item),
     ...readableBody(
       context.services.props,
       readStoredBody(context.services, item),
@@ -205,14 +230,28 @@ interface Draft {
   readonly body: PreparedBody;
 }
 
-/** Save step 1 (ADR-0004): title and tags, then sanitize, placeholder and subject validation, all before the lock. */
-function readDraft(context: HandlerContext): Draft {
+/** `to`, `cc`, `bcc` args; a field left out keeps `stored` (the editor before slice 8b sends none). */
+function recipientArgs(
+  context: HandlerContext,
+  stored: Recipients,
+): Recipients {
+  const read = (field: RecipientField) =>
+    keptStringArray(context.args, field) ?? stored[field];
+  return { to: read("to"), cc: read("cc"), bcc: read("bcc") };
+}
+
+/**
+ * Save step 1 (ADR-0004): title and tags, then sanitize, placeholder, subject and recipient validation, all before
+ * the lock. `stored`: the recipients an update keeps for fields it leaves out.
+ */
+function readDraft(context: HandlerContext, stored = NO_RECIPIENTS): Draft {
   const title = templateTitle(reqString(context.args, "title"));
   const tags = tagList(optStringArray(context.args, "tags"));
   const body = prepareFor(
     context.services.props,
     optString(context.args, "html"),
     optString(context.args, "subject"),
+    recipientArgs(context, stored),
   );
   return { title, tags, body };
 }
@@ -230,6 +269,7 @@ export function writeBody(
     itemId,
     version,
     subject: prepared.subject,
+    ...prepared.recipients,
     html: prepared.html,
     plainText: prepared.plainText,
     savedAt: nowIso(context.services),
@@ -244,13 +284,14 @@ export function writeBody(
   return { version, fileId, sha256 };
 }
 
-/** Item fields that follow the body version (spec 5.3), the subject included. */
+/** Item fields that follow the body version (spec 5.3), the subject and recipients included. */
 export function bodyFields(prepared: PreparedBody, body: BodyRef) {
   return {
     currentVersion: body.version,
     version: body.version,
     bodyFileId: body.fileId,
     subject: prepared.subject,
+    ...prepared.recipients,
     snippet: prepared.snippet,
     placeholders: prepared.placeholders,
     prompts: prepared.prompts,
@@ -283,7 +324,12 @@ export function templateDuplicate(context: HandlerContext): Item {
   const draft: Draft = {
     title: copyTitle(source.title),
     tags: [...source.tags],
-    body: prepareFor(context.services.props, stored, source.subject),
+    body: prepareFor(
+      context.services.props,
+      stored,
+      source.subject,
+      recipientsOf(source),
+    ),
   };
   return addTemplate(context, folderId, draft, "template.duplicate");
 }
@@ -330,9 +376,9 @@ function addTemplate(
 export function templateUpdate(context: HandlerContext): Item {
   const id = reqString(context.args, "id");
   const baseVersion = reqInt(context.args, "baseVersion");
-  const draft = readDraft(context);
   const known = liveItem(context.access().index, id);
   checkBaseVersion(known, baseVersion);
+  const draft = readDraft(context, recipientsOf(known));
   const moveTo = optString(context.args, "folderId");
   const body = writeBody(context, id, baseVersion + 1, draft.body);
   const source = eventSource(context, moveTo || known.folderId);

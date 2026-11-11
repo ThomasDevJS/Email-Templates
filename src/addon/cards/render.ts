@@ -1,5 +1,5 @@
 import { escapeText } from "../../shared/html/escape";
-import type { S6Draft } from "../spikeS6";
+import type { RecipientActions } from "./recipients";
 import {
   SWITCH_ON,
   type ActionSpec,
@@ -129,8 +129,15 @@ function navigate(
     .build();
 }
 
-/** Body and, when present, subject in one response (spec 4.1 step 4; spike S5 checks Gmail accepts both). */
-function insertResponse(html: string, subject: string | null): DraftResponse {
+/**
+ * Body, the subject when present, and one action per recipient field in one response (spec 4.1 step 4; spikes S5
+ * and S6 showed Gmail applies all 5). Each recipient action replaces its field. Never `setSendStatus`.
+ */
+function insertResponse(
+  html: string,
+  subject: string | null,
+  recipients: RecipientActions,
+): DraftResponse {
   const body = CardService.newUpdateDraftBodyAction()
     .addUpdateContent(html, CardService.ContentType.MUTABLE_HTML)
     .setUpdateType(CardService.UpdateDraftBodyType.IN_PLACE_INSERT);
@@ -142,38 +149,22 @@ function insertResponse(html: string, subject: string | null): DraftResponse {
     response.setUpdateDraftSubjectAction(
       CardService.newUpdateDraftSubjectAction().addUpdateSubject(subject),
     );
-  return response.build();
-}
-
-/** TEMPORARY (spike S6): one action per non-null part of `draft`; never `setSendStatus`. */
-function s6Response(draft: S6Draft): DraftResponse {
-  const response = CardService.newUpdateDraftActionResponseBuilder();
-  if (draft.body !== null)
-    response.setUpdateDraftBodyAction(
-      CardService.newUpdateDraftBodyAction()
-        .addUpdateContent(draft.body, CardService.ContentType.MUTABLE_HTML)
-        .setUpdateType(CardService.UpdateDraftBodyType.IN_PLACE_INSERT),
-    );
-  if (draft.subject !== null)
-    response.setUpdateDraftSubjectAction(
-      CardService.newUpdateDraftSubjectAction().addUpdateSubject(draft.subject),
-    );
-  if (draft.to !== null)
+  if (recipients.to !== undefined)
     response.setUpdateDraftToRecipientsAction(
       CardService.newUpdateDraftToRecipientsAction().addUpdateToRecipients([
-        ...draft.to,
+        ...recipients.to,
       ]),
     );
-  if (draft.cc !== null)
+  if (recipients.cc !== undefined)
     response.setUpdateDraftCcRecipientsAction(
       CardService.newUpdateDraftCcRecipientsAction().addUpdateCcRecipients([
-        ...draft.cc,
+        ...recipients.cc,
       ]),
     );
-  if (draft.bcc !== null)
+  if (recipients.bcc !== undefined)
     response.setUpdateDraftBccRecipientsAction(
       CardService.newUpdateDraftBccRecipientsAction().addUpdateBccRecipients([
-        ...draft.bcc,
+        ...recipients.bcc,
       ]),
     );
   return response.build();
@@ -207,17 +198,7 @@ export function renderReply(
         )
         .build();
     case "insert":
-      return insertResponse(reply.html, reply.subject);
-    case "s6":
-      // Spike only: a failed build must be visible on the tester's screen.
-      try {
-        return s6Response(reply.draft);
-      } catch (error) {
-        return renderReply({
-          kind: "notify",
-          text: `S6 build failed: ${error instanceof Error ? error.message : String(error)}`,
-        });
-      }
+      return insertResponse(reply.html, reply.subject, reply.recipients);
     case "s7":
       return CardService.newComposeActionResponseBuilder()
         .setGmailDraft(reply.draft)

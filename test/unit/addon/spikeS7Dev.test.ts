@@ -25,12 +25,9 @@ describe("home card spike S7 section", () => {
     build.env = "dev";
   });
 
-  it("is the last section of the dev side panel, after the S6 section", () => {
+  it("is the last section of the dev side panel", () => {
     for (const entry of ["inbox", "message"] as const)
-      expect(headers(entry).slice(-2)).toEqual([
-        "Spike S6 (temporary)",
-        "Spike S7 (temporary)",
-      ]);
+      expect(headers(entry).at(-1)).toBe("Spike S7 (temporary)");
   });
 
   it("is absent from the compose toolbar and from a prod build", () => {

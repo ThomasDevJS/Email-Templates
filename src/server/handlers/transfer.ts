@@ -1,6 +1,11 @@
 import type { PreparedBody } from "../../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../../shared/errors/codes";
 import type { Folder, IndexDoc, Item } from "../../shared/model/data";
+import {
+  importRecipients,
+  recipientsOf,
+  type RecipientCode,
+} from "../../shared/model/recipients";
 import { tagList, templateTitle } from "../../shared/model/validate";
 import { inPrivateTree } from "../../shared/permissions/effective";
 import { controlIndex, oneLine } from "../../shared/placeholders/subject";
@@ -25,7 +30,7 @@ import {
   type MakeFolder,
   type ReportLine,
 } from "../transfer/plan";
-import { prepareFor, readStoredBody } from "./body";
+import { prepareFor, readStoredBody, recipientPolicy } from "./body";
 import { commit } from "./commit";
 import { newFolder } from "./folders";
 import { chainOf, folderPath, liveFolder } from "./indexOps";
@@ -111,6 +116,7 @@ function exportPage(
       title: item.title,
       subject: item.subject,
       tags: item.tags,
+      ...recipientsOf(item),
     },
     html: readStoredBody(context.services, item),
   }));
@@ -157,6 +163,8 @@ interface Ready {
   readonly title: string;
   readonly tags: string[];
   readonly body: PreparedBody;
+  /** Codes of the addresses the import dropped (spec 5.7). */
+  readonly dropped: readonly RecipientCode[];
 }
 
 type Prepared =
@@ -174,14 +182,23 @@ function reasonOf(error: unknown): string {
 }
 
 /**
- * Item rules of a save (spec 5.3) and the spec 5.6 import rule for the subject: control characters become one
- * space, then `prepareBody` sanitizes the body and rejects SUBJ_TOO_LONG and PH_* problems.
+ * Item rules of a save (spec 5.3), the spec 5.6 import rule for the subject (control characters become one space,
+ * then `prepareBody` rejects SUBJ_TOO_LONG and PH_* problems) and the spec 5.7 rule for recipients (bad addresses
+ * dropped; too many refuses the whole file).
  */
 function prepareItems(context: HandlerContext, file: ImportFile): Prepared[] {
+  const policy = recipientPolicy(context.services.props);
   return file.items.map((record): Prepared => {
     if (!record.ok)
       return { ok: false, label: record.label, reason: record.reason };
     const { meta, html } = record.value;
+    const { recipients, dropped, problems } = importRecipients(meta, policy);
+    const [tooMany] = problems;
+    if (tooMany !== undefined)
+      throw new AppError(
+        ErrorCode.VALIDATION,
+        `Nothing was imported: the template ${record.label}: ${tooMany.message}`,
+      );
     try {
       return {
         ok: true,
@@ -191,13 +208,38 @@ function prepareItems(context: HandlerContext, file: ImportFile): Prepared[] {
           fileFolderId: meta.folderId,
           title: templateTitle(meta.title),
           tags: tagList(meta.tags),
-          body: prepareFor(context.services.props, html, oneLine(meta.subject)),
+          body: prepareFor(
+            context.services.props,
+            html,
+            oneLine(meta.subject),
+            recipients,
+          ),
+          dropped,
         },
       };
     } catch (error: unknown) {
       return { ok: false, label: record.label, reason: reasonOf(error) };
     }
   });
+}
+
+const DROP_REASONS: Readonly<Record<RecipientCode, string>> = {
+  RCPT_FORMAT: "not an email address",
+  RCPT_TOO_LONG: "longer than 254 characters",
+  RCPT_TOO_MANY: "too many",
+  RCPT_DUPLICATE: "already in an earlier field",
+  RCPT_EXTERNAL: "outside the domain, turned off by the admin",
+};
+
+/** "2 addresses dropped: not an email address (1), already in an earlier field (1)". Counts, never an address. */
+function droppedText(codes: readonly RecipientCode[]): string {
+  const counts = new Map<RecipientCode, number>();
+  for (const code of codes) counts.set(code, (counts.get(code) ?? 0) + 1);
+  const parts = [...counts].map(
+    ([code, n]) => `${DROP_REASONS[code]} (${String(n)})`,
+  );
+  const s = codes.length === 1 ? "" : "es";
+  return `${String(codes.length)} address${s} dropped: ${parts.join(", ")}`;
 }
 
 interface Placement {
@@ -234,7 +276,11 @@ function place(
         "skipped",
         "A template with this title is already in this folder",
       );
-    else placed.push({ ready: entry.ready, folderId });
+    else {
+      placed.push({ ready: entry.ready, folderId });
+      if (entry.ready.dropped.length > 0)
+        line(entry.ready.label, "imported", droppedText(entry.ready.dropped));
+    }
   }
   return { folders, placed, lines };
 }
@@ -247,6 +293,8 @@ export interface ImportReport {
   readonly foldersCreated: number;
   readonly foldersReused: number;
   readonly subjectsFlattened: number;
+  /** Recipient addresses dropped over all placed templates (spec 5.7). */
+  readonly addressesDropped: number;
   readonly lines: readonly ReportLine[];
 }
 
@@ -265,6 +313,10 @@ function report(
     foldersCreated: placement.folders.created.length,
     foldersReused: placement.folders.reused,
     subjectsFlattened: flattened,
+    addressesDropped: placement.placed.reduce(
+      (sum, { ready }) => sum + ready.dropped.length,
+      0,
+    ),
     lines: placement.lines,
   };
 }

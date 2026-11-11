@@ -29,9 +29,6 @@ export const ENTRY_POINTS = {
   onBack: "addon",
   onOpenLink: "addon",
   onSearch: "addon",
-  // TEMPORARY (spike S6)
-  onS6Card: "addon",
-  onS6Apply: "addon",
   // TEMPORARY (spike S7)
   onS7Card: "addon",
   onS7Compose: "addon",

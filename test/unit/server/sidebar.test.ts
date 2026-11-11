@@ -181,6 +181,10 @@ describe("template.apply (spec 4.1 step 3)", () => {
           department: "Sales",
         },
         recipientFirstName: "Bob",
+        to: [],
+        cc: [],
+        bcc: [],
+        blocked: [],
       });
     },
   );

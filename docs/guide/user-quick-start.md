@@ -35,6 +35,10 @@ Some fields fill themselves from the Migway directory: your name, title, phone, 
 - Forwards should keep their subject too. Not yet verified in Gmail.
 - On the fill-in panel, the switch "Replace the subject" decides. It starts on for an empty subject box, off otherwise.
 
+## Templates that add recipients
+
+Some templates add fixed addresses to To, Cc or Bcc, for example safety in Cc. Their row says "Adds Cc 1" and has "Review" in place of "Insert". Review opens a card that lists every address: "outside migway.com" marks an address outside the company, "hidden from other recipients" marks Bcc. Insert adds them and never removes an address already in the draft. An address already there is listed as "Not added". In a reply, or when you typed a To address, the template's To is not added ("The draft already has a To recipient."); type it yourself if you need it. "Insert body only" adds neither the subject nor any address. On the fill-in panel, the switch "Add recipients" decides. Finish typing addresses before you insert: an address that is not yet a chip in the draft can be lost.
+
 ## Search, Favorites and Recent
 
 - Type in "Search templates", then click outside the box. Clear the box to get the home panel back.

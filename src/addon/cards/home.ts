@@ -1,7 +1,6 @@
 import { BUILD_INFO } from "../../shared/buildInfo";
 import type { SidebarHome, SidebarTemplate } from "../../shared/model/sidebar";
 import type { Entry } from "../event";
-import { s6Sections } from "../spikeS6";
 import { s7Sections } from "../spikeS7";
 import { folderItem, folderPath, templateItem } from "./folder";
 import {
@@ -126,8 +125,7 @@ export function homeCard(view: SidebarHome, entry: Entry): CardSpec {
     sections: [
       ...homeSections(view, entry),
       ...hintSections(entry),
-      // TEMPORARY (spikes S6 and S7): dev build only.
-      ...s6Sections(BUILD_INFO.env),
+      // TEMPORARY (spike S7): dev build only.
       ...s7Sections(BUILD_INFO.env, entry),
     ],
   };

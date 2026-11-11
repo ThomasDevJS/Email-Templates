@@ -100,6 +100,10 @@ The placeholder menu lists 5 values and one question type.
 - Empty subject: inserting the template never touches the draft subject.
 - In Gmail the template subject fills an empty subject box only. A subject already in the draft is kept unless the user picks "Insert with subject". Details: [quick start](user-quick-start.md).
 
+## Recipients (To, Cc, Bcc)
+
+A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no placeholders. Save refuses a bad address ("Cc, address 2 is not an email address."), an address in two fields, and, when the owner set Script Property `RECIPIENTS_EXTERNAL` to `deny`, any address outside migway.com. Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting. The editor fields arrive with the editor redesign; until then the owner sets recipients on request, and saving the template in the editor keeps them.
+
 ## Saving and the "This template changed" dialog
 
 1. Click "Save" or press Ctrl+S. The button reads "Saving..." and the status ends with "Saved as version N" and the time.

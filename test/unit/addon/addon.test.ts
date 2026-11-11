@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as addon from "../../../src/addon/entry";
 import { TOOLBAR_HINT } from "../../../src/addon/cards/home";
@@ -45,6 +46,13 @@ const HOME: SidebarHome = {
   favorites: [],
   recent: [],
 };
+
+const NO_LISTS = { to: [], cc: [], bcc: [], blocked: [] };
+// `rh` of four empty lists, as the prompt card carries it.
+const EMPTY_RH = createHash("sha256")
+  .update(JSON.stringify([[], [], [], []]))
+  .digest("hex")
+  .slice(0, 16);
 
 function ok(data: unknown): string {
   return JSON.stringify({
@@ -259,6 +267,7 @@ describe("add-on entry points", () => {
         subject: "Welcome {{recipient.first_name|aboard}}",
         sender: { name: "", title: "", phone: "", department: "" },
         recipientFirstName: "",
+        ...NO_LISTS,
       },
     });
     addon.onInsert({ commonEventObject: { parameters: { id: "T1" } } });
@@ -289,6 +298,7 @@ describe("add-on entry points", () => {
         version: 2,
         html: "<p>x</p>",
         subject: "",
+        ...NO_LISTS,
       },
     });
     addon.onBack();
@@ -309,6 +319,7 @@ describe("add-on entry points", () => {
         html: null,
         sender: { name: "", title: "", phone: "", department: "" },
         recipientFirstName: "",
+        ...NO_LISTS,
       },
     });
     cache.put(
@@ -316,7 +327,7 @@ describe("add-on entry points", () => {
       JSON.stringify({ version: 2, html: "<p>{{ask:X}}</p>", subject: "" }),
     );
     addon.onPromptInsert({
-      parameters: { id: "T1", version: "2", values: "{}" },
+      parameters: { id: "T1", version: "2", values: "{}", rh: EMPTY_RH },
       formInput: { "p-1": "filled" },
     });
     expect(calls.find((c) => c.method === "addUpdateContent")?.args[0]).toBe(

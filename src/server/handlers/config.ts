@@ -1,6 +1,7 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import { TRIGGER_JOBS, type TriggerJob } from "../../shared/entryPoints";
 import type { IndexDoc } from "../../shared/model/data";
+import type { ExternalRule } from "../../shared/model/recipients";
 import { utf8Length } from "../../shared/text";
 import { auditEvent } from "../audit/events";
 import { INDEX_REV_KEY, loadIndexForWrite } from "../cache/indexCache";
@@ -19,6 +20,7 @@ import {
   TRIGGERS_VERSION_KEY,
 } from "../jobs/triggers";
 import { WRITE_LOCK_MS, withLock } from "../lock";
+import { recipientPolicy } from "./body";
 import { ADMIN_GROUP_KEY, RESOLVER_KEY } from "../membership/snapshot";
 import { resolverId } from "../membership/resolver";
 import type { Services } from "../services";
@@ -84,6 +86,8 @@ export interface ConfigView {
   readonly adminGroup: string;
   readonly resolver: string;
   readonly callerIdentity: string;
+  /** `RECIPIENTS_EXTERNAL` (spec 5.7), `allow` when unset. */
+  readonly recipientsExternal: ExternalRule;
   readonly indexRev: string;
   readonly appVersion: string;
   readonly indexBytes: number;
@@ -102,6 +106,7 @@ export function configGet(context: HandlerContext): ConfigView {
     adminGroup: prop(ADMIN_GROUP_KEY),
     resolver: resolverId(services.props.getProperty(RESOLVER_KEY)),
     callerIdentity: prop(CALLER_IDENTITY_KEY) || "active_user",
+    recipientsExternal: recipientPolicy(services.props).external,
     indexRev: prop(INDEX_REV_KEY),
     appVersion: services.appVersion,
     indexBytes: utf8Length(JSON.stringify(index)),
