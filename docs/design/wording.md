@@ -353,3 +353,11 @@ New texts, spec 7.2. Paths are relative to `src/`.
 | `addon/panel.ts` | The email is in your Drafts, but Gmail could not open it. Open Drafts to find it. |
 | `addon/panel.ts` | This template was deleted or moved. Open the panel again to update the list. |
 | `addon/panel.ts` | Something went wrong. Try again. (alone: a side-panel action shows its failure as one sentence in Gmail's error bar, with no request ID or technical message) |
+
+## Gmail cards fix round (slice 20b)
+
+New texts. Paths are relative to `src/`.
+
+| Where | Text |
+|---|---|
+| `addon/cards/folder.ts` | Showing {shown} of {total} {favorites / recent templates / folders / results}. Use Search or Open library for the rest. (last line of a list cut to stay under Gmail's 100 widgets per card) |

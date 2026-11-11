@@ -1,6 +1,13 @@
 import type { SidebarHome, SidebarTemplate } from "../../shared/model/sidebar";
 import type { Entry } from "../event";
-import { folderItem, folderPath, listSection, templateItem } from "./folder";
+import {
+  LIST_MAX,
+  capped,
+  folderItem,
+  folderPath,
+  listSection,
+  templateItem,
+} from "./folder";
 import { sidePanelHint } from "./sidePanel";
 import {
   LIBRARY_FOOTER,
@@ -87,13 +94,24 @@ function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
     searchSection(""),
     ...listSection(
       "Favorites",
-      byIds(view, view.favorites).map(listed(view, entry, "star")),
+      capped(
+        byIds(view, view.favorites).map(listed(view, entry, "star")),
+        LIST_MAX.favorites,
+        "favorites",
+      ),
     ),
     ...listSection(
       "Recent",
-      byIds(view, recent).map(listed(view, entry, "schedule")),
+      capped(
+        byIds(view, recent).map(listed(view, entry, "schedule")),
+        LIST_MAX.recent,
+        "recent templates",
+      ),
     ),
-    ...listSection("Folders", view.folders.map(folderItem)),
+    ...listSection(
+      "Folders",
+      capped(view.folders.map(folderItem), LIST_MAX.folders, "folders"),
+    ),
   ];
 }
 
@@ -131,7 +149,11 @@ export function searchCard(
       ? { widgets: [{ kind: "text", text: noMatchText(query) }] }
       : {
           header: "Results",
-          widgets: results.flatMap(listed(view, entry, "description")),
+          widgets: capped(
+            results.map(listed(view, entry, "description")),
+            LIST_MAX.results,
+            "results",
+          ).flat(),
         };
   return {
     name: HOME_CARD,
