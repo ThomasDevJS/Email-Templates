@@ -88,3 +88,76 @@ See must-fix 1.
 - Real latency on dev: the bar time (part M step 6), and how the block feels on 1 to 3 s saves.
 - Touch on a phone, IME composition (CJK input) during a block, and paste from the context menu on macOS.
 - Two windows with one account, part M step 4.
+
+# Re-review: retry 1
+
+Verdict: FAIL. 1 must-fix, 1 new minor. Both first-round must-fix items are closed. The wider typing rule opens two editor shortcuts during a call.
+
+Retry diff `815a0cb..78172c8` (555a156 code, 78172c8 handoff). Reviewed 2026-11-11.
+
+## Commands (worktree 78172c8, after `rm -rf node_modules`)
+
+| Command | Result |
+|---|---|
+| `npm ci`, `npm run lint`, `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 72 files, 2006 tests passed; lines 98.09 |
+| `npm run build -- --env dev` | Code.js 373.5 KB of 800 KB, index.html 383.6 KB of 400 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 16 of 16 runs at 100 |
+
+No change in `src/server`, `src/addon` or `src/shared`. All 3 new tests fail on a copy of 815a0cb: app.test "keeps what is typed during a save...", busy.test "keeps blocking for a call that started late...", adminReports "starts no second restore from a toast's Retry...". Part M step 2 now matches the behavior: type, Backspace and paste during a save, then "Unsaved changes".
+
+## Must-fix
+
+1. During any call, Ctrl+K in the template text opens "Insert link", and typing `{{` opens the "Insert field" menu.
+   - Probe: `template.update` delayed 4 s, Ctrl+S, then each shortcut in the body.
+   - Cause: `src/web/ui/busy.ts:69` lets every `keydown` and `beforeinput` through in a contenteditable. The editor keymap (`src/web/editor/setup.ts:73`, `Mod-k`) and the input rule (`setup.ts:50-53`, `bracesRule` calls `onBraces`) then open a dialog and a menu during the call.
+   - Neither wrote anything in the probe; a link or field insert is a local edit. The rule set for this check counts any dialog opened during a call as a must-fix.
+   - Fix: let the editor ask the loader before it opens UI. Pass `busy.active()` (or `app.busy()`) to the editor; `link` and `onBraces` do nothing while it is true, and the typed `{{` stays as text. Or the guard drops `keydown` with Ctrl, Meta or Alt in text fields except Z, Y, X, C, V and A, and the editor checks the flag for `{{`. Add a test for each shortcut.
+
+## Item 1, typing during a save (3 s)
+
+- Type " AAA", Ctrl+S, type 6 characters in the text and 3 in the title. All 9 are kept. The page shows "Unsaved changes".
+- 1 `template.update` was sent, with the text at the moment of Ctrl+S ("... AAA") and the title then.
+- A second Ctrl+S, Backspace, Delete, Ctrl+Z and paste during the save: all work, and still 1 `template.update`. Ctrl+Z undoes the whole typing group, as ProseMirror does on base.
+- Recipient box: Enter and comma add chips during the save (local; the page stays dirty).
+
+## Item 2, text fields with a call in flight
+
+| Field | Keys | Result |
+|---|---|---|
+| Editor Title, Subject | Enter, Ctrl+Enter | nothing; no route change |
+| Editor Subject | `{{` | no menu |
+| Editor body | Ctrl+K, `{{` | dialog and menu open (must-fix 1) |
+| Editor Title | Tab, then Space | focus moves to the folder select; Space and ArrowDown on the select do nothing (value stays) |
+| Library search | Enter, Ctrl+Enter, ArrowDown plus Enter, Ctrl+S | no route change, no dialog; typing runs `search.body` (not tracked by design) |
+| Library search | Tab, then Space and Enter | focus on "New template"; nothing opens |
+| Admin "Give access" input during `grant.list` | Enter, Ctrl+Enter, Tab plus Space and Enter | 0 calls |
+| Admin "Add admin" input | Enter twice, 150 ms apart (`admin.add` delayed 3 s) | 1 `admin.add` |
+
+A file input is not a text field, so it stays blocked. Selects and buttons stay blocked.
+
+## Items 3 to 5
+
+- Restore: two failed restores, Retry on both toasts: 1 `version.restore` (`restoring`, `history.ts:173`).
+- Editor save: two failed saves, Retry on both toasts: 1 `template.update` (`saving`).
+- Per-call limits (vitest with fake timers on `createBusy`):
+
+| Case | Result |
+|---|---|
+| A never answers; B starts at 5 s, answers at 7 s | blocked at 7 s and 19.9 s; free at 20.1 s |
+| C never answers; D never answers, started 10 s later | blocked at 20.1 s and 29.9 s; free at 30.2 s |
+| A call answered after its own limit | the count stays balanced; the next call blocks and frees normally |
+| A rejection | frees at once |
+
+- The 13 ways through from the first review: clicks, Tab plus Enter, Space and Enter on buttons, `element.click()`, touch and right click all do nothing. Typing and paste in the search field now pass (the new rule; the search is not tracked).
+- The block always ends: answer, error, never answers (20 s), overlap and Back all checked.
+
+## Minors (new)
+
+- A. Tab moves focus out of a text field during a call. Nothing else happens, because the next control is blocked.
+
+## Only the owner can check
+
+- IME composition and macOS paste during a save; real save times on dev.
