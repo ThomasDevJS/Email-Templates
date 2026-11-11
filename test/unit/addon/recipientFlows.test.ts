@@ -19,6 +19,7 @@ import {
 import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
 import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import { FakeCache } from "../../fakes/cache";
+import { createRecordingGmail } from "../../fakes/gmail";
 import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 /** Template recipients in the add-on (spec 5.7, 7.4, wireframe 02): rows with `rc`, the details card, `rh`, actions. */
@@ -62,6 +63,7 @@ function ports(entry: Entry = "compose"): Ports {
     entry,
     hash: (text) =>
       createHash("sha256").update(text).digest("hex").slice(0, 16),
+    gmail: createRecordingGmail().gmail,
   };
 }
 
@@ -200,13 +202,21 @@ describe("list rows", () => {
     expect(JSON.stringify(rows)).not.toContain("Review");
   });
 
-  it("side panel rows show the hint and no button", () => {
-    create();
-    const row = widgets(folderCardOf("inbox")).find(
-      (w) => w.kind === "item" && w.text === "Driver leaving",
-    );
-    expect(row).toMatchObject({ bottomLabel: "Adds To 1, Cc 1, Bcc 1" });
-    expect(row).not.toHaveProperty("button");
+  it("side panel rows show the hint and carry rc on New email and Reply (slice 18 AC 1, 2)", () => {
+    const item = create();
+    for (const [entry, as] of [
+      ["inbox", "new"],
+      ["message", "reply"],
+    ] as const) {
+      const row = widgets(folderCardOf(entry)).find(
+        (w) => w.kind === "item" && w.text === "Driver leaving",
+      );
+      expect(row).toMatchObject({ bottomLabel: "Adds To 1, Cc 1, Bcc 1" });
+      expect(buttons(folderCardOf(entry))[0]?.action).toEqual({
+        fn: "onCompose",
+        params: { id: item.id, rc: "1,1,1", as },
+      });
+    }
   });
 });
 
@@ -390,20 +400,23 @@ describe("details card with recipients (spec 7.4 Flows B and C)", () => {
   });
 
   it.each(["inbox", "message"] as const)(
-    "side panel %s: getBody, the recipients, no Insert, no inputs, the hint last (AC 16)",
+    "side panel %s: one template.apply followUp, the inputs, every address as for a new email, the hint last (slice 18 AC 8)",
     (entry) => {
       const item = create("<p>{{ask:Driver}}</p>", "Leaving");
       const card = cardOf(
         previewFlow(ports(entry), undefined, { id: item.id }),
       );
-      expect(sent.map((s) => s.op)).toEqual([
-        "sidebar.home",
-        "template.getBody",
+      expect(sent).toEqual([
+        { op: "sidebar.home", args: {} },
+        {
+          op: "template.apply",
+          args: { id: item.id, knownVersion: 0, followUp: true },
+        },
       ]);
-      expect(texts(card)).toContain(CC);
-      expect(buttons(card)).toEqual([]);
-      expect(card).not.toHaveProperty("footer");
-      expect(widgets(card).filter((w) => w.kind === "input")).toEqual([]);
+      expect(texts(card)).toEqual(expect.arrayContaining([TO, CC, BCC]));
+      expect(texts(card)).not.toContain(FINISH_TYPING);
+      expect(widgets(card).filter((w) => w.kind === "input")).toHaveLength(1);
+      expect(card.footer?.primary.action.fn).toBe("onPromptCompose");
       expect(texts(card).at(-1)).toBe(TOOLBAR_HINT);
     },
   );

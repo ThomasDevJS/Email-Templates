@@ -217,16 +217,9 @@ export function renderReply(
         .build();
     case "insert":
       return insertResponse(reply.html, reply.subject, reply.recipients);
-    case "s7":
+    case "compose":
       return CardService.newComposeActionResponseBuilder()
         .setGmailDraft(reply.draft)
-        .build();
-    case "s7Error":
-      return CardService.newActionResponseBuilder()
-        .setNotification(CardService.newNotification().setText(reply.text))
-        .setNavigation(
-          CardService.newNavigation().pushCard(renderCard(reply.card)),
-        )
         .build();
   }
 }

@@ -10,7 +10,7 @@ import {
   recipientWidgets,
   type RecipientPlan,
 } from "./recipients";
-import { sidePanelHint } from "./sidePanel";
+import { composeButton, sidePanelHint, type ComposeAs } from "./sidePanel";
 import {
   SUBJECT_SWITCH,
   action,
@@ -25,6 +25,13 @@ export const EMPTY_TEMPLATE = "This template has no text.";
 export const FIELDS_LINE = "Fill in now, or leave blank and type in the draft.";
 export const FIRST_NAME_HINT =
   "Leave blank to use the To recipient's first name, when known.";
+/** Side panel, message open: the first name comes from the person the reply goes to (spec 7.2). */
+export const REPLY_FIRST_NAME_HINT =
+  "Leave blank to use the first name of the person you reply to, when known.";
+export const REPLY_TO_LINE =
+  "A reply goes to the sender, so the template's To is not added. New email adds it.";
+export const SIGNATURE_LINE =
+  'Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.';
 export const VERSION_CHANGED =
   "The template changed. Check the fields and press Insert again.";
 const FIRST_NAME_KEY = "{var}recipient.first_name";
@@ -41,7 +48,7 @@ export interface DetailsView {
   readonly domain: string;
 }
 
-/** The compose details card: the view plus the pre-fill state its Insert (`onPromptInsert`) carries. */
+/** A details card: the view plus the pre-fill state its buttons carry (`onPromptInsert`, `onPromptCompose`). */
 export interface DetailsState extends DetailsView {
   readonly version: number;
   /** Resolved variable values of the call that opened the card. */
@@ -62,7 +69,12 @@ export interface DetailsState extends DetailsView {
 
 const line = (text: string): Widget => ({ kind: "text", text });
 
-function fieldInput(state: DetailsState, index: number): Widget[] {
+/** `firstNameHint` goes under the recipient first name box; null for none. */
+function fieldInput(
+  state: DetailsState,
+  index: number,
+  firstNameHint: string | null,
+): Widget[] {
   const field = state.fields[index];
   if (field === undefined || index >= MAX_FIELDS) return [];
   return [
@@ -72,13 +84,18 @@ function fieldInput(state: DetailsState, index: number): Widget[] {
       title: field.label,
       value: state.entered[index] ?? "",
       multiline: true,
-      ...(field.key === FIRST_NAME_KEY ? { hint: FIRST_NAME_HINT } : {}),
+      ...(field.key === FIRST_NAME_KEY && firstNameHint !== null
+        ? { hint: firstNameHint }
+        : {}),
     },
   ];
 }
 
 /** Section "Fields", only when a field has no value: the line, at most 20 inputs, the more-than-20 line. */
-function fieldsSection(state: DetailsState): SectionSpec[] {
+function fieldsSection(
+  state: DetailsState,
+  firstNameHint: string | null,
+): SectionSpec[] {
   const count = state.fields.length;
   if (count === 0) return [];
   return [
@@ -86,7 +103,9 @@ function fieldsSection(state: DetailsState): SectionSpec[] {
       header: "Fields",
       widgets: [
         line(FIELDS_LINE),
-        ...state.order.flatMap((index) => fieldInput(state, index)),
+        ...state.order.flatMap((index) =>
+          fieldInput(state, index, firstNameHint),
+        ),
         ...(count > MAX_FIELDS ? [line(moreFieldsText(count))] : []),
       ],
     },
@@ -110,15 +129,20 @@ function subjectSection(state: DetailsState): SectionSpec[] {
   ];
 }
 
-/** Section "Recipients": "Add recipients" when Insert adds one, then the lines of `recipientWidgets`. */
+/**
+ * Section "Recipients": "Add recipients" when a press adds one, then the lines of `recipientWidgets` (finish-typing
+ * line only when `typing`), then `extra`.
+ */
 function recipientSection(
   view: DetailsView,
-  toggle: boolean | null,
+  toggle: boolean,
+  typing: boolean,
+  extra: readonly Widget[],
 ): SectionSpec[] {
   const { plan } = view;
   const adds = recipientCount(plan.added) > 0;
   const widgets: Widget[] = [
-    ...(toggle === null || !adds
+    ...(!adds
       ? []
       : [
           {
@@ -128,7 +152,8 @@ function recipientSection(
             toggle: { name: RECIPIENT_SWITCH, selected: toggle },
           } as const,
         ]),
-    ...recipientWidgets(plan, view.domain),
+    ...recipientWidgets(plan, view.domain, typing),
+    ...extra,
   ];
   return widgets.length === 0 ? [] : [{ header: "Recipients", widgets }];
 }
@@ -163,9 +188,9 @@ export function detailsCard(state: DetailsState): CardSpec {
       ...(state.problem === ""
         ? []
         : [{ widgets: [line(`(!) ${state.problem}`)] }]),
-      ...fieldsSection(state),
+      ...fieldsSection(state, FIRST_NAME_HINT),
       ...subjectSection(state),
-      ...recipientSection(state, state.addRecipients),
+      ...recipientSection(state, state.addRecipients, true, []),
       previewSection(state),
     ],
     footer: {
@@ -187,30 +212,64 @@ export function detailsCard(state: DetailsState): CardSpec {
 }
 
 /**
- * Details card in the side panel (until spike S7, ADR-0009 section 6): no fields, no switches, no Insert. The
- * subject, the recipient lines as for an empty draft, the text, "Edit in library", then the toolbar hint last.
+ * The panel card's actions in order (spec 7.2): message open "Reply", "Reply all", "New email", "Edit in library";
+ * none open "New email", "Edit in library". Each press calls `onPromptCompose` with the card's state.
  */
-export function panelDetailsCard(view: DetailsView, entry: Entry): CardSpec {
-  const edit = editButton(view.template);
+function panelActions(
+  state: DetailsState,
+  entry: PanelEntry,
+): [ButtonSpec, ...ButtonSpec[]] {
+  const { template } = state;
+  const params = {
+    id: template.id,
+    version: String(state.version),
+    values: JSON.stringify(state.values),
+    rh: state.rh,
+  };
+  const button = (as: ComposeAs, style: "filled" | "outlined") =>
+    composeButton(as, template.title, "onPromptCompose", params, style);
+  const others: readonly ComposeAs[] =
+    entry === "message" ? ["replyAll", "new"] : [];
+  const edit = editButton(template);
+  return [
+    button(entry === "message" ? "reply" : "new", "filled"),
+    ...others.map((as) => button(as, "outlined")),
+    ...(edit === null ? [] : [edit]),
+  ];
+}
+
+export type PanelEntry = Exclude<Entry, "compose">;
+
+/**
+ * Details card in the side panel (ADR-0007 A2, wireframe 02): Fields, Recipients without the finish-typing line,
+ * the signature line, the text, a button section, the hint last. The first two actions go in the fixed footer, the
+ * rest in the button section. Q74 fallback (a footer compose button fails in Gmail): put every action in the section.
+ */
+export function panelDetailsCard(
+  state: DetailsState,
+  entry: PanelEntry,
+): CardSpec {
+  const [primary, secondary, ...rest] = panelActions(state, entry);
+  const toLine =
+    entry === "message" && state.plan.added.to.length > 0
+      ? [line(REPLY_TO_LINE)]
+      : [];
   return {
-    name: `details-${view.template.id}`,
-    title: view.template.title,
+    name: `details-${state.template.id}`,
+    title: state.template.title,
     sections: [
-      ...(view.subject === ""
+      ...fieldsSection(
+        state,
+        entry === "message" ? REPLY_FIRST_NAME_HINT : null,
+      ),
+      ...recipientSection(state, state.addRecipients, false, toLine),
+      { widgets: [line(SIGNATURE_LINE)] },
+      previewSection(state),
+      ...(rest.length === 0
         ? []
-        : [
-            {
-              widgets: [
-                { kind: "item", topLabel: "Subject", text: view.subject },
-              ],
-            } as const,
-          ]),
-      ...recipientSection(view, null),
-      previewSection(view),
-      ...(edit === null
-        ? []
-        : [{ widgets: [{ kind: "buttons", buttons: [edit] } as const] }]),
+        : [{ widgets: [{ kind: "buttons", buttons: rest } as const] }]),
       ...sidePanelHint(entry),
     ],
+    footer: { primary, ...(secondary === undefined ? {} : { secondary }) },
   };
 }

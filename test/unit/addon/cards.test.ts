@@ -23,9 +23,13 @@ import {
   EMPTY_TEMPLATE,
   FIELDS_LINE,
   FIRST_NAME_HINT,
+  REPLY_FIRST_NAME_HINT,
+  REPLY_TO_LINE,
+  SIGNATURE_LINE,
   detailsCard,
   panelDetailsCard,
 } from "../../../src/addon/cards/details";
+import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
 import { NO_RECIPIENTS } from "../../../src/shared/model/recipients";
 
 const NO_PLAN = { added: NO_RECIPIENTS, notAdded: [], unknown: NO_RECIPIENTS };
@@ -486,23 +490,47 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
   });
 });
 
-describe.each(["inbox", "message"] as const)(
-  "side panel, entry %s (interim fix, spec 13.7)",
-  (entry) => {
-    const full = view({ favorites: ["T1"], recent: ["T2"] });
-    const insertTexts = (card: CardSpec | null) =>
-      (card === null ? [] : buttons(card))
-        .map((b) => b.text)
-        .filter((text) => text.startsWith("Insert"));
+describe.each([
+  ["inbox", "New email", "New email from", "new", "STANDALONE_DRAFT"],
+  ["message", "Reply", "Reply with", "reply", "REPLY_AS_DRAFT"],
+] as const)(
+  "side panel, entry %s (spec 7.2, slice 18 AC 1, 2, 8, 13)",
+  (entry, text, alt, as, compose) => {
+    const full = view({
+      favorites: ["T1"],
+      recent: ["T2"],
+      templates: [
+        template("T1", { prompts: ["Meeting date", "Product"] }),
+        template("T2", { rc: [1, 1, 0] }),
+        template("T3", { folderId: "F2" }),
+      ],
+    });
+    const rowButtons = (card: CardSpec | null) =>
+      card === null ? [] : buttons(card);
 
-    it("home: rows keep preview but lose Insert; the toolbar hint is the last section", () => {
+    it("home: every row has one filled compose button; the hint is the last section", () => {
       const card = homeCard(full, entry);
-      expect(insertTexts(card)).toEqual([]);
+      expect(rowButtons(card)).toEqual([
+        {
+          text,
+          alt: `${alt} Template T1`,
+          style: "filled",
+          action: { fn: "onCompose", params: { id: "T1", as } },
+          compose,
+        },
+        {
+          text,
+          alt: `${alt} Template T2`,
+          style: "filled",
+          action: { fn: "onCompose", params: { id: "T2", rc: "1,1,0", as } },
+          compose,
+        },
+      ]);
       expect(card.sections.at(-1)?.widgets).toEqual([
         { kind: "text", text: TOOLBAR_HINT },
       ]);
       expect(TOOLBAR_HINT).toBe(
-        "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.",
+        "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
       );
       expect(card.sections[1]?.widgets[0]).toMatchObject({
         text: "Template T1",
@@ -513,58 +541,127 @@ describe.each(["inbox", "message"] as const)(
       expectNoEmptySection(card);
     });
 
-    it("folder and search: rows without Insert, the toolbar hint last", () => {
+    it("folder and search: the same row button, the hint last", () => {
       const folder = folderCard(full, "F1", "1", entry);
-      expect(insertTexts(folder)).toEqual([]);
+      expect(rowButtons(folder).map((b) => [b.text, b.compose])).toEqual([
+        [text, compose],
+        [text, compose],
+      ]);
       expect(folder?.sections.at(-1)?.widgets).toEqual([
         { kind: "text", text: TOOLBAR_HINT },
       ]);
+      const search = searchCard(full, "t", full.templates, entry);
+      expect(rowButtons(search)).toHaveLength(3);
+      expect(rowButtons(search).every((b) => b.text === text)).toBe(true);
       expect(texts(searchCard(full, "t", [], entry)).at(-1)).toBe(TOOLBAR_HINT);
-      expect(insertTexts(searchCard(full, "t", full.templates, entry))).toEqual(
-        [],
-      );
-      expect(texts(searchCard(full, "t", full.templates, entry))).toContain(
-        "Template T3",
-      );
-    });
-
-    it("details card: no Insert, no inputs, no switches; Edit in library stays; the hint last", () => {
-      const view = {
-        template: template("T1"),
-        text: "Body",
-        subject: "Quote",
-        plan: NO_PLAN,
-        domain: "migway.com",
-      };
-      const card = panelDetailsCard(view, entry);
-      expect(buttons(card)).toEqual([]);
-      expect(card).not.toHaveProperty("footer");
-      expect(widgets(card)[0]).toEqual({
-        kind: "item",
-        topLabel: "Subject",
-        text: "Quote",
-      });
-      expect(card.sections.at(-1)?.widgets).toEqual([
-        { kind: "text", text: TOOLBAR_HINT },
-      ]);
-      const editable = panelDetailsCard(
-        {
-          ...view,
-          subject: "",
-          template: template("T1", { level: "edit", prompts: ["Date"] }),
-        },
-        entry,
-      );
-      expect(buttons(editable).map((b) => b.text)).toEqual(["Edit in library"]);
-      expect(
-        widgets(editable).filter(
-          (w) => w.kind === "input" || (w.kind === "item" && w.toggle),
-        ),
-      ).toEqual([]);
-      expect(texts(editable).at(-1)).toBe(TOOLBAR_HINT);
     });
   },
 );
+
+describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () => {
+  const firstName = {
+    key: "{var}recipient.first_name",
+    label: "Recipient first name",
+    implicit: true,
+  };
+  const state = details({
+    template: template("T1", { level: "edit" }),
+    subject: "Quote",
+    fields: [{ key: "Date", label: "Date", implicit: false }, firstName],
+    entered: ["", ""],
+    order: [0, 1],
+    values: { "sender.name": "Ana" },
+    plan: {
+      ...NO_PLAN,
+      added: { to: ["a@migway.com"], cc: ["c@migway.com"], bcc: [] },
+    },
+  });
+  const params = {
+    id: "T1",
+    version: "1",
+    values: JSON.stringify({ "sender.name": "Ana" }),
+    rh: "RH",
+  };
+  const press = (
+    label: string,
+    as: string,
+    style: "filled" | "outlined",
+    compose: string,
+  ) => ({
+    text: label,
+    alt: `${label === "New email" ? "New email from" : `${label} with`} Template T1`,
+    style,
+    action: { fn: "onPromptCompose", params: { ...params, as } },
+    compose,
+  });
+  const edit = {
+    text: "Edit in library",
+    alt: "Edit Template T1 in the library",
+    style: "outlined",
+    action: { fn: "onOpenLink", params: { id: "T1" } },
+  };
+
+  it("message: inputs with the reply hint, Add recipients, the To line, no finish-typing, Reply and Reply all in the footer", () => {
+    const card = panelDetailsCard(state, "message");
+    expect(
+      widgets(card).flatMap((w) =>
+        w.kind === "input" ? [[w.name, w.title, w.hint]] : [],
+      ),
+    ).toEqual([
+      ["p-1", "Date", undefined],
+      ["p-2", "Recipient first name", REPLY_FIRST_NAME_HINT],
+    ]);
+    expect(texts(card)).toEqual([
+      FIELDS_LINE,
+      "Add recipients",
+      "a@migway.com",
+      "c@migway.com",
+      REPLY_TO_LINE,
+      SIGNATURE_LINE,
+      "Body",
+      TOOLBAR_HINT,
+    ]);
+    expect(texts(card)).not.toContain(FINISH_TYPING);
+    expect(texts(card)).not.toContain("Replace the subject");
+    expect(card.footer).toEqual({
+      primary: press("Reply", "reply", "filled", "REPLY_AS_DRAFT"),
+      secondary: press("Reply all", "replyAll", "outlined", "REPLY_AS_DRAFT"),
+    });
+    expect(buttons(card)).toEqual([
+      press("New email", "new", "outlined", "STANDALONE_DRAFT"),
+      edit,
+    ]);
+    expect(card.sections.at(-1)?.widgets).toEqual([
+      { kind: "text", text: TOOLBAR_HINT },
+    ]);
+    expect(card.footer?.primary.action.params).not.toHaveProperty("counted");
+  });
+
+  it("inbox: no hint under the first name, no To line, footer New email and Edit in library, no button section", () => {
+    const card = panelDetailsCard(state, "inbox");
+    expect(
+      widgets(card).flatMap((w) => (w.kind === "input" ? [w.hint] : [])),
+    ).toEqual([undefined, undefined]);
+    expect(texts(card)).not.toContain(REPLY_TO_LINE);
+    expect(texts(card)).toContain(SIGNATURE_LINE);
+    expect(card.footer).toEqual({
+      primary: press("New email", "new", "filled", "STANDALONE_DRAFT"),
+      secondary: edit,
+    });
+    expect(buttons(card)).toEqual([]);
+    expect(texts(card).at(-1)).toBe(TOOLBAR_HINT);
+  });
+
+  it("use level, no recipients: no Edit in library, no Add recipients; inbox has no secondary", () => {
+    const plain = details({ template: template("T1") });
+    const inbox = panelDetailsCard(plain, "inbox");
+    expect(inbox.footer?.secondary).toBeUndefined();
+    expect(texts(inbox)).not.toContain("Add recipients");
+    const message = panelDetailsCard(plain, "message");
+    expect(buttons(message).map((b) => b.text)).toEqual(["New email"]);
+    expectNoEmptySection(message);
+  });
+});
 
 describe("compose entry keeps Insert everywhere", () => {
   it("home, folder, search and details show Insert and no toolbar hint", () => {
@@ -701,6 +798,13 @@ describe("layout (slice 12)", () => {
       icon: "star",
       text: "Template T8",
       onClick: { fn: "onPreview", params: { id: "T8" } },
+      button: {
+        text: "New email",
+        alt: "New email from Template T8",
+        style: "filled",
+        action: { fn: "onCompose", params: { id: "T8", as: "new" } },
+        compose: "STANDALONE_DRAFT",
+      },
     });
   });
 

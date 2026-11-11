@@ -1,7 +1,5 @@
-import { BUILD_INFO } from "../../shared/buildInfo";
 import type { SidebarHome, SidebarTemplate } from "../../shared/model/sidebar";
 import type { Entry } from "../event";
-import { s7Sections } from "../spikeS7";
 import { folderItem, folderPath, listSection, templateItem } from "./folder";
 import { sidePanelHint } from "./sidePanel";
 import {
@@ -102,12 +100,7 @@ function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
 export function homeCard(view: SidebarHome, entry: Entry): CardSpec {
   return {
     name: HOME_CARD,
-    sections: [
-      ...homeSections(view, entry),
-      ...sidePanelHint(entry),
-      // TEMPORARY (spike S7): dev build only.
-      ...s7Sections(BUILD_INFO.env, entry),
-    ],
+    sections: [...homeSections(view, entry), ...sidePanelHint(entry)],
     // The empty state carries its own Open library button.
     ...(view.templates.length === 0 ? {} : { footer: LIBRARY_FOOTER }),
   };
