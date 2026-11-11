@@ -86,3 +86,29 @@ Pitfalls
 
 Open questions
 - Migway edition, nested group use, admin API access settings.
+
+## R5 Gmail card UI (2026-11-11)
+
+Output: docs/research/2026-11-11-gmail-card-ui.md (15 ranked options, sources [S1]..[S64]).
+
+Sources that worked
+- curl developers.google.com/<path>?hl=en, then strip HTML with a python3 -I HTMLParser script: exact availability lines ("Available for Google Chat apps and unavailable for Google Workspace add-ons"). Better than WebFetch summaries.
+- Card JSON reference: developers.google.com/workspace/add-ons/reference/rpc/google.apps.card.v1 (per-field add-on availability).
+- Developer Preview list: developers.google.com/workspace/preview ("ADD-ONS" block).
+- git clone --depth 1 googleworkspace/apps-script-samples and add-ons-samples into scratchpad; grep CardService calls.
+
+Facts to reuse
+- Dev preview for add-ons (2026-11-06): Material button style (FILLED_TONAL, BORDERLESS), setMaxLines, CollapseControl, OverflowMenu, Chips. Announced 2024-12-13, no GA note.
+- Carousel: Chat only. Columns: compose dialog only, max 2, wrap at 480 px web. Grid GA.
+- RPC ref marks MaterialIcon and Button.type unavailable for add-ons; Apps Script ref and Google's Email Classifier Gmail sample use them. Unresolved.
+- 100 widgets per card; overflow drops that section and all later ones.
+- Fixed footer: primary FILLED, secondary OUTLINED. Card actions up to 10. Section header: text only, simple HTML.
+- No public doc on sidebar width or dark theme rendering.
+
+Pitfalls
+- workspace/add-ons/guides/style is the EDITOR add-on guide; card guide is guides/workspace-style.
+- Apps Script reference pages say "Last updated 2026-04-13"; RPC ref is newer. Cite both when they conflict.
+
+Open questions
+- Does a dev preview method fail or get ignored outside the program?
+- primaryColor effect after GM3; ButtonSet wrap at 300 px; card actions in compose dialog.
