@@ -3,6 +3,7 @@
  * globals in runtime.ts) run against the same fake Drive, cache, properties, lock, triggers and session.
  */
 import { vi } from "vitest";
+import { driveRestResponder } from "./drive";
 import {
   createContentService,
   createHtmlService,
@@ -17,6 +18,8 @@ export interface GlobalWorld extends World {
 
 export function installGlobals(world: World = createWorld()): GlobalWorld {
   const fetchApp = createUrlFetchApp();
+  // Drive REST by default: the Advanced client reads JSON Lines through UrlFetch. Tests may replace it.
+  fetchApp.respondWith(driveRestResponder(world.drive));
   vi.stubGlobal("PropertiesService", {
     getScriptProperties: () => world.props,
   });

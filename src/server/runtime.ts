@@ -21,7 +21,11 @@ import type { DirectoryUsers, PropertyStore, Services } from "./services";
 import { advancedDriveClient } from "./storage/advancedDrive";
 import type { DriveClient } from "./storage/driveClient";
 import { driveStore } from "./storage/driveStore";
-import { restDriveClient } from "./storage/restDrive";
+import {
+  restDriveClient,
+  restMediaReader,
+  type HttpOptions,
+} from "./storage/restDrive";
 import { requireStoreIds } from "./storage/setupStore";
 
 export const DRIVE_CLIENT_KEY = "DRIVE_CLIENT";
@@ -56,17 +60,16 @@ function requireService<T>(service: T | undefined, name: string): T {
 
 /** `DRIVE_CLIENT=rest` selects Drive REST through UrlFetch; anything else the Advanced Drive service. */
 export function driveClientFor(props: PropertyStore): DriveClient {
-  if (props.getProperty(DRIVE_CLIENT_KEY) === "rest") {
-    return restDriveClient(
-      (url, options) => UrlFetchApp.fetch(url, options),
-      () => ScriptApp.getOAuthToken(),
-    );
-  }
+  const fetch = (url: string, options: HttpOptions) =>
+    UrlFetchApp.fetch(url, options);
+  const token = () => ScriptApp.getOAuthToken();
+  if (props.getProperty(DRIVE_CLIENT_KEY) === "rest")
+    return restDriveClient(fetch, token);
   const files = requireService(
     typeof Drive === "undefined" ? undefined : Drive,
     "Drive",
   ).Files;
-  return advancedDriveClient(files, Utilities);
+  return advancedDriveClient(files, Utilities, restMediaReader(fetch, token));
 }
 
 function memo<T>(make: () => T): () => T {

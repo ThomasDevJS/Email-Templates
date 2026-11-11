@@ -19,6 +19,7 @@ import {
 import type { Services } from "../../src/server/services";
 import { advancedDriveClient } from "../../src/server/storage/advancedDrive";
 import { driveStore } from "../../src/server/storage/driveStore";
+import { restMediaReader } from "../../src/server/storage/restDrive";
 import { requireStoreIds } from "../../src/server/storage/setupStore";
 import type { RpcResponse } from "../../src/shared/model/protocol";
 import {
@@ -27,7 +28,7 @@ import {
   type SettingValue,
 } from "../../src/shared/model/settings";
 import { FakeCache } from "./cache";
-import { createDrive, type FakeDrive } from "./drive";
+import { createDrive, driveRestResponder, type FakeDrive } from "./drive";
 import {
   createDirectory,
   createGroupsApp,
@@ -38,6 +39,7 @@ import { FakeLock } from "./lock";
 import { createUtilities } from "./output";
 import { FakeProperties } from "./properties";
 import { createScriptApp, type FakeScriptApp } from "./scriptApp";
+import { createUrlFetchApp, type FakeUrlFetchApp } from "./urlFetch";
 
 export const OWNER = "owner@example.com";
 export const DOMAIN = "example.com";
@@ -47,6 +49,8 @@ export interface World {
   readonly services: Services;
   readonly clock: { now: number };
   readonly drive: FakeDrive;
+  /** Answers the Drive REST media reads of the Advanced client (`driveRestResponder`); tests may replace it. */
+  readonly urlFetch: FakeUrlFetchApp;
   readonly props: FakeProperties;
   readonly cache: FakeCache;
   readonly lock: FakeLock;
@@ -77,6 +81,8 @@ export function createWorld(): World {
   const clock = { now: START_MS };
   const nowMs = () => clock.now;
   const drive = createDrive(nowMs);
+  const urlFetch = createUrlFetchApp();
+  urlFetch.respondWith(driveRestResponder(drive));
   const props = new FakeProperties();
   const cache = new FakeCache(nowMs);
   const lock = new FakeLock();
@@ -93,7 +99,14 @@ export function createWorld(): World {
     minLevel: "debug",
   });
   const driveClient = memo(() =>
-    advancedDriveClient(drive.Files, createUtilities()),
+    advancedDriveClient(
+      drive.Files,
+      createUtilities(),
+      restMediaReader(
+        (url, options) => urlFetch.fetch(url, options),
+        () => "token",
+      ),
+    ),
   );
   const build = (surface: Surface): Services => {
     const stats = newStats(surface);
@@ -128,6 +141,7 @@ export function createWorld(): World {
     services: build("webapp"),
     clock,
     drive,
+    urlFetch,
     props,
     cache,
     lock,

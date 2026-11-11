@@ -59,11 +59,8 @@ interface Request {
   readonly upload?: { readonly meta: object; readonly text: string };
 }
 
-export function restDriveClient(
-  fetch: HttpFetch,
-  token: () => string,
-): DriveClient {
-  const send = (request: Request): string => {
+function sender(fetch: HttpFetch, token: () => string) {
+  return (request: Request): string => {
     const options = buildOptions(request, token());
     const response = fetch(request.url, options);
     const code = response.getResponseCode();
@@ -75,6 +72,27 @@ export function restDriveClient(
     }
     return response.getContentText();
   };
+}
+
+/**
+ * Raw media read through Drive REST. The Advanced client uses it for text that is not one JSON document, which
+ * `Drive.Files.get` with `alt: 'media'` fails to return (it parses media as JSON and throws, HTTP status 200).
+ */
+export function restMediaReader(
+  fetch: HttpFetch,
+  token: () => string,
+): (fileId: string) => string {
+  const send = sender(fetch, token);
+  return (fileId) =>
+    send({ method: "get", url: `${DRIVE_API}/${fileId}?alt=media` });
+}
+
+export function restDriveClient(
+  fetch: HttpFetch,
+  token: () => string,
+): DriveClient {
+  const send = sender(fetch, token);
+  const media = restMediaReader(fetch, token);
   const json = (request: Request): unknown => JSON.parse(send(request));
   return {
     createFolder: (name, parentId) =>
@@ -115,8 +133,8 @@ export function restDriveClient(
         },
       });
     },
-    readText: (fileId) =>
-      send({ method: "get", url: `${DRIVE_API}/${fileId}?alt=media` }),
+    readText: media,
+    readRawText: media,
     getMeta: (fileId) =>
       toDriveFile(
         json({

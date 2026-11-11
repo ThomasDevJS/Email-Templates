@@ -83,9 +83,11 @@ function metadata(file: NewFile): object {
   };
 }
 
+/** `rawMedia` is the Drive REST media read (`restMediaReader`), used for `readRawText`. */
 export function advancedDriveClient(
   files: AdvancedFiles,
   blobs: BlobMaker,
+  rawMedia: (fileId: string) => string,
 ): DriveClient {
   const blob = (text: string, name: string): unknown =>
     blobs.newBlob(text, JSON_MIME, name);
@@ -109,6 +111,7 @@ export function advancedDriveClient(
       files.update(resource, fileId, blob(text, fileId), { fields: "id" });
     },
     readText: (fileId) => mediaToText(files.get(fileId, { alt: "media" })),
+    readRawText: rawMedia,
     getMeta: (fileId) =>
       toDriveFile(files.get(fileId, { fields: FILE_FIELDS })),
     list: (query) => listAll(files, query),

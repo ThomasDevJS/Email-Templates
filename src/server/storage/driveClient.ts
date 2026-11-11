@@ -27,7 +27,10 @@ export interface DriveClient {
   createFolder(name: string, parentId: string): string;
   createFile(file: NewFile): string;
   updateFile(fileId: string, text: string, appProperties?: AppProperties): void;
+  /** Media as text; the Advanced client returns JSON documents re-serialized and fails on any other text. */
   readText(fileId: string): string;
+  /** Media exactly as stored, never parsed (Drive REST under both clients): JSON Lines and copies to check. */
+  readRawText(fileId: string): string;
   getMeta(fileId: string): DriveFile;
   /** All pages of a `files.list` query; trashed files are excluded by the caller's query. */
   list(query: string): DriveFile[];

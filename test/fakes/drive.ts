@@ -2,6 +2,8 @@
  * In-memory Advanced Drive service v3 (`Drive.Files`) and a Drive REST responder for the fake UrlFetchApp.
  * Models files and folders, parents, appProperties (merged on update, as Drive does), media round trips through
  * blobs, sizes in UTF-8 bytes, `files.list` queries with paging, copy and trash. `failNext` injects a failure.
+ * `Files.get` with `alt: 'media'` parses the content as JSON like the real Advanced service (spike S2b); the REST
+ * responder returns the raw text.
  */
 import type { FakeReply, FakeRequest, Responder } from "./urlFetch";
 
@@ -30,6 +32,20 @@ interface Resource {
 
 interface MediaLike {
   getDataAsString(): string;
+}
+
+/**
+ * The real Advanced service hands back JSON content parsed (spike S2b) and throws on content that is not one JSON
+ * document, such as JSON Lines with 2 or more lines, although the HTTP status is 200 (dev, 2026-11-11).
+ */
+function advancedMedia(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      `HttpResponseException: Response Code: 200. Message: ${text}`,
+    );
+  }
 }
 
 function bytes(text: string): number {
@@ -164,6 +180,12 @@ export class FakeDrive {
     );
   }
 
+  /** Raw media of a file, as Drive serves it over REST (one `get` call). */
+  media(fileId: string): string {
+    this.enter("get");
+    return this.file(fileId).content;
+  }
+
   /** Text of a file, for assertions. */
   text(id: string): string {
     return this.file(id).content;
@@ -189,9 +211,9 @@ export class FakeDrive {
       );
     },
     get: (fileId: string, options: { alt?: string } = {}): unknown => {
+      if (options.alt === "media") return advancedMedia(this.media(fileId));
       this.enter("get");
-      const file = this.file(fileId);
-      return options.alt === "media" ? file.content : this.resource(file);
+      return this.resource(this.file(fileId));
     },
     list: (options: {
       q: string;
@@ -300,8 +322,9 @@ function route(drive: FakeDrive, request: FakeRequest): FakeReply {
     );
   if (method === "patch")
     return reply(200, drive.Files.update(JSON.parse(payload) as Resource, id));
-  const alt = url.searchParams.get("alt") ?? "";
-  return reply(200, drive.Files.get(id, alt === "" ? {} : { alt }));
+  if (url.searchParams.get("alt") === "media")
+    return reply(200, drive.media(id));
+  return reply(200, drive.Files.get(id));
 }
 
 /** Answers Drive REST v3 calls from the fake UrlFetchApp against `drive`; 401 without a bearer token. */

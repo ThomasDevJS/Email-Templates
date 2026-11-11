@@ -180,7 +180,8 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
     appendAudit: (month, events) => {
       const name = `${month}.jsonl`;
       const existing = findChild(ids.auditId, name);
-      const before = existing === undefined ? "" : drive.readText(existing.id);
+      const before =
+        existing === undefined ? "" : drive.readRawText(existing.id);
       const { text, added } = appendUnique(before, events);
       if (added === 0) return 0;
       if (existing === undefined)
@@ -203,7 +204,7 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
             `This backup cannot be read: ${name} is missing`,
           );
         try {
-          return readChecked(drive.readText(id), name, ErrorCode.VALIDATION);
+          return readChecked(drive.readRawText(id), name, ErrorCode.VALIDATION);
         } catch (error: unknown) {
           if (!(error instanceof AppError)) throw error;
           throw new AppError(
@@ -220,7 +221,7 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
       } as BackupDocs;
     },
     listAuditFiles: () => drive.list(childQuery(ids.auditId)).map(sized),
-    readText: (fileId) => drive.readText(fileId),
+    readRawText: (fileId) => drive.readRawText(fileId),
     trash: (fileId) => {
       drive.trash(fileId);
     },
