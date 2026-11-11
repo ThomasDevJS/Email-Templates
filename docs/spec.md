@@ -1,7 +1,7 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves.
-Date: 2026-11-09, amended 2026-11-10
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves.
+Date: 2026-11-09, amended 2026-11-10 and 2026-11-11
 Author: architect. Owner: thomas@migway.com.
 Inputs: docs/BRIEF.md, PLAN.md (D1 to D29), docs/research/*.md, ADR-0001 to ADR-0008.
 
@@ -84,7 +84,7 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 2. Server returns Favorites (max 10), Recent (max 5, from `usage`), top-level folders the caller can `use`, and the caller's filtered list for caching.
 3. User taps Insert on a template. The callback calls server op `template.apply` with `{ id, knownVersion, recipientEmailIfInternal }`. The server re-checks `use`, returns body and subject (if version changed), `to`, `cc`, `bcc` and `blocked` (every call, section 5.7), sender profile, internal recipient first name, and buffers the apply event.
 4. A template with any To, Cc or Bcc address never inserts in one click from a list: the row button reads "Review" and opens the preview card, or the prompt card when the template has prompts (section 5.7, D26). Its Insert is the confirmation.
-5. No prompts, no unresolved values and no recipients: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the subject rule of section 5.6 (D24) says so, `UpdateDraftSubjectAction`. One click. Verified on Gmail web: spike S5 on dev-32a446c, smoke "Slice 5c" on dev-848206f. Recipient actions (one per field with new addresses) join the same response after spike S6 (section 14.1).
+5. No prompts, no unresolved values and no recipients: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the subject rule of section 5.6 (D24) says so, `UpdateDraftSubjectAction`. One click. Verified on Gmail web: spike S5 on dev-32a446c, smoke "Slice 5c" on dev-848206f. Recipient actions join the same response: one per field with new addresses, each carrying the draft's list plus the new addresses, because a recipient action replaces the field (spike S6, slice 9, section 5.7).
 6. Otherwise the add-on pushes the prompt card. Its Insert calls `template.apply` again with `followUp: true`. The server re-checks `use` on that call and buffers no second apply event, so one Insert tap counts once. A grant removed while the card is open gives DENIED and leaves the draft unchanged. Then the callback validates every field, renders body and subject, inserts. Blank fields keep the card with an error. Recipient lists that changed since the card showed them keep the card with an error (section 5.7).
 7. Usage counts the first Insert tap. A cancelled prompt card still counts in `applyCount` and Recent (accepted, Q14: usage is analytics).
 
@@ -92,8 +92,10 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 Mechanism and options in ADR-0007. Proposed until the owner approves. Every step after 4 depends on spike S7 (section 14.2).
 
+Built so far (slice 10, layout in slice 12): steps 1 and 2; the manifest entry `contextualTriggers` `unconditional` with `onMessageOpen`; in `inbox` and `message` the cards show no Insert, "Insert with subject" or "Insert body only" and end with the footer hint of section 7.2 (`sidePanelHint`, src/addon/cards/sidePanel.ts); the S7 harness, dev build only. Not built: steps 3 to 8, the panel row and preview buttons, the line under the header (the home card has no header since slice 12).
+
 1. User opens Migway Templates from Gmail's right side panel. With no message open Gmail calls `onHomepage`; with a message open it calls `onMessageOpen` (contextual trigger `unconditional`, event with `gmail.messageId`). Both call `homeFlow` with the cached view `view:*`, as the compose trigger does.
-2. `entryOf(event)`: `compose` when `draftMetadata` is present, `message` when `gmail.messageId` is present, else `inbox`. Lists, search, favorites, Recent, folders and preview are the compose cards; only the row button, the preview buttons, the header line and the footer hint read the entry.
+2. `entryOf(event)`: `compose` when `draftMetadata` is present, `message` when a message ID is present (`gmail.messageId`, else the deprecated `messageMetadata.messageId`; only a non-blank string counts), else `inbox`. Lists, search, favorites, Recent, folders and preview are the compose cards; only the row button, the preview buttons, the header line and the footer hint read the entry.
 3. Row button: `inbox` "New email", `message` "Reply". Same rules as 4.1 step 4: prompts open the prompt card; recipients show "Review" and open the preview card. Preview buttons: `inbox` "New email"; `message` "Reply", "Reply all", "New email".
 4. The button carries `setComposeAction` (`STANDALONE_DRAFT` for New email, `REPLY_AS_DRAFT` for Reply and Reply all). Its callback calls `template.apply` (server re-checks `use`, buffers one apply event; `followUp: true` from the prompt card), renders body and subject, and decides recipients with `recipientActions` against the computed draft (ADR-0007 section 3).
 5. Callback calls `GmailApp.setCurrentMessageAccessToken(e.gmail.accessToken)`, then:
@@ -121,7 +123,7 @@ Mechanism and options in ADR-0007. Proposed until the owner approves. Every step
 
 - Sidebar: search input with `onChangeAction`. Server op `search` returns the top 20 visible matches. Operators `folder:<name>` and `tag:<name>`. Empty query shows Home, with no server call. The sidebar matches title, subject, tags, folder path and the 140-character `snippet` of the index item. It never reads full body text (amended 2026-11-10, slice 5 review minor 1).
 - Web app: title, subject, folder path and tag filtering runs in the browser on the loaded index. Full body text is searched in the web app only: server op `search.body` runs 300 ms after the last keystroke, reads Script Cache entries `ft:<bodyFileId>` with one `getAll`, and makes at most 25 Drive reads per call for misses. The rest are reported as `skipped` ("N templates were not searched yet."). Results not already listed show under "Matches in text". While the call runs the list shows "Searching text...". Sort: relevance, then the caller's Recent position, then title.
-- Recipients (D26, slice 9): the web app browser filter also matches template To, Cc and Bcc addresses, weight 1, on the local part prefix or the full address prefix; a domain alone matches nothing. The sidebar `search` op does not match addresses (section 5.7).
+- Recipients (D26, built in slice 13): the web app browser filter also matches template To, Cc and Bcc addresses, weight 1, on the local part prefix or the full address prefix; a domain alone matches nothing. The sidebar `search` op does not match addresses (section 5.7).
 - Matching: case-insensitive, accent-insensitive token prefix match on title (weight 3), subject (2, D21), tags (2), folder (2), body text (1: the snippet in the sidebar, the full text in `search.body`). Every term must match. Query cut at 200 characters. Both ops filter to the caller's visible templates before ranking. Fuzzy tolerance: one typo for terms of 5 or more characters, at half weight.
 
 ### 4.5 Flow: export and import
@@ -130,7 +132,9 @@ Amended 2026-11-10 (errata run 3) to match slice 6b. File format and mechanism: 
 
 - File: JSON, `schemaVersion` 1: header (`exportedAt`, `exportedBy`, `scope`), `folders` (`id, parentId, name`), `grants` (`folderId, principalType, principalKey, level`), `items` (`meta: { id, folderId, title, subject, to, cc, bcc, tags }`, `html`; `to`, `cc`, `bcc` added 2026-11-10, D26, absent = `[]`). Live templates, current version only. No history, favorites, usage, audit or `createdBy`.
 - Export folder (manage): the folder and its live subtree, grants on those folders only. Export library (admin): every shared folder; private folders and their templates are left out (D11), label "Whole library (shared folders)".
-- Paging: each call returns at most 20 templates, so it reads at most 20 bodies from Drive. Pages use an offset. The browser joins them into `migway-templates-<scope>-<date>.json` (`library` or the folder name, local date).
+- Start (slice 13): the export begins with one call `start: true`. It commits one audit event `export.library` or `export.folder` through `commit` (lock, admin re-check, index write): actor, `targetId` (folder ID or ""), `targetPath` (folder only), `after: { scope, templates }`, no title, subject, body or address. Then it stores a run token as Script Cache `exp:<token>` with `{ actor, kind, folderId }` for 600 s (`EXPORT_RUN_TTL_S`) and answers `{ token, total }`. Lock busy answers BUSY, a Drive failure INTERNAL; both leave no token.
+- Paging: each page call carries the token and returns at most 20 templates, so it reads at most 20 bodies (Script Cache hit used, a miss read from Drive and not cached). Pages use an offset. A token that is missing, malformed, expired, evicted, or of another caller or scope answers VALIDATION "This export is no longer valid (it expired or belongs to another session). Nothing was downloaded. Start the export again." before any body is read. Each accepted page extends the token by 600 s. The dispatch permission check runs first on every call. The web app retries a retryable error 3 times (after 200, 400, 600 ms), then stops with "The export stopped: the server did not answer after 4 tries. Nothing was downloaded. Wait a few minutes, then export again." The browser joins the pages into `migway-templates-<scope>-<date>.json` (`library` or the folder name, local date) and downloads only after the last page.
+- Audit tab rows: "Library export started, 25 templates", "Folder export started: Sales / Quotes, 12 templates". The event records the start; an abandoned export keeps its event.
 - Import (admin): choose a file and a target folder, then Validate, then Import. Validate writes nothing. Limits checked on the server before any write: 5 MB, 200 templates, 100 folders, `schemaVersion` exactly 1, no duplicate folder `id`.
 - Target: a shared folder. A folder in a private tree answers VALIDATION "Templates cannot be imported into a private folder. Pick a shared folder."
 - Import creates shared folders only and reuses a folder whose name a live sibling has. It creates no grants: the file's grants are information for the admin. Templates get new IDs. A template whose title already exists in its destination folder is skipped, so a second import adds nothing.
@@ -249,7 +253,7 @@ Mechanism and options in ADR-0004, Amendment 2026-11-10 (subject).
 - Search: subject weight 2 (section 4.4).
 - Logs: the subject is template content. It is never logged, like the body.
 
-Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` (published revisions of `favorites.json` and `usage.json`, ADR-0002 Amendment 2026-11-10), `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property. `RECIPIENTS_EXTERNAL` left this list on 2026-11-10 (D29): the switch is the admin setting `recipientsExternal` in `index.json` (section 5.8); slice 11 stops reading the property (Q50).
+Script Properties (config and state, no secrets, read and written only by web app and trigger code): `STORE` (JSON of folder and file IDs), `INDEX_REV`, `FAVORITES_REV`, `USAGE_REV` (published revisions of `favorites.json` and `usage.json`, ADR-0002 Amendment 2026-11-10), `DOMAIN`, `ADMIN_GROUP`, `ADMIN_EMAILS`, `MEMBERSHIP_RESOLVER`, `CALLER_IDENTITY`, `IMG_HOSTS`, `LOG_LEVEL`, `TRIGGERS_VERSION`, `job:<name>:lastOk`, `job:<name>:lastError`. The `/exec` URL is a build constant (ADR-0005), so the add-on reads no property. `RECIPIENTS_EXTERNAL` left this list on 2026-11-10 (D29): the switch is the admin setting `recipientsExternal` in `index.json` (section 5.8). Since slice 11 no code reads the property (Q50).
 
 ### 5.7 Template recipients (D26, added 2026-11-10)
 
@@ -258,19 +262,23 @@ Mechanism and options in ADR-0006. Proposed until the owner approves.
 - Fields: `to`, `cc`, `bcc` on the item and in each version file, string arrays, default `[]`. Max 10 per field, 20 together, 254 characters per address (Q33). A record without them reads as `[]`; the shape check refuses a present non-array.
 - Normalization at every write: trim, lower case, duplicates inside one field dropped silently. Order kept.
 - Syntax: plain `local@domain`, `^[a-z0-9._%+'-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$` after lower casing, no `..`, no label starting or ending with `-`. No display names, no Unicode domains, no placeholders (Q34).
-- Outside addresses: allowed by default (D26 update). Outside = domain part differs from Script Property `DOMAIN` (exact, case-insensitive; subdomains are outside; secondary domains Q36). Admin setting `recipientsExternal`: `allow` (default, also when absent) or `deny`, set by an admin in Config > Settings (D29, section 5.8; amended 2026-11-10, replaces Script Property `RECIPIENTS_EXTERNAL` from slice 11 on). Slice 9 builds the property reader; slice 11 points it at the setting.
+- Outside addresses: allowed by default (D26 update). Outside = domain part differs from Script Property `DOMAIN` (exact, case-insensitive; subdomains are outside; secondary domains Q36). Admin setting `recipientsExternal`: `allow` (default, also when absent) or `deny`, set by an admin in Config > Settings (D29, section 5.8). Built: slice 11 reads `settings.recipientsExternal` from the request's index; Script Property `RECIPIENTS_EXTERNAL` is no longer read.
 - Save validation (server, every write: create, update, duplicate, restore, import; not move). Codes carry `field` (`to`, `cc`, `bcc`) and `position` (1-based). Texts in section 7.1: `RCPT_FORMAT`, `RCPT_TOO_LONG`, `RCPT_TOO_MANY`, `RCPT_DUPLICATE` (one address in two fields), `RCPT_EXTERNAL` (`deny` only). No existence check (Q38).
+- In-lock re-check (slice 13): `recheckRecipients` runs inside the lock on create, duplicate, update, version restore and import against the fresh index. A switch to `deny` between the first check and the lock gives the save's own VALIDATION with `RCPT_EXTERNAL`. On import it refuses the whole file: "Nothing was imported: the library could not be written: 1 problem to fix. Run the import again." (Q53).
+- `template.update` keeps the stored list of any of `to`, `cc`, `bcc` left out of the args; `cc: []` clears Cc. The editor always sends all three since slice 8b.
 - `deny` and stored outside addresses: templates keep them. `template.apply` and `template.getBody` return the inside addresses in `to`, `cc`, `bcc` and the outside ones in `blocked`; the add-on adds only the returned lists and the cards list the blocked ones as not added. The editor marks them at load; the next save, a restore of such a version and a duplicate answer `RCPT_EXTERNAL`.
 - Import: `RCPT_FORMAT`, `RCPT_TOO_LONG` and (`deny`) `RCPT_EXTERNAL` drop the address and import the template; an address in two fields keeps the first of To, Cc, Bcc; `RCPT_TOO_MANY` refuses the file ("Nothing was imported: ..."). The report gives per template the count of dropped addresses and the reason.
 - Who sets them: `edit` on the folder, like body and subject. Private folders allowed (Q37). `use` holders see them on the cards and in the library and cannot change them.
-- Apply. `template.apply` returns `to`, `cc`, `bcc`, `blocked` on every call (outside the `knownVersion` rule), filtered by the current switch. The add-on never caches them and never puts them in card parameters. One pure function `recipientActions(template, draft, choice)` decides:
+- Apply. `template.apply` returns `to`, `cc`, `bcc`, `blocked` on every call (outside the `knownVersion` rule), filtered by the current switch. The add-on never caches them and never puts them in card parameters. One pure function `recipientActions(template, draft, add)` (src/addon/cards/recipients.ts, with `recipientPlan` for the cards) decides.
 
-  | Draft state | Template To | Template Cc, Bcc |
-  |---|---|---|
-  | draft To empty (new message, forward) | added | added |
-  | draft To filled (reply, typed To) | not added, listed as "Not added" | added |
-  | address already in any draft field (lower case, part inside `<...>`) | skipped | skipped |
-  | address in `blocked` | never added | never added |
+  Draft lists (slice 9 retry): `draftRecipients(event)` (src/addon/event.ts) gives per field a list or "unknown" (null). The first source holding the key decides (`draftMetadata`, then `gmail`). An array of strings, empty included, is known. A missing key, null, a string, an object or an array with a non-string entry is unknown. An unknown field never gets an action; an unknown To counts as filled.
+
+  | Template address | Draft To empty (new message, forward) | Draft To filled (reply, typed To) | Draft field unknown |
+  |---|---|---|---|
+  | To | added | not added, "Not added" with the To reason | not added, "Add by hand" line |
+  | Cc, Bcc | added | added | not added, "Add by hand" line |
+  | already in a known draft field (trimmed, lower case, part inside `<...>`) | not added, "Not added" | same | same |
+  | in `blocked` | never added | never added | never added |
 
   | Insert path | Recipients |
   |---|---|
@@ -279,18 +287,19 @@ Mechanism and options in ADR-0006. Proposed until the owner approves.
   | Preview "Insert body only" (shown when plain Insert would set the subject or add an address) | none; no subject either |
   | Prompt card switch "Add recipients" (id `rcpt`) | starts on; off adds none |
 
-  A field with nothing new sends no action. Recipient actions go in the same `UpdateDraftActionResponse` as body and subject; their content (new addresses only, or the draft list plus new) follows spike S6 (section 14.1).
-- Disclosure. Every address is shown on a card before it reaches the draft. The cards list each address on its own line with its field. Outside addresses carry "outside <caller domain>"; Bcc lines carry "hidden from other recipients". Not-added addresses carry their reason. The card carries `rh`, the first 16 hex characters of a SHA-256 over the lists it showed; at Insert, a different hash of the `template.apply` lists leaves the draft unchanged and re-renders the card with the change message. Gmail's own outside-recipient warning is not relied on.
-- Sidebar lists carry counts only: item field `rc: [to, cc, bcc]`. Row bottom label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only).
-- History: each version shows a recipients line. Restore copies and validates. Duplicate copies and validates. Export `meta` carries them.
+  A field with nothing new sends no action, so it is never rewritten. Recipient actions go in the same `UpdateDraftActionResponse` as body and subject. A recipient action replaces the field (spike S6 step 2), so each action carries the draft's list from the tap's event as received, then the new addresses. Never `setSendStatus`.
+- Disclosure. Every address is shown on a card before it reaches the draft. The preview card section "Recipients" and the prompt card (below its switch) show the same lines (`recipientWidgets`): each added address on its own line with its field; outside addresses carry "outside <caller domain>"; Bcc lines carry "hidden from other recipients"; markers join with " · ". Not-added addresses carry their reason; unknown fields name the addresses to add by hand; the finish-typing line shows whenever Insert adds an address (texts in section 7.1). The card carries `rh`, the first 16 hex characters of a SHA-256 over the template lists and `blocked` it showed; at Insert, a different hash of the `template.apply` lists leaves the draft unchanged and re-renders the card with the change message. `rh` does not cover the draft's known or unknown state: the plan is rebuilt from the tap's event (Q54). An Insert without `rh` whose lists are not empty shows the preview card in place of the insert. Gmail's own outside-recipient warning is not relied on.
+- Limit: an address still being typed in a draft field (not yet a chip) is not in the event, and a replace drops it. The cards and the quick start say so.
+- Sidebar lists carry counts only: item field `rc: [to, cc, bcc]`. Row label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only), on one line after the folder path and the fields hint, joined by " · " (slice 12).
+- History: each version shows a recipients line. Restore copies and validates. Duplicate copies and validates. Export `meta` carries them. A version file whose list fails the shape rule (`isStoredList`) reads as `[]` with no write; `version.restore` then succeeds and returns `recipientsUnreadable: ["cc", ...]`, and the web app says "Restored as version N. The Cc addresses of version K could not be read and were left empty. Add them again in the editor."
 - Search: web app library only, weight 1, a term matches the local part prefix or the full address prefix; the domain alone matches nothing. Sidebar `search` unchanged (Q39).
 - Audit: `template.*` events carry the item in `before` and `after`, so recipient changes show as a diff. Logs never carry an address (section 11).
 
 ### 5.8 Admin settings (D29, added 2026-11-10)
 
-Mechanism and options in ADR-0008. Proposed until the owner approves.
+Mechanism and options in ADR-0008, Accepted 2026-11-11. Built in slice 11, hardened in slice 13.
 
-- Storage: optional object `settings` in `index.json`, `{ <name>: { value, updatedAt, updatedBy } }`. Absent object or entry = the default, with `updatedAt` and `updatedBy` `""`. Changed only by `config.set` through `commit`, so the change and its audit event are one write and `INDEX_REV` rises. The shape check refuses a stored value outside its list.
+- Storage: optional object `settings` in `index.json`, `{ <name>: { value, updatedAt, updatedBy } }`. Absent object or entry = the default, with `updatedAt` and `updatedBy` `""`. Each reader fills the defaults with `settingsOf` (src/shared/model/settings.ts); `readIndexDoc` leaves the object as stored, so no read path writes a default. Changed only by `config.set` through `commit`, so the change and its audit event are one write and `INDEX_REV` rises. The shape check (`settingsProblem`, called from `indexProblem`) refuses a stored value outside its list.
 - Fixed list (one table in src/shared):
 
   | Name | Values | Default | Effect |
@@ -299,8 +308,8 @@ Mechanism and options in ADR-0008. Proposed until the owner approves.
   | `recipientsExternal` | `allow`, `deny` | `allow` | `deny`: section 5.7, ADR-0006 |
 
 - Delay: the server follows a change from the next request on; writes already running re-check in the lock on the fresh index. Web app controls follow on the next library load. The sidebar view cache can show old lists for up to 10 min; inserting stays allowed under `off`, so the cache exposes nothing the server refuses.
-- Two admins: `config.set` carries `from`; a different current value answers CONFLICT, the same new value answers ok with `changed: false` and writes nothing.
-- `setup()` writes no settings. `backup.restore` keeps the live `settings`. Export and import carry none.
+- Two admins (slice 13): `config.set` carries `baseAt` and `baseBy`, the `updatedAt` and `updatedBy` of the entry the admin saw ("" for the default). In the lock, the same new value answers ok with `changed: false` and writes nothing; else a last change other than the base answers CONFLICT with the current entry in `details`, so an A, B, A sequence cannot hide B. The web app applies `details` and shows the section 7.3 conflict text.
+- `setup()` writes no settings. `backup.restore` keeps the live `settings`; its audit event `after` holds `liveSettingsKept: true`. Export and import carry none.
 
 Enforcement points of `personalTemplates` = `off`. One rule in `levelResolver` covers every level check, before the handler and in the in-lock re-check (`commit`). The implementer touches each row below and adds a role matrix test for it; rows marked "test only" need no code beyond the rule.
 
@@ -319,18 +328,18 @@ Enforcement points of `personalTemplates` = `off`. One rule in `levelResolver` c
 | `template.move` | `edit` on source and target | DENIED when either is private | rule |
 | `version.list`, `version.get`, `version.restore` | `edit` | DENIED in a private folder | rule |
 | `folder.create` (sub), `folder.rename`, `folder.move`, `folder.delete` | `manage` (admins only on private; delete already VALIDATION) | DENIED on a private folder | rule |
-| `grant.list`, `grant.add`, `grant.remove` | VALIDATION on private | unchanged | none |
+| `grant.list`, `grant.add`, `grant.remove` | VALIDATION on private | DENIED with the off text for admins (their level is `use`, the row needs `manage`); DENIED for others | none (rule) |
 | `export.folder` | `manage` | DENIED on a private folder | rule |
 | `export.library` | skips private folders | unchanged | none |
 | `import` | VALIDATION for a private target | unchanged | none |
-| `admin.folders` | admins get every live folder | unchanged; private folders show no forms | none |
+| `admin.folders` | admins get every live folder | private folders drop out of the admin Folders tab (the handler keeps folders at `manage`); the library still lists them for admins at `use` (D18) | none (rule) |
 | `trash.purge`, `daily` purge | admin; 30 days | unchanged, private trash included | none |
 | `me` | | returns `personalTemplates`, `recipientsExternal` | add fields |
 | `config.get`, `config.set` | | settings read and write (section 6) | new |
 
-Client points: library "New template" (shown only where the caller holds `edit`; slice 8b folder choice lists `edit` folders only, so private folders drop out while off; no folder left = no button); row menu actions by level (already); editor Save on a private template answers DENIED with the off text; Trash view lists only editable folders (private trash drops out while off); add-on home empty card text by `personalTemplates` (section 7); library empty texts (section 7).
+Client points: library "New template" (in a folder: shown only where the caller holds `edit`; on All templates and Favorites: shown when the caller can edit some folder, with a folder choice of `editableFolders`, built in slice 13; private folders drop out while off; no folder left = no button); editor of a private template while off opens read only with "Personal templates are turned off by your admin. You can still insert this template."; row menu actions by level (already); editor Save on a private template answers DENIED with the off text; Trash view lists only editable folders (private trash drops out while off); add-on home empty card text by `personalTemplates` (section 7); library empty texts (section 7).
 
-Enforcement points of `recipientsExternal` (move from the property to the setting, slice 11): `validateRecipients` policy input on `template.create`, `template.update`, `template.duplicate`, `version.restore`, `import`; `blocked` in `template.apply` and `template.getBody`; `me`; `config.get`.
+Enforcement points of `recipientsExternal` (built in slice 11, `recipientPolicy`): `validateRecipients` policy input on `template.create`, `template.update`, `template.duplicate`, `version.restore`, `import`, before the lock and again inside it (`recheckRecipients`, slice 13, section 5.7); `blocked` in `template.apply` and `template.getBody`; `me`; `config.get`.
 
 ## 6. Server operations
 
@@ -347,20 +356,22 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | version.list, version.get, version.restore | edit | web |
 | folder.create (sub), folder.rename, folder.move, folder.delete | manage | web |
 | folder.create (top level) | admin | web |
-| trash.purge | admin; empties the whole trash (templates and soft-deleted folders), at most 50 body-file deletions per call, the rest by the daily orphan cleanup | web |
+| trash.purge | admin; empties the whole trash (templates and soft-deleted folders), at most 50 body-file deletions per call, the rest by the daily orphan cleanup. Result `{ purged, templates, folders, filesTrashed, itemsPending }`; `templates` and `folders` (slice 13) are counted on the index read in the lock | web |
 | admin.folders | manage on at least one folder: admins get every live folder, manage holders the folders they manage; anyone else DENIED (one denied audit row) | web |
 | grant.list, grant.add, grant.remove | manage | web |
 | export.folder | manage | web |
 | export.library, import, audit.query, usage.report, membership.status, membership.refresh, config.get, backup.list, backup.restore | admin | web |
-| config.set | admin, in-lock admin re-check; `{ name, value, from }` against the fixed list of section 5.8 (D29, ADR-0008) | web |
+| config.set | admin, in-lock admin re-check; `{ name, value, baseAt, baseBy }` against the fixed list of section 5.8 (D29, ADR-0008) | web |
 | me | none beyond a valid caller | both |
 
 `spike.s4` and its policy row were removed in slice 5.
 
-Arguments and results for recipients (D26, slice 9, section 5.7): `template.create` and `template.update` take `to`, `cc`, `bcc` (string arrays). `template.duplicate` and `version.restore` copy them and validate. `import` reads them from `meta`. `template.get`, `template.list` (web app) and `export.*` return them. `template.apply` and `template.getBody` return `to`, `cc`, `bcc` (inside addresses only when `RECIPIENTS_EXTERNAL=deny`) and `blocked` on every call. `sidebar.home`, `search` and the sidebar lists return `rc: [to, cc, bcc]` counts and no address. `me` returns `recipientsExternal` (`allow` or `deny`) for the editor; `config.get` shows it. No new op and no new policy row. [From slice 11 the value comes from `settings.recipientsExternal`, section 5.8.]
+Arguments and results for recipients (D26, slice 9, section 5.7): `template.create` and `template.update` take `to`, `cc`, `bcc` (string arrays). `template.duplicate` and `version.restore` copy them and validate. `import` reads them from `meta`. `template.get` and `export.*` return them. `template.list` (web app) always carries `to`, `cc`, `bcc` of each visible template, `[]` for old items (slice 13). `template.apply` and `template.getBody` return `to`, `cc`, `bcc` (inside addresses only when `settings.recipientsExternal` is `deny`) and `blocked` on every call. `version.get` returns the version's lists; `version.restore` adds `recipientsUnreadable` when a list could not be read (section 5.7). `sidebar.home`, `search` and the sidebar lists return `rc: [to, cc, bcc]` counts and no address. `me` returns `recipientsExternal` (`allow` or `deny`) for the editor. No new op and no new policy row.
 
-Arguments and results for settings (D29, slice 11, section 5.8, ADR-0008 section 2):
-- `config.set { name, value, from }`. `name` in the fixed list; `value` and `from` in that setting's values; any other or extra arg answers VALIDATION (section 7.3 texts). Result `{ name, value, updatedAt, updatedBy, changed }`. Current value different from `from`: CONFLICT with the current entry. Same as `value`: `changed: false`, no write, no audit event.
+Arguments and results for export (slice 13, section 4.5): `export.library {}` and `export.folder { folderId }` with `start: true` answer `{ token, total }`; page calls `{ offset, token }` (plus `folderId`) answer `{ header, items, total, next }`.
+
+Arguments and results for settings (D29, slices 11 and 13, section 5.8, ADR-0008 section 2):
+- `config.set { name, value, baseAt, baseBy }`. `name` in the fixed list; `value` in that setting's values; `baseAt` and `baseBy` strings of at most 254 characters; any other or extra arg answers VALIDATION (section 7.3 texts). A call that still carries the old arg `from` answers VALIDATION "This page is out of date. Reload it and save again." Result `{ name, value, updatedAt, updatedBy, changed }`. Same as `value`: `changed: false`, no write, no audit event. Last change other than `baseAt`, `baseBy`: CONFLICT with the current entry in `details`.
 - `config.get` adds `settings`: per name `{ value, updatedAt, updatedBy }`.
 - `me` adds `personalTemplates` (`on`, `off`). `sidebar.home` adds `personalTemplates`.
 - While `personalTemplates` is `off`, a DENIED whose target sits in a private tree carries the text "Personal templates are turned off by your admin."
@@ -373,16 +384,18 @@ Error codes and UI (wireframe 07). Guard order: blank caller gives AUTH_NO_USER 
 
 | Code | Cause | Sidebar | Web app | Retry |
 |---|---|---|---|---|
-| NOT_CONFIGURED | Script Property `DOMAIN` unset: `setup()` has not run | "Migway Templates is not set up yet. Ask the owner to finish setup." | Same, full page | no |
-| AUTH_NO_USER | blank or non-domain active user | "Cannot identify your Migway account. Sign out of other Google accounts or use a separate Chrome profile." | Same, full page | no |
-| DENIED | no level on target | "You don't have access to this template. Ask a folder manager." While personal templates are off and the target is in a private folder: "Personal templates are turned off by your admin." (D29) | Inline banner, item removed from list; same off text | no |
-| NOT_FOUND | deleted or moved | "This template was removed or moved." + Refresh | Banner + link to library | no |
+| NOT_CONFIGURED | Script Property `DOMAIN` unset: `setup()` has not run | "Migway Templates is not set up yet." "Ask the owner to finish setup, then press Retry." + Retry | server text "Migway Templates is not set up. The owner runs setup once.", full page | no |
+| AUTH_NO_USER | blank or non-domain active user | "Cannot identify your Migway account." "Apps Script does not support several signed-in Google accounts. Use a separate Chrome profile for Migway, or an incognito window with only your Migway account." | Same, full page | no |
+| DENIED | no level on target | "You don't have access to this template. Ask a folder manager." + Back or Refresh. While personal templates are off and the target is in a private folder the server text is "Personal templates are turned off by your admin." (D29) | Inline banner, item removed from list; same off text | no |
+| NOT_FOUND | deleted or moved | "This template was removed or moved. Press Refresh to update the list." + Refresh | "This template was removed or moved." Banner + link to library | no |
 | CONFLICT | baseVersion stale | n/a | Conflict dialog (4.2) | after choice |
-| BUSY | lock not acquired in 10 s | "Busy, try again." + Retry | Toast + Retry | yes |
-| QUOTA | Apps Script quota or simultaneous executions | "Service is busy. Try again in a minute." | Toast | yes, after 60 s |
+| BUSY | lock not acquired in 10 s | "Busy right now. Press Retry in a few seconds." + request ID + Retry | "Busy, try again." Toast + Retry | yes |
+| QUOTA | Apps Script quota or simultaneous executions | "Service is busy. Try again in a minute." + Retry; a Retry inside the 60 s gives the notification "Service is busy. Try again in <n> seconds." | "Service is busy. Try again in a minute." Toast | yes, after 60 s |
 | VALIDATION | placeholder, subject, recipient, size or request ID errors | n/a | Inline list under editor with positions | after fix |
 | PROMPTS_MISSING | blank prompt at apply | Prompt card with fields marked | n/a | after fill |
-| TIMEOUT, SERVER | network or unhandled | "Something went wrong. Retry." + request ID | Banner + request ID | yes |
+| TIMEOUT, SERVER | network or unhandled | "Something went wrong. Press Retry." + request ID + Retry | "Something went wrong. Retry." Banner + request ID | yes |
+
+Sidebar texts as built in slice 12; state cards have no header. Slice 14 (wording pass, in build) may change texts of both columns; this table then follows the code.
 
 ### 7.1 Recipient texts (D26, added 2026-11-10)
 
@@ -397,18 +410,21 @@ Save errors (editor field error and Problems list; `field` and `position` from t
 | `RCPT_EXTERNAL` | "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save." |
 
 Sidebar (wireframe 02):
-- List row of a template with recipients: bottom label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only); button "Review", screen reader text "Review <title>".
-- Preview card, section "Recipients": one line per address, "To payroll@migway.com", "Cc safety@migway.com", "Bcc records@partner.com". Markers after the address: "outside migway.com", "hidden from other recipients" (Bcc).
+- List row of a template with recipients: label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only), on the row's one label line after the path and fields hint, joined by " · "; button "Review", screen reader text "Review <title>".
+- Preview card, section "Recipients", and the prompt card below its switch: one item per address, top label the field ("To", "Cc", "Bcc"), text the address, bottom label the markers joined by " · ": "outside migway.com", "hidden from other recipients" (Bcc).
 - Not added: "Not added: <address>. The draft already has a To recipient." / "Not added: <address>. It is already in the draft." / "Not added: <address>. Outside migway.com, turned off by your admin."
-- Line above the buttons: "Adds 2 recipients." (count of addresses Insert adds).
-- Prompt card switch: label "Add recipients", bottom label "Cc safety@migway.com, Bcc records@partner.com (outside migway.com)".
+- Unknown draft field: "The draft's Cc recipients could not be read and were not changed. Add by hand: <addresses>."
+- Finish typing (when Insert adds an address): "Finish typing addresses in the draft first: an address still being typed is lost."
+- Preview card line above the buttons: "Adds 2 recipients." (count of addresses Insert adds; "1 recipient" singular).
+- Prompt card switch: label "Add recipients", bottom label "Adds 2 recipients." (only when Insert adds one), then the recipient lines above.
 - Changed lists at Insert: "The recipients of this template changed. Check them and press Insert again."
 
-Editor (wireframe 04, Details panel):
-- Labels "To", "Cc", "Bcc". One input each; addresses separated by commas, semicolons, spaces or line breaks; shown as one chip per address after blur.
+Editor (wireframe 04, Details panel, slice 8b):
+- Labels "To", "Cc", "Bcc" above each field. Enter, comma, semicolon, space, a pasted list and leaving the field turn the typed text into chips (trim, lower case, repeats dropped). Backspace in the empty input removes the last chip. Each chip has a button "Remove <address> from Cc". The status line announces "Added <addresses> to Cc" and "Removed <address> from Cc".
 - Help under the three fields: "Added to the draft when someone inserts this template. Users see every address before it is added."
-- Chip marker on an outside address: "outside migway.com". Under `deny` the chip has the error style and the `RCPT_EXTERNAL` text.
+- Marker under a valid outside address: "outside migway.com". Under `deny` the chip has the error style and the `RCPT_EXTERNAL` text.
 - Bcc help: "Hidden from the other recipients of the email."
+- `use` holders see the lists read only, chips without a remove button; an empty field reads "None".
 
 Config tab: [Amended 2026-11-10, D29: the read-only row "Set by the owner in Script Properties (RECIPIENTS_EXTERNAL)" is replaced by the "Outside recipients" setting of section 7.3.]
 
@@ -418,12 +434,14 @@ Wireframe 01, side-panel variant. Entries from `entryOf` (section 4.1a).
 
 | Place | `inbox` (no message open) | `message` (message open) |
 |---|---|---|
-| Line under the header | "Start a new email from a template." | "Reply to this email with a template, or start a new one." |
+| Line above the lists (not built; waits for S7) | "Start a new email from a template." | "Reply to this email with a template, or start a new one." |
 | Row button | "New email", screen reader "New email from <title>" | "Reply", screen reader "Reply with <title>" |
 | Row button, template with recipients | "Review" (as compose) | "Review" |
 | Preview buttons | "New email" | "Reply", "Reply all", "New email" |
 | Prompt card footer | "Create email" | "Create reply" (or "Create email" when opened from "New email") |
-| Footer hint (both) | "Writing an email? Open Migway Templates from the toolbar at the bottom of the draft to insert at the cursor." | same |
+| Footer hint (both; built in slice 10, text of slice 12) | "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." Last section of home, folder, search and preview cards | same |
+
+As built until the panel pass (slices 10 and 12): rows and preview cards in `inbox` and `message` carry no Insert or panel button; a tap on a title opens the preview; the hint ends each card. The dev build adds the "Spike S7 (temporary)" section after the hint.
 
 Preview card lines, side panel only:
 - Signature: "Your Gmail signature is not added. Use the signature button in the draft." (dropped if S7 shows Gmail adds it.)
@@ -439,9 +457,10 @@ Empty states:
 - Sidebar, no visible templates, personal templates `off` (D29): "No templates shared with you yet. Ask your admin for access to a folder." No button.
 - Library, no folder visible (personal templates `off`, no grant): "No templates shared with you yet. Ask your admin for access to a folder." No button.
 - Library, the caller's own private folder while `off`: "Personal templates are turned off by your admin. You can still insert these templates." Shown above the list; no New template button.
-- Sidebar, no favorites: "Star templates in the library to pin them here."
+- Sidebar, no favorites (slice 12): the Favorites section is not shown. Recent with no entries is not shown either.
+- Sidebar, no search results: `No templates match "<query>". Try fewer words, or remove folder: and tag: from the search.` The query shows at most 60 characters (`ECHO_MAX`, cut by whole characters), then "...".
 - Library, empty folder: "No templates in <folder>." Button: New template (edit level only).
-- Library, no search results: "No templates match <query>. Try folder: or tag:."
+- Library, no search results: `No templates match "<query>". Try folder: or tag:.`
 - Trash empty: "Trash is empty. Deleted templates stay here for 30 days."
 - Admin, folder without grants: "Only admins can see this folder. Add a grant to share it."
 
@@ -462,8 +481,10 @@ Config tab, section "Settings" (wireframe 06). Admins only.
 | Last change | "Last change: <name part> on <local time>." or "Default, never changed." | same |
 | Save | "Save", busy "Saving...", status "Saved. Personal templates are off for every user from their next action." (or "on") | "Saved. Outside recipients are allowed." / "Saved. Only migway.com recipients are allowed." |
 | Confirm dialog (only for `on` to `off`, `allow` to `deny`; Cancel has focus) | Title "Turn off personal templates?" Body "Users can no longer create, change or delete templates in My templates. Their existing personal templates stay and can still be inserted. Nothing is deleted. Turning it on again restores everything." Buttons "Turn off", "Cancel" | Title "Allow only migway.com recipients?" Body "Templates keep their outside addresses, but Insert no longer adds them and saving a template with one fails until the address is removed." Buttons "Allow only migway.com", "Cancel" |
-| Conflict | "<name part> changed this setting on <local time>. The page now shows the current value." | same |
-| Validation (server) | "Setting <name> does not exist." / "Setting personalTemplates takes on or off." | "Setting recipientsExternal takes allow or deny." |
+| Conflict (client text; the radio then shows the current value and focus moves to the status line) | "<name part> changed this setting on <local time>. The page now shows the current value." | same |
+| Validation (server) | "Setting <name> does not exist." (at most 40 characters of the name, `NAME_ECHO_MAX`) / "Setting personalTemplates takes on or off." / old `from` arg: "This page is out of date. Reload it and save again." | "Setting recipientsExternal takes allow or deny." |
+
+The server CONFLICT message is "<name part> changed this setting. The page now shows the current value."; the client adds the local time. Save stays enabled while saving with `aria-disabled`; when Save ends disabled after it had focus, focus moves to the status line (slice 13).
 
 The domain in the texts is Script Property `DOMAIN`.
 
@@ -473,7 +494,7 @@ The domain in the texts is Script Property `DOMAIN`.
 - Focus visible on every interactive element (2 px outline, contrast 3:1 against background). Dialogs trap focus and return it to the opener.
 - Every input has a visible `<label>`. Icon buttons have `aria-label` ("Add to favorites: Welcome email").
 - Text contrast 4.5:1, large text 3:1. No information by color alone (conflict and error also have text and icon).
-- Placeholder chips have `aria-label` "Placeholder: sender name" and are announced as one unit.
+- Placeholder blanks (slice 8b) have `aria-label` "Field: <label>", "Field: <label>, fallback <text>" or "Field: <label>, asked at insert" (for example "Field: Sender name", "Field: Load number, asked at insert") and are announced as one unit.
 - Status changes (saved, restored, error) use `role="status"` or `role="alert"`.
 - Editor toolbar buttons use `aria-pressed` for toggles. Toolbar is one tab stop with arrow-key navigation.
 - Sidebar: buttons name the target ("Insert Welcome email"), not "Go". Card Service renders native controls.
@@ -548,7 +569,7 @@ Fields added 2026-11-10 (slice 4b):
 |---|---|
 | `requestId` | One format on both surfaces: `XXXXXXXX-XXXXXX`, 8 base-36 time characters, a dash, 6 random, upper case. Pattern `^[0-9A-Z]{8}-[0-9A-Z]{6}$`, generator and check in src/shared/requestId.ts. The server enforces it on add-on and web calls before parsing: any other value answers VALIDATION "Request ID must have the format XXXXXXXX-XXXXXX", and the log line and audit events carry a server-made ID. Client text never reaches the log |
 | `action` | The op name only when the policy table knows it, else `""` |
-| `targetId` | `args.id`, else `args.folderId`, only when it is a well-formed 26-character ID, else `""` |
+| `targetId` | `args.id`, else `args.folderId`, only when it is a well-formed 26-character ID; else (slice 13) the first non-root target folder dispatch resolved (`RequestStats.target`); else `""` |
 | `calls` | Service calls in this execution: `props` (Script Properties), `cache` (Script Cache), `drive`, `lock` (`tryLock`), `dir` (Admin Directory). Integers |
 | `timing` server keys | `startupMs` (bundle evaluation to handler start), `totalMs` (to the log line), `propsMs`, `cacheMs`, `driveReadMs`, `driveWriteMs`, `lockMs`, `dirMs` |
 | `timing` add-on keys | `addonPreMs` (add-on start to this call), `addonTokenMs` (`getOAuthToken`), `prevFetchMs` and `prevTotalMs` (the previous server call of the same add-on execution). The server keeps only these 4 keys, whole ms from 0 to 600,000, and drops anything else |
@@ -572,11 +593,12 @@ Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`
 Mechanism: ADR-0003 Amendment 2026-11-10 (errata run 3).
 
 - Denied rows: every DENIED writes one denied audit event: a policy denial, a handler refusal after the policy check (`admin.folders`), or an in-lock re-check (`trash.purge`, admin rows). One call writes at most one row. VALIDATION and NOT_FOUND write none.
-- Event buffer: at most 200 apply and denied events between two `tick` runs. Further events are dropped and counted; `tick` writes one `audit.dropped` event (actor `system`, result `error`, `after: { dropped }`). Change events go through `pendingAudit` in the index write and are never dropped.
+- Event buffer: at most 200 apply and denied events between two `tick` runs (`BUFFER_MAX`). In a full buffer (slice 13) a new event first takes an evicted slot (no drop counted); else an apply event takes the slot of a buffered denied event (the denied event counts as dropped); else the new event is dropped and counted in `evt:dropped`. An event lost to a busy 500 ms buffer lock counts in `evt:lost` ("<lost> <seen>" in one key). `tick` writes one `audit.dropped` event for both (actor `system`, result `error`, `after: { dropped }`). Change events, export start events included, go through `pendingAudit` in the index write and are never dropped.
 - Usage: `usage.json` entries carry `days`, apply counts per UTC day, kept 30 days (section 5.5). `usage.report` shows applies in the 30 UTC days ending today.
-- Log lines keep the closed field list above. `grant.add`: `targetId` = folder ID; `grant.remove`: `""`. No line carries a principal key. `import`: `targetId` = target folder; `export.folder`: folder ID; `export.library`: `""`; `backup.restore`: `""`, the date is not logged. No line carries a title, subject or body of an import file.
-- Audit events: `grant.*` with before and after; one `import` event per created folder and template; `backup.restore` with before `{ rev, items }` and after `{ date, rev, items }`; `trash.purge` one event per purged template and folder; `audit.dropped`. Export writes no audit event in v1 (section 13.5).
-- `config.set` (D29, ADR-0008): one audit event per change, `targetType: config`, `targetId` the setting name, `before: { name, value }`, `after: { name, value }`, in the same commit as the change. No event when nothing changed. Log line: `action: config.set`, `targetId: ""`, result `ok`, `conflict`, `denied` or `error`; the value is not logged. A non-admin call writes one denied row; VALIDATION writes none.
+- Log lines keep the closed field list above. `grant.add` and `grant.remove` (slice 13): `targetId` = folder ID, ok and denied. `folder.create` under a parent logs the parent ID. No line carries a principal key. `import`: `targetId` = target folder; `export.folder`: folder ID; `export.library`: `""`; `backup.restore`: `""`, the date is not logged. No line carries a title, subject or body of an import file.
+- Audit events: `grant.*` with before and after; one `import` event per created folder and template; `backup.restore` with before `{ rev, items }` and after `{ date, rev, items, liveSettingsKept: true }`; `trash.purge` one event per purged template and folder; `audit.dropped`. Export (slice 13): one `export.library` or `export.folder` event per run, committed at the start call (section 4.5), `targetType` `library` or `folder`, `after: { scope, templates }`.
+- `config.set` (D29, ADR-0008): one audit event per change, `targetType: config`, `targetId` the setting name, `before: { name, value }`, `after: { name, value }`, in the same commit as the change. No event when nothing changed. Log line: `action: config.set`, `targetId: ""` (no `id`, no `folderId`, no folder target), result `ok`, `conflict`, `denied` or `error`; the value is not logged. A non-admin call writes one denied row; VALIDATION writes none.
+- Cache keys hold no address (slice 13): Directory profiles are cached as `prof:<sha256 of the lower-case address>`; old `prof:<email>` keys are never read and expire within 6 h. Export run tokens are `exp:<token>` (section 4.5).
 
 ## 12. Measurable targets (BRIEF 9)
 
@@ -651,9 +673,16 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | ADR-0004 placeholder parser and sanitizer | 3; insert spike in 4; spike S4 closed 2026-11-10 on Gmail web (D22), allowlist unchanged, cap 100 KB; harness removal in 5 |
 | ADR-0005 repo, CI, deploy, rollback | 1; rollback exercise before slice 7 ends |
 | Docs: README, admin install, quick start, runbook | 7 |
-| 5.7 Template recipients (D26), spike S6 | 9 (after 8a); editor fields restyled into the Details panel in 8b |
-| 4.1a Side-panel insert (D27), 7.2, spike S7 | Gmail panel pass, after slice 9 (section 13.7) |
-| 5.8 Admin settings (D29), 7.3 | 11, after slices 8c and 9 are merged (section 13.8) |
+| Web UI in design direction A (docs/design/design-system.md): shell, library, trash, history | 8a, done |
+| Screen 4 editor in direction A: Details panel with To, Cc, Bcc chips, "The sender fills in", Preview and Problems tabs, "Reads as" line, leave guard, minified styles | 8b, done (merged f88ab0b) |
+| Screen 6 admin in direction A | 8c, done |
+| Web minors of the 8a and 8c reviews (dialog inert, page focus, audit actor line, export sentence) | 8d, done |
+| 5.7 Template recipients (D26), spike S6 | 9, done: S6 passed on dev-ec0ccb2, shared, server and add-on; editor fields in 8b; library address search in 13 |
+| 4.1a Side-panel insert (D27), 7.2, spike S7 | 10, done: `entryOf`, `onMessageOpen` contextual trigger, panel cards without Insert, footer hint, S7 harness (dev only). The panel compose actions wait for spike S7 (section 13.7) |
+| 5.8 Admin settings (D29), 7.3 | 11, done (section 13.8) |
+| 7, 7.2 add-on card layout and texts: no header on home, icons, one-line row labels, collapsed sections, fixed footer "Open library" | 12, done |
+| Last fix round: `config.set` base and CONFLICT, in-lock recipient re-check, export start event and run token, buffer slots, log `targetId`, `prof:` hash, `trash.purge` counts, New template folder choice, library address search, settings focus | 13, done |
+| Wording pass on web and add-on texts with open review minors | 14, in build; sections 7 to 7.3 follow its result |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -692,7 +721,7 @@ Done 2026-11-10. 6a: review PASS on bb53d6c (docs/reviews/slice-06a.md), merged,
 Added 2026-11-10 (slices 6a, 6b; accepted for v1, each with a v1.1 fix in section 13.5):
 
 - Grant writes in the admin view do not reload the library tree (6b minor R3). A manage holder who removes a grant they depend on sees the old tree until a page reload. Folder writes do reload it.
-- 200 refused calls inside 5 min fill the event buffer, and apply events of that window are dropped with the denials (6b minor 4). Usage counts lose them; one `audit.dropped` row records the total.
+- 200 refused calls inside 5 min fill the event buffer (6b minor 4). Since slice 13 an apply event takes the slot of a denied event, so applies are dropped only when the buffer holds 200 applies. One `audit.dropped` row records the total.
 - An audit month file larger than the Script Cache is read and parsed on every `audit.query` call (6b minor 8). About 2.4 MB per month at 1x, 24 MB at 10x.
 - Export pages by offset (6b minor 9). A save between two pages can repeat or skip one template in the file. Export when nobody saves, or compare the count in the status line with the folder.
 - A failure inside the restore undo leaves backup side files with the live index and replaces the first error (6b minor R2).
@@ -713,19 +742,19 @@ Added 2026-11-10 (slices 6a, 6b; accepted for v1, each with a v1.1 fix in sectio
 | Owner-run `restoreBackup(date)` editor function (Q31) | src/server | v1.1, before 2.5b if possible |
 | B2 server-to-server pull, `READ_ONLY` write refusal (ADR-0002 Amendment, owner handover; Q27) | src/server, Config tab | v1.1, before the first owner change |
 | Grant writes call `foldersChanged` | src/web | v1.1 |
-| Separate buffer caps for apply and denied events | src/server/audit | v1.1 |
+| Separate buffer caps for apply and denied events | src/server/audit | done differently in slice 13: applies take denied slots (section 11.1) |
 | Audit month read by byte range or a per-month row index | src/server/audit | v1.1, before a month passes 5 MB |
 | Export pages by item ID cursor instead of offset | src/server/handlers/transfer.ts | v1.1 |
-| One `export` audit event per export (first page) | src/server/handlers/transfer.ts | v1.1 (ADR-0002 lists export as a security event) |
+| One `export` audit event per export | src/server/handlers/transfer.ts | done in slice 13: one start event through `commit` plus a run token (section 4.5) |
 | Restore undo keeps the first error | src/server/handlers/config.ts | v1.1 |
 | Plural in the purge refusal; owner label in the Usage tab | src/server, src/web | v1.1 |
 
 ### 13.6 Slice 9: template recipients (D26, added 2026-11-10)
 
-Order: slice 8a (shell, library, trash, history), then slice 9, then 8b (editor redesign). Slice 9 puts the three fields under Subject in the current editor form; 8b moves them into the Details panel of design direction A (wireframe 04).
+Order: slice 8a (shell, library, trash, history), then slice 9, then 8b (editor redesign). Built 2026-11-11: slice 9 (review PASS on 08955ca) built items 1 to 5, 7, 8 without editor fields; 8b built the fields in the Details panel (wireframe 04) and the History recipients line; slice 13 built the library address search.
 
 1. First task, about 20 min on the dev deployment: spike S6 (section 14.1) with a temporary harness card. The result fixes the content of the recipient actions before the rest is built. Harness removed in the same slice.
-2. Shared `validateRecipients` (syntax, limits, duplicates, `RECIPIENTS_EXTERNAL`), codes of section 7.1, fixtures for each code and for normalization.
+2. Shared `validateRecipients` (syntax, limits, duplicates, outside rule; the switch was the property `RECIPIENTS_EXTERNAL` in slice 9 and is `settings.recipientsExternal` since slice 11), codes of section 7.1, fixtures for each code and for normalization.
 3. Item and version file fields, shape check accepting absence, write paths: create, update, duplicate, restore, import (drop and report), export.
 4. `template.apply` and `template.getBody`: `to`, `cc`, `bcc`, `blocked` on every call; `rc` counts in sidebar lists; `me` and `config.get` report the switch.
 5. Add-on: `recipientActions` (one place, truth tables of section 5.7, unit tests), "Review" rows, preview card section, "Insert body only" as body only, prompt card switch `rcpt`, `rh` hash check, never `setSendStatus`.
@@ -747,14 +776,14 @@ After slice 9: the panel insert reuses `recipientActions`, the `rh` check and th
 8. Quick start: one paragraph "Side panel or toolbar" with the 4 differences of ADR-0007 section 2.
 9. Smoke "Gmail panel": the S7 cases on the built code, plus prompts, a template with recipients, a DENIED template, and a compose-toolbar Insert (regression).
 
-Until this pass ships, the defect stays: panel Insert buttons do nothing. Interim fix if the pass is delayed: in the panel, rows show no Insert and the card shows the footer hint (about 1 h).
+Interim fix built in slice 10 (review PASS, dev-e2eb0ae): in the panel, rows and preview show no Insert and each card ends with the footer hint. Items 2 and 3 are built too (manifest contextual trigger, `entryOf`). The S7 harness stays in the dev build until S7 runs; items 1 and 4 to 9 wait for it.
 
 ### 13.8 Slice 11: admin settings (D29, added 2026-11-10)
 
-After slices 8c (admin redesign) and 9 (recipients) are merged: 11 reuses the 8c Config tab and replaces the `RECIPIENTS_EXTERNAL` reader of 9. No spike: no new scope, no new Google API.
+After slices 8c (admin redesign) and 9 (recipients) are merged: 11 reuses the 8c Config tab and replaces the `RECIPIENTS_EXTERNAL` reader of 9. No spike: no new scope, no new Google API. Done 2026-11-11: review PASS on f84a021 (docs/reviews/slice-11.md), merged; slice 13 replaced `from` with `baseAt`, `baseBy`.
 
-1. Shared: the fixed settings list (names, values, defaults), `readIndexDoc` defaults, shape check entry, fixtures for absent, valid and bad values.
-2. Server op `config.set` (section 6): policy row (admin, web), argument checks, `from` conflict, no-op on the same value, audit event and log line (section 11.1); `config.get`, `me`, `sidebar.home` fields.
+1. Shared: the fixed settings list (names, values, defaults), defaults filled per reader by `settingsOf` (built; `readIndexDoc` unchanged), shape check entry, fixtures for absent, valid and bad values.
+2. Server op `config.set` (section 6): policy row (admin, web), argument checks, base conflict (`baseAt`, `baseBy` since slice 13; `from` in slice 11), no-op on the same value, audit event and log line (section 11.1); `config.get`, `me`, `sidebar.home` fields.
 3. Personal templates rule in `levelResolver` (before the admin rule); `folder.list` skips the private folder creation while off; the DENIED text. Role matrix tests: every row of the section 5.8 table, for owner, admin and another user, with the switch on and off; the in-lock re-check refuses a write that started before a change.
 4. Recipients: every reader of `RECIPIENTS_EXTERNAL` reads `settings.recipientsExternal`; the property leaves `config.get`.
 5. `backup.restore` keeps the live `settings`.
@@ -770,7 +799,7 @@ After slices 8c (admin redesign) and 9 (recipients) are merged: 11 reuses the 8c
 | S2b | 2 | UrlFetch round trip to `/exec`, add-on start time, Drive read and write of 0.85 MB and 8.4 MB files, `domain_public` fields | p95 recorded in ADR-0002; 0.85 MB read and write each under 2 s (Q17) |
 | S4 | 4, first task | Draft insert on Gmail web (ADR-0004 table) | Resolved 2026-11-10: F1 to F9 inserted on Gmail web, 204,837 bytes (F7) included. Allowlist unchanged, cap 100 KB. Android and iOS runs dropped by the owner (D22). Harness removed in slice 5 |
 | S5 | 5, first task | Body and subject actions in one `UpdateDraftActionResponse` on Gmail web; subject replaced, not appended; reply drafts (Q20, Q21) | Resolved 2026-11-10 on dev-32a446c: body and subject in one response, no new scope (Q20 closed). A replaced reply subject started a new thread; the event carries no `threadId` or `messageId` (dev-4a233d4). Rule D24 (section 5.6) keeps any filled subject; smoke "Slice 5c" on dev-848206f: the reply stayed in its conversation (Q21 closed) |
-| S6 | 9, first task | Body, subject, To, Cc and Bcc actions in one `UpdateDraftActionResponse` on Gmail web; add or replace; new draft, typed recipients, reply, forward; address already present; permission prompt | Open. Pass: all 5 actions apply from one response, no permission prompt, no draft address lost. Steps and fallbacks in section 14.1 |
+| S6 | 9, first task | Body, subject, To, Cc and Bcc actions in one `UpdateDraftActionResponse` on Gmail web; add or replace; new draft, typed recipients, reply, forward; address already present; permission prompt | Passed 2026-11-10 on dev-ec0ccb2 from the compose toolbar (docs/spikes/slice-09-s6.md): all 5 actions apply from one response with no prompt; actions replace a field, so the build sends the draft list plus the new addresses (decision table row 2); event lists are arrays of bare addresses. Step 7 (fresh consent) is still open, by hand; a prompt there stops D26 (Q55) |
 | S7 | Gmail panel pass, first task | Compose actions from the side panel: new draft, reply, reply all; scopes; signature; open compose window (D27) | Open. Pass: New email and Reply create drafts with HTML body, subject and recipients, no permission prompt. Steps and fallbacks in section 14.2 |
 
 ### 14.1 Spike S6: recipient actions (D26)
@@ -799,6 +828,8 @@ Decision table:
 | Actions ignored in a reply (step 5) | Card lists "Add by hand: <address>" when the draft's To is filled; owner informed |
 | Any permission prompt (step 7) | Stop D26 work. Report the scope to the owner. No manifest change without approval |
 | Two chips in step 4 | Skip rule stays (it is built anyway); no change |
+
+Result (owner run, dev-ec0ccb2, compose toolbar, 2026-11-10): step 1 all 5 applied, Bcc line opened; step 2 replace (typed To and Cc gone); step 3 all 5 addresses once; step 4 one chip, a response with only a recipient action works; step 5 reply kept its To and gained Cc and Bcc; step 6 forward To filled; step 8 each list is a JSON array of bare addresses in `draftMetadata`, and `gmail` repeats only the non-empty lists. Step 7 not run. Build: row 2 of the table above. The two earlier runs (dev-c1c7f16, dev-ec0ccb2) came from the side panel and changed no draft.
 
 ### 14.2 Spike S7: side-panel compose actions (D27)
 
@@ -864,7 +895,7 @@ Decision table:
 | Q28 | Run tests V1 to V4 (section 16) on dev with the pilot's second account | Yes, in the 2.5b dry run, about 30 min. If V1 and V3 pass, the same-project transfer (option C) replaces B2 and needs no code |
 | Q29 | Owner change: move all body versions or current versions only | All versions while under 20,000 files (D20 keeps all versions); above that, current versions only and the old data folder kept read-only |
 | Q30 | Dev to prod pilot data (2.5b step 5): import loses private templates and grants | The interim runbook (admin-only "Handover" folder) unless B2 exists by 2.5b |
-| Q32 (D26) | Admin switch for outside recipients: in-app admin setting in v1, or v1.1 | Closed 2026-11-10 by D29: in-app in v1 with the personal templates switch (ADR-0008, slice 11). Earlier recommendation: v1.1. v1 uses Script Property `RECIPIENTS_EXTERNAL` (`allow` default, `deny`), set by the owner, shown read only in the Config tab: 0 extra calls, about 1 h of build. The in-app setting needs an op, a policy row, an audit event and tests (about half a day) and is audited (ADR-0006 section 2) |
+| Q32 (D26) | Admin switch for outside recipients: in-app admin setting in v1, or v1.1 | Closed 2026-11-10 by D29: in-app in v1 with the personal templates switch (ADR-0008, slice 11). Superseded earlier recommendation: v1.1, with v1 on Script Property `RECIPIENTS_EXTERNAL` (`allow` default, `deny`), set by the owner, shown read only in the Config tab: 0 extra calls, about 1 h of build. The in-app setting needs an op, a policy row, an audit event and tests (about half a day) and is audited (ADR-0006 section 2) |
 | Q33 (D26) | Recipient limits | 10 per field, 20 together, 254 characters per address. Gmail's own limits are far above; templates route to a few role addresses |
 | Q34 (D26) | Placeholders in recipient fields | None in v1. A placeholder resolves after the server's validation, so syntax and `deny` would no longer be enforced server-side; `{{ask:...}}` equals typing in Gmail |
 | Q35 (D26) | Template To in a reply or a draft with a typed To | Not added; the card lists it as "Not added". No override button in v1 (the preview card would need up to 4 Insert buttons). Revisit if users ask |
@@ -882,7 +913,10 @@ Decision table:
 | Q47 (D29) | Dev reads as `off` after the slice 11 deploy (no settings stored), so the owner and pilot users lose personal creation on dev | Accept. The owner turns it on in Config > Settings if the pilot needs it; prod starts `off` as D29 says |
 | Q48 (D29) | While off, owners cannot delete or move their own personal templates, and admins drop to `use` on private folders (one level rule) | Accept. An admin who must clean up or promote a personal template turns the switch on, does the work, turns it off; both changes are audited. The alternative (admins keep `manage`, 7 per-op target checks) costs more code and tests |
 | Q49 (D29) | A third setting now (candidates: `IMG_HOSTS`, `LOG_LEVEL`, admin group) | No. `IMG_HOSTS` and `ADMIN_GROUP` are security config and stay owner-set in Script Properties; `LOG_LEVEL` is for the owner. A new setting is one row in the fixed list when asked |
-| Q50 (D29) | `RECIPIENTS_EXTERNAL` set on dev before slice 11 is ignored afterwards | No fallback code. The slice 11 smoke checks the dev property; the owner deletes it and sets the value in Config > Settings if it was `deny` |
+| Q50 (D29) | `RECIPIENTS_EXTERNAL` set on dev before slice 11 is ignored afterwards | No fallback code (built: no code reads the property). The slice 11 smoke checks the dev property; the owner deletes it and sets the value in Config > Settings if it was `deny` |
+| Q53 (slice 13) | A switch to `deny` during an import (between the first check and the lock) refuses the whole file; the normal `deny` path drops the address and imports | Accept. The race needs an admin to flip the switch during another admin's import; nothing is written and the text says to run it again, which then drops the address |
+| Q54 (slice 9) | `rh` covers the template lists, not each draft field's known or unknown state. A card built with Cc unknown, tapped with Cc known, adds the Cc address the card listed under "Add by hand" | Accept. The address was shown on the card and no draft address is lost. Adding the state to `rh` costs one more card re-render in a case the owner's Gmail runs never produced |
+| Q55 (S6) | Spike S6 step 7: a fresh consent run with recipient actions | Owner runs it by hand before prod (about 5 min, "Remove access" then Insert of a template with recipients). A prompt naming a scope outside the 10 stops D26 until the owner approves |
 | Q51 (D29) | "Off" hides existing personal templates entirely (option 1) instead of read and insert (option 2) | Option 2. The owner's words name creation; hiding loses users their own texts and breaks favorites and Recent silently. Flip is one value in the rule (`none` for `use`) if the owner wants it |
 | Q52 (D29) | Users are told that admins can turn personal templates off | Yes, one sentence in the quick start next to the D18 disclosure |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
@@ -924,7 +958,7 @@ Template, folder and grant changes and backup restores happen in the web app, do
 - The server reads the 3 copies (`index.json`, `favorites.json`, `usage.json`) and runs the shared shape check before the lock. A missing, unparsable or damaged copy answers VALIDATION "This backup cannot be read: <file> ..."; live files stay untouched.
 - Under the lock: admin re-check; refusal when the backup holds templates emptied from the trash since that date ("<n> templates of the <date> backup were emptied from the trash after that date and would not open. Pick a newer backup."). The automatic purge needs 30 days in the trash and backups go back 14, so only a manual "Empty trash now" can cause it.
 - Writes `favorites.json`, then `usage.json`, then `index.json` last as the commit point (`rev = current + 1`, current `pendingAudit` kept). A failure before or during the index write puts the side files back. One `backup.restore` audit event.
-- The live `settings` object is kept, like `pendingAudit` (D29, ADR-0008).
+- The live `settings` object is kept, like `pendingAudit` (D29, ADR-0008). The event `after` says so: `liveSettingsKept: true`.
 - The same shape check runs on every Drive read of the live files. A damaged live file answers INTERNAL "<file> is damaged: <problem>" on every op that loads it.
 
 ### 16.2 Recovery from a damaged live file (runbook input, slice 7)
