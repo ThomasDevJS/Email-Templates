@@ -93,6 +93,15 @@ function appErrorBody(error: AppError): ErrorBody {
     : { ...body, details: error.details };
 }
 
+/**
+ * "<code> <error name>" of any thrown value. Stored and shown in place of the message, because a platform message
+ * can carry file text (a Drive media error quoted a whole audit file, slice 19).
+ */
+export function errorSummary(error: unknown): string {
+  const name = error instanceof Error ? error.name : "Error";
+  return `${toErrorBody(error).code} ${name}`;
+}
+
 /** Converts any thrown value to the response error body. Unknown errors become INTERNAL with a fixed message. */
 export function toErrorBody(error: unknown): ErrorBody {
   if (error instanceof AppError) return appErrorBody(error);

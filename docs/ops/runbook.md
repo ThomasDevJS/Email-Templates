@@ -75,7 +75,7 @@ All commands and the first-deploy steps are in [deploy.md](deploy.md).
 | `refreshMembers` | every 15 min                           | 30 min without a success |
 | `daily`          | daily, 02:00 to 03:00 script time zone | 48 h without a success   |
 
-- Late means: the last success is more than 2 schedule intervals old. The "Settings and backups" tab shows "Late" with the last error, or "never ran".
+- Late means: the last success is more than 2 schedule intervals old. The "Settings and backups" tab shows "Late" with the last error, or "never ran". The last error holds an error code and name (and, for the nightly job, the failed steps), never the error message. The log line in Executions adds the first 3 stack frames.
 - Apps Script also sends a trigger failure email to the owner account.
 - "The background jobs could not be set up again: ..." on the "Settings and backups" tab: the trigger update after a deploy failed. The old triggers stay. The next page load or `tick` retries. If it repeats, run `setup()` as the owner and read its error.
 - Time zone: `appsscript.json` `timeZone` (deploy.md, Time zone).
@@ -178,7 +178,8 @@ Unverified: that Upload new version keeps the file ID and its app properties. Ch
 - Symptom: Audit log tab shows "The audit log could not be loaded. Press Retry in the message." for a month whose file exists. Executions show `audit.query` with `INTERNAL`. The nightly job fails at `auditRolled`, so "Nightly backup and cleanup" turns "Late" after 48 h, and `pendingAudit` in `index.json` keeps growing. Above 200 KB the 5-minute job fails too.
 - Cause: builds before slice 19 read `audit/YYYY-MM.jsonl` with the Advanced Drive service, which parses the file as JSON and throws ("Response Code: 200") once the file has 2 lines.
 - Fix: deploy slice 19 or later. Month files are now read through Drive REST. No manual step: the next nightly job (or the 5-minute job above 200 KB) moves every pending event into the month file. No event is lost; a repeated event is skipped by its ID.
-- Check: the Audit log tab loads the current month and shows today's rows. After the next nightly job, "Nightly backup and cleanup" shows "OK". Optional cleanup: the old `job:daily:lastError` Script Property may hold audit lines from the failed runs; the owner can delete it.
+- Check: the Audit log tab loads the current month and shows today's rows. After the next nightly job, "Nightly backup and cleanup" shows "OK".
+- Required after deploying this build: Apps Script editor, Project Settings, Script properties. Read `job:tick:lastError`, `job:refreshMembers:lastError`, `job:daily:lastError` and `job:triggers:lastError`. Delete any that holds text from before this build (it can quote audit lines with addresses). From this build on, a last error reads "<time> <code> <error name>" or "<time> daily steps failed: <step> (<code>)", and a successful run deletes it. Executions and Cloud Logging keep the old messages until they expire.
 
 ## Version pruning
 

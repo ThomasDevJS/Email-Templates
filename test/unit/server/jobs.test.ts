@@ -340,9 +340,7 @@ describe("daily", () => {
     world.ok(OWNER, "template.delete", { id: item.id });
     world.clock.now += 31 * DAY;
     world.lock.holdElsewhere();
-    expect(() => runDaily(world.services)).toThrow(
-      "purged (The library is busy",
-    );
+    expect(() => runDaily(world.services)).toThrow("purged (BUSY)");
     world.lock.holdElsewhere(false);
     expect(world.drive.files.get(item.bodyFileId)?.trashed).toBe(false);
     world.ok(OWNER, "template.restoreFromTrash", { id: item.id });
@@ -390,7 +388,7 @@ describe("daily", () => {
   it("runs every step and reports the failed ones", () => {
     world.drive.failNext("copy", new Error("copy refused"));
     expect(() => runDaily(world.services)).toThrow(
-      "daily steps failed: backupsTrashed (copy refused)",
+      "daily steps failed: backupsTrashed (INTERNAL)",
     );
     expect(world.drive.byName("2026-11.jsonl")).toHaveLength(0);
   });
@@ -480,8 +478,8 @@ describe("trigger reinstall", () => {
     world.props.setProperty(TRIGGERS_VERSION_KEY, "0");
     expect(() => ensureTriggers(world.services)).toThrow("Trigger quota");
     expect(world.scriptApp.triggers.map((t) => t.id)).toEqual(old);
-    expect(world.props.getProperty(lastErrorKey("triggers"))).toContain(
-      "Error: Trigger quota",
+    expect(world.props.getProperty(lastErrorKey("triggers"))).toBe(
+      "2026-11-09T12:00:00.000Z INTERNAL Error",
     );
     expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
     expect(world.lock.hasLock()).toBe(false);
@@ -499,7 +497,7 @@ describe("trigger reinstall", () => {
     expect(world.scriptApp.triggers).toHaveLength(4);
     expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe("0");
     expect(world.props.getProperty(lastErrorKey("triggers"))).toContain(
-      "Delete refused",
+      "INTERNAL Error",
     );
     world.scriptApp.deleteTrigger = deleteTrigger;
     expect(ensureTriggers(world.services)).toBe(true);

@@ -188,9 +188,9 @@ describe("trigger guard (ENTRY_POINTS surface trigger)", () => {
 
   it("records lastError and rethrows when a job fails", () => {
     world.drive.failNext("get", new Error("Drive down"));
-    expect(() => tick()).toThrow("Drive down");
+    expect(() => tick()).toThrow("INTERNAL Error");
     expect(world.props.getProperty(lastErrorKey("tick"))).toBe(
-      "2026-11-09T12:00:00.000Z Error: Drive down",
+      "2026-11-09T12:00:00.000Z INTERNAL Error",
     );
     expect(lastLog()).toMatchObject({
       level: "error",
