@@ -20,6 +20,7 @@ import { readBody, readView } from "../../../src/addon/view";
 import { FIELDS_LINE, FIRST_NAME_HINT } from "../../../src/addon/cards/details";
 import { readBuffer } from "../../../src/server/audit/buffer";
 import { FakeCache } from "../../fakes/cache";
+import { createRecordingGmail } from "../../fakes/gmail";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
@@ -62,6 +63,7 @@ function ports(email = ANA, entry: Entry = "compose"): Ports {
     entry,
     hash: (text) =>
       createHash("sha256").update(text).digest("hex").slice(0, 16),
+    gmail: createRecordingGmail().gmail,
   };
 }
 

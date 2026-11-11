@@ -151,9 +151,16 @@ export function formValue(event: AddonEvent | undefined, name: string): string {
   return common ?? event?.formInput?.[name] ?? "";
 }
 
+/** `address` trimmed and lower case when its domain is the caller's, else "": outside addresses never leave the add-on. */
+export function internalAddress(address: string, userEmail: string): string {
+  const domain = domainOf(userEmail);
+  const bare = address.trim().toLowerCase();
+  return domain !== "" && domainOf(bare) === domain ? bare : "";
+}
+
 /**
  * The one To recipient when it is in the caller's own domain (ADR-0004 Apply semantics 2). Zero or several
- * recipients, or an external address, give "": external addresses never leave the add-on.
+ * recipients, or an external address, give "".
  */
 export function internalRecipient(
   event: AddonEvent | undefined,
@@ -161,9 +168,24 @@ export function internalRecipient(
 ): string {
   const to = event?.draftMetadata?.toRecipients ?? [];
   const [only] = to;
-  if (to.length !== 1 || only === undefined) return "";
-  const domain = domainOf(userEmail);
-  return domain !== "" && domainOf(only) === domain
-    ? only.trim().toLowerCase()
-    : "";
+  return to.length !== 1 || only === undefined
+    ? ""
+    : internalAddress(only, userEmail);
+}
+
+/** `gmail.accessToken`, else the deprecated `messageMetadata.accessToken`; "" when none. Never shown or logged. */
+export function tokenOf(event: AddonEvent | undefined): string {
+  const token =
+    event?.gmail?.["accessToken"] ?? event?.messageMetadata?.["accessToken"];
+  return typeof token === "string" ? token : "";
+}
+
+const ADDRESS = /[^\s<>,;"]+@[^\s<>,;"]+/g;
+
+/**
+ * Bare addresses of a Gmail header string (`getTo`, `getCc`, `getFrom`, `getReplyTo`), lower case. One regex per
+ * string (ADR-0007 A4): a display name with a comma ("Doe, Ann" <ann@example.com>) does not split an address.
+ */
+export function addressesOf(header: string): string[] {
+  return (header.match(ADDRESS) ?? []).map((address) => address.toLowerCase());
 }

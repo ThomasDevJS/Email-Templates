@@ -91,13 +91,14 @@
 - `prepareBody(raw, opts, subject, {lists, policy})`; server `prepareFor(props, html, subject, lists)`, `recipientPolicy(props)` (body.ts). `template.update` keeps lists left out of args (`keptStringArray`).
 - Add-on: cards/recipients.ts (`recipientPlan`, `recipientActions` = draft list + new, REPLACE), `draftRecipients` (event.ts), `Ports.hash` (`rh`).
 - Retry 1: draft lists are known or unknown (`DraftRecipients`, null); an unknown field never gets a replace action. `recipientWidgets` is the single source of recipient lines on both cards. Version-file lists: `isStoredList`, `unreadableRecipients`.
-## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
-- Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry`; cards take `entry`; `onMessageOpen` + `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
-- TEMPORARY: src/addon/spikeS7.ts, `onS7*`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts (inventory: slice-10-s7 handoff). Harness guard stays outside the error wrapper.
+## Slice 10 + 18 (side panel, D27; S7 harness removed in 18)
+- event.ts `entryOf`, `messageIdOf`, `tokenOf`, `addressesOf`, `internalAddress`; `onMessageOpen`; `ButtonSpec.compose` -> `setComposeAction`; Reply kind `compose` -> ComposeActionResponse.
+- src/addon/panel.ts `composeFlow` (row, `onCompose`), `promptComposeFlow` (details, `onPromptCompose`), `failureText`, `panelVisible` (one catch). `Ports.gmail` (`GmailPort`, getter in entry.ts). flows.ts `rendered(body, input)` = the one render step of all 4 paths. cards/sidePanel.ts `COMPOSE_AS`, `composeButton`; `panelDetailsCard(state, entry)`; `recipientWidgets(plan, domain, typing)`.
+- test/fakes/gmail.ts `createRecordingGmail(headers|null, failMethod)`; test/unit/addon/panel.test.ts. Commit trailer: use the system attribution lines (model named there), not a model name from an agent prompt.
 ## Slice 12 (add-on layout and wording, 2026-11-11)
 - Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.
 - `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
-- `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT`: the one place side-panel insert replaces. Empty home (`emptySection`) belongs to the admin-settings slice.
+- `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT` (last section of panel cards).
 
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).

@@ -1,32 +1,47 @@
-import type { S7Gmail } from "../../src/addon/spikeS7";
+import type { GmailPort } from "../../src/addon/flows";
 import type { RecordedCall } from "./output";
 
+/** Header strings of the fake open message, as GmailMessage returns them (display names included). */
+export interface FakeHeaders {
+  readonly from?: string;
+  readonly replyTo?: string;
+  readonly to?: string;
+  readonly cc?: string;
+}
+
 /**
- * TEMPORARY (spike S7): GmailApp and GmailMessage stand-ins. Every call is recorded as `{ method, args }`; a
- * message ID call records `getMessageById` and the message's own calls in the same list. Drafts are plain markers.
+ * GmailApp and GmailMessage stand-ins for the side-panel actions. Every call is recorded as `{ method, args }`, the
+ * message's own calls in the same list. `message` null makes `getMessageById` return null; the method named in
+ * `fail` throws "Gmail says no". Drafts are plain markers `{ draft: <method> }`.
  */
-export function createRecordingGmail(): {
-  gmail: S7Gmail;
-  calls: RecordedCall[];
-} {
+export function createRecordingGmail(
+  message: FakeHeaders | null = {},
+  fail = "",
+): { gmail: GmailPort; calls: RecordedCall[] } {
   const calls: RecordedCall[] = [];
   const record =
-    (method: string) =>
+    (method: string, value: unknown = { draft: method }) =>
     (...args: unknown[]) => {
       calls.push({ method, args });
-      return { draft: method };
+      if (method === fail) throw new Error("Gmail says no");
+      return value;
     };
-  const message = {
+  const headers = message ?? {};
+  const fakeMessage = {
+    getFrom: record("getFrom", headers.from ?? ""),
+    getReplyTo: record("getReplyTo", headers.replyTo ?? ""),
+    getTo: record("getTo", headers.to ?? ""),
+    getCc: record("getCc", headers.cc ?? ""),
     createDraftReply: record("createDraftReply"),
     createDraftReplyAll: record("createDraftReplyAll"),
   };
   const gmail = {
     setCurrentMessageAccessToken: record("setCurrentMessageAccessToken"),
     createDraft: record("createDraft"),
-    getMessageById: (id: string) => {
-      calls.push({ method: "getMessageById", args: [id] });
-      return message;
-    },
+    getMessageById: record(
+      "getMessageById",
+      message === null ? null : fakeMessage,
+    ),
   };
-  return { gmail: gmail as unknown as S7Gmail, calls };
+  return { gmail: gmail as unknown as GmailPort, calls };
 }

@@ -4,6 +4,7 @@
  */
 export {
   onBack,
+  onCompose,
   onComposeOpen,
   onHomepage,
   onInsert,
@@ -12,11 +13,9 @@ export {
   onOpenLibrary,
   onOpenLink,
   onPreview,
+  onPromptCompose,
   onPromptInsert,
   onRefresh,
-  onS7Card,
-  onS7Compose,
-  onS7Notify,
   onSearch,
 } from "./addon/entry";
 export {

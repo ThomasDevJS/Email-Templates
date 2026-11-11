@@ -234,28 +234,17 @@ Templates to create in the library first, in a folder you can edit:
 
 ## Spike S7
 
-Open the add-on from Gmail's right side panel for this test, never from a draft's toolbar.
+Passed 2026-11-11; the record is [docs/spikes/slice-10-s7.md](../spikes/slice-10-s7.md).
 
-Spec 14.2, about 30 min, one Gmail web session. Needs: the dev deployment of this build (`npm run deploy -- dev`, reload Gmail), a default signature set in Gmail settings (step 5), and one received message with To and Cc of several people (step 4). The section "Spike S7 (temporary)" sits at the end of the side-panel home card in the dev build only; the compose toolbar never shows it. Nothing is sent: discard every draft after its step.
+## Slice 18
 
-The harness card ("Open S7 harness") shows the event shape (key names and value types only), whether a message ID and an access token are present, and 4 buttons. "New email", "Reply" and "Reply all" each open a draft in a compose window: subject "S7 test" (New email only), a body with bold text, a 2-item list, a link to google.com and one image, To `s7-to@migway.com` (New email only), Cc `s7-cc@migway.com`, Bcc `s7-bcc@migway.com`. "Reply" and "Reply all" are greyed out until a message is open. "Notify" should show a notification and open no draft. Any failure shows as a notification starting "S7" or a card "Spike S7 failed"; copy its text into Notes. Callback ms: Apps Script editor, Executions, the duration of `onS7Compose`.
+Side-panel New email, Reply and Reply all (spec 4.1a, 7.2, 13.11). Gmail web, dev build (`npm run deploy -- dev`, reload Gmail). The browser agent runs [test round 1 part J](test-round-1.md#part-j-side-panel), steps 1 to 12. The owner adds two checks by hand:
 
-1. By hand, before the session: Google Account, Security, third-party access, "Remove access" for Migway Templates (or use an account that never consented). Then, side panel open, inbox, no message open: open the add-on, "Open S7 harness", "New email". Record any consent or permission prompt and the scopes it names, and any error text naming `https://mail.google.com/`.
-2. Inbox, no message open. "Open S7 harness", "New email". Record: compose window opens (y/n); bold, list, link and image kept; Subject "S7 test"; To, Cc, Bcc set; callback ms.
-3. Open a received message with the side panel open. Record whether the add-on card reloads for the message (`onMessageOpen` called) and "message ID present: yes" on the harness card. Tap "Reply". Record: reply opens in the thread; To is the sender; Subject "Re: ..."; Cc and Bcc added; quoted earlier message present (y/n).
-4. Open the message with To and Cc of several people. "Reply all". Record: original Cc kept and `s7-cc@` added (add), or original Cc gone (replace).
-5. No button. Look at the drafts of steps 2 and 3. Record: Gmail signature present (y/n).
-6. Inbox. "Notify". Record: notification shown and no draft (y/n), or the error text.
-7. Open a new compose window and type a line. Then, from the side panel, "New email", then "Reply" (message open). Record: a second window opens (y/n); the typed line in the first window unchanged (y/n).
-8. Close the new compose window without sending. Record: the draft is left in Drafts (y/n).
+1. Fresh consent (Q55, replaces part H step 2): Google Account, "Security", third-party access, "Remove access" for Migway Templates. Then side panel, inbox, row "New email" on "T1 plain". Record any prompt and the scopes it names. A prompt for a scope outside the approved 10 stops the side-panel actions until the owner approves it.
+2. Apps Script editor, "Executions" (replaces part H step 3): the duration of each `onCompose` run of part J steps 2 to 4. The `template.apply` lines of part J carry no `test-` address, subject or text.
 
-| Step | Setup                       | Action           | Result | Callback ms | Notes |
-| ---- | --------------------------- | ---------------- | ------ | ----------- | ----- |
-| 1    | Fresh consent, inbox        | New email        |        |             |       |
-| 2    | Inbox, no message           | New email        |        |             |       |
-| 3    | Message open                | Reply            |        |             |       |
-| 4    | Message with several To, Cc | Reply all        |        |             |       |
-| 5    | Drafts of steps 2 and 3     | none             |        |             |       |
-| 6    | Inbox                       | Notify           |        |             |       |
-| 7    | Compose window with text    | New email, Reply |        |             |       |
-| 8    | Close the new window        | none             |        |             |       |
+| Check | Record                         | Result |
+| ----- | ------------------------------ | ------ |
+| 1     | prompt, scopes, error text     |        |
+| 2     | `onCompose` ms, steps 2 to 4   |        |
+| 2     | log lines free of values (y/n) |        |

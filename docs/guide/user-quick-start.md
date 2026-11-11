@@ -16,6 +16,17 @@ Insert puts the template into the draft at once. Fields you did not fill are lef
 
 Tap a template's name to see it first and fill in its fields.
 
+## Use the side panel
+
+Migway Templates also opens in the panel on the right side of Gmail. It stays open while you read your email.
+
+- No email open: click "New email" on a template. A new email opens with the template's subject, text and recipients.
+- An email open: click "Reply" on a template. Your reply opens in the conversation with the template's text. It goes to the sender and keeps "Re:" in the subject. The template's Cc and Bcc are added; its To is not.
+- Click a template's name for "Reply all", "New email", and to fill in fields first. "Add recipients" off leaves out the template's addresses.
+- The side panel always starts a new email or a reply. To insert into an email you are already writing, use the Migway Templates button in that email's toolbar.
+- Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.
+- Each click makes a draft. A draft you close stays in Drafts; delete it there if you do not need it.
+
 ## Fill in fields first
 
 Some templates have fields, for example a driver name. Their row says "2 fields to fill".
@@ -82,6 +93,7 @@ Your admin decides whether personal templates are on. When they are off, you get
 - A new or changed template can take up to 10 minutes to show in the panel. "Open library" in the panel clears the panel's copy, so the next panel load shows it.
 - Closing the library window should reload the panel. Not yet verified in Gmail.
 - Gmail on Android and iOS is untested. Use Gmail on the web.
+- Forwarding is not in the side panel. Forward in Gmail, then use the button in the email's toolbar.
 
 ## Messages and who to ask
 

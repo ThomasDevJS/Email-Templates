@@ -15,10 +15,8 @@ export const CALLBACKS = [
   "onBack",
   "onOpenLink",
   "onSearch",
-  // TEMPORARY (spike S7)
-  "onS7Card",
-  "onS7Compose",
-  "onS7Notify",
+  "onCompose",
+  "onPromptCompose",
 ] as const;
 export type Callback = (typeof CALLBACKS)[number];
 
@@ -129,13 +127,10 @@ export type Reply =
       readonly subject: string | null;
       readonly recipients: RecipientActions;
     }
-  /** TEMPORARY (spike S7): one `ComposeActionResponse` that opens `draft` in a compose window. */
-  | { readonly kind: "s7"; readonly draft: GoogleAppsScript.Gmail.GmailDraft }
-  /** TEMPORARY (spike S7): a failed harness callback, as a notification and a pushed card. */
+  /** Side panel (spec 4.1a step 6): one `ComposeActionResponse`; Gmail opens `draft` in a compose window. */
   | {
-      readonly kind: "s7Error";
-      readonly text: string;
-      readonly card: CardSpec;
+      readonly kind: "compose";
+      readonly draft: GoogleAppsScript.Gmail.GmailDraft;
     };
 
 /**

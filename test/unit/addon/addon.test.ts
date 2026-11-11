@@ -10,6 +10,7 @@ import {
 import { readView, writeView } from "../../../src/addon/view";
 import type { SidebarHome } from "../../../src/shared/model/sidebar";
 import { FakeCache } from "../../fakes/cache";
+import { createRecordingGmail } from "../../fakes/gmail";
 import {
   createRecordingCardService,
   createUtilities,
@@ -246,11 +247,19 @@ describe("add-on entry points", () => {
     expect(argsOf("build")).toHaveLength(2);
   });
 
-  it("side panel (homepage, message open) shows no Insert and ends with the toolbar hint; compose shows Insert", () => {
+  it("side panel rows are compose actions (Reply, New email) and end with the toolbar hint; compose shows Insert", () => {
     serve({ "sidebar.home": { ...HOME, recent: ["T1"] } });
     addon.onMessageOpen({ gmail: { messageId: "m1", accessToken: "t" } });
     addon.onHomepage({ gmail: { accessToken: "t" } });
-    expect(argsOf("setAltText")).toEqual([]);
+    expect(argsOf("setAltText")).toEqual([
+      "Reply with Welcome",
+      "New email from Welcome",
+    ]);
+    expect(
+      calls
+        .filter((c) => c.method === "setComposeAction")
+        .map((c) => c.args[1]),
+    ).toEqual(["REPLY_AS_DRAFT", "STANDALONE_DRAFT"]);
     expect(argsOf("setText").filter((t) => t === TOOLBAR_HINT)).toHaveLength(2);
     calls.length = 0;
     addon.onComposeOpen({ draftMetadata: { toRecipients: [] } });
@@ -296,11 +305,14 @@ describe("add-on entry points", () => {
     writeView(cache, HOME, now);
     serve({
       "sidebar.home": HOME,
-      "template.getBody": {
+      "template.apply": {
         id: "T1",
+        title: "Welcome",
         version: 2,
         html: "<p>x</p>",
         subject: "",
+        sender: { name: "", title: "", phone: "", department: "" },
+        recipientFirstName: "",
         ...NO_LISTS,
       },
     });
@@ -381,5 +393,91 @@ describe("add-on guard (ENTRY_POINTS surface addon)", () => {
     session.activeEmail = "";
     session.effectiveEmail = "";
     expect(() => addon.onInsert()).toThrow("runs only inside the Gmail add-on");
+  });
+});
+
+describe("side-panel actions (slice 18 AC 3, 12)", () => {
+  const APPLIED = {
+    id: "T1",
+    title: "Welcome",
+    version: 2,
+    html: "<p>Hi</p>",
+    subject: "Hello",
+    sender: { name: "", title: "", phone: "", department: "" },
+    recipientFirstName: "",
+    ...NO_LISTS,
+  };
+  const press = {
+    gmail: { accessToken: "tok" },
+    commonEventObject: { parameters: { id: "T1", as: "new" } },
+  };
+
+  it("New email: token first, one createDraft, a ComposeActionResponse", () => {
+    const fake = createRecordingGmail();
+    vi.stubGlobal("GmailApp", fake.gmail);
+    const ops = serve({ "template.apply": APPLIED });
+    addon.onCompose(press);
+    expect(ops).toEqual(["template.apply"]);
+    expect(fake.calls).toEqual([
+      { method: "setCurrentMessageAccessToken", args: ["tok"] },
+      {
+        method: "createDraft",
+        args: ["", "Hello", "", { htmlBody: "<p>Hi</p>" }],
+      },
+    ]);
+    expect(argsOf("setGmailDraft")).toEqual([{ draft: "createDraft" }]);
+  });
+
+  it("a throw inside createDraft is a notification with the message for the admin", () => {
+    vi.stubGlobal("GmailApp", createRecordingGmail({}, "createDraft").gmail);
+    serve({ "template.apply": APPLIED });
+    addon.onCompose(press);
+    expect(argsOf("setText")).toEqual([
+      "Something went wrong. Try again. Details for your admin: Gmail says no",
+    ]);
+    expect(argsOf("setGmailDraft")).toEqual([]);
+  });
+
+  it("a throw after the draft exists says where the draft is", () => {
+    vi.stubGlobal("GmailApp", createRecordingGmail().gmail);
+    serve({ "template.apply": APPLIED });
+    const cards = createRecordingCardService();
+    vi.stubGlobal(
+      "CardService",
+      Object.assign(Object.create(cards.service) as object, {
+        newComposeActionResponseBuilder: () => {
+          throw new Error("no window");
+        },
+      }),
+    );
+    addon.onPromptCompose({
+      gmail: { accessToken: "tok" },
+      commonEventObject: {
+        parameters: {
+          id: "T1",
+          as: "new",
+          version: "2",
+          values: "{}",
+          rh: EMPTY_RH,
+        },
+      },
+    });
+    expect(
+      cards.calls.filter((c) => c.method === "setText").map((c) => c.args[0]),
+    ).toEqual([
+      "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it.",
+    ]);
+  });
+
+  it("a throw before any Gmail call (the token) is a notification too", () => {
+    vi.stubGlobal(
+      "GmailApp",
+      createRecordingGmail({}, "setCurrentMessageAccessToken").gmail,
+    );
+    addon.onCompose(press);
+    expect(fetchApp.requests).toHaveLength(0);
+    expect(argsOf("setText")).toEqual([
+      "Something went wrong. Try again. Details for your admin: Gmail says no",
+    ]);
   });
 });

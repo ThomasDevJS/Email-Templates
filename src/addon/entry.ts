@@ -21,13 +21,7 @@ import {
   type Ports,
 } from "./flows";
 import { requireAddonSession } from "./guard";
-import {
-  s7CardFlow,
-  s7ComposeFlow,
-  s7Failure,
-  s7NotifyFlow,
-  s7Visible,
-} from "./spikeS7";
+import { composeFlow, panelVisible, promptComposeFlow } from "./panel";
 import { clearView } from "./view";
 
 type Card = GoogleAppsScript.Card_Service.Card;
@@ -48,6 +42,10 @@ function ports(event: AddonEvent | undefined): Ports {
     execUrl: BUILD_INFO.execUrl,
     entry: entryOf(event),
     hash: shortSha256,
+    // A getter: only the side-panel actions touch GmailApp.
+    get gmail() {
+      return GmailApp;
+    },
   };
 }
 
@@ -153,28 +151,26 @@ export function onOpenLink(event?: AddonEvent): Response {
   return respond("onOpenLink", event, openLinkFlow);
 }
 
-/** TEMPORARY (spike S7): guard, then flow and render; any exception after the guard shows on the tester's screen. */
-function s7Respond(name: string, run: () => Reply): Response {
+/** Side-panel actions: guard, then flow and render inside the one catch (ADR-0007 A8). */
+function panelRespond(
+  name: string,
+  event: AddonEvent | undefined,
+  run: (ports: Ports, params: Params) => Reply,
+): Response {
   requireAddonSession(name);
-  return s7Visible(
-    () => renderReply(run()),
-    (error) => renderReply(s7Failure(error)),
+  return panelVisible(() => run(ports(event), paramsOf(event)), renderReply);
+}
+
+/** Side-panel row button "New email" or "Reply" (spec 4.1a step 3). */
+export function onCompose(event?: AddonEvent): Response {
+  return panelRespond("onCompose", event, (context, params) =>
+    composeFlow(context, event, params),
   );
 }
 
-/** TEMPORARY (spike S7): harness card, dev build and side panel only. */
-export function onS7Card(event?: AddonEvent): Response {
-  return s7Respond("onS7Card", () => s7CardFlow(BUILD_INFO.env, event));
-}
-
-/** TEMPORARY (spike S7): New email, Reply, Reply all as compose actions. */
-export function onS7Compose(event?: AddonEvent): Response {
-  return s7Respond("onS7Compose", () =>
-    s7ComposeFlow(BUILD_INFO.env, event, paramsOf(event), GmailApp),
+/** Side-panel details card buttons "New email", "Reply", "Reply all" (spec 4.1a step 4). */
+export function onPromptCompose(event?: AddonEvent): Response {
+  return panelRespond("onPromptCompose", event, (context, params) =>
+    promptComposeFlow(context, event, params),
   );
-}
-
-/** TEMPORARY (spike S7): compose-action button whose callback returns a notification. */
-export function onS7Notify(): Response {
-  return s7Respond("onS7Notify", () => s7NotifyFlow(BUILD_INFO.env));
 }

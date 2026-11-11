@@ -5,7 +5,7 @@ import type {
 } from "../../shared/model/sidebar";
 import type { Entry } from "../event";
 import { rowHint } from "./recipients";
-import { sidePanelHint } from "./sidePanel";
+import { composeButton, sidePanelHint } from "./sidePanel";
 import {
   LIBRARY_FOOTER,
   action,
@@ -34,14 +34,35 @@ export function templatesLabel(count: number): string {
  * row showed; Insert compares them with the lists at insert time (ADR-0006 Amendment 2026-11-11).
  */
 export function insertButton(template: SidebarTemplate): ButtonSpec {
-  const rc =
-    rowHint(template.rc) === "" ? {} : { rc: (template.rc ?? []).join(",") };
   return {
     text: "Insert",
     alt: `Insert ${template.title}`,
     style: "filled",
-    action: action("onInsert", { id: template.id, ...rc }),
+    action: action("onInsert", rowParams(template)),
   };
+}
+
+/** `id`, plus `rc` when the row shows a recipient hint. */
+function rowParams(template: SidebarTemplate): Record<string, string> {
+  return rowHint(template.rc) === ""
+    ? { id: template.id }
+    : { id: template.id, rc: (template.rc ?? []).join(",") };
+}
+
+/**
+ * The row's one filled button per entry (spec 7.2): compose "Insert"; side panel "New email" with no message open,
+ * "Reply" with one open, as compose actions (`onCompose`). Q74 fallback, if a row compose button fails in Gmail:
+ * no button in the side panel, so rows keep only the tap to the details card.
+ */
+function rowButton(template: SidebarTemplate, entry: Entry): ButtonSpec {
+  if (entry === "compose") return insertButton(template);
+  return composeButton(
+    entry === "message" ? "reply" : "new",
+    template.title,
+    "onCompose",
+    rowParams(template),
+    "filled",
+  );
 }
 
 export function folderItem(folder: SidebarFolder): Widget {
@@ -67,8 +88,7 @@ function rowLabel(template: SidebarTemplate, path: string): string {
 
 /**
  * One row layout in every list: the icon of its section, the title, the hints and folder path ("" on a folder card)
- * below, a tap that opens the details card, and Insert in the compose toolbar only: from the side panel a draft
- * response does nothing (ADR-0007, interim fix of spec 13.7).
+ * below, a tap that opens the details card, and the row button of the entry.
  */
 export function templateItem(
   template: SidebarTemplate,
@@ -83,7 +103,7 @@ export function templateItem(
     text: template.title,
     ...(bottom === "" ? {} : { bottomLabel: bottom }),
     onClick: action("onPreview", { id: template.id }),
-    ...(entry === "compose" ? { button: insertButton(template) } : {}),
+    button: rowButton(template, entry),
   };
 }
 

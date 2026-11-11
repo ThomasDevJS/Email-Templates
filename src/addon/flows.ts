@@ -16,6 +16,7 @@ import {
   promptsFor,
   renderBody,
   renderSubject,
+  type RenderInput,
 } from "../shared/placeholders/render";
 import {
   VERSION_CHANGED,
@@ -89,9 +90,16 @@ export interface Ports {
   readonly entry: Entry;
   /** First 16 hex characters of the SHA-256 of `text` (`rh`, spec 5.7). */
   hash(text: string): string;
+  /** The GmailApp calls of the side-panel actions (spec 4.1a); tests pass a recording fake. Never a send method. */
+  readonly gmail: GmailPort;
 }
 
-type Loaded<T> =
+export type GmailPort = Pick<
+  GoogleAppsScript.Gmail.GmailApp,
+  "setCurrentMessageAccessToken" | "createDraft" | "getMessageById"
+>;
+
+export type Loaded<T> =
   | { readonly ok: true; readonly data: T }
   | { readonly ok: false; readonly failure: Failure };
 
@@ -122,7 +130,7 @@ function failed(ports: Ports, failure: Failure, retry: ActionSpec): Reply {
   };
 }
 
-const notFound: Failure = {
+export const notFound: Failure = {
   code: ErrorCode.NOT_FOUND,
   message: "",
   requestId: "",
@@ -187,7 +195,7 @@ function templateOf(view: SidebarHome, id: string): SidebarTemplate | null {
 }
 
 /** The lists a server reply carries (spec 5.7); everything else in the reply is dropped. */
-function listsOf(reply: AppliedRecipients): AppliedRecipients {
+export function listsOf(reply: AppliedRecipients): AppliedRecipients {
   return {
     to: reply.to,
     cc: reply.cc,
@@ -198,7 +206,7 @@ function listsOf(reply: AppliedRecipients): AppliedRecipients {
 
 const NO_DRAFT: DraftRecipients = { to: [], cc: [], bcc: [] };
 
-function rhOf(ports: Ports, lists: AppliedRecipients): string {
+export function rhOf(ports: Ports, lists: AppliedRecipients): string {
   return ports.hash(recipientsText(lists));
 }
 
@@ -218,7 +226,7 @@ function appliedBody(
   return fresh;
 }
 
-interface Applied {
+export interface Applied {
   readonly result: ApplyResult;
   readonly body: CachedBody;
 }
@@ -228,7 +236,7 @@ interface Applied {
  * unless `extra` holds `followUp: true`. The body travels only when the cached copy is gone or stale; the lists
  * travel on every call.
  */
-function applyNow(
+export function applyNow(
   ports: Ports,
   id: string,
   extra: Readonly<Record<string, unknown>>,
@@ -271,7 +279,7 @@ function rowOf(ports: Ports, result: ApplyResult, body: CachedBody) {
  * `followUp` call never resolves it: the card's inputs stay the same on every render, and a blank box takes the
  * name the values carry.
  */
-function cardFields(
+export function cardFields(
   body: CachedBody,
   values: Readonly<Record<string, string>>,
 ) {
@@ -307,7 +315,11 @@ function detailsOf(
     template: input.template,
     text: previewText(body.html),
     subject: subjectPreview(body.subject),
-    plan: recipientPlan(lists, draftRecipients(event)),
+    // A side-panel press makes a new draft: list the addresses as for an empty one.
+    plan: recipientPlan(
+      lists,
+      ports.entry === "compose" ? draftRecipients(event) : NO_DRAFT,
+    ),
     domain: domainOf(ports.userEmail),
     version: result.version,
     values: input.values,
@@ -321,13 +333,14 @@ function detailsOf(
     rh: rhOf(ports, lists),
     counted: input.counted,
   };
-  return detailsCard(state);
+  return ports.entry === "compose"
+    ? detailsCard(state)
+    : panelDetailsCard(state, ports.entry);
 }
 
 /**
- * Row tap (spec 7.4 Flow B). Compose: `template.apply` with `followUp: true` (no apply event, no first-name
- * lookup), then the details card with inputs only for fields without a value. Side panel (until spike S7):
- * `template.getBody` and the card without inputs, switches or Insert.
+ * Row tap (spec 7.4 Flow B, 4.1a step 4), every entry: `template.apply` with `followUp: true` (no apply event, no
+ * first-name lookup), then the details card of the entry with inputs only for fields without a value.
  */
 export function previewFlow(
   ports: Ports,
@@ -340,7 +353,6 @@ export function previewFlow(
   if (!view.ok) return failed(ports, view.failure, retry);
   const template = templateOf(view.data, id);
   if (template === null) return failed(ports, notFound, retry);
-  if (ports.entry !== "compose") return panelPreview(ports, template, retry);
   const applied = applyNow(ports, id, { followUp: true });
   if (!applied.ok) return failed(ports, applied.failure, retry);
   const { sender, recipientFirstName } = applied.data.result;
@@ -354,35 +366,8 @@ export function previewFlow(
   return { kind: "push", card };
 }
 
-type BodyReply = {
-  readonly version: number;
-  readonly subject: string;
-  readonly html: string;
-} & AppliedRecipients;
-
-function panelPreview(
-  ports: Ports,
-  template: SidebarTemplate,
-  retry: ActionSpec,
-): Reply {
-  const { id } = template;
-  const body = load<BodyReply>(ports, "template.getBody", { id });
-  if (!body.ok) return failed(ports, body.failure, retry);
-  const { version, html, subject } = body.data;
-  writeBody(ports.cache, id, { version, html, subject });
-  const view = {
-    template,
-    text: previewText(html),
-    subject: subjectPreview(subject),
-    // The side panel has no draft and inserts nothing: list the addresses as for an empty draft.
-    plan: recipientPlan(listsOf(body.data), NO_DRAFT),
-    domain: domainOf(ports.userEmail),
-  };
-  return { kind: "push", card: panelDetailsCard(view, ports.entry) };
-}
-
 /** "<to>,<cc>,<bcc>": the form of `rc` on a row button. */
-function countsOf(lists: AppliedRecipients): string {
+export function countsOf(lists: AppliedRecipients): string {
   return [lists.to.length, lists.cc.length, lists.bcc.length].join(",");
 }
 
@@ -420,17 +405,29 @@ export function insertFlow(
     });
     return { kind: "push", card };
   }
-  const input = { values, answers: {} };
+  const { html, subject } = rendered(body, { values, answers: {} });
   return insertReply(
-    renderBody(body.html, input).html,
-    replacesSubject(draftHasSubject(event))
-      ? renderSubject(body.subject, input).text
-      : "",
+    html,
+    replacesSubject(draftHasSubject(event)) ? subject : "",
     recipientActions(lists, draft, true),
   );
 }
 
-function parseValues(raw: string): Record<string, string> {
+/**
+ * Body and subject of a press, the one rendering step of every insert path (compose and side panel, spec 7.4): a
+ * typed answer, else the value, else the default text, else the field is removed with the gap rules.
+ */
+export function rendered(
+  body: CachedBody,
+  input: RenderInput,
+): { readonly html: string; readonly subject: string } {
+  return {
+    html: renderBody(body.html, input).html,
+    subject: renderSubject(body.subject, input).text,
+  };
+}
+
+export function parseValues(raw: string): Record<string, string> {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed !== "object" || parsed === null) return {};
@@ -448,7 +445,7 @@ function parseValues(raw: string): Record<string, string> {
  * Card values, then each non-blank value of this call. The first counting call resolves the recipient first name;
  * the card carries it from then on, so a `followUp` call (blank name) renders the same as a direct Insert.
  */
-function mergedValues(
+export function mergedValues(
   card: Readonly<Record<string, string>>,
   result: ApplyResult,
 ): Record<string, string> {
@@ -496,13 +493,13 @@ export function promptInsertFlow(
   const changed = result.version !== version;
   const listsChanged = params["rh"] !== rhOf(ports, lists);
   if (!changed && !listsChanged && long.length === 0) {
-    const input = {
+    const { html, subject } = rendered(body, {
       values,
       answers: answersByKey(fields, entered),
-    };
+    });
     return insertReply(
-      renderBody(body.html, input).html,
-      replaceSubject ? renderSubject(body.subject, input).text : "",
+      html,
+      replaceSubject ? subject : "",
       recipientActions(lists, draftRecipients(event), addRecipients),
     );
   }

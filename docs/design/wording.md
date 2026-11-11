@@ -54,6 +54,7 @@ Readers: office staff of a trucking company (recruiters, dispatchers, safety, ac
 | Verb on screen | Action | Not used for it |
 |---|---|---|
 | Insert | put a template into a draft | apply, use |
+| New email, Reply, Reply all | start a new draft from a template in the side panel (Gmail's own words) | Insert, Send, Compose |
 | Save | store the template as a new version | update, write |
 | Delete | move a template to the trash, or delete a folder | remove |
 | Delete for good | what Empty trash and the 30 days do | purge, remove for good |
@@ -332,3 +333,23 @@ Not a text, changed in the same slice: recipient chip announcements ("Added ... 
 | `shared/sanitize/sanitize.ts` | {what} is {bytes} bytes; the limit is {limit} | {what} is too large ({bytes} bytes, the limit is {limit}). Shorten it or remove some formatting. | message text only: "HTML", "body" and bytes alone told nobody what to do |
 | `shared/sanitize/sanitize.ts` | Pasted HTML | The pasted text | message text only: "HTML", "body" and bytes alone told nobody what to do |
 
+## Gmail side panel (slice 18)
+
+New texts, spec 7.2. Paths are relative to `src/`.
+
+| Where | Text |
+|---|---|
+| `addon/cards/sidePanel.ts` | New email / Reply / Reply all (buttons); New email from {title} / Reply with {title} / Reply all with {title} (screen reader) |
+| `addon/cards/sidePanel.ts` | To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar. (replaces "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.") |
+| `addon/cards/details.ts` | Leave blank to use the first name of the person you reply to, when known. |
+| `addon/cards/details.ts` | A reply goes to the sender, so the template's To is not added. New email adds it. |
+| `addon/cards/details.ts` | Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar. |
+| `addon/panel.ts` | Open the email you want to answer, then press Reply again. |
+| `addon/panel.ts` | This email can no longer be read. Open it again, or use New email. |
+| `addon/panel.ts` | Each box takes up to 500 characters. Shorten the long one and try again. |
+| `addon/panel.ts` | This template changed. Go back and open it again. |
+| `addon/panel.ts` | The recipients of this template changed. Go back and open it again. |
+| `addon/panel.ts` | The recipients of this template changed. Tap its name to see them. |
+| `addon/panel.ts` | The email is in your Drafts, but Gmail could not open it. Open Drafts to find it. |
+| `addon/panel.ts` | This template was deleted or moved. Open the panel again to update the list. |
+| `addon/panel.ts` | Something went wrong. Try again. (plus " Request ID {id}" or " Details for your admin: {message}") |

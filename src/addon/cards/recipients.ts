@@ -141,11 +141,13 @@ const REASONS: Readonly<Record<NotAddedReason, (domain: string) => string>> = {
 /**
  * Recipient lines of the details card (spec 7.1, 7.4) in the compose toolbar and the side panel:
  * one line per added address with its field and markers, the ones not added and why, one line per unreadable draft
- * field naming the addresses to add by hand, and the finish-typing line when Insert adds an address.
+ * field naming the addresses to add by hand, and the finish-typing line when Insert adds an address and `typing`
+ * holds (false in the side panel: its drafts are new).
  */
 export function recipientWidgets(
   plan: RecipientPlan,
   domain: string,
+  typing = true,
 ): Widget[] {
   const lines: Widget[] = RECIPIENT_FIELDS.flatMap((field) =>
     plan.added[field].map((address): Widget => {
@@ -168,9 +170,9 @@ export function recipientWidgets(
     kind: "text",
     text: `The draft's ${FIELD_LABELS[field]} recipients could not be read and were not changed. Add by hand: ${plan.unknown[field].join(", ")}.`,
   }));
-  const typing: Widget[] =
-    recipientCount(plan.added) > 0
+  const finish: Widget[] =
+    typing && recipientCount(plan.added) > 0
       ? [{ kind: "text", text: FINISH_TYPING }]
       : [];
-  return [...lines, ...skipped, ...unread, ...typing];
+  return [...lines, ...skipped, ...unread, ...finish];
 }
