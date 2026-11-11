@@ -1,6 +1,6 @@
 # ADR-0007: Insert from the Gmail side panel (D27)
 
-Status: Proposed (2026-11-10). Owner decision D27 sets the requirement; this ADR sets the mechanism.
+Status: Proposed (2026-11-10). Owner decision D27 sets the requirement; this ADR sets the mechanism. Spike S7 has not run (2026-11-11). Facts updated 2026-11-11 (errata run 4): slices 10 and 12 built the parts listed in "Built so far"; the decision is unchanged.
 Date: 2026-11-10
 Deciders: owner (thomas@migway.com), architect
 
@@ -15,9 +15,9 @@ The add-on has two entry points in one manifest (ADR-0001):
 | Compose toolbar | `addOns.gmail.composeTrigger`, `draftAccess: METADATA`, function `onComposeOpen` | `draftMetadata` with To, Cc, Bcc, `subject`; never `threadId` or `messageId` (smoke "Slice 5b") | `UpdateDraftActionResponse` works: body and subject in one response (spike S5, dev-32a446c) |
 | Gmail right side panel | `addOns.common.homepageTrigger`, function `onHomepage` | `gmail` (only `accessToken`), `commonEventObject`, `clientPlatform`, `parameters`, `messageMetadata`, `formInputs`, `hostApp`, `formInput`; no `draftMetadata` (spike S6 runs, dev-c1c7f16, dev-ec0ccb2) | every `UpdateDraftActionResponse` does nothing and shows no error |
 
-Today both entry points render the same home card (`homeFlow`). In the side panel its Insert buttons fail silently. That is a live defect (PLAN log 2026-11-10).
+Today both entry points render the same home card (`homeFlow`). In the side panel its Insert buttons fail silently. That is a live defect (PLAN log 2026-11-10). [Fixed in slice 10: in the side panel the cards carry no Insert and end with the hint of option (d).]
 
-The manifest has no `addOns.gmail.contextualTriggers` entry. The 10 scopes (spec 9) include `gmail.addons.current.action.compose` and `gmail.addons.current.message.metadata`. `https://mail.google.com/` is banned by the build (ADR-0005).
+The manifest has no `addOns.gmail.contextualTriggers` entry. [Since slice 10 it has one: `unconditional`, `onMessageOpen`, scope list unchanged at 10.] The 10 scopes (spec 9) include `gmail.addons.current.action.compose` and `gmail.addons.current.message.metadata`. `https://mail.google.com/` is banned by the build (ADR-0005).
 
 ## 1. What Gmail allows a side-panel add-on to do with drafts
 
@@ -62,7 +62,7 @@ Options:
 | (a) "New email" | Button with `setComposeAction(..., STANDALONE_DRAFT)`. Callback: `template.apply`, render, `setCurrentMessageAccessToken`, `GmailApp.createDraft(to, subject, "", { htmlBody, cc, bcc })`, `ComposeActionResponse` | Yes for a new email: body, subject and To, Cc, Bcc land in one click | About 1 day with (b) | `createDraft` may demand `mail.google.com` (S7). Works with no message open only if S7 passes |
 | (b) "Reply" and "Reply all" | Needs `gmail.messageId`, so a contextual trigger (section 4). Button with `setComposeAction(..., REPLY_AS_DRAFT)`. Callback: `getMessageById(messageId).createDraftReply("", { htmlBody, cc, bcc })` or `createDraftReplyAll` | Yes for "answer this email with a template", the main compose use (a reply opened from the thread) | Inside the day of (a), plus one manifest entry | Scope prompt for the contextual trigger, cc semantics of Reply all (S7) |
 | (c) Copy to clipboard | Card Service has no clipboard method [A39]. Needs an OVERLAY web app page that copies rich HTML from a sandboxed frame; unverified in ADR-0001 option 3 | No: 3 to 5 steps, user pastes by hand, no subject or recipients | About 1 day for a web page | Rich copy from the `IFRAME` sandbox unverified |
-| (d) Hint to the compose toolbar | One line on the side-panel card: "Writing an email? Open Migway Templates from the toolbar at the bottom of the draft to insert at the cursor." | No by itself: the side panel inserts nothing | 1 h | None |
+| (d) Hint to the compose toolbar | One line on the side-panel card: "Writing an email? Open Migway Templates from the toolbar at the bottom of the draft to insert at the cursor." [Built in slice 10; text since slice 12: "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar."] | No by itself: the side panel inserts nothing | 1 h | None |
 
 Recommendation: (a), (b) and (d) together. (c) is not built in v1; it becomes the fallback only if S7 fails both (a) and (b).
 
@@ -129,6 +129,14 @@ One code path:
 - `homeFlow`, `searchFlow`, `folderFlow`, `previewFlow`, favorites and Recent stay one set. They build rows through one function `rowButton(template, entry)` and the preview through `insertButtons(template, entry, draft)`. Those two functions, the header line and the footer hint are the only places that read `entry`.
 - `insertFlow` and `promptInsertFlow` produce one `Rendered` value (html, subject decision, recipient lists). The renderer's last step is `insert` (compose) or `compose` (panel: `createDraft`, `createDraftReply`, `createDraftReplyAll`). The `compose` reply kind and the `setComposeAction` button flag live in src/addon/cards/render.ts, the only Card Service adapter.
 - The cached view `view:*` stays entry-free data; it is shared by both entry points.
+
+Built so far (slice 10, review PASS, dev-e2eb0ae; layout slice 12; verified in src at 6374b7b):
+- `entryOf(event)` and `messageIdOf(event)` in src/addon/event.ts: `compose` when `draftMetadata` is present, else `message` when `gmail.messageId` (or the deprecated `messageMetadata.messageId`) is a non-blank string, else `inbox`. `Ports.entry` comes from each callback's own event.
+- `onMessageOpen` entry function and the manifest contextual trigger. Not yet observed on Gmail (S7 step 3).
+- In `inbox` and `message`, `templateItem`, `folderCard`, `homeCard`, `searchCard` and `previewCard` show no Insert buttons; `sidePanelHint(entry)` (src/addon/cards/sidePanel.ts) ends home, folder, search and preview cards. Today `rowButton(template)` takes no entry; the panel pass adds it as designed above.
+- `ButtonSpec.compose` (`STANDALONE_DRAFT`, `REPLY_AS_DRAFT`) and its `setComposeAction` call in render.ts, unused outside the S7 harness.
+- Since slice 12 the home, search and state cards have no header, so the "line under the header" above becomes the first line of the card when the panel pass builds it.
+- The S7 harness (src/addon/spikeS7.ts, dev build, side panel only) calls `createDraft`, `createDraftReply`, `createDraftReplyAll` with fixed test addresses and returns `setGmailDraft`. It stays until S7 runs.
 
 ## 5. Gmail signature
 

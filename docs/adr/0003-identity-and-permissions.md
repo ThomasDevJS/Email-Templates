@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: buffer slots, log `targetId`, export event; Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -100,7 +100,7 @@ All triggers are time-driven, owned by the owner identity, and run as the owner.
 
 | Trigger | Schedule | Work | Runtime per run (estimate) | Runtime per day |
 |---|---|---|---|---|
-| `tick` | every 5 min | flush `evt:*` apply events to `usage.json`, denied events to `pendingAudit`; re-put cache chunk sets older than 5 h; flush `pendingAudit` early above 200 KB | 2 s | about 10 min |
+| `tick` | every 5 min | flush `evt:*` apply events to `usage.json`, denied events to `pendingAudit`, and the `evt:dropped` plus `evt:lost` count as one `audit.dropped` event; re-put cache chunk sets older than 5 h; flush `pendingAudit` early above 200 KB | 2 s | about 10 min |
 | `refreshMembers` | every 15 min | `listMembers` for each referenced group, write `members.json` and `gm:*` | 10 s | about 16 min |
 | `daily` | once a day, 02:00 to 03:00 script time zone | append `pendingAudit` to `audit/YYYY-MM.jsonl`; purge trash older than 30 days; trash orphan body files; backup `index.json`, `favorites.json`, `usage.json` and keep 14; trash audit month files older than 24 months; record job health | 60 s | about 1 min |
 
@@ -182,9 +182,9 @@ Denied audit rows:
 - VALIDATION and NOT_FOUND write no denied row. The log line carries `result: denied` in every DENIED case.
 
 Event buffer (`evt:*`):
-- At most 200 events (`BUFFER_MAX`). When full, new apply and denied events are dropped and counted in `evt:dropped`.
+- At most 200 events (`BUFFER_MAX`). When full, new apply and denied events are dropped and counted in `evt:dropped`. [Since slice 13 an evicted slot is reused first and an apply takes a denied slot; busy-lock losses count in `evt:lost`. Amendment 2026-11-11.]
 - `tick` writes one `audit.dropped` event per run with `after: { dropped }`, actor `system`, result `error`.
-- Limit: 200 refused calls inside 5 min also drop apply events, so usage counts lose them; the count does not split applies from denials (spec 13.5, v1.1).
+- Limit: 200 refused calls inside 5 min also drop apply events, so usage counts lose them; the count does not split applies from denials (spec 13.5, v1.1). [Since slice 13 applies take denied slots, so denials no longer push out applies. Amendment 2026-11-11.]
 
 Usage: `usage.json` entries carry `days`, a map of UTC day (`YYYY-MM-DD`) to apply count, kept to the 30 days that end on the latest apply. Entries written before slice 6b have no `days` and count 0 until their next apply. `usage.report` (admin) sums the 30 UTC days ending today.
 
@@ -199,24 +199,34 @@ Log lines of admin ops (closed field list of spec 11, no new field):
 | Op | `targetId` | Never logged |
 |---|---|---|
 | `grant.add` | folder ID | principal key (it sits only in the audit event `before` and `after`) |
-| `grant.remove` | `""` (`grantId` is not `id` or `folderId`) | principal key |
+| `grant.remove` | `""` (`grantId` is not `id` or `folderId`) [since slice 13: the folder ID that dispatch resolved; Amendment 2026-11-11] | principal key |
 | `import` | target folder ID | titles, subjects, bodies of the file |
 | `export.folder` | folder ID | template content |
 | `export.library` | `""` | template content |
 | `backup.restore` | `""` | the backup date |
 
-Audit events of these ops: `grant.add` and `grant.remove` with before and after; one `import` event per created folder and template (after = record and body reference); `backup.restore` with before `{ rev, items }` and after `{ date, rev, items }`; `trash.purge` one event per purged template and folder. Exports write no audit event in v1 [6b built no export event; the security event list in ADR-0002 names export, so this is a gap: spec 13.5].
+Audit events of these ops: `grant.add` and `grant.remove` with before and after; one `import` event per created folder and template (after = record and body reference); `backup.restore` with before `{ rev, items }` and after `{ date, rev, items }`; `trash.purge` one event per purged template and folder. Exports write no audit event in v1 [6b built no export event; the security event list in ADR-0002 names export, so this is a gap: spec 13.5. Closed in slice 13: one start event per export run, ADR-0002 Amendment 2026-11-11].
 
 ## Amendment 2026-11-10 (D29): personal templates switch, `config.set`
 
-Status: Proposed until the owner approves. Mechanism and options in ADR-0008.
+Status: Accepted 2026-11-11 with ADR-0008 (built in slice 11). Mechanism and options in ADR-0008.
 
 - `levelResolver(subject, index)` reads `index.settings.personalTemplates`. While `off`, a folder in a private tree resolves to `use` for its owner and for admins and `none` for everyone else; this check runs before the admin rule. While `on`, Part C stands (owner `edit`, admins `manage`).
 - Every level check uses this function: dispatch before the handler, `commit` through `recheck` on the fresh index, and `folder.list`. A write racing a settings change is therefore judged on the new value inside the lock.
 - `folder.list` creates the caller's private folder only while `on`.
 - Role matrix row "Private folder of self" while off: `use` for every role; admin `use` on other users' private folders.
-- New op `config.set` (admin, web), policy action `admin.ops`, in-lock admin re-check. Audit event `targetType: config`, `targetId` the setting name, before and after `{ name, value }`. Log line `targetId: ""`, no value.
+- New op `config.set` (admin, web), policy action `admin.ops`, in-lock admin re-check. Audit event `targetType: config`, `targetId` the setting name, before and after `{ name, value }`. Log line `targetId: ""`, no value. Args `{ name, value, baseAt, baseBy }` since slice 13 (ADR-0008).
 - A DENIED with a private target while off carries "Personal templates are turned off by your admin." and writes one denied row as any DENIED.
+
+## Amendment 2026-11-11 (errata run 4): buffer slots, log `targetId`, export event
+
+Status: Proposed until the owner approves. Built in slice 13, review PASS on c96a38b (docs/reviews/slice-13.md). Verified in src at 6374b7b.
+
+Log `targetId`. Options: (1) keep `""` for ops whose args carry no `id` or `folderId` (`grant.remove` logs nothing to trace); (2) log the first non-root target folder dispatch resolved. Decision: option 2. Mechanism: dispatch stores the resolved target in `RequestStats.target`; the log line uses `args.id`, else `args.folderId`, else that target, else `""`. The value is always an ID found in the index, never an address, title or setting value. `grant.remove` logs the folder, ok and denied; `folder.create` under a parent logs the parent; `config.set` and `export.library` stay `""`.
+
+Event buffer. Options: (1) separate caps for apply and denied events (two counters, two limits); (2) one cap with slot reuse. Decision: option 2. Mechanism (src/server/audit/buffer.ts `slotFor`, `bufferEvent`): in a full buffer, one `getAll` of the 200 keys; an evicted slot is taken first with no drop counted; else an apply takes the slot of a denied event (counted); else the new event is dropped (counted in `evt:dropped`). An event lost to a busy 500 ms lock counts in `evt:lost` ("<lost> <seen>", one key). `tick` writes both as one `audit.dropped` event. Change events never use the buffer.
+
+Export audit: one start event per export run through `commit`, then a run token; mechanism and options in ADR-0002 Amendment 2026-11-11. The audit tab reads "Library export started, 25 templates" and "Folder export started: Sales / Quotes, 12 templates".
 
 ## Consequences
 

@@ -1,7 +1,7 @@
 # ADR-0006: Template recipients (To, Cc, Bcc)
 
-Status: Proposed (2026-11-10). Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting.
-Date: 2026-11-10
+Status: Accepted 2026-11-11 (spike S6 passed on Gmail web from the compose toolbar, dev-ec0ccb2; built in slice 9, review PASS on 08955ca; editor fields in slice 8b). Was Proposed 2026-11-10. Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting, built in slice 11.
+Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
 ## Context
@@ -10,7 +10,7 @@ D26 (owner, 2026-11-10): a template holds fixed addresses for To, Cc and Bcc. In
 
 Facts from the owner's Gmail runs:
 - One `UpdateDraftActionResponse` carried body and subject actions with no new scope (spike S5, dev-32a446c).
-- The compose event carries `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients` and `subject`, never `threadId` or `messageId` (smoke "Slice 5b", dev-4a233d4). The add-on reads them at Insert time (src/addon/event.ts `draftInfo`, `draftHasSubject`).
+- The compose event carries `draftMetadata`, `toRecipients`, `ccRecipients`, `bccRecipients` and `subject`, never `threadId` or `messageId` (smoke "Slice 5b", dev-4a233d4). The add-on reads them at Insert time (src/addon/event.ts `draftInfo`, `draftHasSubject`, and since slice 9 `draftRecipients`).
 - The compose card is modal on Gmail web (spec 13.4). The user cannot edit the draft while the card is open, so the recipient lists of the Insert callback event are the lists the insert lands on.
 
 Scope: no new OAuth scope. Reading Cc and Bcc uses `draftAccess: METADATA` and `gmail.addons.current.message.metadata`, already in the manifest (D10). Writing uses `gmail.addons.current.action.compose`, already in the manifest. Spike S6 confirms; a permission prompt in S6 stops the feature until the owner approves (no manifest change without approval).
@@ -21,11 +21,12 @@ Scope: no new OAuth scope. Reading Cc and Bcc uses `draftAccess: METADATA` and `
 |---|---|---|
 | `UpdateDraftActionResponseBuilder` has `setUpdateDraftToRecipientsAction`, `setUpdateDraftCcRecipientsAction`, `setUpdateDraftBccRecipientsAction`, next to the body and subject setters. Each setter returns the builder "for chaining". `build()` throws "if the constructed UpdateDraftActionResponse isn't valid" and does not define invalid | [A15] | yes |
 | `CardService.newUpdateDraftToRecipientsAction().addUpdateToRecipients(String[])`; Cc: `addUpdateCcRecipients(String[])`; Bcc: `addUpdateBccRecipients(String[])`. Class text: "Updates the To recipients of an email draft". Parameter text: "The To recipients to insert to the email draft" | [A25], [A26], [A27] | yes |
-| Whether the actions add to the field or replace it | none of [A14], [A15], [A25] to [A28] says | unverified, S6 |
-| Whether 5 actions (body, subject, To, Cc, Bcc) combine in one response | [A15] says chaining only; S5 verified body plus subject | unverified for recipients, S6 |
-| Scope for the recipient actions | the compose guide asks for scopes "required for compose actions" and names none per action [A14] | unverified, S6 (expected: none new) |
+| Whether the actions add to the field or replace it | none of [A14], [A15], [A25] to [A28] says | yes, S6 step 2: an action replaces the field |
+| Whether 5 actions (body, subject, To, Cc, Bcc) combine in one response | [A15] says chaining only; S5 verified body plus subject | yes, S6 step 1: all 5 applied, the Bcc line opened. Step 4: a response with only a recipient action works too |
+| Scope for the recipient actions | the compose guide asks for scopes "required for compose actions" and names none per action [A14] | no prompt in the owner's runs; the fresh-consent step 7 is still open (spec Q55) |
 | Limits: count per action, address format accepted, display names | none stated on any page | unverified |
-| Behavior in a reply or forward draft, and with an address already present | not stated | unverified, S6 |
+| Behavior in a reply or forward draft, and with an address already present | not stated | yes, S6 steps 3, 5, 6: draft list plus new keeps every address once; reply keeps its To; forward To filled |
+| Format of the event lists | not stated | yes, S6 step 8: JSON arrays of bare addresses in `draftMetadata`, empty when the field is empty; `gmail` repeats only non-empty lists |
 | Mobile behavior | not stated | best effort, untested (D22) |
 | The compose guide's Cc and Bcc examples call `addUpdateToRecipients` on Cc and Bcc action objects, and its callback names differ from the button handlers | [A14] | documentation error; the class pages [A26], [A27] name `addUpdateCcRecipients`, `addUpdateBccRecipients` |
 | The newer add-ons response service builder also has `setSendStatus`, "whether or not the email sends after the update action" | [A28] | yes. The build never calls it; Insert never sends mail |
@@ -65,7 +66,7 @@ Decision: (a) for v1, (b) as a v1.1 item (Q32). [Superseded 2026-11-10 by D29: t
 
 With `deny`:
 - A write that stores an outside address answers VALIDATION `RCPT_EXTERNAL`.
-- Templates that already hold outside addresses stay stored unchanged. `template.apply` and `template.getBody` return only the inside addresses in `to`, `cc`, `bcc` and list the outside ones in `blocked`; the add-on adds only the returned lists, and the cards say "Not added: <address> (outside migway.com, turned off by the admin)". The editor shows the problem at load and refuses the next save until the author removes them. Restore of a version holding outside addresses and duplicate of such a template answer `RCPT_EXTERNAL`.
+- Templates that already hold outside addresses stay stored unchanged. `template.apply` and `template.getBody` return only the inside addresses in `to`, `cc`, `bcc` and list the outside ones in `blocked`; the add-on adds only the returned lists, and the cards say "Not added: <address>. Outside migway.com, turned off by your admin.". The editor shows the problem at load and refuses the next save until the author removes them. Restore of a version holding outside addresses and duplicate of such a template answer `RCPT_EXTERNAL`.
 - The server decides. The add-on never sees a blocked address in the lists it inserts.
 
 Error codes (spec 7.1 holds the texts). Each carries `field` (`to`, `cc`, `bcc`) and the address position (1-based):
@@ -97,16 +98,18 @@ To in a reply. Options:
 1. Always add template To addresses. A reply to an external driver gains `payroll@migway.com` in To; the quoted conversation goes to a new main recipient.
 2. Add Cc and Bcc always; add To only when the draft's To is empty. A new message or a forward (To empty) gets the template To. A reply or a draft with a typed To keeps its To; the card shows the template To as "Not added: the draft already has a To recipient." The user can type it.
 
-Decision: option 2, the same rule shape as D24 (a filled field is kept). The add-on reads `toRecipients` from the Insert event; a missing or empty list counts as empty. No override button in v1 (Q35): the preview card would carry up to 4 Insert buttons.
+Decision: option 2, the same rule shape as D24 (a filled field is kept). The add-on reads `toRecipients` from the Insert event; an empty list counts as empty. [Slice 9 retry: a missing or malformed list is unknown, not empty. An unknown field gets no action and an unknown To counts as filled; see "As built".] No override button in v1 (Q35): the preview card would carry up to 4 Insert buttons.
 
 Opt-out, consistent with D24:
 - Preview card: "Insert body only" now means body only: no subject and no recipients. It shows when plain Insert would set the subject or add at least one address. Plain Insert and "Insert with subject" apply the recipient rule above.
-- Prompt card: a switch "Add recipients" (id `rcpt`), default on, next to "Replace the subject". Off: no recipient action. The addresses are its bottom label.
+- Prompt card: a switch "Add recipients" (id `rcpt`), default on, next to "Replace the subject". Off: no recipient action. Its bottom label is "Adds n recipients."; the preview card's recipient lines follow it [slice 9 retry].
 
 Mechanism of the response: one `UpdateDraftActionResponse` with the body action, the subject action when D24 says so, and one action per field with new addresses. What each recipient action carries depends on spike S6:
 - S6 shows "add": the action carries the new addresses only.
 - S6 shows "replace", with the event lists exact: the action carries the draft's list as received plus the new addresses.
 - Fallbacks in spec 14.1.
+
+[S6 result: replace, event lists exact. Built: the second rule.]
 
 ### 5. Disclosure
 
@@ -122,7 +125,7 @@ Decision: option 2. One extra click on recipient templates only. A Bcc or outsid
 - Preview and prompt cards list every address on its own line with its field. An outside address carries "outside migway.com" (the caller's domain, from the caller's address). A Bcc line carries "hidden from other recipients". Not-added addresses (already in the draft, To rule, `blocked`) are listed with the reason.
 - `template.apply` returns `to`, `cc`, `bcc`, `blocked` on every call, filtered by the current switch, outside the `knownVersion` rule (the lists are small and the switch can change without a new version). The add-on never caches them.
 - The card passes `rh`, the first 16 hex characters of a SHA-256 over the lists it showed; addresses never travel in card parameters. At Insert, if the lists returned by `template.apply` hash differently, the draft is not changed and the card is re-rendered with "The recipients of this template changed. Check them and press Insert again."
-- Result: an `UpdateDraftActionResponse` carries no notification (unverified that it can), so the draft's To, Cc and Bcc lines are the result. S6 records whether Gmail web opens the Bcc line when the action adds to it.
+- Result: an `UpdateDraftActionResponse` carries no notification (unverified that it can), so the draft's To, Cc and Bcc lines are the result. S6 step 1: Gmail web opens the Bcc line when the action adds to it.
 
 ### 6. Who may set recipients
 
@@ -146,11 +149,23 @@ Decision: option 2. One extra click on recipient templates only. A Bcc or outsid
 
 ## Amendment 2026-11-10 (D29): in-app switch
 
-Status: Proposed until the owner approves. D29 asks for two admin switches, so Q32 closes with option (b) in v1, built as the generic settings of ADR-0008.
+Status: Accepted 2026-11-11 with ADR-0008. D29 asks for two admin switches, so Q32 closes with option (b) in v1, built as the generic settings of ADR-0008.
 
 - The value lives in `index.json` `settings.recipientsExternal` (`allow` default, `deny`), changed by an admin with `config.set`, audited with before and after.
-- Script Property `RECIPIENTS_EXTERNAL` is retired. Slice 9 builds its reader on the property; slice 11 points every reader at the setting: `validateRecipients` on create, update, duplicate, version restore and import; `blocked` in `template.apply` and `template.getBody`; `me`; `config.get`.
+- Script Property `RECIPIENTS_EXTERNAL` is retired. Slice 9 built its reader on the property; slice 11 pointed every reader at the setting (built, no code reads the property): `validateRecipients` on create, update, duplicate, version restore and import; `blocked` in `template.apply` and `template.getBody`; `me`; `config.get`.
 - Behavior under `deny` is unchanged (section 2 above). Turning `allow` to `deny` asks for a confirmation in the Config tab (spec 7.3).
+
+## As built (slices 9, 8b, 11, 13; verified at 6374b7b)
+
+Spike S6 record: docs/spikes/slice-09-s6.md. Owner run on dev-ec0ccb2 from the compose toolbar, 2026-11-10. Actions replace a field; 5 actions combine in one response with no prompt; a reply keeps its To; the event lists are arrays of bare addresses. Step 7 (fresh consent) not run (spec Q55).
+
+- `recipientActions(template, draft, add)` and `recipientPlan` (src/addon/cards/recipients.ts). Each action carries the draft's list from the tap's event, then the template addresses not in any known draft field (trimmed, lower case, part inside `<...>`). A field with nothing to add gets no action. `add` false ("Insert body only", switch off) sends none.
+- `draftRecipients(event)` (src/addon/event.ts) returns per field a list or null (unknown). The first source holding the key decides (`draftMetadata`, then `gmail`). A missing key, null, a string, an object or an array with a non-string entry is unknown. An unknown field never gets an action, so a replace cannot wipe it; an unknown To counts as filled. The cards say "The draft's <Field> recipients could not be read and were not changed. Add by hand: <addresses>."
+- Preview and prompt cards show the same lines (`recipientWidgets`), and "Finish typing addresses in the draft first: an address still being typed is lost." whenever Insert adds an address. Reason: a replace drops text not yet a chip.
+- `rh` covers the template lists and `blocked`, not the draft's known or unknown state (Q54). An Insert without `rh` whose lists are not empty shows the preview card.
+- Server: `validateRecipients` (src/shared/model/recipients.ts) on every write and again in the lock (`recheckRecipients`, slice 13). `template.update` keeps an omitted list. Version files with a malformed list read as `[]`; `version.restore` returns `recipientsUnreadable`. Import under an in-lock `deny` refuses the file (Q53).
+- `template.list` always carries the lists (slice 13); the web library matches a query word against the local part or the full address (`SearchFields.addresses`), weight 1; the sidebar `search` op passes no addresses.
+- Editor (slice 8b): chips in the Details panel; Backspace in the empty input removes the last chip; announcements "Added <addresses> to Cc", "Removed <address> from Cc".
 
 ## Consequences
 
@@ -158,7 +173,7 @@ Status: Proposed until the owner approves. D29 asks for two admin switches, so Q
 - Harder: templates with recipients need one extra click (the card). The preview card grows by one section.
 - `recipient.first_name` still reads the draft's To before the insert; a template To added to an empty draft does not feed it (implicit prompt or fallback as today).
 - The D24 meaning of "Insert body only" widens to "body only". The quick start and editor guide need one line each (slice 9).
-- Revisit after spike S6 (add or replace, combination, reply) and when the owner answers Q32 to Q39.
+- Revisit when the owner answers Q33 to Q39 and Q53 to Q55, or if S6 step 7 shows a consent prompt.
 
 ## Open questions
 

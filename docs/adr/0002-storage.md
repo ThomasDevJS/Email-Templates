@@ -1,6 +1,6 @@
 # ADR-0002: Storage, caching and concurrency
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches) (Amendment 2026-11-10, errata run 3: export, import and backups as built, Proposed) (Amendment 2026-11-10: owner handover, Proposed) (Amendment 2026-11-10: admin settings in `index.json`, D29, Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches) (Amendment 2026-11-10, errata run 3: export, import and backups as built, Proposed) (Amendment 2026-11-10: owner handover, Proposed) (Amendment 2026-11-10: admin settings in `index.json`, D29, Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: export start event and run token, buffer slots, `prof:` hash; Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -97,8 +97,9 @@ Drive access: Advanced Drive service v3 (`Drive.Files.create`, `Drive.Files.upda
 | Script Cache | `fav:<rev>:<n>`, `use:<rev>:<n>`, `gm:<rev>:<n>` | side files, 90 KB chunks | 2, 6, 5 chunks | 6 h |
 | Script Cache | `ft:<rev>:<n>` [built as `ft:<bodyFileId>`, one entry per body; Amendment 2026-11-10] | plain-text bodies for search | about 23 chunks at 1x | 6 h |
 | Script Cache | `body:<itemId>:<version>[:part]` [built as `bd:<bodyFileId>`, bodies over 90 KB not cached; Amendment 2026-11-10] | sanitized HTML | 90 KB parts | 6 h |
-| Script Cache | `prof:<n>` | Directory profile map (ADR-0004) | chunked | 6 h |
-| Script Cache | `evt:<n>` | buffered apply and denied events | 90 KB parts | 6 h |
+| Script Cache | `prof:<n>` [built as `prof:<sha256 of the lower-case address>`, one entry per profile; Amendment 2026-11-11] | Directory profile map (ADR-0004) | chunked | 6 h |
+| Script Cache | `evt:<n>` | buffered apply and denied events [plus `evt:meta`, `evt:dropped`, `evt:lost`; Amendment 2026-11-11] | 90 KB parts | 6 h |
+| Script Cache | `exp:<token>` [Amendment 2026-11-11] | export run `{ actor, kind, folderId }` | under 1 KB | 600 s, sliding |
 | User Cache (add-on code only, as the user) | `view:<n>`, `body:<itemId>:<version>` | the caller's filtered list, bodies for apply | 2 chunks, 90 KB parts | 10 min |
 
 Rules:
@@ -125,8 +126,8 @@ Rules:
 
 ### Audit storage and admin view
 
-- Security events (create, edit, move, delete, restore, grant change, export, import, backup restore) enter `pendingAudit` inside the same `index.json` write as the change. An event cannot exist without its change, or the reverse.
-- Apply events and denied requests go to the `evt:*` cache buffer under `tryLock(500)` (fallback: skip buffering, keep the console log line). The 5-min trigger moves apply events into `usage.json` and denied events into `pendingAudit`. Cache eviction can lose up to 5 min of these events (Q14). [Buffer capped at 200 events, drops counted in one `audit.dropped` event per `tick`; ADR-0003 Amendment 2026-11-10, errata run 3.] Every request also writes a structured console log line (ADR-0003 Part D).
+- Security events (create, edit, move, delete, restore, grant change, export, import, backup restore) enter `pendingAudit` inside the same `index.json` write as the change. An event cannot exist without its change, or the reverse. [Export since slice 13: one start event committed through `commit` before any page is served; Amendment 2026-11-11.]
+- Apply events and denied requests go to the `evt:*` cache buffer under `tryLock(500)` (fallback: skip buffering, keep the console log line). The 5-min trigger moves apply events into `usage.json` and denied events into `pendingAudit`. Cache eviction can lose up to 5 min of these events (Q14). [Buffer capped at 200 events, drops counted in one `audit.dropped` event per `tick`; ADR-0003 Amendment 2026-11-10, errata run 3. Evicted slots reused, applies take denied slots, busy-lock losses counted: Amendment 2026-11-11.] Every request also writes a structured console log line (ADR-0003 Part D).
 - The daily job appends `pendingAudit` to `audit/YYYY-MM.jsonl` outside the lock, then removes the flushed event IDs from `pendingAudit` under the lock. A crash between the two steps duplicates lines; readers drop duplicate IDs. The 5-min trigger flushes early when `pendingAudit` exceeds 200 KB (a bulk import).
 - Month file rewrite cost: up to 2.4 MB once per day at 1x.
 - Retention: the daily job trashes month files older than 24 months (Q10). 24 files, about 58 MB at 1x.
@@ -136,7 +137,7 @@ Rules:
 
 - Daily job copies `index.json`, `favorites.json`, `usage.json` to `backups/YYYY-MM-DD/` and trashes folders older than 14 days. Bodies and audit files are immutable or append-only, so they need no copy.
 - Restore: admin UI "Restore from backup" (admin only) lists the 14 dates. The server copies the chosen files over the live ones under the lock with `rev = current + 1` and writes an audit event. No hand edit of files. [Shape check, write order, undo and purge refusal as built: Amendment 2026-11-10, errata run 3.]
-- Export as JSON from the web app: `{ schemaVersion, exportedAt, exportedBy, scope, folders[], grants[], items[{ meta, html }] }`, current versions only. [Fields, paging and the library scope without private folders: Amendment 2026-11-10, errata run 3.] Folder export needs `manage`, library export needs admin. The browser downloads a Blob (`allow-downloads` [R4 S46]).
+- Export as JSON from the web app: `{ schemaVersion, exportedAt, exportedBy, scope, folders[], grants[], items[{ meta, html }] }`, current versions only. [Fields, paging and the library scope without private folders: Amendment 2026-11-10, errata run 3. Start call, audit event and run token: Amendment 2026-11-11.] Folder export needs `manage`, library export needs admin. The browser downloads a Blob (`allow-downloads` [R4 S46]).
 - Import: admin only, same schema, every body passes the sanitizer, IDs remapped, conflicts reported per item. Import is also the migration path from dev to prod and between owners (below). [Import creates no grants and no private folders and stops at 200 templates: Amendment 2026-11-10, errata run 3. Owner change path replaced: Amendment 2026-11-10, owner handover.]
 
 ### `drive.file` binding (consequence of option 2)
@@ -193,11 +194,11 @@ Consequences:
 Status: Proposed until the owner approves. Built in slice 6b, review PASS on f6b567f (docs/reviews/slice-06b.md). The options above stand. This section records the mechanism as built.
 
 Export:
-- File format, `schemaVersion` 1: `{ schemaVersion, exportedAt, exportedBy, scope: { kind: "library" | "folder", folderId, name }, folders: [{ id, parentId, name }], grants: [{ folderId, principalType, principalKey, level }], items: [{ meta: { id, folderId, title, subject, tags }, html }] }`.
+- File format, `schemaVersion` 1: `{ schemaVersion, exportedAt, exportedBy, scope: { kind: "library" | "folder", folderId, name }, folders: [{ id, parentId, name }], grants: [{ folderId, principalType, principalKey, level }], items: [{ meta: { id, folderId, title, subject, to, cc, bcc, tags }, html }] }`. [`to`, `cc`, `bcc` added in slice 9, absent = `[]`.]
 - Content: live templates, current version only. No version history, no `createdBy` or `updatedBy`, no favorites, usage, audit, membership or property data. The export root has `parentId` "".
 - `export.folder` (manage): the folder and its live subtree. Grants only on folders inside that subtree; inherited grants from above are left out.
 - `export.library` (admin): every live folder outside a private tree. Private folders and their templates are left out (D11). The UI label is "Whole library (shared folders)".
-- Paging: one call returns the header and at most 20 templates (`EXPORT_PAGE`), so it reads at most 20 bodies from Drive (body cache first). Pages use an `offset`; the server recomputes the scope on every call. The browser joins the pages into `migway-templates-<scope>-<date>.json` (`library` or the folder name, local date).
+- Paging: one call returns the header and at most 20 templates (`EXPORT_PAGE`), so it reads at most 20 bodies from Drive (body cache first). Pages use an `offset`; the server recomputes the scope on every call. [Since slice 13 a start call comes first and every page needs its run token; a cache miss is read from Drive and not cached: Amendment 2026-11-11.] The browser joins the pages into `migway-templates-<scope>-<date>.json` (`library` or the folder name, local date).
 
 Import (admin):
 - Validate (`dryRun: true`) runs every check and writes nothing. Import runs the same checks again on the index read inside the lock.
@@ -320,12 +321,36 @@ Interim, until B2 ships or V1 passes (runbook, no code):
 
 ## Amendment 2026-11-10: admin settings in `index.json` (D29)
 
-Status: Proposed until the owner approves. Mechanism and options in ADR-0008.
+Status: Accepted 2026-11-11 with ADR-0008 (built in slice 11). Mechanism and options in ADR-0008.
 
 - `index.json` gains an optional `settings` object: `{ personalTemplates: { value, updatedAt, updatedBy }, recipientsExternal: { ... } }`. Absent = defaults (`off`, `allow`). The shape check refuses a stored value outside its list.
 - Only `config.set` writes it, through the normal commit: the change and its `pendingAudit` event in one write, `INDEX_REV` raised.
 - `backup.restore` keeps the live `settings`, as it keeps the live `pendingAudit`. Export and import carry no settings. `setup()` writes none.
-- Script Property `RECIPIENTS_EXTERNAL` is retired from slice 11 on.
+- Script Property `RECIPIENTS_EXTERNAL` is retired from slice 11 on (built: no code reads it). Each reader fills absent defaults with `settingsOf`; `readIndexDoc` leaves `settings` as stored.
+
+## Amendment 2026-11-11 (errata run 4): export audit record, event buffer, cache keys
+
+Status: Proposed until the owner approves. Built in slice 13, review PASS on c96a38b after two FAIL rounds (docs/reviews/slice-13.md). Verified in src at 6374b7b.
+
+Problem: slice 6b wrote no export event, although "Audit storage" lists export as a security event. Two attempts failed review: an event on the page with `offset` 0 only (a client skips it with `offset` 1), then an event per page in the `evt:*` buffer (a cold export of 1,000 templates evicted its own events with `bd:*` body cache writes).
+
+Options:
+1. One event per page through the buffer, refusing a page when the event is not stored. Fails at 1,000 templates: the export's own body cache writes evict buffered events before `tick`.
+2. One event per page through `commit`. Durable, but one index write (about 1 s under the lock) per 20 templates: 50 writes for 1,000 templates.
+3. One start event through `commit`, then a run token every page must carry. One index write per export; no page without a durable event.
+
+Decision: option 3. Mechanism:
+- `export.library` and `export.folder` with `start: true` commit one event (actor, `targetType` `library` or `folder`, `targetId`, `targetPath`, `after: { scope, templates }`; no title, subject, body or address) through `commit`: lock, `recheck`, `commitLocked`, `pendingAudit`. Lock busy answers BUSY, a Drive failure INTERNAL; no token then exists.
+- The start stores `exp:<token>` in the Script Cache: `{ actor, kind, folderId }`, 600 s (`EXPORT_RUN_TTL_S`). The token is `newId()` (26 characters). Each accepted page re-puts it for 600 s.
+- A page call needs a well-formed token present in the cache, of the same caller, scope kind and folder; else VALIDATION `EXPORT_RESTART` before the index or any body is read. The dispatch permission check runs first on every call, so a removed grant stops the next page.
+- Pages read bodies with `readStoredBody(services, item, false)`: a cache hit is used, a miss is read from Drive and not cached, so an export cannot evict other cache entries.
+- Limits: the event records the start, not a finished download. A token evicted mid-run stops the export; the user starts again and a second event is written. Two tabs write two events. A NETWORK retry of a start whose commit landed writes a second event (the log over-reports, never under-reports).
+
+Event buffer (`evt:*`, apply and denied events only; no change event goes through it):
+- In a full buffer a new event first takes an evicted slot (no drop counted); else an apply takes the slot of a denied event (counted); else the event is dropped and counted in `evt:dropped`.
+- An event lost to a busy 500 ms buffer lock counts in `evt:lost`, one key holding "<lost> <seen>", written without the lock. `tick` adds the rise to the `audit.dropped` count.
+
+Cache keys hold no address: `prof:<sha256 of the lower-case address>`. Old `prof:<email>` keys are never read and expire within 6 h.
 
 ## Consequences
 

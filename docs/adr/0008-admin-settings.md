@@ -1,7 +1,7 @@
 # ADR-0008: In-app admin settings (personal templates, outside recipients)
 
-Status: Proposed
-Date: 2026-11-10
+Status: Accepted 2026-11-11 (owner asked for both switches, D26 and D29; built in slice 11, review PASS, hardened in slice 13). Was Proposed 2026-11-10.
+Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
 ## Context
@@ -29,13 +29,13 @@ Options:
 Decision: option 2.
 
 Mechanism:
-- Index field `settings`, optional. Shape: `{ personalTemplates: { value, updatedAt, updatedBy }, recipientsExternal: { value, updatedAt, updatedBy } }`. An absent object or absent entry reads as the default with `updatedAt: ""`, `updatedBy: ""`. `readIndexDoc` fills the defaults; the shape check refuses a present entry whose `value` is not in its allowed list (damaged file, INTERNAL, spec 16.2).
+- Index field `settings`, optional. Shape: `{ personalTemplates: { value, updatedAt, updatedBy }, recipientsExternal: { value, updatedAt, updatedBy } }`. An absent object or absent entry reads as the default with `updatedAt: ""`, `updatedBy: ""`. Each reader fills the defaults with `settingsOf` [built: `readIndexDoc` leaves the object as stored, so no read path can write a default; As built]; the shape check refuses a present entry whose `value` is not in its allowed list (damaged file, INTERNAL, spec 16.2).
 - Fixed list in src/shared (one table): `personalTemplates`: `on`, `off`, default `off`. `recipientsExternal`: `allow`, `deny`, default `allow`.
 - Who may change: admins only (`ADMIN_GROUP` member or `ADMIN_EMAILS`), web app only. Manage holders and users never see or change settings. The policy row is admin, so dispatch re-reads the membership snapshot inside the lock before the write (spec 6, admin rows).
 - Delay: server checks use the new value from the next request on. A request already running when the change commits keeps the old value for reads; its writes re-check in the lock on the fresh index and follow the new value. Web app controls follow on the next library load; until then the server refuses. The sidebar can show its cached view for up to 10 min; under the "off" rules below nothing in that view becomes reachable that the server would refuse.
-- Two admins at once: the op carries `from`, the value the admin saw. In the lock, a current value different from `from` answers CONFLICT with who and when; nothing is written. A current value equal to the new value answers ok with `changed: false`, no write, no audit event.
+- Two admins at once: the op carries `baseAt` and `baseBy`, the `updatedAt` and `updatedBy` of the entry the admin saw ("" for the default) [slice 13; slice 11 built `from`, the value the admin saw, which could not see an A, B, A sequence]. In the lock, a last change other than the base answers CONFLICT with who and when; nothing is written. A current value equal to the new value answers ok with `changed: false`, no write, no audit event.
 - Fresh install: `setup()` writes no settings. An absent object means the defaults (`off`, `allow`). `setup()` is idempotent and never resets an admin's choice. An index from before this change (dev) also reads as the defaults: personal templates turn off on dev at the deploy (Q47).
-- Backup restore keeps the live `settings`, as it keeps the live `pendingAudit`: a restore of template data must not revert a security choice. The restore event lists no settings.
+- Backup restore keeps the live `settings`, as it keeps the live `pendingAudit`: a restore of template data must not revert a security choice. The restore event `after` holds `liveSettingsKept: true` [slice 13].
 - Export and import carry no settings.
 - Script Property `RECIPIENTS_EXTERNAL` is retired. Readers use `settings.recipientsExternal` (Q50).
 - Rollback to a build before this change ignores `settings`: personal templates behave as D11 (on) and recipients read the old property (unset = `allow`). Recorded for the rollback exercise.
@@ -44,20 +44,20 @@ Mechanism:
 
 Options:
 1. One op per setting (`config.setPersonalTemplates`, `config.setRecipientsExternal`). Two policy rows, two handlers, the same code twice; a third setting adds a third op.
-2. One op `config.set` with `{ name, value, from }` against the fixed list. One policy row, one handler, one test table; a new setting is one row in the list plus its texts.
+2. One op `config.set` with `{ name, value, baseAt, baseBy }` [slice 13; `from` in slice 11] against the fixed list. One policy row, one handler, one test table; a new setting is one row in the list plus its texts.
 
 Decision: option 2.
 
 | Item | Value |
 |---|---|
 | Op | `config.set` |
-| Args | `name` (`personalTemplates` or `recipientsExternal`), `value` (from that setting's list), `from` (the value the admin saw, same list) |
+| Args | `name` (`personalTemplates` or `recipientsExternal`), `value` (from that setting's list), `baseAt`, `baseBy` (the last change the admin saw, strings of at most 254 characters, "" for the default) [slice 13] |
 | Level | admin (policy action `admin.ops`, like `config.get`); in-lock admin re-check |
 | Surface | web only; the add-on surface answers DENIED like every `web` row |
-| Validation | unknown `name`, a `value` or `from` outside the setting's list, a missing arg, any extra arg: VALIDATION "Setting <name> does not exist." or "Setting <name> takes on or off." (the allowed values in words). No denied row (spec 11.1) |
+| Validation | unknown `name`, a `value` outside the setting's list, a bad base, a missing arg, any extra arg: VALIDATION "Setting <name> does not exist." (at most 40 characters of the name) or "Setting <name> takes on or off." (the allowed values in words). An old `from` arg: "This page is out of date. Reload it and save again." No denied row (spec 11.1) |
 | Default deny | a caller who is not an admin gets DENIED and one denied audit row |
 | Result | `{ name, value, updatedAt, updatedBy, changed }` |
-| Conflict | CONFLICT "<name of the other admin> changed this setting at <local time>. The page now shows the current value." with the current entry in the error details |
+| Conflict | CONFLICT "<name part> changed this setting. The page now shows the current value." with the current entry in the error details; the web app adds "on <local time>", applies the entry and moves focus to the status line |
 | Audit event | `action: config.set`, `targetType: config`, `targetId: <setting name>`, `targetPath: ""`, `before: { name, value }`, `after: { name, value }`, through `pendingAudit` in the same commit |
 | Log line | closed field list of spec 11, no new field: `action: config.set`, `targetId: ""` (the name is not an ID), `result` ok, conflict, denied or error. The value is not logged; the audit event holds it |
 
@@ -107,6 +107,22 @@ Options:
 2. A radio group per setting with its own Save button; Save asks for a confirmation when the change takes something away (personal templates `on` to `off`, recipients `allow` to `deny`).
 
 Decision: option 2. Layout in wireframe 06 (Config tab) and texts in spec 7.3. Enforcement points per op: spec 5.8. The section sits first in the Config tab, above the read-only environment rows. Each setting: name as a fieldset legend, one sentence of what changes for users, the radio group with the current value checked, Save (disabled while the choice equals the current value), and "Last change: <name> on <local time>" or "Default, never changed." Non-admins never see it: the Config tab is admin only and `config.get` and `config.set` answer DENIED to anyone else.
+
+## As built (slices 11 and 13, verified at 6374b7b)
+
+Slice 11: review PASS on f84a021 (docs/reviews/slice-11.md). Slice 13: review PASS on c96a38b (docs/reviews/slice-13.md). Sections 1 to 5 stand, with these facts:
+
+- `src/shared/model/settings.ts`: fixed list `SETTINGS`, `settingsOf`, `personalTemplatesOn`, `settingsProblem` (called from `indexProblem`), `PERSONAL_OFF_TEXT`. An index from before slice 11 stays byte-identical until an admin saves a setting.
+- `config.set` (src/server/handlers/config.ts `configSet`): admin, web, policy action `admin.ops`. In the lock on `loadIndexForWrite`: admin re-check, then the same value answers `changed: false`, then a base other than the stored `updatedAt`, `updatedBy` answers CONFLICT with `details`, else one `commitLocked` with one `config.set` event. Two admins changing two different settings at once keep both.
+- Off rule: `levelResolver` (src/shared/permissions/effective.ts) checks the private tree before the admin rule. Two consequences differ from the first spec 5.8 table, both accepted by the review: `grant.list`, `grant.add`, `grant.remove` on a private folder answer DENIED with the off text for admins (level `use`, the row needs `manage`), and `admin.folders` drops private folders from the admin Folders tab while off (the library still lists them, D18).
+- `folder.list` creates no private folder while off, also re-checked in its commit callback.
+- Recipients: `recipientPolicy(context)` reads `settings.recipientsExternal` from the request's index; slice 13 adds `recheckRecipients` in the lock of create, duplicate, update, version restore and import. No code reads Script Property `RECIPIENTS_EXTERNAL`.
+- Fields: `me` adds `personalTemplates`, `recipientsExternal`; `sidebar.home` adds `personalTemplates`; `config.get` returns `settings` with who and when.
+- Web: Config tab section "Settings" first, the read-only list below it headed "Environment". Library note and empty state, add-on empty home A2, editor read-only note on a private template while off.
+- `backup.restore` keeps the live `settings` and records `liveSettingsKept: true`. `setup()` writes none (test).
+- 198 role matrix cases (33 ops x on and off x 3 callers) in test/unit/server/settings.test.ts, plus race tests: a write authorized while on and locked after off answers DENIED with the off text and writes nothing.
+
+Left open: the client and server CONFLICT texts differ in the time part (the server has no caller time zone); private trash is purged after 30 days while off and hidden from its owner meanwhile (Q48 covers the clean-up path).
 
 ## Consequences
 
