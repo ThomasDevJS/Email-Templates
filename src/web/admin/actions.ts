@@ -1,4 +1,4 @@
-import type { ExportPageCounts } from "../../shared/model/data";
+import { displayPath } from "./model";
 
 /**
  * Audit log wording (design system "Admin"): operation names in words, results as one word. The raw name stays in
@@ -32,8 +32,8 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
     "trash.purge": "Removed from trash for good",
     "backup.restore": "Backup restored",
     "backup.list": "Backups listed",
-    "export.folder": "Folder exported",
-    "export.library": "Library exported",
+    "export.folder": "Folder export started",
+    "export.library": "Library export started",
     import: "Templates imported",
     "membership.refresh": "Memberships refreshed",
     "membership.status": "Memberships viewed",
@@ -55,25 +55,19 @@ export function actionWords(action: string): string {
   return ACTION_WORDS.get(action) ?? action;
 }
 
-/** "templates 1 to 20 of 25", "all 3 templates", "no templates (offset 30 of 25)": one export page in words. */
-export function exportPageText(page: ExportPageCounts): string {
-  const { offset, templates, total } = page;
-  if (templates === 0)
-    return `no templates (from ${String(offset + 1)} of ${String(total)})`;
-  if (offset === 0 && templates === total)
-    return `all ${plural(total, "template")}`;
-  return `templates ${String(offset + 1)} to ${String(offset + templates)} of ${String(total)}`;
-}
-
-/** Action words of an audit row; an export page adds its range ("Library exported, templates 21 to 25 of 25"). */
+/**
+ * Action words of an audit row; an export start adds its count and, for a folder, the path: "Library export
+ * started, 25 templates", "Folder export started: Sales / Quotes, 12 templates".
+ */
 export function rowActionWords(row: {
   readonly action: string;
-  readonly exportPage?: ExportPageCounts;
+  readonly targetPath: string;
+  readonly exportTemplates?: number;
 }): string {
   const words = actionWords(row.action);
-  return row.exportPage === undefined
-    ? words
-    : `${words}, ${exportPageText(row.exportPage)}`;
+  if (row.exportTemplates === undefined) return words;
+  const path = row.targetPath === "" ? "" : `: ${displayPath(row.targetPath)}`;
+  return `${words}${path}, ${plural(row.exportTemplates, "template")}`;
 }
 
 /** Result word and tint: the word is the tag, the tint repeats it. */

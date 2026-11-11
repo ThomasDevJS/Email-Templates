@@ -83,12 +83,19 @@ export function bodyTexts(
   return { texts, skipped: Math.max(0, missing.length - TEXT_MISS_BUDGET) };
 }
 
-/** Stored HTML of the item's current version: one cache read, Drive on a miss. */
-export function readStoredBody(services: BodyServices, item: Item): string {
+/**
+ * Stored HTML of the item's current version: one cache read, Drive on a miss. `keep` false leaves a missed body out
+ * of the cache, so a bulk read (export) does not push other entries out of the 1,000-item Script Cache.
+ */
+export function readStoredBody(
+  services: BodyServices,
+  item: Item,
+  keep = true,
+): string {
   const cached = services.cache.get(bodyKey(item.bodyFileId));
   if (cached !== null) return cached;
   const { html } = services.store().readBody(item.bodyFileId);
-  cacheBody(services, item.bodyFileId, html);
+  if (keep) cacheBody(services, item.bodyFileId, html);
   return html;
 }
 

@@ -1,6 +1,5 @@
 import type {
   AuditEvent,
-  ExportPageCounts,
   Folder,
   Item,
   Level,
@@ -120,7 +119,7 @@ export interface AuditFilter {
 }
 
 export type AuditRow = Omit<AuditEvent, "before" | "after"> & {
-  readonly exportPage?: ExportPageCounts;
+  readonly exportTemplates?: number;
 };
 
 export interface AuditPage {
@@ -152,6 +151,12 @@ export interface ExportPage {
   readonly items: readonly unknown[];
   readonly total: number;
   readonly next: number | null;
+}
+
+/** Answer of an export start: the run token for the page calls and the templates in scope. */
+export interface ExportStart {
+  readonly token: string;
+  readonly total: number;
 }
 
 export interface ReportLine {
@@ -241,8 +246,13 @@ export interface Api {
   audit(filter: AuditFilter): Promise<AuditPage>;
   auditEvent(month: string, id: string): Promise<{ event: AuditEvent }>;
   usage(): Promise<{ since: string; rows: UsageRow[] }>;
-  /** `folderId` "" exports the whole library (admin). */
-  exportPage(folderId: string, offset: number): Promise<ExportPage>;
+  /** `folderId` "" exports the whole library (admin). The start records the export in the audit log. */
+  exportStart(folderId: string): Promise<ExportStart>;
+  exportPage(
+    folderId: string,
+    offset: number,
+    token: string,
+  ): Promise<ExportPage>;
   importFile(
     folderId: string,
     file: string,
@@ -313,10 +323,14 @@ export function createApi(client: RpcClient): Api {
     audit: (filter) => call("audit.query", filter),
     auditEvent: (month, id) => call("audit.query", { month, id }),
     usage: () => call("usage.report"),
-    exportPage: (folderId, offset) =>
+    exportStart: (folderId) =>
       folderId === ""
-        ? call("export.library", { offset })
-        : call("export.folder", { folderId, offset }),
+        ? call("export.library", { start: true })
+        : call("export.folder", { folderId, start: true }),
+    exportPage: (folderId, offset, token) =>
+      folderId === ""
+        ? call("export.library", { offset, token })
+        : call("export.folder", { folderId, offset, token }),
     importFile: (folderId, file, dryRun) =>
       call("import", { folderId, file, dryRun }),
     config: () => call("config.get"),

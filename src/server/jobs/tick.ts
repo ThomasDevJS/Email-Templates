@@ -35,8 +35,6 @@ export const EARLY_FLUSH_BYTES = 200 * 1024;
 export interface TickResult {
   readonly applies: number;
   readonly denied: number;
-  /** Change events without their own index write (export), moved to `pendingAudit`. */
-  readonly changes: number;
   /** Events the full buffer refused since the last run; one `audit.dropped` event records the count. */
   readonly dropped: number;
   readonly rolled: number;
@@ -50,11 +48,10 @@ function applies(events: readonly BufferedEvent[]): ApplyEvent[] {
   return events.flatMap((entry) => (entry.kind === "apply" ? [entry] : []));
 }
 
-function rows(
-  events: readonly BufferedEvent[],
-  kind: "denied" | "change",
-): AuditEvent[] {
-  return events.flatMap((entry) => (entry.kind === kind ? [entry.event] : []));
+function denials(events: readonly BufferedEvent[]): AuditEvent[] {
+  return events.flatMap((entry) =>
+    entry.kind === "denied" ? [entry.event] : [],
+  );
 }
 
 /** The count of events the full buffer refused, as one audit event; none when nothing was dropped. */
@@ -74,17 +71,12 @@ function droppedEvents(services: Services, dropped: number): AuditEvent[] {
 /** Buffered events to their files under the lock; the buffer is cleared only after both writes. */
 function flushBuffer(
   services: Services,
-): Pick<TickResult, "applies" | "denied" | "changes" | "dropped"> {
+): Pick<TickResult, "applies" | "denied" | "dropped"> {
   return withLock(services.lock, WRITE_LOCK_MS, () => {
     const buffered = readBuffer(services.cache);
     const applied = applies(buffered.events);
-    const denied = rows(buffered.events, "denied");
-    const changes = rows(buffered.events, "change");
-    const audit = [
-      ...changes,
-      ...denied,
-      ...droppedEvents(services, buffered.dropped),
-    ];
+    const denied = denials(buffered.events);
+    const audit = [...denied, ...droppedEvents(services, buffered.dropped)];
     if (applied.length > 0)
       writeSideLocked(
         services,
@@ -105,7 +97,6 @@ function flushBuffer(
     return {
       applies: applied.length,
       denied: denied.length,
-      changes: changes.length,
       dropped: buffered.dropped,
     };
   });

@@ -493,13 +493,16 @@ function auditQuery(args: Record<string, unknown>) {
   };
 }
 
-function exportOp(folderId: string) {
+/** `start: true` answers a run token; any other call answers the one page (the harness ignores the token). */
+function exportOp(args: Record<string, unknown>, folderId: string) {
   const scope = folderId === "" ? "library" : "folder";
   const inScope = [...items.values()].filter(
     (entry) =>
       entry.deletedAt === "" &&
       (folderId === "" || entry.folderId === folderId),
   );
+  if (args["start"] === true)
+    return { token: "DEV-EXPORT-RUN", total: inScope.length };
   return {
     header: {
       schemaVersion: 1,
@@ -925,8 +928,8 @@ const OPS: Readonly<Record<string, Op>> = {
         lastUsedAt: n === 0 ? NOW : "",
       })),
   }),
-  "export.folder": (args) => exportOp(str(args, "folderId")),
-  "export.library": () => exportOp(""),
+  "export.folder": (args) => exportOp(args, str(args, "folderId")),
+  "export.library": (args) => exportOp(args, ""),
   import: importOp,
   "config.set": configSet,
   "config.get": () => ({
