@@ -60,15 +60,16 @@ function toIcon(name: IconName): GoogleAppsScript.Card_Service.IconImage {
   );
 }
 
+// Labels are plain text in Gmail (add-on widget guide): escaped like every value, never given markup such as `<br>`.
 function toItem(spec: Extract<Widget, { kind: "item" }>) {
   let item = CardService.newDecoratedText()
     .setText(markup(spec.text))
     .setWrapText(true);
   if (spec.icon !== undefined) item = item.setStartIcon(toIcon(spec.icon));
   if (spec.topLabel !== undefined)
-    item = item.setTopLabel(markup(spec.topLabel));
+    item = item.setTopLabel(escapeText(spec.topLabel));
   if (spec.bottomLabel !== undefined)
-    item = item.setBottomLabel(markup(spec.bottomLabel));
+    item = item.setBottomLabel(escapeText(spec.bottomLabel));
   if (spec.onClick !== undefined)
     item = item.setOnClickAction(toAction(spec.onClick));
   if (spec.button !== undefined) item = item.setButton(toButton(spec.button));

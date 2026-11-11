@@ -66,18 +66,16 @@ export function folderItem(folder: SidebarFolder): Widget {
   };
 }
 
-/** The folder path on one line, then the hints that apply ("2 fields to fill · Adds Cc 1") on the next. */
+/** One plain-text line: the folder path, then the hints that apply ("Sales · 2 fields to fill · Adds Cc 1"). */
 function rowLabel(template: SidebarTemplate, path: string): string {
   const prompts = template.prompts.length;
-  const hints = [
-    prompts > 0 ? fieldsLabel(prompts) : "",
-    rowHint(template.rc),
-  ].filter((hint) => hint !== "");
-  return [path, hints.join(" · ")].filter((line) => line !== "").join("\n");
+  return [path, prompts > 0 ? fieldsLabel(prompts) : "", rowHint(template.rc)]
+    .filter((part) => part !== "")
+    .join(" · ");
 }
 
 /**
- * One row layout in every list: the icon of its section, the title, the folder path and hints below, a tap that
+ * One row layout in every list: the icon of its section, the title, the folder path ("" on a folder card) and hints below, a tap that
  * opens the preview, and Insert or Review in the compose toolbar only: from the side panel a draft response does
  * nothing (ADR-0007, interim fix of spec 13.7).
  */
@@ -170,7 +168,8 @@ function templateSections(
   const shown = templates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const list: SectionSpec = {
     widgets: shown.map((template) =>
-      templateItem(template, entry, path, "description"),
+      // The card header already shows the path: rows show their hints only.
+      templateItem(template, entry, "", "description"),
     ),
   };
   return pages > 1 ? [list, pager(folderId, page, pages)] : [list];

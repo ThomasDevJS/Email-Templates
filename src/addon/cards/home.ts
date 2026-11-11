@@ -21,7 +21,7 @@ import {
  */
 export const HOME_CARD = "home";
 
-export const openLibraryButton = {
+const openLibraryButton = {
   kind: "buttons",
   buttons: [{ text: "Open library", action: action("onOpenLink") }],
 } as const satisfies Widget;
@@ -106,9 +106,14 @@ export function homeCard(view: SidebarHome, entry: Entry): CardSpec {
   };
 }
 
+/** Characters of the query the no-match text repeats. */
+export const ECHO_MAX = 60;
+
 /** "No templates match ...": what was searched and how to widen it (spec section 7). */
 export function noMatchText(query: string): string {
-  return `No templates match "${query}". Try fewer words, or remove folder: and tag: from the search.`;
+  const shown =
+    query.length > ECHO_MAX ? `${query.slice(0, ECHO_MAX)}...` : query;
+  return `No templates match "${shown}". Try fewer words, or remove folder: and tag: from the search.`;
 }
 
 /** Search results in place of Home (spec 4.4): the server's top 20, or the empty state of spec section 7. */

@@ -13,8 +13,10 @@ import {
   folderPath,
 } from "../../../src/addon/cards/folder";
 import {
+  ECHO_MAX,
   SEARCH_HINT,
   homeCard,
+  noMatchText,
   searchCard,
 } from "../../../src/addon/cards/home";
 import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
@@ -140,7 +142,7 @@ describe("home card (wireframe 01)", () => {
       expect.objectContaining({
         icon: "star",
         text: "Template T1",
-        bottomLabel: "Sales\n2 fields to fill",
+        bottomLabel: "Sales · 2 fields to fill",
       }),
     ]);
     expect(card.sections[2]?.widgets).toEqual([
@@ -209,6 +211,16 @@ describe("search card (spec 4.4)", () => {
     expect(card.footer?.primary.text).toBe("Open library");
   });
 
+  it("repeats at most 60 characters of the query in the no-match text", () => {
+    const long = "x".repeat(ECHO_MAX + 1);
+    expect(texts(searchCard(view(), long, [], "compose"))).toEqual([
+      `No templates match "${"x".repeat(ECHO_MAX)}...". Try fewer words, or remove folder: and tag: from the search.`,
+    ]);
+    expect(noMatchText("y".repeat(ECHO_MAX))).toContain(
+      `"${"y".repeat(ECHO_MAX)}"`,
+    );
+  });
+
   it("says what was searched and how to widen it when nothing matches", () => {
     expect(texts(searchCard(view(), "zzz", [], "compose"))).toEqual([
       'No templates match "zzz". Try fewer words, or remove folder: and tag: from the search.',
@@ -231,7 +243,7 @@ describe("folder card (wireframe 01)", () => {
       kind: "item",
       icon: "description",
       text: "Template T1",
-      bottomLabel: "Sales\n2 fields to fill",
+      bottomLabel: "2 fields to fill",
       onClick: { fn: "onPreview", params: { id: "T1" } },
       button: {
         text: "Insert",
@@ -240,7 +252,8 @@ describe("folder card (wireframe 01)", () => {
         action: { fn: "onInsert", params: { id: "T1" } },
       },
     });
-    expect(items[2]).toMatchObject({ bottomLabel: "Sales" });
+    // The header shows the path; a row without hints has no label.
+    expect(items[2]).not.toHaveProperty("bottomLabel");
     expect(items[2]).not.toHaveProperty("topLabel");
     expect(card?.footer?.primary.text).toBe("Open library");
     expect(folderCard(view(), "F2", "1", "compose")?.title).toBe(
@@ -583,7 +596,7 @@ describe("prompt card (wireframe 02)", () => {
   it("refuses more than 20 fields with a Back button", () => {
     const card = tooManyFieldsCard("Big", 23);
     expect(texts(card)).toEqual([
-      "This template needs 23 fields. The sidebar fills at most 20. Ask an editor to remove some fields.",
+      "This template needs 23 fields. The panel fills at most 20. Ask an editor to remove some fields.",
     ]);
     expect(buttons(card)[0]?.action.fn).toBe("onBack");
   });
@@ -686,10 +699,10 @@ describe("layout (slice 12)", () => {
     ]);
   });
 
-  it("puts the path first and the hints after it, and drops empty lines", () => {
+  it("puts the path first and the hints after it on one line, and drops empty parts", () => {
     const rc = template("T9", { prompts: ["A"], rc: [0, 1, 1] });
     expect(templateItem(rc, "compose", "HR", "star")).toMatchObject({
-      bottomLabel: "HR\n1 field to fill · Adds Cc 1, Bcc 1",
+      bottomLabel: "HR · 1 field to fill · Adds Cc 1, Bcc 1",
       button: { text: "Review", style: "filled" },
     });
     expect(templateItem(template("T8"), "inbox", "", "star")).toEqual({

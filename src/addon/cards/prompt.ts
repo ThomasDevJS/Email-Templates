@@ -142,7 +142,7 @@ export function tooManyFieldsCard(title: string, count: number): CardSpec {
         widgets: [
           {
             kind: "text",
-            text: `This template needs ${String(count)} fields. The sidebar fills at most 20. Ask an editor to remove some fields.`,
+            text: `This template needs ${String(count)} fields. The panel fills at most 20. Ask an editor to remove some fields.`,
           },
           {
             kind: "buttons",

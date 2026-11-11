@@ -5,6 +5,9 @@ import {
   renderReply,
 } from "../../../src/addon/cards/render";
 import type { CardSpec } from "../../../src/addon/cards/spec";
+import { homeCard, searchCard } from "../../../src/addon/cards/home";
+import { previewCard } from "../../../src/addon/cards/preview";
+import { template, view } from "./fixtures";
 import {
   createRecordingCardService,
   type RecordedCall,
@@ -291,5 +294,59 @@ describe("renderReply", () => {
       recipients: { to: ["t@x.com"] },
     });
     expect(argsOf("addUpdateToRecipients")).toEqual([["t@x.com"]]);
+  });
+});
+
+describe("labels (plain text in Gmail)", () => {
+  const labels = () => [...argsOf("setTopLabel"), ...argsOf("setBottomLabel")];
+
+  it("get no markup from the code's own strings; folder names stay escaped on one line", () => {
+    const name = "R&D <b>Research and development of long names</b>";
+    renderCard(
+      homeCard(
+        view({
+          folders: [{ id: "F1", name, parentId: "", count: 2 }],
+          subfolders: [
+            {
+              id: "F2",
+              name: "Quotes for every region",
+              parentId: "F1",
+              count: 1,
+            },
+          ],
+          templates: [
+            template("T1", { folderId: "F2", prompts: ["A"], rc: [1, 1, 0] }),
+          ],
+          favorites: ["T1"],
+        }),
+        "compose",
+      ),
+    );
+    const escaped =
+      "R&amp;D &lt;b&gt;Research and development of long names&lt;/b&gt;";
+    expect(labels()).toEqual([
+      `${escaped} / Quotes for every region · 1 field to fill · Adds To 1, Cc 1`,
+      "2 templates",
+    ]);
+    calls.length = 0;
+    renderCard(
+      previewCard(template("T1"), "x", "S", false, "compose", {
+        plan: {
+          added: { to: ["a@example.com"], cc: [], bcc: ["b@example.com"] },
+          notAdded: [],
+          unknown: { to: [], cc: [], bcc: [] },
+        },
+        rh: "RH",
+        domain: "migway.com",
+        changed: false,
+      }),
+    );
+    expect(labels().length).toBeGreaterThan(2);
+    for (const text of labels()) expect(String(text)).not.toMatch(/[<>]/);
+  });
+
+  it("escapes the query echoed in the no-match text", () => {
+    renderCard(searchCard(view(), "<b>x</b>", [], "compose"));
+    expect(argsOf("setText")[0]).toContain("&lt;b&gt;x&lt;/b&gt;");
   });
 });

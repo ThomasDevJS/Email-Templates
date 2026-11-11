@@ -148,7 +148,7 @@ describe("list rows", () => {
     );
     const row = rows.find((w) => w.text === item.title);
     expect(row).toMatchObject({
-      bottomLabel: "Sales\nAdds To 1, Cc 1, Bcc 1",
+      bottomLabel: "Adds To 1, Cc 1, Bcc 1",
       button: {
         text: "Review",
         alt: "Review Driver leaving",
@@ -181,7 +181,7 @@ describe("list rows", () => {
       kind: "item",
       topLabel: "Bcc",
       text: BCC,
-      bottomLabel: "outside example.com\nhidden from other recipients",
+      bottomLabel: "outside example.com · hidden from other recipients",
     });
     expect(texts(card)).toContain(FINISH_TYPING);
   });
@@ -191,7 +191,7 @@ describe("list rows", () => {
     const row = widgets(folderCardOf("inbox")).find(
       (w) => w.kind === "item" && w.text === "Driver leaving",
     );
-    expect(row).toMatchObject({ bottomLabel: "Sales\nAdds To 1, Cc 1, Bcc 1" });
+    expect(row).toMatchObject({ bottomLabel: "Adds To 1, Cc 1, Bcc 1" });
     expect(row).not.toHaveProperty("button");
   });
 });
@@ -208,7 +208,7 @@ describe("preview card and Insert", () => {
       kind: "item",
       topLabel: "Bcc",
       text: BCC,
-      bottomLabel: "outside example.com\nhidden from other recipients",
+      bottomLabel: "outside example.com · hidden from other recipients",
     });
     expect(buttons(card).map((b) => b.text)).toEqual([
       "Insert",
@@ -394,7 +394,7 @@ describe("prompt card", () => {
       kind: "item",
       topLabel: "Bcc",
       text: BCC,
-      bottomLabel: "outside example.com\nhidden from other recipients",
+      bottomLabel: "outside example.com · hidden from other recipients",
     });
   });
 
