@@ -121,7 +121,7 @@ Gmail, owner, the add-on in a draft's toolbar; the web app in a second tab. Abou
 10. New draft, tap the name "T1 plain" and leave the card open. Web app: open "T1 plain", change `T1 text.` to `T1 text again.`, "Save". Gmail: "Insert". Expect: "(!) The template changed. Check the fields and press Insert again.", the draft unchanged. "Insert" again: "T1 text again." arrives. Web app: change the text back to `T1 text.`, "Save".
 11. Web app: create `C scratch` in "Smoke 6a" with text `C`. Gmail: new draft, open the add-on, "Open library", close it, open the folder "Smoke 6a" (the list now holds "C scratch"). Web app: delete "C scratch". Gmail: row Insert on "C scratch". Expect: "This template was deleted or moved. Press Refresh to update the list." and "Refresh". "Refresh": the home card shows, without "C scratch".
 12. Home card, type `zzqx` in "Search templates" and click outside the box. Expect: `No templates match "zzqx". Try fewer words, or remove folder: and tag: from the search.` Search `paragraphs`. Expect: "Results" with "T5 paragraphs". Clear the box: the home card returns.
-13. Tap the name "T1 plain", "Edit in library". Record: what opened (an overlay over Gmail, a new tab, or nothing). Close it. Expect: the add-on shows the home card.
+13. Tap the name "T1 plain", "Edit in library". Record: what opened (an overlay over Gmail, a new tab, or nothing). Close it. Expect: the add-on shows the home card. If nothing opens for the browser agent, report "nothing opened" and go on: Chrome can block the window for an automated click, and the owner repeats this one click by hand (part H).
 
 | Step | Record                        | Result |
 | ---- | ----------------------------- | ------ |
@@ -211,6 +211,7 @@ For the owner, not for the browser agent. Steps 1 and 2 need the Google Account 
 10. Backup restore (optional, dev data only, after every other part). Admin, "Settings and backups", "Backups", "Restore" next to the newest date. Expect: a dialog that names the date with "Cancel" focused. Confirm. Expect: "Restored the backup of " and the date. This puts back the library of that night: the setup templates and everything made after the backup leave the library. "Audit log": a row for the restore with your name.
 11. Admins in the log (part I). "Executions", the runs of part I steps 3 and 4 of this run. Expect: one warn line `directory.users.get` each, with `errorCode` like `ADMIN_NO_ACCOUNT:404` and no address. A line `ADMIN_CHECK:` with a status means the Directory answer was not read as "not found": record the status. The `admin.add` and `admin.remove` lines carry `targetId` "" and no address.
 12. Web editor, any template you can edit: hold the mouse over "Bold" in the toolbar. Expect: the hover text "Bold (Ctrl+B)".
+13. Gmail, a draft, open the add-on, click "Open library". Expect: the library opens in a window over Gmail. Tap the name "T1 plain", click "Edit in library". Expect: the editor opens with "T1 plain". Record: each opens (y/n). (Part C step 13 opened nothing for the browser agent on dev-56bf795.)
 
 | Step | Record                            | Result |
 | ---- | --------------------------------- | ------ |
