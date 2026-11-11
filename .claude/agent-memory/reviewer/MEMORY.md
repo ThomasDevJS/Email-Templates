@@ -29,7 +29,6 @@
   - Warm props: production 1 (entry.test.ts:293 pins via snapshotProps). world.ts meters live fake props, so world counts (6) are getProperty calls, not service calls.
 - Slice 7 docs (2026-11-10): FAIL (039392e), retry 1 PASS (d74ad53, quick start 844 words, 1244 tests). Open minors: temp password delivery after admin reset; quick start "asks" ignores fallback; recipient address as prof: cache key 6 h.
 - Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
-  - Harness: src/addon/spikeS6.ts, callbacks onS6Card/onS6Apply (param b), Reply kind s6, env gate in the flow after respond prelude. Removal list in the handoff.
   - UpdateDraftActionResponse has no navigation or notification: harness results show in the draft only.
 - Slice 8a UI (2026-11-10): FAIL (23bf981), retry 1 PASS (5b0aa2c, 1265 tests, index.html 340.6 KB). Retry: panel modal (main inert + aria-hidden, trapTab exported, matchMedia close), focus selector a[href] (SVG use href was counted), --star #a87400, --star-off #78838b, --field-line #7f8b93/#7c8a94 for field and button borders, contrast.test.ts token pairs (does not check CSS usage).
   First review 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
@@ -37,7 +36,6 @@
 - Slice 10 S7 harness (2026-11-10): PASS (f7f05a7). 58 files, 1332 tests, lines 96.48, Code.js 335.7 KB, 10 scopes, manifest adds contextualTriggers unconditional onMessageOpen.
   - `entryOf` (event.ts): draftMetadata -> compose, else gmail.messageId or messageMetadata.messageId -> message, else inbox. Compose clicks carry top-level draftMetadata (runbook.md:125 fields).
   - Interim fix: Insert only when entry compose (templateItem, preview insertButtons); TOOLBAR_HINT on home card only.
-  - Harness src/addon/spikeS7.ts, callbacks onS7Card/onS7Compose/onS7Notify, Reply kinds s7, s7Error; s7Visible wraps after the guard.
 - Slice 8c UI admin (2026-11-10): PASS (75ebb53). 56 files, 1295 tests, lines 96.45, index.html 352.9 KB (+12.3, css +7.2), Lighthouse 100x12 (incl. admin audit dark), 10 scopes. No server/shared/addon/editor change.
   - New: src/web/admin/actions.ts (actionWords Map, resultTag, purgeText), views/adminTable.ts (data-label stacking <860 px, Chromium keeps table roles), tint tokens --ok-bg/--warn-bg/--red-bg.
   - Minors: trash.ts:140 purgeText infers templates from the list (wrong when reload fails); server has goneItems, ask for it. Audit actor short name only (title). Export sentence omits private folders. Config widths uneven.
@@ -97,6 +95,10 @@
 - Slice 20b add-on fix round (2026-11-11): PASS (review on 496e4bf). 69 files, 1949 tests, lines 97.97, Code.js 369.8 KB, 10 scopes. 0 must-fix, 8 minors.
   - Code: folder.ts LIST_MAX (fav 10, recent 5, folders 40, results 20) + `capped` cut line; only Folders can fire (server caps sidebar.ts:36-38). Worst card 84 (folder, message). event.ts mailboxesOf; addsLine(plan, reply); capSubject in renderSubject.
   - Minors: "A reply adds n" counts a Cc already on the email; capSubject leaves trailing ZWJ; `{{{ask:N}}{ask:M}}` puts `{{ask:M}}` in draft (base same); spec 458 panel text.
+- Slice 20a web+server fix round (2026-11-11): FAIL (review on c7e6beb = c1cc732 + main ef3805c). 69 files, 1965 tests, lines 98.03, Code.js 371.0 KB, index.html 380.3 KB, Lighthouse 100x16, 10 scopes.
+  - Must fix: admin-guide:273 `npx clasp open-script` fails after `.clasp.json` deleted ("Script ID not set"); first-load failure shows banner + toast (two alerts, two retry buttons) and Reload drops focus to BODY.
+  - Server clean: `exps:<run>` 60 s bound to actor/kind/folderId + live token; newId = digestIndex(sha256(getUuid)), 80 bits, format unchanged. Leak probe 12 runs 0 hits.
+  - Probes in scratchpad/20a/p: first.cjs (first paint/fail/20 s), slowlist.cjs (delay one op via window.__op hook), folders.cjs, nav2.cjs, drawer.cjs, caret2.cjs, insert.cjs (menu "Ask the sender...").
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -142,5 +144,5 @@
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
 - Error texts: trace every caught message to properties (job lastError), Admin screens, Cloud Logging (exceptionLogging STACKDRIVER, rethrows), failure emails; probe with a damaged file holding an address.
 - Gmail-action slices: count createDraft* per failure probe with a recording fake; forge action params (values, extra keys) and CR LF; read the message ID source at press time.
-
-- Card limit probes: build the matrix with real builders and count `addWidget` on the recording Card Service; check where the cut line sits vs collapseAfter.
+- Card limit probes: build the matrix with real builders and count `addWidget` on the recording Card Service; check where the cut line sits vs collapseAfter.- Doc command checks: run each clasp command from a dir without .clasp.json (`npx clasp <cmd> --help`, then bare); deploy steps that delete .clasp.json break later bare commands.
+- First-load/error UI: count toasts plus banners per failure, and check focus after the retry button removes itself.
