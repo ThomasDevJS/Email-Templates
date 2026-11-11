@@ -11,6 +11,7 @@ This plan tests the dev build of Migway Templates: the web editor, the Gmail car
 5. Before step 1, read the build version (see "The build") and report it.
 6. Report each step as pass, fail or blocked, with what you saw. Quote screen text exactly. For a "Record:" line, write the value into the result table of the part.
 7. Do not open the Apps Script editor or the browser console. Part H holds those checks.
+8. After "Insert" or any button on a Gmail card, wait up to 10 seconds for the card or the draft to change before you read the result.
 
 ## Before you start
 
