@@ -271,6 +271,35 @@ describe("folders and grants", () => {
     ).toBe("Can use");
   });
 
+  it("closes a folder by its chevron or a second click on the selected open row (slice 23)", async () => {
+    await boot("/?latency=0#/admin");
+    await until(() => {
+      expect(main().querySelector('[role="tablist"]')).not.toBeNull();
+    });
+    const grantLists = countCalls("grant.list");
+    const chevron = () =>
+      treeItem("Sales").querySelector(".tree-toggle") as HTMLElement;
+    chevron().click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("true");
+    expect(treeItem("Quotes")).toBeTruthy();
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "All folders",
+    );
+    chevron().click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(grantLists()).toBe(0);
+    treeItem("Sales").click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("true");
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "Sales",
+    );
+    treeItem("Sales").click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "Sales",
+    );
+  });
+
   it("asks for a principal under the field and marks it invalid", async () => {
     await boot("/?latency=0#/admin");
     await openQuotes();

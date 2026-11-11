@@ -5,7 +5,8 @@ import { icon } from "../ui/icons";
 
 /**
  * Folder tree (spec section 8): `role="tree"`, one tab stop. Up and Down move, Right expands or enters,
- * Left collapses or goes to the parent, Home and End jump, Enter or Space opens the folder.
+ * Left collapses or goes to the parent, Home and End jump, Enter or Space opens the folder. By pointer, the chevron
+ * opens or closes a row without opening the folder, and a click on the selected open row closes it.
  * The first row, `rootLabel` ("All folders" in the admin view), has the empty folder ID; the sidebar tree has none.
  * `counts` shows a template count per folder as CSS content, so a row's text stays the folder name.
  */
@@ -88,6 +89,11 @@ export function createFolderTree(
     if (focus) list.querySelector<HTMLElement>('[tabindex="0"]')?.focus();
   };
 
+  const toggle = (id: string) => {
+    if (!expanded.delete(id)) expanded.add(id);
+    draw(true);
+  };
+
   const item = (row: Row) => {
     const li = h(
       "li",
@@ -103,15 +109,33 @@ export function createFolderTree(
         "data-count": counts.get(row.id),
         style: `padding-left: ${String(row.depth * 16 - 8)}px`,
         onclick: () => {
-          li.focus();
           focused = row.id;
+          // The selected open row closes on a second click; any other row opens and expands (slice 23).
+          if (row.hasChildren && row.id === selected && expanded.has(row.id)) {
+            toggle(row.id);
+            return;
+          }
+          li.focus();
           if (row.hasChildren) expanded.add(row.id);
           onOpen(row.id);
         },
       },
-      icon(
-        row.hasChildren ? (expanded.has(row.id) ? "down" : "chev") : "folder",
-      ),
+      row.hasChildren
+        ? h(
+            "span",
+            {
+              class: "tree-toggle",
+              "aria-hidden": "true",
+              onclick: (event: Event) => {
+                // A pointer shortcut: opens or closes the row, opens no folder.
+                event.stopPropagation();
+                focused = row.id;
+                toggle(row.id);
+              },
+            },
+            icon(expanded.has(row.id) ? "down" : "chev"),
+          )
+        : icon("folder"),
       row.name,
       row.owner === "" ? null : h("span", { class: "owner" }, row.owner),
     );

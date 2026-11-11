@@ -503,6 +503,20 @@ input[aria-invalid="true"] {
   font-weight: 600;
 }
 
+/* The chevron's pointer target is 24 by 24 px; the ring around the 16 px icon takes no layout space. */
+.tree-toggle {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  cursor: pointer;
+}
+
+.tree-toggle::before {
+  position: absolute;
+  inset: -4px;
+  content: "";
+}
+
 .tree {
   margin: 0;
   padding: 0;

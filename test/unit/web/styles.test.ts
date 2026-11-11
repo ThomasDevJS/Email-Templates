@@ -89,6 +89,11 @@ describe("styles (slice 8b editor)", () => {
     expect(note).toContain("margin: 20px auto -8px");
   });
 
+  it("gives the tree chevron a 24 by 24 px pointer target with no layout shift (slice 23)", () => {
+    expect(rule(".tree-toggle::before")).toContain("inset: -4px");
+    expect(rule(".tree-toggle::before")).toContain("position: absolute");
+  });
+
   it("draws no border around a read-only Title (8b minor 5)", () => {
     expect(rule(".panel-control input[readonly]")).toContain(
       "border-color: transparent",

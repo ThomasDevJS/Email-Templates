@@ -312,6 +312,50 @@ describe("library (screen 3)", () => {
     });
   });
 
+  it("opens and closes a folder by its chevron or a second click, without opening it (slice 23)", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(sideTree().querySelectorAll('[role="treeitem"]')).toHaveLength(4);
+    });
+    const row = (name: string) =>
+      [...sideTree().querySelectorAll<HTMLElement>('[role="treeitem"]')].find(
+        (item) => item.textContent === name,
+      ) as HTMLElement;
+    const chevron = (name: string) =>
+      row(name).querySelector(".tree-toggle") as HTMLElement;
+    const rows = () => sideTree().querySelectorAll('[role="treeitem"]').length;
+    expect(chevron("Sales").getAttribute("aria-hidden")).toBe("true");
+    expect(chevron("Sales").hasAttribute("tabindex")).toBe(false);
+    chevron("Sales").click();
+    expect(row("Sales").getAttribute("aria-expanded")).toBe("true");
+    expect(rows()).toBe(6);
+    expect(document.activeElement).toBe(row("Sales"));
+    expect(window.location.hash).toBe("#/library");
+    chevron("Sales").click();
+    expect(row("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(rows()).toBe(4);
+    expect(window.location.hash).toBe("#/library");
+    // A name click opens and expands; a second click on the selected open row closes it and stays.
+    row("Sales").click();
+    expect(window.location.hash).toBe("#/library?folder=F-SALES");
+    expect(row("Sales").getAttribute("aria-expanded")).toBe("true");
+    row("Sales").click();
+    expect(row("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(window.location.hash).toBe("#/library?folder=F-SALES");
+    expect(document.activeElement).toBe(row("Sales"));
+    // Closing the parent of the selected folder keeps the page and does not reopen at once.
+    row("Sales").click();
+    row("Quotes").click();
+    expect(window.location.hash).toBe("#/library?folder=F-QUOTES");
+    chevron("Sales").click();
+    expect(rows()).toBe(4);
+    expect(main().querySelector("#list-heading")?.textContent).toBe(
+      "Sales / Quotes",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(row("Sales").getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("keeps focus in the tree after a click or Enter, so arrows and Enter go on working (smoke defect 7)", async () => {
     await boot("/?latency=0#/library");
     await until(() => {
