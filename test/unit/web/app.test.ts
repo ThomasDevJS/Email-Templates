@@ -1001,6 +1001,37 @@ describe("shell (slice 8a)", () => {
 });
 
 describe("states (spec section 7, wireframe 07)", () => {
+  it("personal templates off: the own folder says why there is no New template", async () => {
+    await boot("/?latency=0&personal=off#/library?folder=F-MINE");
+    await until(() => {
+      expect(text()).toContain("No templates in My templates.");
+    });
+    const note = main().querySelector('[role="note"]') as HTMLElement;
+    expect(note.hidden).toBe(false);
+    expect(note.textContent).toBe(
+      "Personal templates are turned off by your admin. You can still insert these templates.",
+    );
+    expect(() => button("New template")).toThrow();
+    window.location.hash = "#/library?folder=F-EMPTY";
+    await until(() => {
+      expect(text()).toContain("No templates in HR.");
+    });
+    expect((main().querySelector('[role="note"]') as HTMLElement).hidden).toBe(
+      true,
+    );
+    expect(button("New template").disabled).toBe(false);
+  });
+
+  it("no folder visible: asks the user to get access, no button", async () => {
+    await boot("/?latency=0&access=none#/library");
+    await until(() => {
+      expect(text()).toContain(
+        "No templates shared with you yet. Ask your admin for access to a folder.",
+      );
+    });
+    expect(main().querySelector(".empty button")).toBeNull();
+  });
+
   it("DENIED shows a banner with a link to the library", async () => {
     await boot("/?latency=0&fail=DENIED&failOp=template.get#/edit/T-QUOTE");
     await until(() => {

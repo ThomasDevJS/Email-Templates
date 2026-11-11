@@ -10,7 +10,9 @@ import {
   importSummary,
   localDayStart,
   principalHint,
-  recipientsText,
+  conflictText,
+  lastChangeText,
+  settingTexts,
 } from "../../../src/web/admin/model";
 import type { FolderRow, GrantRow } from "../../../src/web/rpc/api";
 
@@ -122,13 +124,56 @@ describe("admin model", () => {
     ]);
   });
 
-  it("shows outside recipients only when config.get returns the setting", () => {
-    expect(recipientsText(undefined, "example.com")).toBeNull();
-    expect(recipientsText("allow", "example.com")).toBe(
-      "allowed (set by the owner in Script Properties, RECIPIENTS_EXTERNAL)",
+  it("words the settings of spec 7.3 with the domain", () => {
+    const personal = settingTexts("personalTemplates", "example.com");
+    expect(personal.options).toEqual([
+      ["on", "On"],
+      ["off", "Off"],
+    ]);
+    expect(personal.saved("off")).toBe(
+      "Saved. Personal templates are off for every user from their next action.",
     );
-    expect(recipientsText("deny", "example.com")).toBe(
-      "example.com only (set by the owner in Script Properties, RECIPIENTS_EXTERNAL)",
+    expect(personal.confirm).toMatchObject({
+      value: "off",
+      title: "Turn off personal templates?",
+      action: "Turn off",
+    });
+    const outside = settingTexts("recipientsExternal", "example.com");
+    expect(outside.explanation).toBe(
+      "Templates can add addresses outside example.com to To, Cc and Bcc. When off, saving such an address fails and Insert skips it.",
+    );
+    expect(outside.options).toEqual([
+      ["allow", "Allowed"],
+      ["deny", "example.com only"],
+    ]);
+    expect(outside.saved("deny")).toBe(
+      "Saved. Only example.com recipients are allowed.",
+    );
+    expect(outside.saved("allow")).toBe(
+      "Saved. Outside recipients are allowed.",
+    );
+    expect(outside.confirm).toMatchObject({
+      value: "deny",
+      title: "Allow only example.com recipients?",
+      action: "Allow only example.com",
+    });
+  });
+
+  it("shows the last change and the conflict in local time", () => {
+    const now = new Date("2026-11-10T20:00:00");
+    const entry = {
+      value: "on" as const,
+      updatedAt: new Date("2026-11-10T14:05:00").toISOString(),
+      updatedBy: "ana@example.com",
+    };
+    expect(
+      lastChangeText({ value: "off", updatedAt: "", updatedBy: "" }, now),
+    ).toBe("Default, never changed.");
+    expect(lastChangeText(entry, now)).toBe(
+      "Last change: ana on Nov 10, 2:05 PM.",
+    );
+    expect(conflictText(entry, now)).toBe(
+      "ana changed this setting on Nov 10, 2:05 PM. The page now shows the current value.",
     );
   });
 

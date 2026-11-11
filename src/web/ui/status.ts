@@ -1,4 +1,5 @@
 import { ErrorCode } from "../../shared/errors/codes";
+import { PERSONAL_OFF_TEXT } from "../../shared/model/settings";
 import { RpcError } from "../rpc/client";
 import { formatTime, h, replace } from "./dom";
 
@@ -39,7 +40,9 @@ function conflictText(error: RpcError): string {
 export function messageOf(error: RpcError): string {
   switch (error.code) {
     case ErrorCode.DENIED:
-      return "You don't have access to this template. Ask a folder manager.";
+      return error.message === PERSONAL_OFF_TEXT
+        ? PERSONAL_OFF_TEXT
+        : "You don't have access to this template. Ask a folder manager.";
     case ErrorCode.NOT_FOUND:
       return "This template was removed or moved.";
     case ErrorCode.BUSY:

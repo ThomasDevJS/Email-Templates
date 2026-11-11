@@ -1,7 +1,13 @@
 import type { PrincipalType } from "../../shared/model/data";
 import { FOLDER_NAME_MAX, TRASH_DAYS } from "../../shared/model/validate";
 import { folderPath, subtreeIds } from "../library/model";
+import type {
+  SettingEntry,
+  SettingName,
+  SettingValue,
+} from "../../shared/model/settings";
 import type { FolderRow, GrantRow } from "../rpc/api";
+import { formatTime } from "../ui/dom";
 
 /** Pure logic of the admin view (wireframe 06) and the trash (wireframe 07 H). The server checks every action. */
 
@@ -140,17 +146,72 @@ export function localDayStart(day: string, nextDay = false): string {
   return new Date(year, month - 1, date + (nextDay ? 1 : 0)).toISOString();
 }
 
-/**
- * Config row "Outside recipients" (spec 5.7, `RECIPIENTS_EXTERNAL`): null while `config.get` does not return the
- * value, so the tab shows no row.
- */
-export function recipientsText(
-  value: "allow" | "deny" | undefined,
-  domain: string,
-): string | null {
-  if (value === undefined) return null;
-  const shown = value === "deny" ? `${domain} only` : "allowed";
-  return `${shown} (set by the owner in Script Properties, RECIPIENTS_EXTERNAL)`;
+/** Spec 7.3 texts of one admin setting (D29); `domain` is Script Property `DOMAIN`. */
+export interface SettingTexts {
+  readonly legend: string;
+  readonly explanation: string;
+  readonly options: readonly (readonly [SettingValue, string])[];
+  readonly saved: (value: SettingValue) => string;
+  /** The value whose Save asks first (it takes something away from users), with the dialog texts. */
+  readonly confirm: {
+    readonly value: SettingValue;
+    readonly title: string;
+    readonly body: string;
+    readonly action: string;
+  };
+}
+
+export function settingTexts(name: SettingName, domain: string): SettingTexts {
+  if (name === "personalTemplates")
+    return {
+      legend: "Personal templates",
+      explanation:
+        "Users can create their own templates in My templates. When off, users keep and can insert the personal templates they have, but cannot create, change or delete them.",
+      options: [
+        ["on", "On"],
+        ["off", "Off"],
+      ],
+      saved: (value) =>
+        `Saved. Personal templates are ${value} for every user from their next action.`,
+      confirm: {
+        value: "off",
+        title: "Turn off personal templates?",
+        body: "Users can no longer create, change or delete templates in My templates. Their existing personal templates stay and can still be inserted. Nothing is deleted. Turning it on again restores everything.",
+        action: "Turn off",
+      },
+    };
+  return {
+    legend: "Outside recipients",
+    explanation: `Templates can add addresses outside ${domain} to To, Cc and Bcc. When off, saving such an address fails and Insert skips it.`,
+    options: [
+      ["allow", "Allowed"],
+      ["deny", `${domain} only`],
+    ],
+    saved: (value) =>
+      value === "deny"
+        ? `Saved. Only ${domain} recipients are allowed.`
+        : "Saved. Outside recipients are allowed.",
+    confirm: {
+      value: "deny",
+      title: `Allow only ${domain} recipients?`,
+      body: "Templates keep their outside addresses, but Insert no longer adds them and saving a template with one fails until the address is removed.",
+      action: `Allow only ${domain}`,
+    },
+  };
+}
+
+const namePart = (email: string): string => email.split("@")[0] ?? "";
+
+/** "Last change: ana on Nov 10, 2:05 PM." or "Default, never changed." (spec 7.3). */
+export function lastChangeText(entry: SettingEntry, now?: Date): string {
+  return entry.updatedAt === ""
+    ? "Default, never changed."
+    : `Last change: ${namePart(entry.updatedBy)} on ${formatTime(entry.updatedAt, "date", now)}.`;
+}
+
+/** "ana changed this setting on Nov 10, 2:05 PM. The page now shows the current value." (spec 7.3). */
+export function conflictText(entry: SettingEntry, now?: Date): string {
+  return `${namePart(entry.updatedBy)} changed this setting on ${formatTime(entry.updatedAt, "date", now)}. The page now shows the current value.`;
 }
 
 /** "850 KB" or "3.10 MB". */

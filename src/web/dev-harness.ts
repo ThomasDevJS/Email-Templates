@@ -3,11 +3,18 @@
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
  * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
- * freight templates with invented names for screenshots (the tests use the default sample).
+ * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
+ * with personal templates off (My templates at `use`), `?access=none` shows no folder at all.
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { Folder, Item } from "../shared/model/data";
+import {
+  isSettingName,
+  isSettingValue,
+  type SettingEntry,
+  type SettingName,
+} from "../shared/model/settings";
 import { scanBody } from "../shared/placeholders/validate";
 import type { AccessLevel } from "../shared/permissions/levels";
 import type { GoogleScript, ScriptLocation } from "./host";
@@ -23,8 +30,11 @@ interface Version {
 
 const ME = "dev.user@example.com";
 const NOW = "2026-11-09T14:03:00.000Z";
-const FREIGHT =
-  new URLSearchParams(window.location.search).get("sample") === "freight";
+const PARAMS = new URLSearchParams(window.location.search);
+const FREIGHT = PARAMS.get("sample") === "freight";
+const PERSONAL_OFF = PARAMS.get("personal") === "off";
+const MINE_LEVEL: AccessLevel = PERSONAL_OFF ? "use" : "edit";
+const NO_ACCESS = PARAMS.get("access") === "none";
 
 function folder(
   id: string,
@@ -59,7 +69,7 @@ const folders = FREIGHT
       folder("F-CARRIER", "Carrier relations", "", "manage"),
       folder("F-BILLING", "Billing", "", "edit"),
       folder("F-EMPTY", "HR", "", "edit"),
-      folder("F-MINE", "My templates", "", "edit", "private"),
+      folder("F-MINE", "My templates", "", MINE_LEVEL, "private"),
     ].map((entry, sortOrder) => ({ ...entry, sortOrder }))
   : [
       folder("F-SALES", "Sales", "", "manage"),
@@ -67,7 +77,7 @@ const folders = FREIGHT
       folder("F-ONBOARD", "Onboarding", "F-SALES", "manage"),
       folder("F-SUPPORT", "Support", "", "use"),
       folder("F-EMPTY", "HR", "", "edit"),
-      folder("F-MINE", "My templates", "", "edit", "private"),
+      folder("F-MINE", "My templates", "", MINE_LEVEL, "private"),
     ];
 
 const items = new Map<string, Item>();
@@ -78,6 +88,7 @@ const favorites = new Set<string>(
 let seq = 100;
 
 function levelOf(folderId: string): AccessLevel {
+  if (NO_ACCESS) return "none";
   return folders.find((entry) => entry.id === folderId)?.level ?? "none";
 }
 
@@ -425,6 +436,32 @@ const AUDIT = Array.from({ length: 60 }, (_, n) => ({
 
 const BACKUPS = ["2026-11-09", "2026-11-08", "2026-11-07"];
 
+const settings: Record<SettingName, SettingEntry> = {
+  personalTemplates: PERSONAL_OFF
+    ? { value: "off", updatedAt: "", updatedBy: "" }
+    : { value: "on", updatedAt: "2026-11-09T13:05:00.000Z", updatedBy: ANA },
+  recipientsExternal: { value: "allow", updatedAt: "", updatedBy: "" },
+};
+
+/** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale `from`, no-op on the same value. */
+function configSet(args: Record<string, unknown>) {
+  const name = args["name"];
+  if (!isSettingName(name))
+    throw new AppError(ErrorCode.VALIDATION, "Setting does not exist.");
+  const entry = settings[name];
+  if (entry.value === args["value"]) return { name, ...entry, changed: false };
+  if (entry.value !== args["from"])
+    throw new AppError(
+      ErrorCode.CONFLICT,
+      "Another admin changed this setting.",
+      { name, ...entry },
+    );
+  if (!isSettingValue(name, args["value"]))
+    throw new AppError(ErrorCode.VALIDATION, "Bad value.");
+  settings[name] = { value: args["value"], updatedAt: NOW, updatedBy: ME };
+  return { name, ...settings[name], changed: true };
+}
+
 function auditQuery(args: Record<string, unknown>) {
   const id = str(args, "id");
   if (id !== "") {
@@ -549,7 +586,7 @@ function isAdmin(): boolean {
 }
 
 function liveFolders(): typeof folders {
-  return folders.filter((entry) => entry.deletedAt === "");
+  return folders.filter((entry) => !NO_ACCESS && entry.deletedAt === "");
 }
 
 function devFolder(id: string): (typeof folders)[number] {
@@ -888,7 +925,9 @@ const OPS: Readonly<Record<string, Op>> = {
   "export.folder": (args) => exportOp(str(args, "folderId")),
   "export.library": () => exportOp(""),
   import: importOp,
+  "config.set": configSet,
   "config.get": () => ({
+    settings,
     domain: "example.com",
     adminGroup: "admins@example.com",
     resolver: "groupsapp_direct",

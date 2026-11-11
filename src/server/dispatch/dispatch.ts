@@ -1,7 +1,10 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Surface } from "../../shared/log/logger";
 import type { IndexDoc } from "../../shared/model/data";
-import { personalTemplatesOn } from "../../shared/model/settings";
+import {
+  PERSONAL_OFF_TEXT,
+  personalTemplatesOn,
+} from "../../shared/model/settings";
 import {
   ancestry,
   folderMap,
@@ -110,7 +113,7 @@ function deniedError(
   return new AppError(
     ErrorCode.DENIED,
     privateOff
-      ? "Personal templates are turned off by your admin."
+      ? PERSONAL_OFF_TEXT
       : "You don't have access to this. Ask a folder manager.",
   );
 }

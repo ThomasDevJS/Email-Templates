@@ -47,6 +47,24 @@ export function visibleNodes(
   ]);
 }
 
+/**
+ * True for a folder in a private tree that the caller can only use: personal templates are off (D29, spec 7.2).
+ * While on, the owner holds `edit` and admins `manage` there.
+ */
+export function privateReadOnly(
+  folders: readonly FolderRow[],
+  folderId: string,
+): boolean {
+  const byId = new Map(folders.map((folder) => [folder.id, folder]));
+  let folder = byId.get(folderId);
+  if (folder?.level !== "use") return false;
+  for (let hops = 0; folder !== undefined && hops <= folders.length; hops++) {
+    if (folder.kind === "private") return true;
+    folder = byId.get(folder.parentId);
+  }
+  return false;
+}
+
 /** "Sales / Quotes" for a folder, from visible ancestors. */
 export function folderPath(
   folders: readonly FolderRow[],

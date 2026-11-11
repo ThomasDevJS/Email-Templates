@@ -7,6 +7,10 @@ export const SETTINGS = {
   recipientsExternal: { values: ["allow", "deny"], default: "allow" },
 } as const;
 
+/** DENIED text for a target in a private tree while personal templates are off (spec 6, 7). */
+export const PERSONAL_OFF_TEXT =
+  "Personal templates are turned off by your admin.";
+
 export type SettingName = keyof typeof SETTINGS;
 export type SettingValue<N extends SettingName = SettingName> =
   (typeof SETTINGS)[N]["values"][number];

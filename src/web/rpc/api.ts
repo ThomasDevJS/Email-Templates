@@ -5,6 +5,12 @@ import type {
   Level,
   PrincipalType,
 } from "../../shared/model/data";
+import type {
+  SettingEntry,
+  SettingName,
+  SettingValue,
+  Settings,
+} from "../../shared/model/settings";
 import type { AccessLevel } from "../../shared/permissions/levels";
 import type { RpcClient } from "./client";
 
@@ -180,8 +186,8 @@ export interface ConfigView {
   readonly appVersion: string;
   readonly indexBytes: number;
   readonly indexWarnBytes: number;
-  /** Spec 5.7 `RECIPIENTS_EXTERNAL`; `config.get` does not return it yet, so the Config tab shows no row. */
-  readonly recipientsExternal?: "allow" | "deny";
+  /** Admin settings (D29, spec 5.8), defaults filled in. */
+  readonly settings: Settings;
   readonly jobs: readonly JobRow[];
   readonly triggersError: string;
 }
@@ -238,6 +244,12 @@ export interface Api {
     dryRun: boolean,
   ): Promise<ImportReport>;
   config(): Promise<ConfigView>;
+  /** `config.set`: CONFLICT with the current entry in `details` when `from` is stale. */
+  setSetting(
+    name: SettingName,
+    value: SettingValue,
+    from: SettingValue,
+  ): Promise<SettingEntry & { changed: boolean }>;
   backups(): Promise<{ dates: string[] }>;
   restoreBackup(date: string): Promise<{ date: string; rev: number }>;
 }
@@ -303,6 +315,8 @@ export function createApi(client: RpcClient): Api {
     importFile: (folderId, file, dryRun) =>
       call("import", { folderId, file, dryRun }),
     config: () => call("config.get"),
+    setSetting: (name, value, from) =>
+      call("config.set", { name, value, from }),
     backups: () => call("backup.list"),
     restoreBackup: (date) => call("backup.restore", { date }),
   };
