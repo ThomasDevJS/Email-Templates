@@ -1,6 +1,6 @@
 import { APP_VERSION, BUILD_INFO } from "../shared/buildInfo";
 import { AppError, ErrorCode } from "../shared/errors/codes";
-import { makeId } from "../shared/ids";
+import { digestIndex, makeId } from "../shared/ids";
 import {
   createLogger,
   resolveLogLevel,
@@ -124,7 +124,8 @@ export function createServices(surface: Surface): Services {
     },
     logger: serverLogger(props),
     nowMs: now,
-    newId: () => makeId(Date.now(), (n) => Math.floor(Math.random() * n)),
+    // IDs include the export run token: their random part comes from a secure UUID (13 retry 2 minor 4).
+    newId: () => makeId(Date.now(), digestIndex(sha256(Utilities.getUuid()))),
     sha256,
     drive,
     store: memo(() => driveStore(drive(), requireStoreIds(props))),
