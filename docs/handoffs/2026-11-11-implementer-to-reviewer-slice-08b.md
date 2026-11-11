@@ -52,7 +52,7 @@ Branch `slice/08b-ui-editor`, base `7ce6810`, 5 commits (cc22749, 6329420, 6dac2
 1. Subject shows token text (`{{ask:Load number}}`), not blanks: the subject is a plain input (wireframe 04, spec 5.6); the task keeps it.
 2. Size picker shows "Normal", "Small", "Large", "Huge" in place of "14": the schema's sizes are named, the default has no pixel value.
 3. Text color and highlight are two buttons (task item 2); the mockup has one drop icon.
-4. No font family picker (mockup and task list). Font marks in stored or pasted HTML are kept. `FONT_FAMILIES` removed (no other user). Owner may want it back: one `styleMenu` line.
+4. Font family picker: removed in the first build, restored in the follow-up (see below).
 5. "or" of a fallback in `--ink-2`: `--ink-3` on `--blank-bg` is 4.4:1. Pair added to the contrast table.
 6. To, Cc, Bcc labels above the field (wireframe 04); Title, Folder, Tags keep the mockup's left labels. Chips plus the input do not fit a 228 px column.
 7. Tags keep the input, "Add tag" and "Up to 10 tags." (behavior unchanged); the mockup shows chips only.
@@ -86,10 +86,9 @@ editor.png, editor-dark.png, editor-390.png, placeholder-menu.png, link-dialog.p
 
 ## Left for later
 
-- Unsaved-changes guard: none exists at 7ce6810 (no `beforeunload`, no route hook). The header shows "Unsaved changes"; leaving the editor still drops edits. A guard needs a `canLeave` hook in app.ts.
+- Unsaved-changes guard: built in the follow-up (see below).
 - Library address search (spec 13.6 item 6, Q39): library view belongs to the admin-settings worktree.
 - Spec 8 blank names and the wireframe 04 Backspace rule (items 13 and 15 above): architect.
-- Toolbar picker for fonts, if the owner wants it back.
 
 ## Risks
 
@@ -109,3 +108,26 @@ rm -rf node_modules && npm ci
 npm run lint && npm run typecheck && npm run test:coverage
 npm run build -- --env dev && npm run scopes:check && npm run format:check && npm run lighthouse
 ```
+
+## Follow-up (2026-11-11, coordinator: font picker, guard, "Reads as")
+
+Commits 9c03426, 3099486, 333bbe9, 632fa2b, plus this handoff commit.
+
+1. Font picker restored after "Text size" in the text group: `FONT_FAMILIES` (6 families, as the schema parses) back in schema.ts; the menu draws each name in its face (`MenuItem.font`, one optional field in ui/menu.ts); "Default" removes the family. The button text stays "Font"; its name carries the value ("Font: Georgia", "Font: Default", "Font: Other font" for a pasted family outside the list) and the menu checks the current one. A fixed word keeps the row width: in Chromium at 1440 x 900 the toolbar is one row with 14 px to spare, with no family and with Times New Roman, Trebuchet MS and Courier New set (toolbar gap 1 px, side padding 12, picker text 13 px, chevrons 12 px). Test: each family applies, serializes as `<span style="font-family: ...">`, reads back in the name and the check; round-trip fixtures pass unchanged.
+2. Unsaved-changes guard. Route hook in src/web/app.ts: `leaving(leave)` (calls `view.canLeave(leave)`; `app.go` runs through it) and the `host.onBackForward` handler (asks the view; while it asks, the address goes back to the editor route; leaving moves it on). Type: `View.canLeave?(leave): boolean` in views/context.ts. The editor answers true when nothing changed, the caller has no edit, or the view is off the page; else it opens "Leave without saving?" ("Keep editing" focused, "Discard changes", "Save and leave"). `save()` now returns whether it succeeded; "Save and leave" closes the question, saves, and leaves only on success (a failed save shows its toast; a conflict shows "This template changed"). Every exit goes through `app.go` or Back and Forward: sidebar All templates, Favorites, Trash, Admin, folder tree, breadcrumb, History, Back and Forward, another template by address. `beforeunload` is set for the editor's life and prevents the unload only while changes are unsaved.
+   - Verified: jsdom tests for the 8 exits (Keep editing stays, address unchanged), no question when clean or read-only, Discard (nothing saved), Save and leave (saved, then left), Back held then Discard (moves on), failed save (BUSY) stays, conflict stays, `beforeunload` prevented only when dirty. Chromium (Playwright): reload with unsaved changes shows the browser's leave prompt on a top page and in a cross-origin iframe with `sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"`. Not verified inside Google's HtmlService frame: smoke "Slice 8b" step 3 records it.
+3. "Reads as" line under the Subject, shown only while the subject holds a placeholder: the subject with blanks (`withChips` on the escaped subject, the history markup), label "Reads as" in `--ink-3`. About 20 minutes.
+
+Changed texts (old, new):
+
+| Where | Old | New |
+|---|---|---|
+| Toolbar | (none; removed in the first build) | "Font" picker, name "Font: Default" / "Font: Georgia" / "Font: Other font"; menu Arial, Georgia, Times New Roman, Verdana, Courier New, Trebuchet MS, Default |
+| Leave question | (none) | title "Leave without saving?", body "Your changes to this template are not saved. They are lost if you leave now.", buttons "Keep editing", "Discard changes", "Save and leave" |
+| Subject | (none) | "Reads as" line |
+
+Screenshots re-taken at scale 2: editor, editor-dark, editor-390, placeholder-menu, link-dialog, recipient-error, preview-recipients, editor-readonly; new: leave-dialog.png, font-menu.png. history-recipients.png unchanged.
+
+Checks from a clean install: lint and typecheck clean; test:coverage 63 files, 1481 tests, 96.13% statements, 90.03% branches, 95.44% functions, 97.01% lines; build dev Code.js 347.9 KB, index.html 376.9 KB (+1.8 KB over the first build: picker, guard, "Reads as"); scopes:check 10 approved; format:check clean; lighthouse 100 on all 13 runs.
+
+Files: src/web/app.ts (hook), src/web/views/context.ts (`canLeave`), src/web/views/editor.ts, src/web/editor/{schema,toolbar}.ts, src/web/ui/menu.ts, src/web/styles.css, test/unit/web/{editor,editorPanel}.test.ts, docs/guide/editor-guide.md, docs/ops/smoke.md, docs/design/screens/8b/.

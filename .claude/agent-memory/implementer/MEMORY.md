@@ -131,7 +131,7 @@
 - views/editor.ts builds the work area once in `build()` after `loading` (level from `app.items()`; `use` = read-only); `savedText`, `panelSection`, `panelTabs`, `editorSkeleton`. views/recipients.ts `recipientField` (chips, `splitAddresses`, `recipientBlock`). preview.ts `blankHtml`, `promptUses`, `recipientLines`. schema `blankParts`, names "Field: ...". toolbar `GROUPS`, `tooltip`, `Toolbar.placeholder`. commands `imageWidth`. `api.me()`.
 - `button { display }` beats `[hidden]`: the editor has `.editor-page [hidden] { display: none }`. Harness `?external=deny` (seeding stays allow), `?unreadable=`.
 - Edit scripts: scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>`) run alone; never chain a heredoc with other commands. Screens: /opt/node-tools/node_modules/playwright via createRequire, dev-web on port 5188.
-- No unsaved-changes guard exists (left for later, needs an app.ts route hook).
+- Guard: `View.canLeave(leave)`, app.ts `leaving()` + onBackForward hold; editor `dirty()` needs `mount.isConnected` (old apps in tests keep window listeners). Font picker shows fixed "Font" (row width).
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
