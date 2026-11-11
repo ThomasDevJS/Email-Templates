@@ -136,7 +136,7 @@ async function openQuotes(): Promise<void> {
 }
 
 describe("admin view entry", () => {
-  it("adds Admin to the rail for a manage holder and opens Folders and grants", async () => {
+  it("adds Admin to the rail for a manage holder and opens Folders and access", async () => {
     await boot("/?latency=0#/library");
     await until(() => {
       expect(document.querySelector("[data-nav=admin]")).not.toBeNull();
@@ -144,7 +144,7 @@ describe("admin view entry", () => {
     (document.querySelector("[data-nav=admin]") as HTMLElement).click();
     await until(() => {
       expect(main().querySelector('[role="tab"]')?.textContent).toBe(
-        "Folders and grants",
+        "Folders and access",
       );
     });
     expect(
@@ -164,7 +164,7 @@ describe("admin view entry", () => {
     await boot("/?latency=0&fail=DENIED&failOp=admin.folders#/admin");
     await until(() => {
       expect(main().querySelector('[role="alert"]')?.textContent).toContain(
-        "You don't have access to the admin view.",
+        "You don't have access to Admin.",
       );
     });
     expect(main().querySelector('[role="tablist"]')).toBeNull();
@@ -180,18 +180,18 @@ describe("admin view entry", () => {
         "Request ID",
       );
     });
-    expect(text()).toContain("The admin view could not be loaded.");
+    expect(text()).toContain("Admin could not be loaded.");
   });
 
-  it("gives a manage holder Folders and grants and Export, only for the folders they manage", async () => {
+  it("gives a manage holder Folders and access and Export, only for the folders they manage", async () => {
     await boot("/?latency=0&admin=0#/admin/memberships");
     await until(() => {
       expect(
         [...main().querySelectorAll('[role="tab"]')].map((t) => t.textContent),
-      ).toEqual(["Folders and grants", "Export and import"]);
+      ).toEqual(["Folders and access", "Export and import"]);
     });
     expect(main().querySelector('[aria-selected="true"]')?.textContent).toBe(
-      "Folders and grants",
+      "Folders and access",
     );
     expect(main().textContent).not.toContain("+ Top-level folder");
     expect(main().textContent).not.toContain("Support");
@@ -217,16 +217,16 @@ describe("tablist and memberships", () => {
     ).toBe("tab-memberships");
     await until(() => {
       expect(main().querySelector("tr.warn")?.textContent).toContain(
-        "sales@example.com contains emea-sales@example.com",
+        "Warning: members of emea-sales@example.com get no access through sales@example.com. Add them to sales@example.com directly.",
       );
     });
     expect(text()).toContain(
-      "Resolver: groupsapp_direct (direct members only)",
+      "Members are read from Google (direct members only).",
     );
     expect(text()).toMatch(/Last refresh: Nov \d+, \d+:\d\d [AP]M\./);
-    const refresh = button("Refresh now");
+    const refresh = button("Refresh groups");
     refresh.click();
-    expect(status()).toContain("Refreshing memberships...");
+    expect(status()).toContain("Refreshing groups...");
     expect(refresh.disabled).toBe(true);
     await until(() => {
       expect(status()).toContain("Refreshed 2 groups.");
@@ -245,30 +245,30 @@ describe("tablist and memberships", () => {
 });
 
 describe("folders and grants", () => {
-  it("shows effective access with the inherited source and the inactive OU", async () => {
+  it("shows who has access with the parent folder and the inactive org unit", async () => {
     await boot("/?latency=0#/admin");
     await openQuotes();
     const rows = [...main().querySelectorAll(".admin-table tbody tr")].map(
       (row) => row.textContent,
     );
-    expect(rows[0]).toContain("OU /field");
+    expect(rows[0]).toContain("org unit /field");
     expect(rows[0]).toContain(
-      "Inactive: OU resolution needs the Directory resolver",
+      "Not active yet. Org units do not give access in this version.",
     );
-    expect(rows[1]).toContain("Sales (inherited)");
+    expect(rows[1]).toContain("Sales (parent folder)");
     expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
       "Sales / Quotes",
     );
     // Slice 8c: the type is read before the key and shown as an icon; the level is a tag.
     const principal = main().querySelector(".admin-table tbody .principal");
-    expect(principal?.querySelector(".sr-only")?.textContent).toBe("OU ");
+    expect(principal?.querySelector(".sr-only")?.textContent).toBe("org unit ");
     expect(principal?.querySelector("svg")?.getAttribute("aria-hidden")).toBe(
       "true",
     );
     expect(
       main().querySelector(".admin-table tbody td:nth-child(2) .tag")
         ?.textContent,
-    ).toBe("Use");
+    ).toBe("Can use");
   });
 
   it("asks for a principal under the field and marks it invalid", async () => {
@@ -278,7 +278,7 @@ describe("folders and grants", () => {
     const input = form.querySelector('input[type="text"]') as HTMLInputElement;
     form.dispatchEvent(new Event("submit"));
     const error = document.getElementById(`${input.id}-error`);
-    expect(error?.textContent).toBe("Enter a principal.");
+    expect(error?.textContent).toBe("Enter a group, user or domain.");
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("aria-describedby")).toContain(
       `${input.id}-error`,
@@ -295,7 +295,7 @@ describe("folders and grants", () => {
       "pat@example.com";
     form.dispatchEvent(new Event("submit"));
     await until(() => {
-      expect(status()).toContain("Added group pat@example.com with level use.");
+      expect(status()).toContain("Gave access to pat@example.com: Can use.");
     });
     (document.querySelector("[data-nav=library]") as HTMLElement).click();
     await until(() => {
@@ -313,14 +313,14 @@ describe("folders and grants", () => {
     expect(form.textContent).toContain("User email");
     const input = form.querySelector('input[type="text"]') as HTMLInputElement;
     expect(form.querySelector(`label[for="${input.id}"]`)?.textContent).toBe(
-      "Principal",
+      "Give access to",
     );
     expect(input.maxLength).toBe(254);
     input.value = "pat@example.com";
     form.dispatchEvent(new Event("submit"));
-    expect(status()).toContain("Adding grant...");
+    expect(status()).toContain("Giving access...");
     await until(() => {
-      expect(status()).toContain("Added user pat@example.com with level use.");
+      expect(status()).toContain("Gave access to pat@example.com: Can use.");
     });
     await until(() => {
       expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(3);
@@ -329,9 +329,9 @@ describe("folders and grants", () => {
       "Remove",
       main().querySelector(".admin-table tbody tr") as HTMLElement,
     ).click();
-    expect(status()).toContain("Removing grant...");
+    expect(status()).toContain("Removing access...");
     await until(() => {
-      expect(status()).toContain("Removed the grant for OU /field.");
+      expect(status()).toContain("Removed access for org unit /field.");
     });
   });
 
@@ -340,7 +340,7 @@ describe("folders and grants", () => {
     await openQuotes();
     const form = main().querySelector("form") as HTMLFormElement;
     form.dispatchEvent(new Event("submit"));
-    expect(form.textContent).toContain("Enter a principal.");
+    expect(form.textContent).toContain("Enter a group, user or domain.");
     const input = form.querySelector('input[type="text"]') as HTMLInputElement;
     input.value = "missing@example.com";
     form.dispatchEvent(new Event("submit"));
@@ -378,7 +378,7 @@ describe("folders and grants", () => {
     expect(document.activeElement?.id).toBe("folder-heading");
     await until(() => {
       expect(main().querySelector(".empty")?.textContent).toBe(
-        "Only admins can see this folder. Add a grant to share it.",
+        "Only admins can see this folder. Give access to share it.",
       );
     });
     (document.querySelector("[data-nav=library]") as HTMLElement).click();
@@ -402,7 +402,9 @@ describe("folders and grants", () => {
     button("Delete", dialog()).click();
     expect(status()).toContain("Deleting folder...");
     await until(() => {
-      expect(status()).toContain("Only an empty folder can be deleted");
+      expect(status()).toContain(
+        "Only an empty folder can be deleted. Move or delete its templates and subfolders first.",
+      );
     });
   });
 
@@ -442,7 +444,7 @@ describe("folders and grants", () => {
     (dialog().querySelector("input") as HTMLInputElement).value = "Prices";
     button("OK", dialog()).click();
     await until(() => {
-      expect(status()).toContain("Changed by dev.user@example.com at");
+      expect(status()).toContain("dev.user@example.com changed this at");
     });
     await until(() => {
       expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
@@ -545,7 +547,7 @@ describe("trash", () => {
     expect(status()).toContain("Emptying the trash...");
     await until(() => {
       expect(status()).toContain(
-        "Emptied the trash: 1 template removed for good.",
+        "Emptied the trash: 1 template deleted for good.",
       );
     });
     expect(text()).toContain("Trash is empty.");
@@ -566,7 +568,7 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Emptied the trash: 1 template removed for good. The list could not be refreshed.",
+        "Emptied the trash: 1 template deleted for good. Reload the page to see the list.",
       );
     });
   });
@@ -581,17 +583,17 @@ describe("trash", () => {
     });
     button("Empty trash now...").click();
     expect(dialog().textContent).toContain(
-      "Empty the trash? The 1 template in it is removed for good, and deleted folders go too.",
+      "Empty the trash? The 1 template in it is deleted for good, and so are deleted folders.",
     );
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Emptied the trash: 1 template and 1 deleted folder removed for good.",
+        "Emptied the trash: 1 template and 1 deleted folder deleted for good.",
       );
     });
   });
 
-  it("says when the nightly job deletes the stored versions of purged templates", async () => {
+  it("says when the stored versions of purged templates are deleted that night", async () => {
     await boot("/?latency=0&pending=2#/trash");
     await until(() => {
       expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
@@ -600,7 +602,7 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Emptied the trash: 1 template removed for good. The nightly job deletes the stored versions of 2 of them.",
+        "Emptied the trash: 1 template deleted for good. The stored versions of 2 of them are deleted tonight.",
       );
     });
   });

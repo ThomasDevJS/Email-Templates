@@ -765,8 +765,10 @@ describe("import", () => {
       ["Script", "skipped"],
       ["#6", "failed"],
     ]);
-    expect(report.lines[0]?.reason).toContain("SUBJ_TOO_LONG");
-    expect(report.lines[1]?.reason).toContain("PH_");
+    expect(report.lines[0]?.reason).toBe(
+      "The subject must be 200 characters or fewer.",
+    );
+    expect(report.lines[1]?.reason).toMatch(/^Unknown field /);
     const item = fileIndex().items.find((i) => i.title === "Script") as Item;
     expect(item.subject).toBe("Line one line two");
     const body = world.services.store().readBody(item.bodyFileId);
@@ -828,22 +830,22 @@ describe("import", () => {
       }),
     });
     expect(report.lines.map((l) => [l.name, l.reason])).toEqual([
-      ["No id", "Folder needs an id and a name"],
-      ["#4", "Not a folder record"],
-      ["x".repeat(81), "Folder name must be 1 to 80 characters"],
-      ["Kid", "Its parent folder was not imported"],
-      ["In kid", "Its folder was not imported"],
-      ["Bad tags", "Template needs a title and text tags"],
-      ["No html", "Template needs meta and html"],
+      ["No id", "The folder has no ID or no name."],
+      ["#4", "This entry is not a folder."],
+      ["x".repeat(81), "Folder name must be 1 to 80 characters."],
+      ["Kid", "Its parent folder was not imported."],
+      ["In kid", "Its folder was not imported."],
+      ["Bad tags", "The template has no title, or its tags are not text."],
+      ["No html", "The template is incomplete in the file."],
     ]);
     expect(
       errorOf(OWNER, "import", {
         folderId: target.id,
         file: importFile({ folders: {} }),
       }),
-    ).toBe("folders must be a list");
+    ).toBe("The file is damaged. Export the templates again.");
     expect(errorOf(OWNER, "import", { folderId: target.id, file: "[]" })).toBe(
-      "The file is not a Migway export",
+      "This is not a Migway Templates export. Choose a file exported from Migway Templates.",
     );
   });
 
@@ -851,9 +853,11 @@ describe("import", () => {
     const target = folder("Imports");
     const run = (file: string) =>
       errorOf(OWNER, "import", { folderId: target.id, file });
-    expect(run("{")).toBe("The file is not valid JSON");
+    expect(run("{")).toBe(
+      "The file cannot be read. Choose a file exported from Migway Templates.",
+    );
     expect(run(JSON.stringify({ schemaVersion: 2 }))).toContain(
-      "Unsupported schema version",
+      "This export file has a format this app cannot read. Export the templates again.",
     );
     expect(run("x".repeat(IMPORT_MAX_BYTES + 1))).toContain("larger than");
     const many = importFile({
@@ -883,7 +887,7 @@ describe("import", () => {
       error: {
         code: "INTERNAL",
         message:
-          "Nothing was imported: the template First could not be saved. Run the import again.",
+          "Nothing was imported because the template First could not be saved. Run the import again.",
       },
     });
     expect(fileIndex()).toEqual(before);
@@ -904,7 +908,7 @@ describe("import", () => {
       error: {
         code: "BUSY",
         message:
-          "Nothing was imported: the library could not be written: Busy, try again. Run the import again.",
+          "Nothing was imported because the library could not be saved. The library is busy. Try again in a few seconds.",
       },
     });
   });
@@ -919,7 +923,9 @@ describe("import", () => {
     });
     expect(
       errorOf(OWNER, "import", { folderId: target.id, file, dryRun: true }),
-    ).toBe("Folders #1 and #2 of the file have the same id");
+    ).toBe(
+      "Folders #1 and #2 of the file have the same ID. Export the templates again.",
+    );
   });
 
   it("refuses a private folder as the import target", () => {
@@ -938,7 +944,7 @@ describe("import", () => {
       expect(
         errorOf(OWNER, "import", { folderId: target.id, file, dryRun: true }),
       ).toBe(
-        "Templates cannot be imported into a private folder. Pick a shared folder.",
+        'Templates cannot be imported into "My templates". Pick a shared folder.',
       );
   });
 
@@ -1180,7 +1186,7 @@ describe("backups", () => {
     world.ok(OWNER, "template.delete", { id: live.id });
     world.ok(OWNER, "trash.purge");
     expect(errorOf(OWNER, "backup.restore", { date: today() })).toBe(
-      `1 templates of the ${today()} backup were emptied from the trash after that date and would not open. Pick a newer backup.`,
+      `Not restored. 1 templates in the backup of ${today()} were deleted for good after that day and would not open. Pick a newer backup.`,
     );
   });
 

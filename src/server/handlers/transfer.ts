@@ -5,6 +5,7 @@ import {
   importRecipients,
   recipientsOf,
   type RecipientCode,
+  type Recipients,
 } from "../../shared/model/recipients";
 import { tagList, templateTitle } from "../../shared/model/validate";
 import { isId } from "../../shared/ids";
@@ -57,8 +58,14 @@ import {
 export const EXPORT_PAGE = 20;
 /** A run token lives this long after its start or its last page (sliding, so a long export keeps going). */
 export const EXPORT_RUN_TTL_S = 600;
+/**
+ * The outside-recipients setting changed between the check before the lock and the commit: the import is refused
+ * whole, as before, and the text says what happened and what to do (the second run drops the addresses).
+ */
+export const IMPORT_SETTING_CHANGED =
+  'Nothing was imported. The setting "Outside recipients" changed during the import. Run the import again.';
 export const EXPORT_RESTART =
-  "This export is no longer valid (it expired or belongs to another session). Nothing was downloaded. Start the export again.";
+  "This export ran out of time or was started in another window. Start the export again.";
 
 /** Live folders of the subtree under `rootId`, the root included. */
 function subtree(index: IndexDoc, rootId: string): Set<string> {
@@ -279,8 +286,10 @@ function reasonOf(error: unknown): string {
   if (!Array.isArray(problems) || problems.length === 0) return error.message;
   const first = problems[0] as { code: string; message: string };
   const more =
-    problems.length > 1 ? ` (and ${String(problems.length - 1)} more)` : "";
-  return `${first.code}: ${first.message}${more}`;
+    problems.length > 1
+      ? ` (and ${String(problems.length - 1)} more problems)`
+      : "";
+  return `${first.message}${more}`;
 }
 
 /**
@@ -299,7 +308,7 @@ function prepareItems(context: HandlerContext, file: ImportFile): Prepared[] {
     if (tooMany !== undefined)
       throw new AppError(
         ErrorCode.VALIDATION,
-        `Nothing was imported: the template ${record.label}: ${tooMany.message}`,
+        `Nothing was imported because of the template ${record.label}. ${tooMany.message}`,
       );
     try {
       return {
@@ -324,11 +333,11 @@ const DROP_REASONS: Readonly<Record<RecipientCode, string>> = {
   RCPT_FORMAT: "not an email address",
   RCPT_TOO_LONG: "longer than 254 characters",
   RCPT_TOO_MANY: "too many",
-  RCPT_DUPLICATE: "already in an earlier field",
+  RCPT_DUPLICATE: "already in To or Cc",
   RCPT_EXTERNAL: "outside the domain, turned off by the admin",
 };
 
-/** "2 addresses dropped: not an email address (1), already in an earlier field (1)". Counts, never an address. */
+/** "2 addresses not imported: not an email address (1), already in To or Cc (1)". Counts, never an address. */
 function droppedText(codes: readonly RecipientCode[]): string {
   const counts = new Map<RecipientCode, number>();
   for (const code of codes) counts.set(code, (counts.get(code) ?? 0) + 1);
@@ -336,7 +345,7 @@ function droppedText(codes: readonly RecipientCode[]): string {
     ([code, n]) => `${DROP_REASONS[code]} (${String(n)})`,
   );
   const s = codes.length === 1 ? "" : "es";
-  return `${String(codes.length)} address${s} dropped: ${parts.join(", ")}`;
+  return `${String(codes.length)} address${s} not imported: ${parts.join(", ")}`;
 }
 
 interface Placement {
@@ -366,12 +375,12 @@ function place(
     }
     const folderId = folderFor(folders, targetId, entry.ready.fileFolderId);
     if (folderId === null)
-      line(entry.ready.label, "failed", "Its folder was not imported");
+      line(entry.ready.label, "failed", "Its folder was not imported.");
     else if (!claimTitle(titles, folderId, entry.ready.title))
       line(
         entry.ready.label,
         "skipped",
-        "A template with this title is already in this folder",
+        "A template with this title is already in this folder.",
       );
     else {
       placed.push({ ready: entry.ready, folderId });
@@ -475,7 +484,7 @@ export function importTemplates(context: HandlerContext): ImportReport {
   if (inPrivateTree(chainOf(index, targetId)))
     throw new AppError(
       ErrorCode.VALIDATION,
-      "Templates cannot be imported into a private folder. Pick a shared folder.",
+      'Templates cannot be imported into "My templates". Pick a shared folder.',
     );
   const prepared = prepareItems(context, file);
   const flattened = file.items.filter(
@@ -500,7 +509,7 @@ export function importTemplates(context: HandlerContext): ImportReport {
     ]),
   );
   const source = eventSource(context, targetId);
-  return nothingImported("the library could not be written", () =>
+  return nothingImported("the library could not be saved", () =>
     commitImport(context, {
       targetId,
       file,
@@ -522,13 +531,14 @@ function nothingImported<T>(what: string, work: () => T): T {
     return work();
   } catch (error: unknown) {
     const body = toErrorBody(error);
-    const reason =
+    if (body.message === IMPORT_SETTING_CHANGED) throw error;
+    const next =
       body.code === ErrorCode.INTERNAL
-        ? what
-        : `${what}: ${body.message.replace(/\.$/, "")}`;
+        ? "Run the import again."
+        : body.message.replace(/([^.])$/, "$1.");
     throw new AppError(
       body.code,
-      `Nothing was imported: ${reason}. Run the import again.`,
+      `Nothing was imported because ${what}. ${next}`,
       body.details,
     );
   }
@@ -544,6 +554,20 @@ interface ImportRun {
   readonly flattened: number;
 }
 
+/** The in-lock recipient re-check; its refusal keeps code and details and gets the import's own text. */
+function recheckOrExplain(
+  context: HandlerContext,
+  current: IndexDoc,
+  recipients: Recipients,
+): void {
+  try {
+    recheckRecipients(context, current, recipients);
+  } catch (error: unknown) {
+    if (!(error instanceof AppError)) throw error;
+    throw new AppError(error.code, IMPORT_SETTING_CHANGED, error.details);
+  }
+}
+
 /** Places again on the index read inside the lock and commits folders, templates and their audit events. */
 function commitImport(context: HandlerContext, run: ImportRun): ImportReport {
   const { targetId, file, prepared, make, bodies, source, flattened } = run;
@@ -553,7 +577,7 @@ function commitImport(context: HandlerContext, run: ImportRun): ImportReport {
     const items: Item[] = [];
     const lines = [...placement.lines];
     for (const { ready, folderId } of placement.placed) {
-      recheckRecipients(context, current, ready.body.recipients);
+      recheckOrExplain(context, current, ready.body.recipients);
       const body = bodies.get(ready.id);
       if (body === undefined)
         lines.push({

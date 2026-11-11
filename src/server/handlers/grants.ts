@@ -86,15 +86,15 @@ function principalKeyFor(type: PrincipalType, raw: string): string {
   const key = raw.trim().toLowerCase();
   if (key.length > PRINCIPAL_KEY_MAX)
     throw validation(
-      `Principal must be at most ${String(PRINCIPAL_KEY_MAX)} characters`,
+      `The group, user or domain must be at most ${String(PRINCIPAL_KEY_MAX)} characters.`,
     );
   const isEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(key);
   if ((type === "group" || type === "user") && !isEmail)
-    throw validation(`${type} needs an email address`);
+    throw validation(`Enter the email address of the ${type}.`);
   if (type === "domain" && !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(key))
-    throw validation("domain needs a domain name");
+    throw validation("Enter a domain name, for example example.com.");
   if (type === "ou" && !key.startsWith("/"))
-    throw validation("ou needs a path starting with /");
+    throw validation("An org unit path starts with /.");
   return key;
 }
 
@@ -124,7 +124,7 @@ function grantEvent(
 function checkShareable(index: IndexDoc, folderId: string): void {
   liveFolder(index, folderId);
   if (inPrivateTree(chainOf(index, folderId)))
-    throw validation("Private folders cannot be shared");
+    throw validation('The folder "My templates" cannot be shared.');
 }
 
 /**
@@ -140,7 +140,7 @@ function readGroup(
   const fresh = readGroupNow(context.services, key);
   if (fresh.groups[key]?.status !== "ok")
     throw validation(
-      `Group ${key} was not found or its members are not visible`,
+      `Group ${key} was not found or its members are not visible. Check the address.`,
     );
   return fresh;
 }

@@ -152,7 +152,7 @@ function checkDepth(index: IndexDoc, parentId: string, height: number): void {
     (parentId === "" ? 0 : chainOf(index, parentId).length) + height;
   if (depth > FOLDER_DEPTH_MAX)
     throw validation(
-      `Folders can be at most ${String(FOLDER_DEPTH_MAX)} levels deep`,
+      `A folder can be at most ${String(FOLDER_DEPTH_MAX)} levels deep. Put it higher up.`,
     );
 }
 
@@ -236,14 +236,16 @@ function checkMoveTarget(
   parentId: string,
 ): void {
   if (inPrivateTree(chainOf(current, folder.id)))
-    throw validation("Private folders and their subfolders cannot move");
+    throw validation(
+      'The folder "My templates" and its subfolders cannot be moved.',
+    );
   if (parentId === "") return;
   liveFolder(current, parentId);
   const targetChain = chainOf(current, parentId);
   if (targetChain.some((entry) => entry.id === folder.id))
-    throw validation("A folder cannot move into itself or its subfolders");
+    throw validation("A folder cannot move into itself or its subfolders.");
   if (inPrivateTree(targetChain))
-    throw validation("Shared folders cannot move into a private folder");
+    throw validation('A shared folder cannot move into "My templates".');
   checkDepth(current, parentId, subtreeHeight(current, folder.id));
 }
 
@@ -263,7 +265,7 @@ export function folderMove(context: HandlerContext): Folder {
 
 function checkEmpty(current: IndexDoc, folder: Folder): void {
   if (folder.kind === "private")
-    throw validation("Private folders cannot be deleted");
+    throw validation('The folder "My templates" cannot be deleted.');
   const busy =
     current.items.some(
       (item) => item.folderId === folder.id && item.deletedAt === "",
@@ -271,7 +273,10 @@ function checkEmpty(current: IndexDoc, folder: Folder): void {
     current.folders.some(
       (child) => child.parentId === folder.id && child.deletedAt === "",
     );
-  if (busy) throw validation("Only an empty folder can be deleted");
+  if (busy)
+    throw validation(
+      "Only an empty folder can be deleted. Move or delete its templates and subfolders first.",
+    );
 }
 
 export function folderDelete(context: HandlerContext): Folder {

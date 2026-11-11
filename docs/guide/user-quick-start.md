@@ -53,12 +53,12 @@ Your admin decides whether personal templates are on. When they are off, you get
 
 1. In the panel, click "Open library" at the bottom.
 2. Select "My templates" in the folder list on the left.
-3. Click "+ New template", fill "Title" and the text. "Subject" and "Tags" are optional.
+3. Click "New template", fill "Title" and the text. "Subject" and "Tags" are optional.
 4. Click "Save" or press Ctrl+S. The status reads "Saved as version 1" and the time.
 
 ## What admins can see
 
-- Admins see every folder, private ones included. They can open, change, move and delete the templates in your "My templates". The Gmail panel does not show them other people's folders; the library does.
+- Admins see every folder, personal ones included. They can open, change, move and delete the templates in your "My templates". The Gmail panel does not show them other people's folders; the library does.
 - Admins can turn personal templates off for everyone. Your templates in "My templates" stay and can still be inserted; nobody can change them until the setting is on again.
 - An audit log records who created, changed, moved, restored or deleted a template, and when, and refused access attempts.
 - Each insert writes a server log entry with your address, the template's ID and the time. People with access to the logs can see who inserted which template and when.
@@ -78,5 +78,5 @@ Your admin decides whether personal templates are on. When they are off, you get
 - "You don't have access to this template. Ask a folder manager.": ask the folder's manager or the Migway Templates admin.
 - No Migway Templates icon: ask the Migway Templates admin.
 - "Cannot identify your Migway account.": you are signed in to several Google accounts. Use a separate Chrome profile for Migway.
-- "Busy right now. Press Retry in a few seconds." or "Service is busy. Try again in a minute.": wait, then click "Retry".
+- "The library is busy. Try again in a few seconds." or "Service is busy. Try again in a minute.": wait, then click "Retry".
 - "Something went wrong." with a Request ID: send the Request ID to the admin.

@@ -266,7 +266,7 @@ describe("daily", () => {
     const pending = fileIndex().pendingAudit.map((e) => e.id);
     expect(pending).toHaveLength(2);
     world.lock.holdElsewhere();
-    expect(() => rollAudit(world.services)).toThrow("Busy");
+    expect(() => rollAudit(world.services)).toThrow("The library is busy");
     world.lock.holdElsewhere(false);
     expect(fileIndex().pendingAudit).toHaveLength(2);
     world.ok(OWNER, "folder.create", { name: "C" });
@@ -340,7 +340,9 @@ describe("daily", () => {
     world.ok(OWNER, "template.delete", { id: item.id });
     world.clock.now += 31 * DAY;
     world.lock.holdElsewhere();
-    expect(() => runDaily(world.services)).toThrow("purged (Busy");
+    expect(() => runDaily(world.services)).toThrow(
+      "purged (The library is busy",
+    );
     world.lock.holdElsewhere(false);
     expect(world.drive.files.get(item.bodyFileId)?.trashed).toBe(false);
     world.ok(OWNER, "template.restoreFromTrash", { id: item.id });

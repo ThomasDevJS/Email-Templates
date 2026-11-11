@@ -10,11 +10,11 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
     "template.update": "Template updated",
     "template.duplicate": "Template duplicated",
     "template.move": "Template moved",
-    "template.delete": "Template moved to trash",
+    "template.delete": "Template deleted",
     "template.restoreFromTrash": "Template restored from trash",
     "template.apply": "Template inserted",
     "template.get": "Template opened",
-    "template.getBody": "Template body read",
+    "template.getBody": "Template text read",
     "template.list": "Templates listed",
     "version.list": "Versions listed",
     "version.get": "Version opened",
@@ -24,30 +24,30 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
     "folder.move": "Folder moved",
     "folder.delete": "Folder deleted",
     "folder.list": "Folders listed",
-    "grant.add": "Grant added",
-    "grant.remove": "Grant removed",
-    "grant.list": "Grants listed",
+    "grant.add": "Access given",
+    "grant.remove": "Access removed",
+    "grant.list": "Access list viewed",
     "favorite.set": "Favorite added",
     "favorite.unset": "Favorite removed",
-    "trash.purge": "Removed from trash for good",
+    "trash.purge": "Trash emptied",
     "backup.restore": "Backup restored",
     "backup.list": "Backups listed",
     "export.folder": "Folder export started",
     "export.library": "Library export started",
     import: "Templates imported",
-    "membership.refresh": "Memberships refreshed",
-    "membership.status": "Memberships viewed",
-    "config.get": "Config viewed",
+    "membership.refresh": "Groups refreshed",
+    "membership.status": "Groups viewed",
+    "config.get": "Settings viewed",
     "config.set": "Setting changed",
     "audit.query": "Audit log viewed",
-    "audit.dropped": "Audit events dropped",
+    "audit.dropped": "Audit entries lost",
     "usage.report": "Usage viewed",
-    "admin.folders": "Admin view opened",
-    "sidebar.home": "Gmail sidebar opened",
+    "admin.folders": "Admin opened",
+    "sidebar.home": "Gmail panel opened",
     search: "Templates searched",
     "search.body": "Template text searched",
-    "web.open": "Web app opened",
-    "triggers.ensure": "Triggers installed",
+    "web.open": "Library opened",
+    "triggers.ensure": "Background jobs set up",
   }),
 );
 
@@ -68,6 +68,18 @@ export function rowActionWords(row: {
   if (row.exportTemplates === undefined) return words;
   const path = row.targetPath === "" ? "" : `: ${displayPath(row.targetPath)}`;
   return `${words}${path}, ${plural(row.exportTemplates, "template")}`;
+}
+
+/** The access a user had, in the words of the access table: "admin", "Can manage", "no access". */
+const ROLE_WORDS: ReadonlyMap<string, string> = new Map([
+  ["admin", "admin"],
+  ["use", "Can use"],
+  ["edit", "Can edit"],
+  ["manage", "Can manage"],
+]);
+
+export function roleWords(role: string): string {
+  return ROLE_WORDS.get(role) ?? "no access";
 }
 
 /** Result word and tint: the word is the tag, the tint repeats it. */
@@ -99,12 +111,12 @@ export function emptyTrashQuestion(count: number): string {
     count === 1
       ? "The 1 template in it is"
       : `All ${plural(count, "template")} in it are`;
-  return `Empty the trash? ${what} removed for good, and deleted folders go too. This cannot be undone.`;
+  return `Empty the trash? ${what} deleted for good, and so are deleted folders. This cannot be undone.`;
 }
 
 /** "Empty trash" result from the server's counts (`trash.purge` `templates`, `folders`). */
 export function purgeText(templates: number, folders: number): string {
   return folders === 0
-    ? `Emptied the trash: ${plural(templates, "template")} removed for good.`
-    : `Emptied the trash: ${plural(templates, "template")} and ${plural(folders, "deleted folder")} removed for good.`;
+    ? `Emptied the trash: ${plural(templates, "template")} deleted for good.`
+    : `Emptied the trash: ${plural(templates, "template")} and ${plural(folders, "deleted folder")} deleted for good.`;
 }

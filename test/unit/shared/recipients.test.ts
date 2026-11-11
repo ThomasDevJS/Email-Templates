@@ -122,7 +122,7 @@ describe("validateRecipients codes and texts (spec 7.1)", () => {
     expect(only({ cc: many(11, "c") })).toEqual([
       expect.objectContaining({
         code: "RCPT_TOO_MANY",
-        message: "Cc holds 11 addresses. Use at most 10 per field.",
+        message: "Cc holds 11 addresses. Use at most 10 in Cc.",
         field: "cc",
       }),
     ]);
@@ -151,7 +151,7 @@ describe("validateRecipients codes and texts (spec 7.1)", () => {
       expect.objectContaining({
         code: "RCPT_DUPLICATE",
         message:
-          "safety@migway.com is in both To and Cc. Keep it in one field.",
+          "safety@migway.com is in both To and Cc. Keep it in one of them.",
         field: "cc",
         position: 1,
       }),

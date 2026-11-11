@@ -176,14 +176,14 @@ describe("validator (every ADR-0004 error code)", () => {
     expect(problem).toEqual({
       code: "PH_UNKNOWN",
       message:
-        "Unknown placeholder sender.nmae at character 4. Did you mean sender.name?",
+        "Unknown field sender.nmae at character 4. Did you mean sender.name?",
       offset: 3,
     });
   });
 
   it("PH_UNKNOWN without a hint when nothing is close", () => {
     expect(scanBody("{{company.name}}").problems[0]?.message).toBe(
-      "Unknown placeholder company.name at character 1.",
+      "Unknown field company.name at character 1.",
     );
   });
 
@@ -204,7 +204,7 @@ describe("validator (every ADR-0004 error code)", () => {
       "PH_MALFORMED",
     ]);
     expect(scanBody("x {{sender.name").problems[0]?.message).toBe(
-      "Placeholder at character 3 is not closed",
+      "The field at character 3 is not closed. Add }} after it.",
     );
   });
 
@@ -224,7 +224,8 @@ describe("validator (every ADR-0004 error code)", () => {
     expect(scan.problems).toEqual([
       {
         code: "PH_ATTR",
-        message: "Placeholders work in text only (href of a)",
+        message:
+          "Fields work in text only, not inside a link or image address (href of a).",
         offset: null,
       },
     ]);
@@ -248,7 +249,7 @@ describe("validator (every ADR-0004 error code)", () => {
       {
         code: "PH_NO_FALLBACK",
         message:
-          "recipient.first_name has no fallback (at character 4); users will be asked for it",
+          "Recipient first name has no default text (at character 4). The sender is asked for it when it is unknown.",
         offset: 3,
       },
     ]);

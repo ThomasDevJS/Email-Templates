@@ -21,8 +21,8 @@ import type { AppContext, View } from "./context";
 import { createFolderTree } from "./tree";
 
 /**
- * Tab "Folders and grants" (wireframe 06): folder tree, folder actions (new top-level folder for admins, new
- * subfolder, rename, move, delete with confirmation) and the effective access table with add and remove grant.
+ * Tab "Folders and access" (wireframe 06): folder tree, folder actions (new top-level folder for admins, new
+ * subfolder, rename, move, delete with confirmation) and the "Who has access" table with give and remove access.
  * Private folders (D11, D18) show their owner and take no grant, move or delete. Every write shows a busy status at
  * once; afterwards the folders or grants reload from the server, so a concurrent change shows up.
  */
@@ -35,12 +35,12 @@ const TYPES: readonly [PrincipalType, string][] = [
   ["group", "Group"],
   ["user", "User"],
   ["domain", "Domain"],
-  ["ou", "OU (inactive in v1)"],
+  ["ou", "Org unit (not active yet)"],
 ];
 const LEVELS: readonly [Level, string][] = [
-  ["use", "Use"],
-  ["edit", "Edit"],
-  ["manage", "Manage"],
+  ["use", "Can use"],
+  ["edit", "Can edit"],
+  ["manage", "Can manage"],
 ];
 const TYPE_ICONS: Readonly<Record<PrincipalType, IconName>> = {
   group: "group",
@@ -49,9 +49,9 @@ const TYPE_ICONS: Readonly<Record<PrincipalType, IconName>> = {
   ou: "org",
 };
 const ACCESS_COLUMNS: readonly Column[] = [
-  { label: "Principal" },
-  { label: "Level" },
-  { label: "Source" },
+  { label: "Who" },
+  { label: "Access" },
+  { label: "Set on" },
   { label: "Actions", hidden: true },
 ];
 
@@ -161,7 +161,8 @@ export function foldersTab(
   const moveFolder = (folder: FolderRow) => {
     const options = folderMoveTargets(data.folders, folder, data.isAdmin);
     if (options.length === 0) {
-      status.textContent = "There is no folder you manage to move it into.";
+      status.textContent =
+        "Not moved. A folder can move only into another folder you manage.";
       return;
     }
     const id = uid("move-target");
@@ -200,7 +201,7 @@ export function foldersTab(
       body: h(
         "p",
         {},
-        `Delete the folder "${folder.name}"? Only an empty folder can be deleted. Its grants stop applying.`,
+        `Delete the folder "${folder.name}"? Only an empty folder can be deleted. Access given on this folder ends.`,
       ),
       actions: [
         {
@@ -255,11 +256,11 @@ export function foldersTab(
       {
         type: "button",
         class: "ghost",
-        "aria-label": `Remove grant for ${label}`,
+        "aria-label": `Remove access for ${label}`,
         onclick: () => {
-          grantWrite(folder, "Removing grant...", async () => {
+          grantWrite(folder, "Removing access...", async () => {
             await app.api.removeGrant(grant.id);
-            return `Removed the grant for ${label}.`;
+            return `Removed access for ${label}.`;
           });
         },
       },
@@ -274,7 +275,7 @@ export function foldersTab(
         h(
           "p",
           { class: "empty", role: "status" },
-          "Only admins can see this folder. Add a grant to share it.",
+          "Only admins can see this folder. Give access to share it.",
         ),
       );
       return;
@@ -358,7 +359,7 @@ export function foldersTab(
     const form = h(
       "form",
       { class: "grant-form", "aria-labelledby": "grant-heading" },
-      h("h2", { id: "grant-heading" }, "Add grant"),
+      h("h2", { id: "grant-heading" }, "Give access"),
       h(
         "div",
         { class: "form-row" },
@@ -366,17 +367,17 @@ export function foldersTab(
         h(
           "div",
           { class: "field grow" },
-          h("label", { for: keyId }, "Principal"),
+          h("label", { for: keyId }, "Give access to"),
           key,
           error,
           hint,
         ),
-        labelled(levelId, "Level", level),
+        labelled(levelId, "Access", level),
         h(
           "div",
           { class: "field" },
           h("span", { class: "label-gap", "aria-hidden": "true" }),
-          h("button", { type: "submit", class: "primary" }, "Add grant"),
+          h("button", { type: "submit", class: "primary" }, "Give access"),
         ),
       ),
     );
@@ -384,7 +385,7 @@ export function foldersTab(
       event.preventDefault();
       const principalKey = key.value.trim();
       const missing = principalKey === "";
-      error.textContent = missing ? "Enter a principal." : "";
+      error.textContent = missing ? "Enter a group, user or domain." : "";
       if (missing) {
         key.setAttribute("aria-invalid", "true");
         key.focus();
@@ -393,7 +394,7 @@ export function foldersTab(
       key.removeAttribute("aria-invalid");
       const principalType = type.value as PrincipalType;
       const chosen = level.value as Level;
-      grantWrite(folder, "Adding grant...", async () => {
+      grantWrite(folder, "Giving access...", async () => {
         await app.api.addGrant({
           folderId: folder.id,
           principalType,
@@ -401,7 +402,7 @@ export function foldersTab(
           level: chosen,
         });
         key.value = "";
-        return `Added ${principalType} ${principalKey} with level ${chosen}.`;
+        return `Gave access to ${principalKey}: ${levelWord(chosen)}.`;
       });
     });
     return form;
@@ -463,10 +464,10 @@ export function foldersTab(
         ? h(
             "p",
             { class: "hint" },
-            `Private folder of ${folder.ownerEmail}. Private folders cannot be shared, moved or deleted.`,
+            `Personal folder of ${folder.ownerEmail}. Personal folders cannot be shared, moved or deleted.`,
           )
         : null,
-      h("h2", { id: "access-heading" }, "Effective access"),
+      h("h2", { id: "access-heading" }, "Who has access"),
       access,
       isPrivate ? null : grantForm(folder),
     );

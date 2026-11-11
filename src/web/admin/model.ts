@@ -59,7 +59,7 @@ const PRINCIPAL_LABEL: Readonly<Record<PrincipalType, string>> = {
   group: "group",
   user: "user",
   domain: "domain",
-  ou: "OU",
+  ou: "org unit",
 };
 
 export interface AccessRow {
@@ -84,11 +84,13 @@ export function accessRows(grants: readonly GrantRow[]): AccessRow[] {
     typeLabel: PRINCIPAL_LABEL[grant.principalType],
     principal: `${PRINCIPAL_LABEL[grant.principalType]} ${grant.principalKey}`,
     source: grant.inherited
-      ? `${displayPath(grant.sourcePath) || "a parent folder"} (inherited)`
+      ? grant.sourcePath === ""
+        ? "a parent folder"
+        : `${displayPath(grant.sourcePath)} (parent folder)`
       : "this folder",
     note: grant.active
       ? ""
-      : "Inactive: OU resolution needs the Directory resolver",
+      : "Not active yet. Org units do not give access in this version.",
   }));
 }
 
@@ -176,13 +178,13 @@ export function settingTexts(name: SettingName, domain: string): SettingTexts {
       confirm: {
         value: "off",
         title: "Turn off personal templates?",
-        body: "Users can no longer create, change or delete templates in My templates. Their existing personal templates stay and can still be inserted. Nothing is deleted. Turning it on again restores everything.",
+        body: "Users can no longer create, change or delete templates in My templates. Nothing is deleted: their templates stay, can still be inserted, and can be changed again when you turn this on.",
         action: "Turn off",
       },
     };
   return {
     legend: "Outside recipients",
-    explanation: `Templates can add addresses outside ${domain} to To, Cc and Bcc. When off, saving such an address fails and Insert skips it.`,
+    explanation: `Templates can add addresses outside ${domain} to To, Cc and Bcc. With "${domain} only", a template with an outside address cannot be saved and Insert skips the address.`,
     options: [
       ["allow", "Allowed"],
       ["deny", `${domain} only`],
@@ -194,7 +196,7 @@ export function settingTexts(name: SettingName, domain: string): SettingTexts {
     confirm: {
       value: "deny",
       title: `Allow only ${domain} recipients?`,
-      body: "Templates keep their outside addresses, but Insert no longer adds them and saving a template with one fails until the address is removed.",
+      body: "Templates keep their outside addresses, but Insert no longer adds them. A template with an outside address cannot be saved until the address is removed.",
       action: `Allow only ${domain}`,
     },
   };
@@ -233,7 +235,7 @@ export interface ImportCounts {
 
 /** Report sentence of Validate ("would create") and Import (wireframe 06: "40 ok, 2 skipped, 1 failed"). */
 export function importSummary(report: ImportCounts): string {
-  const head = report.dryRun ? "Validated. Import would create" : "Imported";
+  const head = report.dryRun ? "Checked. Import would create" : "Imported";
   const flattened =
     report.subjectsFlattened === 0
       ? ""
@@ -251,6 +253,6 @@ export function principalHint(type: PrincipalType): string {
     case "domain":
       return "Domain, for example migway.com";
     case "ou":
-      return "OU path, for example /Field. Stored, inactive in v1";
+      return "Org unit path, for example /Field. Saved, but not active yet.";
   }
 }

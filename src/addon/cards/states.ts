@@ -48,7 +48,7 @@ function retryAction(failure: Failure, context: StateContext): ActionSpec {
 function retryLines(failure: Failure): string[] {
   const head =
     failure.code === ErrorCode.BUSY
-      ? "Busy right now. Press Retry in a few seconds."
+      ? "The library is busy. Try again in a few seconds."
       : failure.code === ErrorCode.QUOTA
         ? "Service is busy. Try again in a minute."
         : "Something went wrong. Press Retry.";
@@ -56,13 +56,13 @@ function retryLines(failure: Failure): string[] {
   if (failure.requestId !== "") lines.push(`Request ID ${failure.requestId}`);
   // NETWORK messages come from the add-on itself ("Server returned HTTP 401"); deploy.md step 10 needs them.
   if (failure.code === ErrorCode.NETWORK)
-    lines.push(`Network: ${failure.message}`);
+    lines.push(`Details for your admin: ${failure.message}`);
   return lines;
 }
 
 const ACCOUNT_LINES = [
   "Cannot identify your Migway account.",
-  "Apps Script does not support several signed-in Google accounts. Use a separate Chrome profile for Migway, or an incognito window with only your Migway account.",
+  "This app does not work when several Google accounts are signed in. Use a separate Chrome profile for Migway, or an incognito window with only your Migway account.",
 ];
 
 export function stateCard(failure: Failure, context: StateContext): CardSpec {
@@ -76,7 +76,7 @@ export function stateCard(failure: Failure, context: StateContext): CardSpec {
       return card(
         [
           "Migway Templates is not set up yet.",
-          "Ask the owner to finish setup, then press Retry.",
+          "Ask your admin to finish setup, then press Retry.",
         ],
         [{ text: "Retry", action: context.retry }],
       );
@@ -88,7 +88,7 @@ export function stateCard(failure: Failure, context: StateContext): CardSpec {
     case ErrorCode.NOT_FOUND:
       return card(
         [
-          "This template was removed or moved. Press Refresh to update the list.",
+          "This template was deleted or moved. Press Refresh to update the list.",
         ],
         [refresh],
       );

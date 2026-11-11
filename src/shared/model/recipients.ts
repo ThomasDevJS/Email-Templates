@@ -158,7 +158,7 @@ function duplicateProblems(lists: Recipients): RecipientProblem[] {
             "RCPT_DUPLICATE",
             field,
             n + 1,
-            `${address} is in both ${FIELD_LABELS[earlier]} and ${FIELD_LABELS[field]}. Keep it in one field.`,
+            `${address} is in both ${FIELD_LABELS[earlier]} and ${FIELD_LABELS[field]}. Keep it in one of them.`,
           ),
         );
     }
@@ -173,7 +173,7 @@ function countProblems(lists: Recipients): RecipientProblem[] {
       "RCPT_TOO_MANY",
       field,
       RCPT_FIELD_MAX + 1,
-      `${FIELD_LABELS[field]} holds ${String(lists[field].length)} addresses. Use at most ${String(RCPT_FIELD_MAX)} per field.`,
+      `${FIELD_LABELS[field]} holds ${String(lists[field].length)} addresses. Use at most ${String(RCPT_FIELD_MAX)} in ${FIELD_LABELS[field]}.`,
     ),
   );
   const total = recipientCount(lists);

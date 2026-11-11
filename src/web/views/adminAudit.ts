@@ -1,5 +1,10 @@
 import type { AuditEvent } from "../../shared/model/data";
-import { actionWords, resultTag, rowActionWords } from "../admin/actions";
+import {
+  actionWords,
+  resultTag,
+  roleWords,
+  rowActionWords,
+} from "../admin/actions";
 import { displayPath, localDate, localDayStart } from "../admin/model";
 import type { AuditFilter, AuditPage, AuditRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
@@ -17,12 +22,12 @@ import { pathBlock } from "./grid";
  */
 const RESULTS = ["ok", "denied", "conflict", "error"];
 const NOTE =
-  "Source: the month's audit file plus events not yet rolled (daily). Denied and apply events can arrive up to 5 min late.";
+  "Refused actions and inserts can take up to 5 minutes to show here. An export entry records the start of an export, not that the file was downloaded.";
 const COLUMNS: readonly Column[] = [
   { label: "Time" },
-  { label: "Actor" },
+  { label: "User" },
   { label: "Action" },
-  { label: "Target" },
+  { label: "Template or folder" },
   { label: "Result" },
   { label: "Details", hidden: true },
 ];
@@ -54,7 +59,7 @@ function json(label: string, value: unknown): HTMLElement {
     h("h3", {}, label),
     h(
       "pre",
-      { class: "json", tabindex: "0", "aria-label": `${label} JSON` },
+      { class: "json", tabindex: "0", "aria-label": `${label}, raw data` },
       JSON.stringify(value, null, 2),
     ),
   );
@@ -76,9 +81,9 @@ function details(event: AuditEvent, returnFocus: HTMLElement): void {
   const rawTarget = event.targetPath || event.targetId || event.targetType;
   const facts: [string, Node | string][] = [
     ["Time", formatTime(event.ts)],
-    ["Actor", `${event.actor} (${event.actorRoles || "no level"})`],
+    ["User", `${event.actor} (${roleWords(event.actorRoles)})`],
     ["Action", actionWords(event.action)],
-    ["Target", displayPath(event.targetPath) || rawTarget],
+    ["Template or folder", displayPath(event.targetPath) || rawTarget],
     [
       "Result",
       h(
@@ -93,7 +98,7 @@ function details(event: AuditEvent, returnFocus: HTMLElement): void {
     ["App version", event.appVersion],
   ];
   openDialog({
-    title: "Event details",
+    title: "Entry details",
     variant: "drawer",
     returnFocus,
     body: h(
@@ -102,8 +107,8 @@ function details(event: AuditEvent, returnFocus: HTMLElement): void {
       factList(facts),
       h("h3", { class: "facts-heading" }, "Technical details"),
       factList([
-        ["Operation", h("code", {}, event.action)],
-        ["Target", h("code", {}, rawTarget)],
+        ["Internal name", h("code", {}, event.action)],
+        ["Internal ID", h("code", {}, rawTarget)],
       ]),
       json("Before", event.before),
       json("After", event.after),
@@ -124,7 +129,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     ...RESULTS.map((r): [string, string] => [r, resultTag(r).word]),
   ]);
   const target = h("input", { type: "text", maxlength: 200 });
-  const apply = h("button", { type: "submit", class: "primary" }, "Apply");
+  const apply = h("button", { type: "submit", class: "primary" }, "Filter");
   const status = h("p", {
     class: "status",
     role: "status",
@@ -135,7 +140,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     {
       class: "list",
       "aria-busy": "true",
-      "aria-label": "Audit events",
+      "aria-label": "Audit entries",
       tabindex: "-1",
     },
     ...skeletonRows(),
@@ -173,7 +178,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
       "Details",
     );
     open.addEventListener("click", () => {
-      status.textContent = "Loading event details...";
+      status.textContent = "Loading entry details...";
       app.api.auditEvent(entry.ts.slice(0, 7), entry.id).then(
         ({ event }) => {
           status.textContent = "";
@@ -231,7 +236,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     status.textContent =
       data.total === 0
         ? ""
-        : `Page ${String(data.page + 1)}: events ${String(first + 1)} to ${String(first + data.rows.length)} of ${String(data.total)}.`;
+        : `Page ${String(data.page + 1)}: entries ${String(first + 1)} to ${String(first + data.rows.length)} of ${String(data.total)}.`;
     replace(
       pager,
       pageButton("Previous page", data.page - 1, data.page > 0),
@@ -247,7 +252,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
         h(
           "p",
           { class: "empty" },
-          `No audit events in ${data.month} match these filters.`,
+          `No audit entries in ${data.month} match these filters. Change the filters and press Filter.`,
         ),
       );
       return;
@@ -255,7 +260,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     replace(
       table,
       adminTable(COLUMNS, data.rows.map(row), {
-        caption: `Audit events of ${data.month}`,
+        caption: `Audit entries of ${data.month}`,
       }),
     );
   };
@@ -263,7 +268,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
   const load = (focus = false) => {
     const mine = ++ticket;
     table.setAttribute("aria-busy", "true");
-    status.textContent = "Loading audit events...";
+    status.textContent = "Loading audit entries...";
     app.api.audit(filter()).then(
       (data) => {
         if (mine !== ticket) return;
@@ -280,7 +285,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
             h(
               "p",
               { class: "empty" },
-              "The audit log could not be loaded. Use Retry in the message.",
+              "The audit log could not be loaded. Press Retry in the message.",
             ),
         );
       },
@@ -293,10 +298,10 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     labelled("Month", month),
     labelled("Date from", from),
     labelled("Date to", to),
-    labelled("Actor", actor),
+    labelled("User", actor),
     labelled("Action", action),
     labelled("Result", result),
-    labelled("Target", target),
+    labelled("Template or folder", target),
     apply,
   );
   form.addEventListener("submit", (event) => {

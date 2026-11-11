@@ -163,7 +163,7 @@ describe("home card (wireframe 01)", () => {
     );
     expect(texts(card)).toEqual([
       "No templates shared with you yet.",
-      "Your private folder is ready: open the library to create one.",
+      'Your folder "My templates" is ready. Open the library to create a template.',
     ]);
     expect(buttons(card)[0]).toMatchObject({
       text: "Open library",
@@ -649,7 +649,7 @@ describe("state cards (wireframe 07, spec section 7)", () => {
     const card = at(ErrorCode.NOT_CONFIGURED);
     expect(texts(card)).toEqual([
       "Migway Templates is not set up yet.",
-      "Ask the owner to finish setup, then press Retry.",
+      "Ask your admin to finish setup, then press Retry.",
     ]);
     expect(card.title).toBeUndefined();
     expect(buttons(card)[0]?.action).toEqual(retry);
@@ -667,14 +667,17 @@ describe("state cards (wireframe 07, spec section 7)", () => {
 
   it("shows NOT_FOUND with Refresh", () => {
     expect(texts(at(ErrorCode.NOT_FOUND))).toEqual([
-      "This template was removed or moved. Press Refresh to update the list.",
+      "This template was deleted or moved. Press Refresh to update the list.",
     ]);
     expect(buttons(at(ErrorCode.NOT_FOUND))[0]?.action.fn).toBe("onRefresh");
   });
 
   it.each([
-    [ErrorCode.BUSY, ["Busy right now. Press Retry in a few seconds."]],
-    [ErrorCode.NETWORK, ["Something went wrong. Press Retry.", "Network: m"]],
+    [ErrorCode.BUSY, ["The library is busy. Try again in a few seconds."]],
+    [
+      ErrorCode.NETWORK,
+      ["Something went wrong. Press Retry.", "Details for your admin: m"],
+    ],
     [ErrorCode.INTERNAL, ["Something went wrong. Press Retry."]],
   ])("shows %s with the request ID, Retry and Back", (code, lines) => {
     const card = at(code);

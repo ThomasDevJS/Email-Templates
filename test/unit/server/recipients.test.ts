@@ -5,10 +5,11 @@ import type {
   SidebarHome,
   SidebarTemplate,
 } from "../../../src/shared/model/sidebar";
-import type {
-  ExportPage,
-  ExportStart,
-  ImportReport,
+import {
+  IMPORT_SETTING_CHANGED,
+  type ExportPage,
+  type ExportStart,
+  type ImportReport,
 } from "../../../src/server/handlers/transfer";
 import { mutateIndex } from "../../../src/server/storage/writer";
 import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
@@ -408,7 +409,7 @@ describe("export and import", () => {
         name: "Mixed",
         outcome: "imported",
         reason:
-          "3 addresses dropped: not an email address (1), already in an earlier field (1), outside the domain, turned off by the admin (1)",
+          "3 addresses not imported: not an email address (1), already in To or Cc (1), outside the domain, turned off by the admin (1)",
       },
     ]);
     expect(fileIndex().items.find((i) => i.title === "Mixed")).toMatchObject({
@@ -442,9 +443,55 @@ describe("export and import", () => {
     });
     const response = world.call(OWNER, "import", { folderId: into.id, file });
     expect(response.ok ? "" : response.error.message).toBe(
-      "Nothing was imported: the template Big: Cc holds 11 addresses. Use at most 10 per field.",
+      "Nothing was imported because of the template Big. Cc holds 11 addresses. Use at most 10 in Cc.",
     );
     expect(fileIndex().rev).toBe(rev);
+  });
+
+  it("says that the setting changed when it flips to deny between the check and the commit", () => {
+    const into = world.ok<Folder>(OWNER, "folder.create", {
+      parentId: "",
+      name: "Flip",
+    });
+    const rev = fileIndex().rev;
+    const file = JSON.stringify({
+      schemaVersion: 1,
+      folders: [],
+      grants: [],
+      items: [{ meta: { title: "Out", cc: [OUT] }, html: "<p>x</p>" }],
+    });
+    // The first lock of the request is the import's commit: the setting changes right before it.
+    const tryLock = world.lock.tryLock.bind(world.lock);
+    let flipped = false;
+    world.lock.tryLock = (ms: number) => {
+      if (!flipped) {
+        flipped = true;
+        deny();
+      }
+      return tryLock(ms);
+    };
+    const response = world.call(OWNER, "import", { folderId: into.id, file });
+    world.lock.tryLock = tryLock;
+    // Refused whole, as before: same code, same details, nothing written by the import.
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDATION",
+        message: IMPORT_SETTING_CHANGED,
+        details: { problems: [{ code: "RCPT_EXTERNAL" }] },
+      },
+    });
+    expect(IMPORT_SETTING_CHANGED).toBe(
+      'Nothing was imported. The setting "Outside recipients" changed during the import. Run the import again.',
+    );
+    expect(fileIndex().items.some((item) => item.title === "Out")).toBe(false);
+    expect(fileIndex().rev).toBe(rev + 1);
+    // The second run meets deny from the start: the address is dropped and the template imports.
+    const again = world.ok<{ created: number }>(OWNER, "import", {
+      folderId: into.id,
+      file,
+    });
+    expect(again.created).toBe(1);
   });
 
   it("fails one record whose lists are not lists of text", () => {
@@ -463,7 +510,7 @@ describe("export and import", () => {
       failed: 1,
       lines: [
         expect.objectContaining({
-          reason: "To, Cc and Bcc must be lists of text",
+          reason: "To, Cc and Bcc are not lists of addresses.",
         }),
       ],
     });

@@ -66,7 +66,7 @@ export const PROMPTS_MAX = 20;
 const DID_YOU_MEAN_DISTANCE = 2;
 const LENIENT = /\{\{([^}]*)\}\}?/y;
 const ANY_CASE_NAME = /^[a-z][a-z_]*\.[a-z][a-z_]*$/i;
-const LABEL_RULE = `Prompt label must be 1 to ${String(LABEL_MAX)} characters, without { } | \\ < >`;
+const LABEL_RULE = `A field name must be 1 to ${String(LABEL_MAX)} characters, without { } | \\ < >`;
 
 const at = (offset: number): string => `at character ${String(offset + 1)}`;
 
@@ -75,7 +75,7 @@ function unknownName(name: string, offset: number): Problem {
   const suffix = hint === null ? "" : ` Did you mean ${hint}?`;
   return {
     code: "PH_UNKNOWN",
-    message: `Unknown placeholder ${name} ${at(offset)}.${suffix}`,
+    message: `Unknown field ${name} ${at(offset)}.${suffix}`,
     offset,
   };
 }
@@ -86,18 +86,18 @@ function classifyClosed(inner: string, offset: number): Problem {
     if (!/^ask *:/.test(body))
       return {
         code: "PH_CASE",
-        message: `Use lower case: ask: ${at(offset)}`,
+        message: `Use lower case: ask: (${at(offset)}).`,
         offset,
       };
     if (body.includes("|"))
       return {
         code: "PH_FALLBACK_ASK",
-        message: `Prompts take no fallback in v1 (${at(offset)})`,
+        message: `A field the sender fills in cannot have default text (${at(offset)}).`,
         offset,
       };
     return {
       code: "PH_LABEL",
-      message: `${LABEL_RULE} (${at(offset)})`,
+      message: `${LABEL_RULE} (${at(offset)}).`,
       offset,
     };
   }
@@ -106,18 +106,18 @@ function classifyClosed(inner: string, offset: number): Problem {
   if (ANY_CASE_NAME.test(name) && name !== name.toLowerCase())
     return {
       code: "PH_CASE",
-      message: `Use lower case: ${name.toLowerCase()} (${at(offset)})`,
+      message: `Use lower case: ${name.toLowerCase()} (${at(offset)}).`,
       offset,
     };
   if (ANY_CASE_NAME.test(name) && rest.join("|").trim().length > FALLBACK_MAX)
     return {
       code: "PH_MALFORMED",
-      message: `Fallback must be at most ${String(FALLBACK_MAX)} characters, without { } \\ < > (${at(offset)})`,
+      message: `The default text must be at most ${String(FALLBACK_MAX)} characters, without { } \\ < > (${at(offset)}).`,
       offset,
     };
   return {
     code: "PH_MALFORMED",
-    message: `Placeholder ${at(offset)} is not valid`,
+    message: `The field ${at(offset)} is not valid. Delete it and use Insert field.`,
     offset,
   };
 }
@@ -136,7 +136,7 @@ function leftoverProblems(text: string, base: number): Problem[] {
         ? classifyClosed(match[1] ?? "", offset)
         : {
             code: "PH_MALFORMED",
-            message: `Placeholder ${at(offset)} is not closed`,
+            message: `The field ${at(offset)} is not closed. Add }} after it.`,
             offset,
           },
     );
@@ -162,7 +162,7 @@ function visit(segment: Segment, into: Collector): void {
     if (label.length < 1 || label.length > LABEL_MAX)
       into.problems.push({
         code: "PH_LABEL",
-        message: `${LABEL_RULE} (${at(segment.offset)})`,
+        message: `${LABEL_RULE} (${at(segment.offset)}).`,
         offset: segment.offset,
       });
     else if (!into.prompts.has(promptKey(label)))
@@ -182,7 +182,7 @@ function visitVariable(
   if (segment.name === "recipient.first_name" && segment.fallback === null)
     into.warnings.push({
       code: "PH_NO_FALLBACK",
-      message: `recipient.first_name has no fallback (${at(segment.offset)}); users will be asked for it`,
+      message: `Recipient first name has no default text (${at(segment.offset)}). The sender is asked for it when it is unknown.`,
       offset: segment.offset,
     });
 }
@@ -190,7 +190,7 @@ function visitVariable(
 function attrProblem(token: AttrToken): Problem {
   return {
     code: "PH_ATTR",
-    message: `Placeholders work in text only (${token.attr} of ${token.tag})`,
+    message: `Fields work in text only, not inside a link or image address (${token.attr} of ${token.tag}).`,
     offset: null,
   };
 }
@@ -201,14 +201,14 @@ function subjectRules(subject: string): Problem[] {
   if (subject.length > SUBJECT_MAX)
     problems.push({
       code: "SUBJ_TOO_LONG",
-      message: `Subject must be ${String(SUBJECT_MAX)} characters or fewer`,
+      message: `The subject must be ${String(SUBJECT_MAX)} characters or fewer.`,
       offset: SUBJECT_MAX,
     });
   const control = controlIndex(subject);
   if (control !== -1)
     problems.push({
       code: "SUBJ_LINEBREAK",
-      message: `Subject must be one line (${at(control)})`,
+      message: `The subject must be one line (${at(control)}).`,
       offset: control,
     });
   return problems;
@@ -253,7 +253,7 @@ export function scanBody(
   if (into.prompts.size > PROMPTS_MAX)
     into.problems.push({
       code: "PH_TOO_MANY",
-      message: `At most ${String(PROMPTS_MAX)} prompts per template (found ${String(into.prompts.size)})`,
+      message: `A template can ask the sender for at most ${String(PROMPTS_MAX)} fields (found ${String(into.prompts.size)}).`,
       offset: null,
     });
   return {

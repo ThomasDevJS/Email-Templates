@@ -442,7 +442,7 @@ function requireLive(item: Item): void {
   if (item.deletedAt !== "")
     throw new AppError(
       ErrorCode.NOT_FOUND,
-      "This template was removed or moved.",
+      "This template was deleted or moved.",
     );
 }
 
@@ -476,7 +476,7 @@ export function templateRestoreFromTrash(context: HandlerContext): Item {
     if (item.deletedAt === "")
       throw new AppError(
         ErrorCode.VALIDATION,
-        "This template is not in the trash",
+        "This template is not in the trash any more. Reload the page.",
       );
     const folderId = target || item.folderId;
     liveFolder(current, folderId);

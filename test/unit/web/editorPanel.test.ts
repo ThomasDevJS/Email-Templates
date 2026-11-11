@@ -247,9 +247,7 @@ describe("editor layout (slice 8b)", () => {
       main().querySelectorAll('[role="tab"]')[0]?.getAttribute("aria-selected"),
     ).toBe("true");
     expect(links().map((link) => link.textContent)).toEqual([
-      expect.stringMatching(
-        /^Error: Subject: Unknown placeholder sender\.nmae/,
-      ),
+      expect.stringMatching(/^Error: Subject: Unknown field sender\.nmae/),
       expect.stringMatching(/^Error: Cc, address 1/),
     ]);
     // A collapsed Details section (narrow screen) opens first.
@@ -273,7 +271,7 @@ describe("editor layout (slice 8b)", () => {
     expect(reads.hidden).toBe(false);
     expect(reads.textContent).toBe("Reads asQuote for Product name");
     expect(reads.querySelector(".ph.ask")?.getAttribute("aria-label")).toBe(
-      "Field: Product name, asked at insert",
+      "Field: Product name, the sender fills it in",
     );
     const subject = byId("subject");
     subject.value = "Offer <b> {{sender.name|us}}";
@@ -318,15 +316,20 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
       "yard@example.com",
       "late@example.com",
     ]);
-    // Each change is said in the page's live region (role=status).
+    // Each change is said in a live region that only screen readers get (role=status, sr-only). The visible
+    // status line stays empty: it holds save results only, and a chip never moves the toolbar and the sheet.
     const said = () =>
+      main().querySelector('.sr-only[role="status"]')?.textContent;
+    const shown = () =>
       main().querySelector('.status[role="status"]')?.textContent;
-    expect(said()).toBe("Added late@example.com to To");
+    expect(said()).toBe("Added late@example.com to To.");
+    expect(shown()).toBe("");
     key(to, "Backspace");
     expect(chips("to")).toHaveLength(4);
-    expect(said()).toBe("Removed late@example.com from To");
+    expect(said()).toBe("Removed late@example.com from To.");
     button("Remove ops@example.com from To").click();
-    expect(said()).toBe("Removed ops@example.com from To");
+    expect(said()).toBe("Removed ops@example.com from To.");
+    expect(shown()).toBe("");
     expect(chips("to")).toEqual([
       "payroll@example.com",
       "dock@example.com",
@@ -340,7 +343,7 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
     });
     cc.dispatchEvent(paste);
     expect(chips("cc")).toEqual(["a@example.com", "b@partner.com"]);
-    expect(said()).toBe("Added a@example.com, b@partner.com to Cc");
+    expect(said()).toBe("Added a@example.com, b@partner.com to Cc.");
     const marks = [
       ...(cc.closest(".chips-box")?.querySelectorAll(".chip-mark") ?? []),
     ];
@@ -373,7 +376,7 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
     ).toHaveLength(1);
     type(byId("rcpt-bcc"), "safety@example.com");
     expect(errorOf("bcc")).toBe(
-      "safety@example.com is in both Cc and Bcc. Keep it in one field.",
+      "safety@example.com is in both Cc and Bcc. Keep it in one of them.",
     );
     button("Remove not-an-address from Cc").click();
     expect(errorOf("cc")).toBe("");
@@ -384,9 +387,7 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
         ",",
       ),
     );
-    expect(errorOf("to")).toBe(
-      "To holds 11 addresses. Use at most 10 per field.",
-    );
+    expect(errorOf("to")).toBe("To holds 11 addresses. Use at most 10 in To.");
   });
 
   it("sends to, cc and bcc on every save; an empty list clears the field", async () => {
@@ -826,7 +827,7 @@ describe("unsaved-changes guard", () => {
     button("Save and leave").click();
     await until(() => {
       expect(document.querySelector(".toast")?.textContent).toContain(
-        "Busy, try again.",
+        "The library is busy. Try again in a few seconds.",
       );
     });
     expect(window.location.hash).toBe("#/edit/T-QUOTE");
@@ -1142,6 +1143,34 @@ describe("merge with the main line (slices 11 and 13 meet slice 8b)", () => {
     expect(errorOf("bcc")).toBe(
       "Bcc, address 1 is outside example.com. Your admin allows only example.com addresses. Remove it to save.",
     );
+  });
+
+  it("shows the server's refusal on Save when the setting turned to deny after the page loaded", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    type(byId("rcpt-bcc"), "records@partner.com");
+    // The page still knows "allow": the client check passes, so only the server can refuse this save.
+    expect(errorOf("bcc")).toBe("");
+    await harnessCall("config.set", {
+      name: "recipientsExternal",
+      value: "deny",
+      baseAt: "",
+      baseBy: "",
+    });
+    button("Save").click();
+    await until(() => {
+      expect(main().querySelector('.status[role="status"]')?.textContent).toBe(
+        "Not saved. Fix the problems in the Problems tab.",
+      );
+    });
+    const refusal =
+      "Bcc, address 1 is outside example.com. Your admin allows only example.com addresses. Remove it to save.";
+    expect(errorOf("bcc")).toBe(refusal);
+    expect(main().querySelector(".problems")?.textContent).toContain(refusal);
+    // Nothing was saved: the header still says so and the chip stays for the user to remove.
+    expect(main().querySelector(".saved-state")?.textContent).toBe(
+      "Unsaved changes",
+    );
+    expect(chips("bcc")).toEqual(["records@partner.com"]);
   });
 
   it("personal templates off: a personal template opens read-only with the reason, and leaving never asks", async () => {

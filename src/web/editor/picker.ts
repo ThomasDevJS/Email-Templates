@@ -16,32 +16,34 @@ import {
 import type { Editor } from "./setup";
 
 /**
- * Placeholder picker (wireframe 04): the 5 registry names, "Ask the user..." (label dialog) and, on a selected
- * variable chip, "Add fallback...". Opened from the toolbar and when the user types `{{`.
+ * Placeholder picker (wireframe 04): the 5 registry names, "Ask the sender..." (label dialog) and, on a selected
+ * variable chip, "Add default text...". Opened from the toolbar and when the user types `{{`.
  */
 const FORBIDDEN = /[{}|\\<>\r\n]/;
 
 export function labelProblem(value: string): string {
   const label = collapse(value);
   if (label.length < 1 || label.length > LABEL_MAX)
-    return `Label must be 1 to ${String(LABEL_MAX)} characters.`;
-  return FORBIDDEN.test(label) ? "Label cannot contain { } | \\ < >." : "";
+    return `The field name must be 1 to ${String(LABEL_MAX)} characters.`;
+  return FORBIDDEN.test(label)
+    ? "The field name cannot contain { } | \\ < >."
+    : "";
 }
 
 export function fallbackProblem(value: string): string {
   const fallback = value.trim();
   if (fallback.length > FALLBACK_MAX)
-    return `Fallback must be at most ${String(FALLBACK_MAX)} characters.`;
+    return `The default text must be at most ${String(FALLBACK_MAX)} characters.`;
   return /[{}\\<>\r\n]/.test(fallback)
-    ? "Fallback cannot contain { } \\ < >."
+    ? "The default text cannot contain { } \\ < >."
     : "";
 }
 
-/** The "Ask the user" dialog; null when cancelled. */
+/** The "Ask the sender" dialog; null when cancelled. */
 async function askLabel(): Promise<string | null> {
   const label = await promptText({
-    title: "Ask the user",
-    label: "Question shown when the template is used",
+    title: "Ask the sender",
+    label: "Field name the sender sees",
     hint: "1 to 40 characters, for example Meeting date.",
     maxLength: LABEL_MAX,
     check: labelProblem,
@@ -63,9 +65,9 @@ async function askFallback(
   current: string | null,
 ): Promise<void> {
   const fallback = await promptText({
-    title: "Fallback text",
+    title: "Default text",
     label: "Text used when the value is unknown",
-    hint: "Up to 80 characters. Leave empty to remove the fallback.",
+    hint: "Up to 80 characters. Leave empty to remove the default text.",
     value: current ?? "",
     maxLength: FALLBACK_MAX,
     check: fallbackProblem,
@@ -102,7 +104,7 @@ export function subjectPickerItems(input: HTMLInputElement): MenuItem[] {
         insertAtCaret(input, variableToken(entry.name, null));
       },
     })),
-    { label: "Ask the user...", run: () => void ask() },
+    { label: "Ask the sender...", run: () => void ask() },
   ];
 }
 
@@ -115,12 +117,14 @@ export function pickerItems(editor: Editor): MenuItem[] {
       );
     },
   }));
-  items.push({ label: "Ask the user...", run: () => void askPrompt(editor) });
+  items.push({ label: "Ask the sender...", run: () => void askPrompt(editor) });
   const chip = selectedPlaceholder(editor.view.state);
   if (chip !== null && chip.attrs.name !== "")
     items.push({
       label:
-        chip.attrs.fallback === null ? "Add fallback..." : "Edit fallback...",
+        chip.attrs.fallback === null
+          ? "Add default text..."
+          : "Edit default text...",
       run: () => void askFallback(editor, chip.pos, chip.attrs.fallback),
     });
   return items;

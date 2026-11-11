@@ -80,7 +80,7 @@ export function requireStoreIds(props: PropertyStore): StoreIds {
   if (ids.membersId === undefined) {
     throw new AppError(
       ErrorCode.NOT_CONFIGURED,
-      "Storage is not set up. The owner runs setup() once.",
+      "Migway Templates is not set up yet. Ask your admin to finish setup.",
     );
   }
   return ids as StoreIds;

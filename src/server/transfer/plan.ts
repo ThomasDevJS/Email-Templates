@@ -47,7 +47,9 @@ function nameProblem(name: string): string {
     folderName(name);
     return "";
   } catch (error: unknown) {
-    return error instanceof Error ? error.message : "Invalid folder name";
+    return error instanceof Error
+      ? error.message
+      : "The folder name is not valid.";
   }
 }
 
@@ -85,7 +87,7 @@ export function planFolders(
       const { id, parentId, name } = record.value;
       const fromFile = inFile.has(parentId) && parentId !== id;
       if (fromFile && failed.has(parentId)) {
-        fail(record.label, "Its parent folder was not imported", id);
+        fail(record.label, "Its parent folder was not imported.", id);
         progress = true;
         continue;
       }
@@ -101,7 +103,7 @@ export function planFolders(
       else if (level > FOLDER_DEPTH_MAX)
         fail(
           record.label,
-          `Folders can be at most ${String(FOLDER_DEPTH_MAX)} levels deep`,
+          `A folder can be at most ${String(FOLDER_DEPTH_MAX)} levels deep.`,
           id,
         );
       else {
@@ -121,7 +123,11 @@ export function planFolders(
     pending = later;
   }
   for (const record of pending)
-    fail(record.label, "Its parent chain has a cycle", record.value.id);
+    fail(
+      record.label,
+      "Its parent folders form a loop in the file.",
+      record.value.id,
+    );
   return { mapping, failed, created, reused, lines };
 }
 

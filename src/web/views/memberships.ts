@@ -13,12 +13,12 @@ import type { AppContext, View } from "./context";
 /**
  * Memberships tab (wireframe 06, admin): resolver, last refresh, one row per group in the refresh set with member
  * count, child group count and status. A group with child groups gets a warning row: with a direct-members
- * resolver their members get no access (D7). "Refresh now" runs `membership.refresh`.
+ * resolver their members get no access (D7). "Refresh groups" runs `membership.refresh`.
  */
 const COLUMNS: readonly Column[] = [
   { label: "Group" },
   { label: "Members", num: true },
-  { label: "Child groups", num: true },
+  { label: "Groups inside", num: true },
   { label: "Status" },
 ];
 
@@ -29,7 +29,7 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
     "aria-live": "polite",
   });
   const summary = h("p", { class: "meta" });
-  const refresh = h("button", { type: "button" }, "Refresh now");
+  const refresh = h("button", { type: "button" }, "Refresh groups");
   const table = h(
     "div",
     { class: "list", "aria-busy": "true", "aria-label": "Groups" },
@@ -40,12 +40,12 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
     noteRow(
       COLUMNS,
       "warn",
-      `Warning: ${group} contains ${children.join(", ")}. Members of these child groups get no access: the resolver reads direct members only.`,
+      `Warning: members of ${children.join(", ")} get no access through ${group}. Add them to ${group} directly.`,
       "warn",
     );
 
   const draw = (data: Memberships) => {
-    summary.textContent = `Resolver: ${data.resolver}${data.nested ? "" : " (direct members only)"}. Last refresh: ${formatTime(data.refreshedAt) || "never"}.`;
+    summary.textContent = `Members are read from Google${data.nested ? "" : " (direct members only)"}. Last refresh: ${formatTime(data.refreshedAt) || "never"}.`;
     table.setAttribute("aria-busy", "false");
     if (data.groups.length === 0) {
       replace(
@@ -53,7 +53,7 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
         h(
           "p",
           { class: "empty", role: "status" },
-          "No groups yet. Groups appear here once a grant names one or ADMIN_GROUP is set.",
+          "No groups yet. A group shows here once it has access to a folder or is the admin group.",
         ),
       );
       return;
@@ -75,7 +75,7 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
             ? [warningRow(group.group, group.childGroups)]
             : []),
         ]),
-        { caption: "Groups in the refresh set" },
+        { caption: "Groups the app reads" },
       ),
     );
   };
@@ -87,7 +87,7 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
 
   refresh.addEventListener("click", () => {
     refresh.disabled = true;
-    status.textContent = "Refreshing memberships...";
+    status.textContent = "Refreshing groups...";
     app.api
       .refreshMemberships()
       .then((data) => {

@@ -8,15 +8,32 @@ import { settingsSection } from "./adminSettings";
 import type { AppContext, View } from "./context";
 
 /**
- * Tab "Config" (admin, wireframe 06): the admin settings (D29), then read only: environment, index size with the 3 MB warning, job health (a job
+ * Tab "Settings and backups" (admin, wireframe 06): the admin settings (D29), then read only: environment, index size with the 3 MB warning, job health (a job
  * late by more than 2 intervals shows "Late" with its last error), and the 14 daily backups with Restore.
  */
 const JOB_COLUMNS: readonly Column[] = [
   { label: "Job" },
   { label: "Schedule" },
-  { label: "Last OK" },
+  { label: "Last good run" },
   { label: "Status" },
 ];
+
+/** Job names in words; the raw name follows in small type, because the runbook names jobs by it. */
+const JOB_WORDS: Readonly<Record<string, string>> = {
+  tick: "Save insert counts and refused actions",
+  refreshMembers: "Refresh groups",
+  daily: "Nightly backup and cleanup",
+};
+
+function jobName(name: string): HTMLElement {
+  const words = JOB_WORDS[name];
+  return h(
+    "span",
+    {},
+    h("span", { class: "row-title" }, words ?? name),
+    words === undefined ? null : h("span", { class: "meta" }, ` ${name}`),
+  );
+}
 
 function jobStatus(job: JobRow): HTMLElement {
   return h(
@@ -34,8 +51,8 @@ function jobStatus(job: JobRow): HTMLElement {
 function environment(data: ConfigView): HTMLElement {
   const size = `${formatBytes(data.indexBytes)}${
     data.indexBytes >= data.indexWarnBytes
-      ? ` (warning: over ${formatBytes(data.indexWarnBytes)}, the index should be split, ADR-0002)`
-      : ` (warning at ${formatBytes(data.indexWarnBytes)})`
+      ? ` (over ${formatBytes(data.indexWarnBytes)}: tell the developer, the library data is too large)`
+      : ` (the app warns at ${formatBytes(data.indexWarnBytes)})`
   }`;
   const facts: [string, string][] = [
     ["Domain", data.domain],
@@ -44,7 +61,7 @@ function environment(data: ConfigView): HTMLElement {
     ["CALLER_IDENTITY", data.callerIdentity],
     ["INDEX_REV", data.indexRev],
     ["App version", data.appVersion],
-    ["Index size", size],
+    ["Library data size", size],
   ];
   return h(
     "dl",
@@ -60,12 +77,12 @@ function jobsTable(data: ConfigView): HTMLElement {
   return h(
     "section",
     { "aria-labelledby": "jobs-heading" },
-    h("h2", { id: "jobs-heading" }, "Jobs"),
+    h("h2", { id: "jobs-heading" }, "Background jobs"),
     adminTable(
       JOB_COLUMNS,
       data.jobs.map((job) =>
         tableRow(JOB_COLUMNS, [
-          h("span", { class: "row-title" }, job.name),
+          jobName(job.name),
           job.schedule,
           formatTime(job.lastOk) || "never",
           jobStatus(job),
@@ -100,7 +117,7 @@ function backupsSection(app: AppContext): HTMLElement {
       body: h(
         "p",
         {},
-        `Every change made after ${date} is lost: templates, versions, folders, grants, favorites and usage counts go back to that day. Templates emptied from the trash after ${date} cannot come back; the server refuses the restore if the backup holds any. The audit log is kept and records the restore.`,
+        `Everything goes back to ${date}: templates, versions, folders, access, favorites and insert counts. Changes made after that day are lost, and templates emptied from the trash after ${date} cannot come back.`,
       ),
       actions: [
         { label: "Cancel", autofocus: true, run: () => undefined },
@@ -151,7 +168,7 @@ function backupsSection(app: AppContext): HTMLElement {
             h(
               "p",
               { class: "empty" },
-              "No backups yet. The daily job makes one each night and keeps 14.",
+              "No backups yet. The app makes one each night and keeps the last 14.",
             ),
           );
           return;
@@ -161,7 +178,7 @@ function backupsSection(app: AppContext): HTMLElement {
           h(
             "p",
             { class: "hint" },
-            `${String(dates.length)} daily copies (14 kept).`,
+            `${String(dates.length)} nightly backups. The app keeps the last 14.`,
           ),
           h(
             "ul",
@@ -185,7 +202,7 @@ function backupsSection(app: AppContext): HTMLElement {
             h(
               "p",
               { class: "empty" },
-              "Backups could not be loaded. Use Retry in the message.",
+              "Backups could not be loaded. Press Retry in the message.",
             ),
         );
       },
@@ -204,7 +221,11 @@ function backupsSection(app: AppContext): HTMLElement {
 export function configTab(app: AppContext, panel: HTMLElement): View {
   const body = h(
     "div",
-    { class: "list", "aria-busy": "true", "aria-label": "Configuration" },
+    {
+      class: "list",
+      "aria-busy": "true",
+      "aria-label": "Settings and backups",
+    },
     ...skeletonRows(4),
   );
   const load = () => {
@@ -214,14 +235,14 @@ export function configTab(app: AppContext, panel: HTMLElement): View {
         replace(
           body,
           settingsSection(app, data),
-          h("h2", {}, "Environment"),
+          h("h2", {}, "Technical details"),
           environment(data),
           data.triggersError === ""
             ? null
             : h(
                 "p",
                 { class: "error", role: "alert" },
-                `Trigger reinstall failed: ${data.triggersError}`,
+                `The background jobs could not be set up again: ${data.triggersError}`,
               ),
           jobsTable(data),
         );
@@ -234,7 +255,7 @@ export function configTab(app: AppContext, panel: HTMLElement): View {
             h(
               "p",
               { class: "empty" },
-              "The configuration could not be loaded. Use Retry in the message.",
+              "Settings could not be loaded. Press Retry in the message.",
             ),
         );
       },
