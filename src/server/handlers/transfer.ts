@@ -40,6 +40,8 @@ import {
   recipientPolicy,
 } from "./body";
 import { commit } from "./commit";
+import { WRITE_LOCK_MS, withLock } from "../lock";
+import { commitLocked } from "../storage/writer";
 import { newFolder } from "./folders";
 import { chainOf, folderPath, liveFolder } from "./indexOps";
 import {
@@ -160,42 +162,43 @@ function retriedStart(
  */
 function startExport(context: HandlerContext, scoped: Scoped): ExportStart {
   const { scope } = scoped;
+  const { services } = context;
   const run = optString(context.args, "run");
   const startKey = isRequestId(run) ? `exps:${run}` : null;
-  const retried =
-    startKey === null ? null : retriedStart(context, scope, startKey);
-  if (retried !== null) return retried;
   const folder = scope.kind === "folder";
-  const total = commit(context, (current) => {
-    if (folder) liveFolder(current, scope.folderId);
-    const templates = liveItems(current, scoped.folderIds(current)).length;
-    const event = auditEvent(eventSource(context, scope.folderId), {
-      action: folder ? "export.folder" : "export.library",
-      targetType: folder ? "folder" : "library",
-      targetId: scope.folderId,
-      targetPath: folder ? folderPath(current, scope.folderId) : "",
-      after: { scope: scope.kind, templates },
+  // The reuse check and the start share one lock, so two tries of one click cannot both miss (20a review minor 6).
+  return withLock(services.lock, WRITE_LOCK_MS, () => {
+    const retried =
+      startKey === null ? null : retriedStart(context, scope, startKey);
+    if (retried !== null) return retried;
+    const total = commitLocked(services, (current) => {
+      context.recheck(current);
+      if (folder) liveFolder(current, scope.folderId);
+      const templates = liveItems(current, scoped.folderIds(current)).length;
+      const event = auditEvent(eventSource(context, scope.folderId), {
+        action: folder ? "export.folder" : "export.library",
+        targetType: folder ? "folder" : "library",
+        targetId: scope.folderId,
+        targetPath: folder ? folderPath(current, scope.folderId) : "",
+        after: { scope: scope.kind, templates },
+      });
+      return { doc: current, events: [event], result: templates };
     });
-    return { doc: current, events: [event], result: templates };
+    const token = services.newId();
+    const owner: ExportRun = {
+      actor: context.caller.email,
+      kind: scope.kind,
+      folderId: scope.folderId,
+    };
+    services.cache.put(runKey(token), JSON.stringify(owner), EXPORT_RUN_TTL_S);
+    if (startKey !== null)
+      services.cache.put(
+        startKey,
+        JSON.stringify({ ...owner, token, total }),
+        EXPORT_RETRY_S,
+      );
+    return { token, total };
   });
-  const token = context.services.newId();
-  const owner: ExportRun = {
-    actor: context.caller.email,
-    kind: scope.kind,
-    folderId: scope.folderId,
-  };
-  context.services.cache.put(
-    runKey(token),
-    JSON.stringify(owner),
-    EXPORT_RUN_TTL_S,
-  );
-  if (startKey !== null)
-    context.services.cache.put(
-      startKey,
-      JSON.stringify({ ...owner, token, total }),
-      EXPORT_RETRY_S,
-    );
-  return { token, total };
 }
 
 /**

@@ -499,6 +499,22 @@ describe("export", () => {
     expect(exportEvents()).toHaveLength(6);
   });
 
+  it("writes one event for two tries of one click that run at the same time", () => {
+    const sales = folder("Sales");
+    const args = { folderId: sales.id, start: true, run: "MH9X4K2A-0F3ZQ9" };
+    // The second try runs while the first waits for the lock.
+    const tryLock = world.lock.tryLock.bind(world.lock);
+    let second: ExportStart | null = null;
+    world.lock.tryLock = (ms: number) => {
+      world.lock.tryLock = tryLock;
+      second = world.ok<ExportStart>(OWNER, "export.folder", args);
+      return tryLock(ms);
+    };
+    const first = world.ok<ExportStart>(OWNER, "export.folder", args);
+    expect(second).toEqual(first);
+    expect(exportEvents()).toHaveLength(1);
+  });
+
   it("answers no export data without a committed start for this caller and scope", () => {
     const sales = folder("Sales");
     const hr = folder("HR");
