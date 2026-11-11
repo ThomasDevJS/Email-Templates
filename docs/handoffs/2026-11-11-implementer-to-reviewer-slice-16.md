@@ -22,9 +22,9 @@ Clean `npm ci`, then: lint 0 problems; typecheck clean; test:coverage 66 files, 
 ## Left for later
 
 - Smoke "Slice 16" on dev (criterion 16): the Directory error text for a made-up and a group address, and whether `domain_public` returns suspended users.
-- The web client retries INTERNAL 3 times, so a Directory outage costs 4 Directory reads per click.
+- Corrected in retry 1: the web client does not retry; one click costs 1 Directory read.
 - Spec text said "Admin, Config, Settings" and "Refresh memberships now"; the docs quote the built names "Settings and backups" tab and "Refresh groups".
-- A DENIED in the Admins section shows the existing text "You don't have access to this template. Ask a folder manager." (spec 7.3 says existing text); the word "template" reads oddly there.
+- Fixed in retry 1: a DENIED in the Admins section showed "You don't have access to this template. Ask a folder manager."
 - Malformed stored entries are dropped from the list at the next add or remove (the writer stores the clean list).
 
 ## Risks
@@ -39,3 +39,18 @@ src/shared/model/{admins,data}.ts, src/shared/permissions/principals.ts, src/ser
 ## Commands
 
 `npm ci; npm run lint; npm run typecheck; npm run test:coverage; npm run build -- --env dev; npm run scopes:check; npm run format:check; npm run lighthouse`
+
+## Retry 1 (review FAIL on 6bf8c86, docs/reviews/slice-16.md)
+
+Base: merged `claude/gracious-franklin-3n8zbq` c259b5c (slice 15) as 2224afd; smoke keeps "Slice 15" and "Slice 16". Head 5761c62 plus this handoff.
+
+1. DENIED on an admin-only action shows "You are no longer an admin, so nothing was changed. Ask an admin if you need access." (`ADMIN_DENIED_TEXT`, `adminLineText`, web/ui/status.ts; docs/design/wording.md section "Admin-only actions refused"). Applied to Add admin, Remove admin (`adminAdmins.ts`), Settings Save (`adminSettings.ts`), Restore a backup (`adminConfig.ts`), Export of the whole library and Import/Check file (`adminTransfer.ts`), Empty trash (`trash.ts`), Refresh groups (`memberships.ts`). Folder-manager actions keep the folder text. `aria-invalid` only for a VALIDATION answer to Add. Tests: 2 in the Admins section, 4 in adminReports.test.ts, 1 in admin.test.ts (trash, groups).
+2. The Directory failure carries `details.reason` `ADMIN_CHECK` (code stays INTERNAL); the Admins section shows its message in the status line and calls no toast. Tests: server (reason, text) and web (line text, empty toasts).
+3. In-lock re-check: `lockedSubject(context, index)` in dispatch.ts builds the subject from the snapshot and the in-lock index for admin and level rows alike; `recheck` is the only in-lock authorization path (grep of `subject()`, `access()`: all other uses are before the lock). Test: an admin removed before the lock is refused on `grant.add` and `template.create`, nothing written, one denied row; it fails on the old dispatch.ts. About 20 lines, `commit` unchanged.
+4. `editedList` throws CONFLICT when the edit is null on the list read for the write; no default. Unit test.
+5. A failed Directory lookup logs one warn line `directory.users.get`, `errorCode` "<reason>:<status>" (`details.code` of the error, else 0), no address, no message. Smoke step 4 reads that line. Tests: `ADMIN_CHECK:503`, `ADMIN_NO_ACCOUNT:404`, status 0 cases.
+6. `admin.add` and `admin.remove` results carry `email` (the stored primary address); "is now", "is already", "is no longer", "not in the list" name it. Web test with an alias.
+
+Erratum for the architect: spec 7.3 Admins row "Caller no longer admin (DENIED): existing DENIED text of section 7" is wrong; the built text is the one in item 1. Spec 6 results of `admin.add`/`admin.remove` now also hold `email`. ADR-0008 Amendment says `indexProblem` accepts `admins` absent or an array; the code accepts any value (review minor 6).
+
+Checks, clean `npm ci`: lint 0; typecheck clean; test:coverage 68 files, 1875 tests, statements 97.11 %, branches 90.87 %; build dev Code.js 364.8 KB of 800, index.html 379.3 KB of 400; scopes:check 10, all approved; format:check clean; lighthouse 16 runs, all 100.
