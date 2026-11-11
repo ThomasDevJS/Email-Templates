@@ -778,6 +778,52 @@ describe("details Insert (spec 7.4 Flow C)", () => {
   });
 });
 
+describe("one result on every insert path (review follow-up 1)", () => {
+  it("row Insert, first details Insert and a re-rendered details Insert give the same body and subject", () => {
+    const item = world.ok<Item>(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "Load",
+      subject: "Load {{ask:N}} for {{recipient.first_name}}",
+      html: "<p>Hi {{recipient.first_name}}, {{ask:N}} 7 {{sender.name}}</p>",
+    });
+    const at = (form: Record<string, string>) => ({
+      ...formEvent(form),
+      ...toBob,
+    });
+    const footer = (reply: Reply) =>
+      cardOf(reply).footer?.primary.action.params ?? {};
+    const row = insertFlow(ports(), toBob, { id: item.id });
+    const opened = previewFlow(ports(), toBob, { id: item.id });
+    const first = promptInsertFlow(ports(), at({ subj: "on" }), footer(opened));
+    const field =
+      inputs(cardOf(opened)).find((i) => i.title === "N")?.name ?? "";
+    const blocked = promptInsertFlow(
+      ports(),
+      at({ [field]: "x".repeat(501), subj: "on" }),
+      footer(opened),
+    );
+    expect(footer(blocked)["counted"]).toBe("1");
+    const again = promptInsertFlow(
+      ports(),
+      at({ subj: "on" }),
+      footer(blocked),
+    );
+    const expected = {
+      kind: "insert",
+      html: "<p>Hi Bob, 7 Ana Lima</p>",
+      subject: "Load for Bob",
+      recipients: {},
+    };
+    expect([row, first, again]).toEqual([expected, expected, expected]);
+    // The recipient address reaches the server only as recipientEmailIfInternal.
+    const args = sent.map((s) => ({
+      ...(s.args as object),
+      recipientEmailIfInternal: null,
+    }));
+    expect(JSON.stringify(args)).not.toContain(BOB);
+  });
+});
+
 describe("links", () => {
   it("opens the library or the editor and drops the cached view", () => {
     homeFlow(ports());
