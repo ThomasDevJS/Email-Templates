@@ -17,7 +17,7 @@ import type { Editor } from "./setup";
 
 /**
  * Placeholder picker (wireframe 04): the 5 registry names, "Ask the sender..." (label dialog) and, on a selected
- * variable chip, "Add fallback...". Opened from the toolbar and when the user types `{{`.
+ * variable chip, "Add default text...". Opened from the toolbar and when the user types `{{`.
  */
 const FORBIDDEN = /[{}|\\<>\r\n]/;
 
@@ -39,7 +39,7 @@ export function fallbackProblem(value: string): string {
     : "";
 }
 
-/** The "Ask the user" dialog; null when cancelled. */
+/** The "Ask the sender" dialog; null when cancelled. */
 async function askLabel(): Promise<string | null> {
   const label = await promptText({
     title: "Ask the sender",

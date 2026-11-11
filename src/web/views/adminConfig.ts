@@ -8,7 +8,7 @@ import { settingsSection } from "./adminSettings";
 import type { AppContext, View } from "./context";
 
 /**
- * Tab "Config" (admin, wireframe 06): the admin settings (D29), then read only: environment, index size with the 3 MB warning, job health (a job
+ * Tab "Settings and backups" (admin, wireframe 06): the admin settings (D29), then read only: environment, index size with the 3 MB warning, job health (a job
  * late by more than 2 intervals shows "Late" with its last error), and the 14 daily backups with Restore.
  */
 const JOB_COLUMNS: readonly Column[] = [

@@ -70,6 +70,18 @@ export function rowActionWords(row: {
   return `${words}${path}, ${plural(row.exportTemplates, "template")}`;
 }
 
+/** The access a user had, in the words of the access table: "admin", "Can manage", "no access". */
+const ROLE_WORDS: ReadonlyMap<string, string> = new Map([
+  ["admin", "admin"],
+  ["use", "Can use"],
+  ["edit", "Can edit"],
+  ["manage", "Can manage"],
+]);
+
+export function roleWords(role: string): string {
+  return ROLE_WORDS.get(role) ?? "no access";
+}
+
 /** Result word and tint: the word is the tag, the tint repeats it. */
 export type Tone = "ok" | "warn" | "bad" | "plain";
 
