@@ -4,7 +4,7 @@ import { ancestry, folderMap } from "../../shared/permissions/effective";
 
 /** Lookups and replacements on the index document. Lookups include soft-deleted records. */
 function notFound(what: string): AppError {
-  return new AppError(ErrorCode.NOT_FOUND, `${what} was removed or moved.`);
+  return new AppError(ErrorCode.NOT_FOUND, `${what} was deleted or moved.`);
 }
 
 export function findItem(index: IndexDoc, id: string): Item {
@@ -21,7 +21,7 @@ export function findFolder(index: IndexDoc, id: string): Folder {
 
 export function findGrant(index: IndexDoc, id: string): Grant {
   const grant = index.grants.find((candidate) => candidate.id === id);
-  if (grant === undefined) throw notFound("This grant");
+  if (grant === undefined) throw notFound("This access");
   return grant;
 }
 

@@ -187,7 +187,7 @@ export function libraryView(
       return h(
         "p",
         { class: "empty", role: "status" },
-        `No templates match "${query}". Try folder: or tag:.`,
+        `No templates match "${query}". Try fewer words, or remove folder: and tag: from the search.`,
       );
     if (onlyFavorites)
       return h(
@@ -403,7 +403,7 @@ export function libraryView(
       h(
         "p",
         { class: "empty" },
-        "Templates could not be loaded. Use Retry in the message, or reload the page.",
+        "Templates could not be loaded. Press Retry in the message, or reload the page.",
       ),
     );
   });

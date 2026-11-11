@@ -252,7 +252,9 @@ describe("setup of the data folder (ADR-0002 Layout)", () => {
 
   it("requires setup before use", () => {
     const props = new FakeProperties();
-    expect(() => requireStoreIds(props)).toThrow("Storage is not set up");
+    expect(() => requireStoreIds(props)).toThrow(
+      "Migway Templates is not set up yet",
+    );
     props.setProperty(STORE_KEY, "");
     expect(readStoreIds(props)).toEqual({});
   });

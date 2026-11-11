@@ -449,12 +449,16 @@ describe("error presentation (spec section 7)", () => {
     expect(
       of(ErrorCode.DENIED, "Personal templates are turned off by your admin."),
     ).toBe("Personal templates are turned off by your admin.");
-    expect(of(ErrorCode.NOT_FOUND)).toBe("This template was removed or moved.");
-    expect(of(ErrorCode.BUSY)).toBe("Busy, try again.");
+    expect(of(ErrorCode.NOT_FOUND)).toBe("This template was deleted or moved.");
+    expect(of(ErrorCode.BUSY)).toBe(
+      "The library is busy. Try again in a few seconds.",
+    );
     expect(of(ErrorCode.QUOTA)).toBe("Service is busy. Try again in a minute.");
-    expect(of(ErrorCode.INTERNAL)).toBe("Something went wrong. Retry.");
+    expect(of(ErrorCode.INTERNAL)).toBe("Something went wrong. Try again.");
     // The server never sends NOT_IMPLEMENTED (only the dev harness does), so it gets the generic toast text.
-    expect(of(ErrorCode.NOT_IMPLEMENTED)).toBe("Something went wrong. Retry.");
+    expect(of(ErrorCode.NOT_IMPLEMENTED)).toBe(
+      "Something went wrong. Try again.",
+    );
     vi.stubEnv("TZ", "America/New_York");
     vi.useFakeTimers({
       now: Date.parse("2026-11-10T12:00:00Z"),
@@ -467,7 +471,9 @@ describe("error presentation (spec section 7)", () => {
           updatedAt: "2026-11-10T15:14:00.000Z",
         }),
       ),
-    ).toBe("Changed by bob@example.com at Nov 10, 10:14 AM.");
+    ).toBe(
+      "bob@example.com changed this at Nov 10, 10:14 AM. Reload the page and try again.",
+    );
     vi.useRealTimers();
     vi.unstubAllEnvs();
     expect(of(ErrorCode.CONFLICT, "Changed by x")).toBe("Changed by x");
@@ -505,7 +511,7 @@ describe("previews", () => {
 
   it("gives prompts the ask look in history", () => {
     expect(withChips("<p>{{ask:Load number}}</p>")).toBe(
-      '<p><span class="ph ask" role="img" aria-label="Field: Load number, asked at insert">Load number</span></p>',
+      '<p><span class="ph ask" role="img" aria-label="Field: Load number, the sender fills it in">Load number</span></p>',
     );
   });
 
@@ -514,7 +520,7 @@ describe("previews", () => {
       '<p>a <span class="ph" role="img" aria-label="Field: Sender name">Sender name</span> {{ <span class="ph" role="img" aria-label="Field: x.y">x.y</span></p>',
     );
     expect(withChips("<p>{{recipient.first_name|a &amp; b}}</p>")).toBe(
-      '<p><span class="ph" role="img" aria-label="Field: Recipient first name, fallback a &amp; b">Recipient first name<span class="ph-or"> or </span>a &amp; b</span></p>',
+      '<p><span class="ph" role="img" aria-label="Field: Recipient first name, default text a &amp; b">Recipient first name<span class="ph-or"> or </span>a &amp; b</span></p>',
     );
   });
 

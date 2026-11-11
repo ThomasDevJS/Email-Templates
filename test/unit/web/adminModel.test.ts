@@ -106,19 +106,19 @@ describe("admin model", () => {
     ]);
     expect(rows.map((row) => [row.principal, row.source, row.note])).toEqual([
       ["group sales@example.com", "this folder", ""],
-      ["group sales@example.com", "Sales / Quotes (inherited)", ""],
+      ["group sales@example.com", "Sales / Quotes (parent folder)", ""],
       [
-        "OU /field",
+        "org unit /field",
         "this folder",
-        "Inactive: OU resolution needs the Directory resolver",
+        "Not active yet. Org units do not give access in this version.",
       ],
       ["domain example.com", "this folder", ""],
-      ["group sales@example.com", "a parent folder (inherited)", ""],
+      ["group sales@example.com", "a parent folder", ""],
     ]);
     expect(rows.map((row) => row.typeLabel)).toEqual([
       "group",
       "group",
-      "OU",
+      "org unit",
       "domain",
       "group",
     ]);
@@ -140,7 +140,7 @@ describe("admin model", () => {
     });
     const outside = settingTexts("recipientsExternal", "example.com");
     expect(outside.explanation).toBe(
-      "Templates can add addresses outside example.com to To, Cc and Bcc. When off, saving such an address fails and Insert skips it.",
+      'Templates can add addresses outside example.com to To, Cc and Bcc. With "example.com only", a template with an outside address cannot be saved and Insert skips the address.',
     );
     expect(outside.options).toEqual([
       ["allow", "Allowed"],
@@ -181,7 +181,7 @@ describe("admin model", () => {
     expect(principalHint("group")).toContain("Group email");
     expect(principalHint("user")).toBe("User email");
     expect(principalHint("domain")).toContain("Domain");
-    expect(principalHint("ou")).toContain("inactive");
+    expect(principalHint("ou")).toContain("not active yet");
     expect(displayPath("/Sales/Quotes")).toBe("Sales / Quotes");
     expect(displayPath("/")).toBe("");
   });
@@ -226,7 +226,7 @@ describe("export, import and config helpers (slice 6b)", () => {
       subjectsFlattened: 0,
     };
     expect(importSummary(counts)).toBe(
-      "Validated. Import would create 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing.",
+      "Checked. Import would create 40 templates, 2 skipped, 1 failed. Folders: 3 new, 0 existing.",
     );
     expect(
       importSummary({ ...counts, dryRun: false, subjectsFlattened: 2 }),

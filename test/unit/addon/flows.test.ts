@@ -155,7 +155,7 @@ describe("home (spec 4.1 steps 1 and 2)", () => {
     expect(texts(card)).toEqual([
       "Something went wrong. Press Retry.",
       "Request ID REQ-9",
-      "Network: Server returned HTTP 401",
+      "Details for your admin: Server returned HTTP 401",
     ]);
     expect(readView(cache)).toBeNull();
   });
@@ -180,7 +180,7 @@ describe("folder card flow", () => {
     ).toBe("update");
     const gone = folderFlow(ports(), { folderId: "GONE" });
     expect(texts(cardOf(gone))).toEqual([
-      "This template was removed or moved. Press Refresh to update the list.",
+      "This template was deleted or moved. Press Refresh to update the list.",
     ]);
     expect(readView(cache)).toBeNull();
   });
@@ -220,7 +220,7 @@ describe("preview flow", () => {
     expect(
       texts(cardOf(previewFlow(ports(), undefined, { id: "NOPE" }))),
     ).toEqual([
-      "This template was removed or moved. Press Refresh to update the list.",
+      "This template was deleted or moved. Press Refresh to update the list.",
     ]);
   });
 
@@ -321,7 +321,7 @@ describe("insert flow (spec 4.1 steps 3 to 5)", () => {
     };
     const card = cardOf(insertFlow(stale, undefined, { id: item.id }));
     expect(texts(card)).toEqual([
-      "This template was removed or moved. Press Refresh to update the list.",
+      "This template was deleted or moved. Press Refresh to update the list.",
     ]);
   });
 });
@@ -719,7 +719,7 @@ describe("prompt card Insert (wireframe 02)", () => {
       values,
     });
     expect(texts(cardOf(reply))).toEqual([
-      "This template was removed or moved. Press Refresh to update the list.",
+      "This template was deleted or moved. Press Refresh to update the list.",
     ]);
   });
 

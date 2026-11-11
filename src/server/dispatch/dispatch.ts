@@ -62,7 +62,10 @@ function ownEntry<T>(
 
 function requireIdentifiedCaller(caller: Caller): void {
   if (caller.email.trim() === "") {
-    throw new AppError(ErrorCode.AUTH_NO_USER, "Cannot identify your account");
+    throw new AppError(
+      ErrorCode.AUTH_NO_USER,
+      "Cannot identify your Migway account.",
+    );
   }
 }
 
@@ -212,7 +215,7 @@ function recheck(
   if (placement(index, fresh) !== authorized) {
     throw new AppError(
       ErrorCode.CONFLICT,
-      "This was moved by someone else while you worked. Reload and try again.",
+      "Someone else moved this while you worked. Reload the page and try again.",
       {
         reason: "moved",
       },

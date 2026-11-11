@@ -174,7 +174,7 @@ export function backslashProblems(doc: PMNode): Problem[] {
       )
         problems.push({
           code: "PH_BACKSLASH",
-          message: `Remove the backslash before the placeholder at character ${String(offset)}`,
+          message: `Remove the backslash before the field at character ${String(offset)}.`,
           offset: offset - 1,
         });
       offset += tokenOf(node.attrs as PlaceholderAttrs).length;

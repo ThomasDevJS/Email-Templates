@@ -74,12 +74,12 @@ export function requireDomain(email: string, props: PropertyStore): void {
   if (domain === "")
     throw new AppError(
       ErrorCode.NOT_CONFIGURED,
-      "Migway Templates is not set up. The owner runs setup once.",
+      "Migway Templates is not set up yet. Ask your admin to finish setup.",
     );
   if (domainOf(email) !== domain) {
     throw new AppError(
       ErrorCode.AUTH_DOMAIN,
-      "Your account is not in the Migway domain.",
+      "This is not a Migway account. Sign in with your Migway account.",
     );
   }
 }
