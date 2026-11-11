@@ -4,6 +4,7 @@ import {
   SWITCH_ON,
   type ActionSpec,
   type ButtonSpec,
+  type Callback,
   type CardSpec,
   type IconName,
   type Reply,
@@ -27,8 +28,21 @@ function markup(text: string): string {
   return escapeText(text).replace(/\n/g, "<br>");
 }
 
+/**
+ * Callbacks that answer at once with no server or Gmail call: Back pops a card, the library link opens a window.
+ * A spinner there would only flash. Every other action waits on the server or Gmail and shows the spinner.
+ */
+const INSTANT: ReadonlySet<Callback> = new Set(["onBack", "onOpenLink"]);
+
+/** The one place that builds actions: click, change and compose actions all get their load indicator here. */
 function toAction(spec: ActionSpec): GoogleAppsScript.Card_Service.Action {
-  const built = CardService.newAction().setFunctionName(spec.fn);
+  const built = CardService.newAction()
+    .setFunctionName(spec.fn)
+    .setLoadIndicator(
+      INSTANT.has(spec.fn)
+        ? CardService.LoadIndicator.NONE
+        : CardService.LoadIndicator.SPINNER,
+    );
   return spec.params === undefined
     ? built
     : built.setParameters({ ...spec.params });
