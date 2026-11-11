@@ -13,6 +13,11 @@ import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { Folder, Item } from "../shared/model/data";
 import {
+  ADMINS_MAX,
+  isAdminAddress,
+  type AdminEntry,
+} from "../shared/model/admins";
+import {
   NO_RECIPIENTS,
   RECIPIENT_FIELDS,
   type RecipientPolicy,
@@ -479,6 +484,68 @@ const settings: Record<SettingName, SettingEntry> = {
       ? { value: "deny", updatedAt: "2026-11-09T13:05:00.000Z", updatedBy: ANA }
       : { value: "allow", updatedAt: "", updatedBy: "" },
 };
+
+/** In-app admins (D32); `?admins=none` starts empty. The caller's own row shows without Remove. */
+let admins: AdminEntry[] =
+  PARAMS.get("admins") === "none"
+    ? []
+    : [
+        { email: ME, addedAt: "2026-11-08T09:12:00.000Z", addedBy: ANA },
+        { email: ANA, addedAt: "2026-11-09T13:05:00.000Z", addedBy: ME },
+      ];
+
+/**
+ * `admin.add` as the server answers it: form, domain, account (`nobody@` has none, `flaky@` gets no Directory
+ * answer), cap, repeat. `ana@example.com` is an alias of Ana's primary address.
+ */
+function adminAdd(args: Record<string, unknown>) {
+  const typed = str(args, "email").trim().toLowerCase();
+  const email = typed === "ana@example.com" ? ANA : typed;
+  const refuse = (reason: string, message: string) =>
+    new AppError(ErrorCode.VALIDATION, message, { reason });
+  if (!isAdminAddress(email, "example.com")) {
+    throw email.includes("@") && !email.endsWith("@example.com")
+      ? refuse("ADMIN_OUTSIDE", "Only example.com addresses can be admins.")
+      : refuse(
+          "ADMIN_FORMAT",
+          "Enter an email address, for example name@example.com.",
+        );
+  }
+  if (email.startsWith("flaky@"))
+    throw new AppError(
+      ErrorCode.INTERNAL,
+      "The address could not be checked. Try again.",
+      { reason: "ADMIN_CHECK" },
+    );
+  if (email.startsWith("nobody@"))
+    throw refuse(
+      "ADMIN_NO_ACCOUNT",
+      "No example.com account has this address. A group goes in the admin group the owner sets.",
+    );
+  if (admins.some((entry) => entry.email === email))
+    return { email, admins, changed: false };
+  if (admins.length >= ADMINS_MAX)
+    throw refuse(
+      "ADMIN_TOO_MANY",
+      "The list holds 20 admins. Remove one first.",
+    );
+  admins = [...admins, { email, addedAt: NOW, addedBy: ME }];
+  return { email, admins, changed: true };
+}
+
+function adminRemove(args: Record<string, unknown>) {
+  const email = str(args, "email").trim().toLowerCase();
+  if (email === ME)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "You cannot remove yourself. Ask another admin.",
+      { reason: "ADMIN_SELF" },
+    );
+  const kept = admins.filter((entry) => entry.email !== email);
+  const changed = kept.length !== admins.length;
+  admins = kept;
+  return { email, admins, changed };
+}
 
 /** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale base, no-op on the same value. */
 function configSet(args: Record<string, unknown>) {
@@ -999,8 +1066,12 @@ const OPS: Readonly<Record<string, Op>> = {
   "export.library": (args) => exportOp(args, ""),
   import: importOp,
   "config.set": configSet,
+  "admin.add": adminAdd,
+  "admin.remove": adminRemove,
   "config.get": () => ({
     settings,
+    admins,
+    breakGlass: ["owner@example.com"],
     domain: "example.com",
     adminGroup: "admins@example.com",
     resolver: "groupsapp_direct",

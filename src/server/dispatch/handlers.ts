@@ -5,6 +5,7 @@ import {
   trashPurge,
   usageReport,
 } from "../handlers/admin";
+import { adminAdd, adminRemove } from "../handlers/admins";
 import { auditQuery } from "../handlers/audit";
 import {
   backupList,
@@ -85,6 +86,8 @@ export const HANDLERS: HandlerTable = {
   "usage.report": usageReport,
   "config.get": configGet,
   "config.set": configSet,
+  "admin.add": adminAdd,
+  "admin.remove": adminRemove,
   "backup.list": backupList,
   "backup.restore": backupRestore,
 };

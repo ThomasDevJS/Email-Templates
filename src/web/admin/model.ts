@@ -216,6 +216,27 @@ export function conflictText(entry: SettingEntry, now?: Date): string {
   return `${namePart(entry.updatedBy)} changed this setting on ${formatTime(entry.updatedAt, "date", now)}. The page now shows the current value.`;
 }
 
+/** "Added by ana on Nov 10, 2:05 PM." (spec 7.3, Admins). */
+export function addedByText(
+  entry: { readonly addedAt: string; readonly addedBy: string },
+  now?: Date,
+): string {
+  return `Added by ${namePart(entry.addedBy)} on ${formatTime(entry.addedAt, "date", now)}.`;
+}
+
+/** The read-only admins of the Admins section: `ADMIN_EMAILS`, then `ADMIN_GROUP` when set (spec 7.3). */
+export function fixedAdminTexts(
+  breakGlass: readonly string[],
+  adminGroup: string,
+): string[] {
+  return [
+    breakGlass.length === 0
+      ? ""
+      : `Set by the owner: ${breakGlass.join(", ")}. These cannot be removed here.`,
+    adminGroup === "" ? "" : `Members of ${adminGroup}.`,
+  ].filter((text) => text !== "");
+}
+
 /** "850 KB" or "3.10 MB". */
 export function formatBytes(bytes: number): string {
   return bytes < 1024 * 1024

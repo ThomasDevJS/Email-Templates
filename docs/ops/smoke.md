@@ -185,6 +185,19 @@ Needs: the dev deployment of this build (reload Gmail), a user with at least 1 f
 7. Side panel, no message open, then with a message open: the same home, folder, search and details cards, with no Insert on rows or the details card, and no boxes or switches on the details card. Each card ends with "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." In the dev build the home card shows the section "Spike S7 (temporary)" after that line.
 8. State cards: open a folder in the panel, delete one of its templates in the library in another tab, then tap that template's title in the panel: "This template was deleted or moved. Press Refresh to update the list." with Refresh. No card header. DENIED, QUOTA and the request-ID error card are not reachable in a smoke run.
 
+## Slice 16
+
+Needs: the dev deployment of this build; the owner (in `ADMIN_EMAILS`) and the pilot user, each in their own browser; a made-up migway.com address; a group address of migway.com; an alias of a real user if one exists; the pilot has at least one folder grant. Record each result in the handoff.
+
+1. Owner opens Admin, "Settings and backups" tab, Settings. Admins shows "Set by the owner: <owner address>. These cannot be removed here." and "No admins added here yet."
+2. Owner adds the pilot user's address. Status "<address> is now an admin."; the row reads "Added by <owner name part> on <time>."; the Audit log tab shows "Admin added", actor the owner, target the pilot.
+3. Pilot reloads the web app: Admin shows the admin tabs; "Settings and backups" opens; the pilot's own row has no Remove button.
+4. Pilot tries: an outside address ("Only migway.com addresses can be admins."), a made-up migway.com address and a group address (both "No migway.com account has this address. A group goes in the admin group the owner sets."), an alias of a real user if one exists (stored as the primary address; "is already an admin" names the primary address). For the made-up and the group address, open Executions and record the warn line `directory.users.get`: its `errorCode` is the reason and the Directory status, for example `ADMIN_NO_ACCOUNT:404`. A line `ADMIN_CHECK:<status>` means the Directory answer was not read as "not found": record the status and report it.
+5. With the pilot's "Settings and backups" tab open, the owner removes the pilot (dialog, Cancel focused, "Remove admin"). The pilot changes a setting and presses Save: "You are no longer an admin, so nothing was changed. Ask an admin if you need access." Reload: no admin tabs.
+6. Pilot in Gmail: the home card has no Refresh button, so tap "Open library" and close it (this drops the cached list). The add-on lists only the folders granted to the pilot.
+7. Owner restores yesterday's backup (dev only): the Admins list is unchanged; the restore event shows `liveAdminsKept: true`.
+8. Owner checks the Audit log: one "Admin added" and one "Admin removed" for the pilot, none for the refused tries. Executions: the `admin.add` and `admin.remove` log lines carry `targetId` "" and no address.
+
 ## Slice 15
 
 One-click insert and the details card (spec 7.4, D31). Gmail web, compose toolbar, dev build (`npm run deploy -- dev`, reload Gmail). Nothing is sent: discard every draft after its step.

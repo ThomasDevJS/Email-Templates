@@ -1009,7 +1009,10 @@ describe("config.get", () => {
     const text = JSON.stringify(data);
     expect(text).not.toContain("do-not-show");
     expect(text).not.toContain("STORE");
-    expect(text).not.toContain(OWNER);
+    // D32: `ADMIN_EMAILS` shows as `breakGlass`, and the owner address nowhere else.
+    expect(data.breakGlass).toEqual([OWNER]);
+    expect(data.admins).toEqual([]);
+    expect(JSON.stringify({ ...data, breakGlass: [] })).not.toContain(OWNER);
   });
 
   it("shows the trigger reinstall error only while the reinstall is pending", () => {

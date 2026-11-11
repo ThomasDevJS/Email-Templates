@@ -37,19 +37,25 @@ export function principalsFor(
   return principals;
 }
 
-/** Admin = listed in `ADMIN_EMAILS` (comma separated, break-glass) or a member of `ADMIN_GROUP` in the snapshot. */
+/**
+ * Admin = listed in `ADMIN_EMAILS` (comma separated, break-glass), a member of `ADMIN_GROUP` in the snapshot, or in
+ * the in-app list (D32). `appAdmins` runs only when the first two say no, so most callers never read the index.
+ */
 export function isAdminEmail(
   email: string,
   adminEmails: string,
   adminGroup: string,
   snapshot: MembersDoc,
+  appAdmins: () => readonly string[] = () => [],
 ): boolean {
   const needle = email.trim().toLowerCase();
+  if (needle === "") return false;
   const listed = adminEmails
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .includes(needle);
   if (listed) return true;
   const group = adminGroup.trim().toLowerCase();
-  return group !== "" && groupsOf(email, snapshot).includes(group);
+  if (group !== "" && groupsOf(email, snapshot).includes(group)) return true;
+  return appAdmins().includes(needle);
 }

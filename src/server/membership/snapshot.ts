@@ -9,6 +9,8 @@ import {
   principalsFor,
 } from "../../shared/permissions/principals";
 import type { Subject } from "../../shared/permissions/effective";
+import { appAdminsOf } from "../../shared/model/admins";
+import { DOMAIN_KEY } from "../guards";
 import { getChunked, putChunked } from "../../shared/cache/chunked";
 import { loadIndexForWrite } from "../cache/indexCache";
 import { WRITE_LOCK_MS, withLock } from "../lock";
@@ -236,11 +238,15 @@ function readPreviousSnapshot(
   }
 }
 
-/** Subject for permission checks: principals and admin flag from the snapshot and Script Properties. */
+/**
+ * Subject for permission checks: principals and admin flag from the snapshot and Script Properties, then the in-app
+ * list (D32). `index` is read only when both properties say no.
+ */
 export function subjectFor(
   email: string,
   snapshot: MembersDoc,
   props: Services["props"],
+  index: () => IndexDoc,
 ): Subject {
   return {
     email,
@@ -250,6 +256,7 @@ export function subjectFor(
       props.getProperty(ADMIN_EMAILS_KEY) ?? "",
       props.getProperty(ADMIN_GROUP_KEY) ?? "",
       snapshot,
+      () => appAdminsOf(index(), props.getProperty(DOMAIN_KEY) ?? ""),
     ),
   };
 }
