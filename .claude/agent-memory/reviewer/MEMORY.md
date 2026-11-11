@@ -51,8 +51,6 @@
 - Slice 11 admin settings (2026-11-11): PASS (f84a021). 64 files, 1664 tests, lines 96.68 (server 99.31, web 91.92), Code.js 351.4 KB, index.html 359.5 KB, Lighthouse 100x14, 10 scopes.
   - settings in index.json (shared/model/settings.ts, settingsOf fills defaults per reader). config.set web admin.ops, in-lock recheck, `from` = value (A-B-A overwrite silent). Off rule in levelResolver before admin rule: private = use for owner/admin.
   - Probes all clean: 20 off writes x owner/admin DENIED off text, 4 races, 0 Drive writes on 18 reads, on-again identical, bad backup settings VALIDATION before lock.
-  - Minors: recipient policy not re-checked in lock; Save focus to BODY (disabled while focused); client CONFLICT ignores details; name echo unbounded; smoke Slice 9 steps 5-6 use dead property; spec 5.8 grant/admin.folders errata.
-  - Daily purges private trash while off (ADR-0008 line 92, accepted).
 - Slice 13 fix round (2026-11-11): FAIL (3ca3920, export event only at offset 0, buffer result ignored), retry 1 FAIL (f3f8156, page events evicted by export's own bd:* puts at 1,000 templates), retry 2 PASS (ca18ca9 on c96a38b). 1710 tests, lines 96.79, Code.js 358.6 KB, index.html 361.8 KB, Lighthouse 100x14, 10 scopes.
   - Retry 2 mechanism: export `start: true` commits one export.* event via `commit` into pendingAudit, then token `exp:<newId>` (actor, kind, folderId, 600 s sliding) in Script Cache; pages refuse VALIDATION EXPORT_RESTART without it; pages read bodies with keep=false. Buffer holds apply+denied only; evt:lost "<lost> <seen>"; full buffer reuses evicted slot first.
   - Open minors: retry text "did not answer" for BUSY; NETWORK retry of a landed start writes 2 events; audit "started" gives no partial-download hint; token from Math.random (bound to actor, harmless); in-lock import recheck refuses whole import; spec/ADR export passages for architect.
@@ -100,6 +98,7 @@
 - Slice 22 hints + Search button D36 (2026-11-11): PASS (review on 8b91e3d). 71 files, 1982 tests, Code.js 372.5 KB, 10 scopes. 4 minors.
   - Code: spec.ts hint() tone "hint" -> DecoratedText info icon + <font color="#5f6368">; 5 hint lines; Search TextButton (onSearch, icon via typeof-guarded setMaterialIcon, throw not caught). Worst cards 76/84/44. Grey 6.05 white, 2.66 #202124.
   - Recording Card Service is one shared Proxy chain: to fake a missing/throwing method wrap newX() in a Proxy that returns itself.
+- Slice 22b follow-up (2026-11-11): PASS (review on 0b90f44). 1986 tests, Code.js 373.5 KB. Error tone = DecoratedText icon error + alt "Error", no "(!)"; compose search row = Columns (try/catch fallback to stack). Minor: toIcon start icon unguarded.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
