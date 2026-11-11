@@ -63,7 +63,6 @@
 ## Code map (after slice 5b)
 - D24 (slice 5c): `DRAFT_FIELDS`, `requestDraft` with `hasSubject` (protocol.ts); `draftInfo`, `draftHasSubject` (addon/event.ts); truth table `replacesSubject`, `WITH_SUBJECT` (cards/spec.ts). Gmail compose events carry no threadId/messageId. `ports(event)` sends `draft` on every call; server logs `draft` only when valid, else VALIDATION.
 - `folderLabel` in folders.ts: `folder.list` renames other users' private folders "My templates (owner)".
-- Web: `formatTime` local; `conflictText` in status.ts; `DialogAction.autofocus`; rowMenu takes `{ busy, done }`; library `bodyPending`.
 
 ## Code map (after slice 6a)
 - Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
@@ -95,6 +94,7 @@
 - event.ts `entryOf`, `messageIdOf`, `tokenOf`, `addressesOf`, `internalAddress`; `onMessageOpen`; `ButtonSpec.compose` -> `setComposeAction`; Reply kind `compose` -> ComposeActionResponse.
 - src/addon/panel.ts `composeFlow` (row, `onCompose`), `promptComposeFlow` (details, `onPromptCompose`), `failureText`, `panelVisible` (one catch). `Ports.gmail` (`GmailPort`, getter in entry.ts). flows.ts `rendered(body, input)` = the one render step of all 4 paths. cards/sidePanel.ts `COMPOSE_AS`, `composeButton`; `panelDetailsCard(state, entry)`; `recipientWidgets(plan, domain, typing)`.
 - Follow-up 1: Gmail showed no notification from a compose action on a row (part J step 11). `panelAnswer` throws `Error(<one plain sentence>)` for every panel failure; flows return `PanelReply` (compose | notify).
+- Follow-up 2 (D33): message rows = item without button + ButtonSet Reply/Reply all; `templateItem` returns Widget[], `listSection(header, rows: Widget[][])`.
 - test/fakes/gmail.ts `createRecordingGmail(headers|null, failMethod)`; test/unit/addon/panel.test.ts. Commit trailer: use the system attribution lines (model named there), not a model name from an agent prompt.
 ## Slice 12 (add-on layout and wording, 2026-11-11)
 - Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.
@@ -131,7 +131,6 @@
 - Retry 2 (replaces retry 1 export design): `export.* { start: true }` commits one event via `commit` and returns `{ token, total }`; token `exp:<id>` in Script Cache, 600 s sliding, bound to caller and scope; pages without it answer VALIDATION `EXPORT_RESTART`. Pages read bodies with `readStoredBody(..., false)` (no cache fill). Buffer: apply|denied only, evicted slot first, `evt:lost` = "<lost> <seen>" in one key. Audit row `exportTemplates`. Web retries any `retryable` error 3 times; harness `&failTimes=n`, `&failSkip=n`. Seed 1,000 templates fast with 5 imports of 200.
 - Old `from` args: reload hint. `RequestStats.target` feeds the log `targetId` when args lack `id`/`folderId`.
 - `prof:<sha256>` keys; `FakeCache.keys()`. `cancelDialogs()` on Back/Forward; backdrop `preventDefault`. Library folder choice for New template (`lastNewFolder`); harness `?access=use`.
-- Search: `SearchFields.addresses` + `Query.words`, web only.
 ## Slice 14 (wording, 2026-11-11)
 - `docs/design/wording.md` is the glossary (things, actions, words never on screen) and the table of 220 changed texts. Review FAIL on stale doc quotes: after any rename, sweep every quoted text in docs/guide and docs/ops/smoke.md against src (not only the renamed ones); errors say "My templates", address boxes are "To, Cc and Bcc" (never "field"), one text per state on all surfaces. New text: check the glossary first. Access = "Who has access", "Give access", "Can use/edit/manage"; field, field name, default text, sender; personal (never private); Delete vs Remove; entry (audit); insert (never apply).
 - Web: `exportFailedText(done, total, answer)` (adminTransfer.ts; null = no answer, NETWORK only); editor chip announcer `.sr-only.chip-status`; `JOB_WORDS` (adminConfig.ts). Server: `IMPORT_SETTING_CHANGED`, `recheckOrExplain` (transfer.ts). Harness `?exportPage=<n>`, `fail=NETWORK`.

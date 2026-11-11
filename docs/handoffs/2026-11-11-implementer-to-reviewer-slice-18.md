@@ -80,3 +80,15 @@ Merged `claude/gracious-franklin-3n8zbq` (85e41f0) first.
 - Docs: part J step 11 records what Gmail shows; docs/spikes/slice-10-s7.md "Part J run, 2026-11-11" (Q68, Q74 settled, header reads ran).
 - For the architect: in the reply of part J step 7 the tester saw no quoted earlier message ("..." not seen); S7 step 2 saw a trimmed-quote marker. Unconfirmed; the owner checks by hand.
 - Files: src/addon/{panel,entry}.ts; test/unit/addon/{panel,addon}.test.ts; docs/design/wording.md, docs/ops/test-round-1.md, docs/spikes/slice-10-s7.md.
+
+## Follow-up 2 (2026-11-11): Reply and Reply all on rows (D33)
+
+Merged `claude/gracious-franklin-3n8zbq` (97595c6) first.
+
+- Row layout, email open: the `DecoratedText` (icon, title, hint line, tap opens the details card) with no button, then a `ButtonSet` right under it: "Reply" (filled slate) and "Reply all" (outlined), both compose actions `REPLY_AS_DRAFT`, `onCompose {id, as: reply|replyAll, rc?}`. No email open: unchanged, "New email" in the row. Compose: unchanged, "Insert". The details card keeps its footer.
+- Code: cards/folder.ts `rowButtons` (1 or 2 buttons), `templateItem` returns 1 or 2 widgets, `listSection` takes rows and collapses after 5 whole rows (10 widgets with a message open). No render change: the `buttons` widget already renders a `ButtonSet`. `composeFlow` already handled `replyAll` (no first name, new Cc only).
+- Widget counts with an email open (2 per row): Favorites 10 rows = 20, Recent 5 rows = 10, a folder page of 20 = 40 (pager in its own section), search results 20 = 40. Home with 10 favorites, 5 recent and 30 folders = 62 widgets on the card; the largest section holds 40. Every section stays under 100; no page was shortened.
+- Tests: cards.test row widgets for compose, inbox, message (both actions, template ID, `rc`); per-card widget counts; collapse of 2-widget rows. addon.test 3 compose actions rendered. panel.test row "Reply all".
+- Docs: quick start one line; part J step 13 (row "Reply all", records layout and readability); smoke Slice 18 now "steps 1 to 13". No new text for wording.md ("Reply all" is listed).
+- Erratum for the architect: docs/wireframes/01-sidebar-home.txt "Message open" shows one [Reply] per row; it now has a row of (Reply) [Reply all] under each title.
+- Unverified in Gmail: how a `ButtonSet` right under a `DecoratedText` looks in the 300 px panel, and whether a collapsed section that cuts at 10 widgets reads well (part J step 13).
