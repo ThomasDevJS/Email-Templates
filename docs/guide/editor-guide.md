@@ -96,12 +96,12 @@ The placeholder menu lists 5 values and one question type.
 | "Sender phone" | `{{sender.phone}}` | Work phone, else the first phone |
 | "Sender department" | `{{sender.department}}` | Department |
 | "Recipient first name" | `{{recipient.first_name}}` | First name of the To recipient, only with exactly one To address inside Migway |
-| "Ask the user..." | `{{ask:Meeting date}}` | What the user types in the panel |
+| "Ask the sender..." | `{{ask:Meeting date}}` | What the user types in the panel |
 
 - Fallback: select a blank, open "Insert field", "Add fallback...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
 - A value with no directory entry and no fallback becomes a field the user must fill. Nothing is ever inserted blank.
 - Saving warns about "Recipient first name" without a fallback: "users will be asked for it".
-- "Ask the user..." takes a label of 1 to 40 characters. The same label used several times is asked once. Questions take no fallback.
+- "Ask the sender..." takes a label of 1 to 40 characters. The same label used several times is asked once. Questions take no fallback.
 - At most 20 questions per template, subject and text together.
 - Placeholders work in text only, never inside a link address.
 - One placeholder must keep one format. Bolding a whole blank works; bolding half of a typed `{{...}}` is an error.

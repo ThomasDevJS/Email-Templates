@@ -273,7 +273,7 @@ describe("editor layout (slice 8b)", () => {
     expect(reads.hidden).toBe(false);
     expect(reads.textContent).toBe("Reads asQuote for Product name");
     expect(reads.querySelector(".ph.ask")?.getAttribute("aria-label")).toBe(
-      "Field: Product name, asked at insert",
+      "Field: Product name, the sender fills it in",
     );
     const subject = byId("subject");
     subject.value = "Offer <b> {{sender.name|us}}";
@@ -318,15 +318,20 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
       "yard@example.com",
       "late@example.com",
     ]);
-    // Each change is said in the page's live region (role=status).
+    // Each change is said in a live region that only screen readers get (role=status, sr-only). The visible
+    // status line stays empty: it holds save results only, and a chip never moves the toolbar and the sheet.
     const said = () =>
+      main().querySelector('.sr-only[role="status"]')?.textContent;
+    const shown = () =>
       main().querySelector('.status[role="status"]')?.textContent;
-    expect(said()).toBe("Added late@example.com to To");
+    expect(said()).toBe("Added late@example.com to To.");
+    expect(shown()).toBe("");
     key(to, "Backspace");
     expect(chips("to")).toHaveLength(4);
-    expect(said()).toBe("Removed late@example.com from To");
+    expect(said()).toBe("Removed late@example.com from To.");
     button("Remove ops@example.com from To").click();
-    expect(said()).toBe("Removed ops@example.com from To");
+    expect(said()).toBe("Removed ops@example.com from To.");
+    expect(shown()).toBe("");
     expect(chips("to")).toEqual([
       "payroll@example.com",
       "dock@example.com",
@@ -340,7 +345,7 @@ describe("recipient fields (spec 5.7, 7.1)", () => {
     });
     cc.dispatchEvent(paste);
     expect(chips("cc")).toEqual(["a@example.com", "b@partner.com"]);
-    expect(said()).toBe("Added a@example.com, b@partner.com to Cc");
+    expect(said()).toBe("Added a@example.com, b@partner.com to Cc.");
     const marks = [
       ...(cc.closest(".chips-box")?.querySelectorAll(".chip-mark") ?? []),
     ];
@@ -826,7 +831,7 @@ describe("unsaved-changes guard", () => {
     button("Save and leave").click();
     await until(() => {
       expect(document.querySelector(".toast")?.textContent).toContain(
-        "Busy, try again.",
+        "The library is busy. Try again in a few seconds.",
       );
     });
     expect(window.location.hash).toBe("#/edit/T-QUOTE");

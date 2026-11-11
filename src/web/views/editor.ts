@@ -373,10 +373,16 @@ export function editorView(
     role: "status",
     "aria-live": "polite",
   });
+  /** Recipient chip changes are said here, for screen readers only; the visible line keeps the save state. */
+  const announcer = h("p", {
+    class: "sr-only chip-status",
+    role: "status",
+    "aria-live": "polite",
+  });
   const notice = h(
     "p",
     { class: "page-note read-only-note" },
-    "You can use this template but not change it. To change it, ask a folder manager for edit access.",
+    'You can use this template but not change it. To change it, ask a folder manager for "Can edit" access.',
   );
   const preview = h("div", { class: "preview-body" });
   const previewRecipients = h("div");
@@ -503,7 +509,7 @@ export function editorView(
             { class: "hint" },
             readOnly
               ? "None."
-              : "Nothing yet. To add a question, choose Insert field, then Ask the user.",
+              : "Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender.",
           )
         : h(
             "ul",
@@ -720,7 +726,7 @@ export function editorView(
         id: EDITOR_ID,
         role: "textbox",
         "aria-multiline": "true",
-        "aria-label": "Template body",
+        "aria-label": "Template text",
         "aria-readonly": String(readOnly),
         class: "editor",
       },
@@ -747,7 +753,7 @@ export function editorView(
       onChange: recipientsChanged,
       describedBy: "rcpt-help",
       announce: (text: string) => {
-        status.textContent = text;
+        announcer.textContent = text;
       },
     };
     fields = {
@@ -775,7 +781,7 @@ export function editorView(
       h(
         "p",
         { class: "hint rcpt-help", id: "rcpt-help" },
-        "Added to the draft when someone inserts this template. Users see every address before it is added.",
+        "Added to the draft when someone inserts this template. The sender sees every address before it is added.",
       ),
     );
     // The toolbar and its menu take focus too; only a field or the body changes the "Insert field" target.
@@ -927,7 +933,7 @@ export function editorView(
         "Copied your text. Open their version and paste it where needed.";
     } catch {
       status.textContent =
-        "Copy failed. Select the text in the editor and press Ctrl+C.";
+        "Not copied. Select the text in the editor and press Ctrl+C.";
     }
   };
 
@@ -1113,6 +1119,7 @@ export function editorView(
         saveButton,
       ),
       status,
+      announcer,
       work,
     ),
   );

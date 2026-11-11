@@ -68,7 +68,7 @@ export function trashView(
     const options = editableFolders(app.folders());
     if (options.length === 0) {
       status.textContent =
-        "You can edit no folder to restore into. Ask a folder manager.";
+        "Not restored. You have no folder you can edit. Ask a folder manager for access.";
       return;
     }
     const id = uid("restore-folder");
@@ -132,11 +132,11 @@ export function trashView(
               .purgeTrash()
               .then(async ({ templates, folders, itemsPending }) => {
                 const result = `${purgeText(templates, folders)}${
-                  (await load()) ? "" : " The list could not be refreshed."
+                  (await load()) ? "" : " Reload the page to see the list."
                 }`;
                 status.textContent = `${result}${
                   itemsPending > 0
-                    ? ` The nightly job deletes the stored versions of ${String(itemsPending)} of them.`
+                    ? ` The stored versions of ${String(itemsPending)} of them are deleted tonight.`
                     : ""
                 }`;
                 heading.focus();
@@ -239,7 +239,7 @@ export function trashView(
             h(
               "p",
               { class: "empty" },
-              "The trash could not be loaded. Use Retry in the message, or reload the page.",
+              "The trash could not be loaded. Press Retry in the message, or reload the page.",
             ),
         );
         return false;
@@ -262,7 +262,7 @@ export function trashView(
       h(
         "p",
         { class: "page-note" },
-        `Deleted templates stay ${String(TRASH_DAYS)} days, then are removed.`,
+        `Deleted templates stay here ${String(TRASH_DAYS)} days. After that they are deleted for good.`,
       ),
       list,
       status,

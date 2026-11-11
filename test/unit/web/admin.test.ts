@@ -442,7 +442,7 @@ describe("folders and grants", () => {
     (dialog().querySelector("input") as HTMLInputElement).value = "Prices";
     button("OK", dialog()).click();
     await until(() => {
-      expect(status()).toContain("Changed by dev.user@example.com at");
+      expect(status()).toContain("dev.user@example.com changed this at");
     });
     await until(() => {
       expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
@@ -566,7 +566,7 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Emptied the trash: 1 template deleted for good. The list could not be refreshed.",
+        "Emptied the trash: 1 template deleted for good. Reload the page to see the list.",
       );
     });
   });
@@ -591,7 +591,7 @@ describe("trash", () => {
     });
   });
 
-  it("says when the nightly job deletes the stored versions of purged templates", async () => {
+  it("says when the stored versions of purged templates are deleted that night", async () => {
     await boot("/?latency=0&pending=2#/trash");
     await until(() => {
       expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
@@ -600,7 +600,7 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Emptied the trash: 1 template deleted for good. The nightly job deletes the stored versions of 2 of them.",
+        "Emptied the trash: 1 template deleted for good. The stored versions of 2 of them are deleted tonight.",
       );
     });
   });

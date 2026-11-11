@@ -139,7 +139,7 @@ export function recipientField(
   };
 
   const remove = (index: number) => {
-    options.announce(`Removed ${addresses[index] ?? ""} from ${name}`);
+    options.announce(`Removed ${addresses[index] ?? ""} from ${name}.`);
     addresses = addresses.filter((_, i) => i !== index);
     changed();
   };
@@ -152,7 +152,7 @@ export function recipientField(
     input.value = "";
     if (fresh.length === 0) return;
     addresses = [...addresses, ...fresh];
-    options.announce(`Added ${fresh.join(", ")} to ${name}`);
+    options.announce(`Added ${fresh.join(", ")} to ${name}.`);
     changed();
   };
 

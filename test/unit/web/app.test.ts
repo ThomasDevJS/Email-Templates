@@ -228,7 +228,7 @@ describe("library (screen 3)", () => {
     expect(text()).toContain("Searching text...");
     await until(() => {
       expect(text()).toContain(
-        'No templates match "interest". Try folder: or tag:.',
+        'No templates match "interest". Try fewer words, or remove folder: and tag: from the search.',
       );
     });
   });
@@ -264,7 +264,7 @@ describe("library (screen 3)", () => {
     search.dispatchEvent(new Event("input"));
     await until(() => {
       expect(text()).toContain(
-        'No templates match "qoute". Try folder: or tag:.',
+        'No templates match "qoute". Try fewer words, or remove folder: and tag: from the search.',
       );
     });
   });
@@ -648,7 +648,7 @@ describe("editor (screen 4, flow 4.2)", () => {
       [...menu.querySelectorAll('[role="menuitem"]')].map(
         (item) => item.textContent,
       ),
-    ).toContain("Ask the user...");
+    ).toContain("Ask the sender...");
     key(menu, "ArrowDown");
     key(menu, "End");
     key(menu, "ArrowUp");
@@ -700,7 +700,7 @@ describe("editor (screen 4, flow 4.2)", () => {
     button("Copy my text").click();
     await until(() => {
       expect(main().querySelector(".status")?.textContent).toContain(
-        "Copy failed",
+        "Not copied",
       );
     });
     save.click();
@@ -789,7 +789,7 @@ describe("history (screen 5)", () => {
     await until(() => {
       expect(
         main().querySelector(".preview-body .ph")?.getAttribute("aria-label"),
-      ).toBe("Field: Recipient first name, fallback there");
+      ).toBe("Field: Recipient first name, default text there");
     });
     key(list, "r");
     const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
@@ -823,7 +823,7 @@ describe("history (screen 5)", () => {
     });
     expect(
       main().querySelector(".preview-subject .ph")?.getAttribute("aria-label"),
-    ).toBe("Field: Product name, asked at insert");
+    ).toBe("Field: Product name, the sender fills it in");
   });
 });
 
@@ -1148,7 +1148,7 @@ describe("states (spec section 7, wireframe 07)", () => {
   it("NOT_FOUND shows a banner", async () => {
     await boot("/?latency=0#/history/T-GONE");
     await until(() => {
-      expect(text()).toContain("This template was removed or moved.");
+      expect(text()).toContain("This template was deleted or moved.");
     });
   });
 
@@ -1159,7 +1159,9 @@ describe("states (spec section 7, wireframe 07)", () => {
     });
     const toast = document.querySelector(".toast") as HTMLElement;
     expect(toast.getAttribute("role")).toBe("alert");
-    expect(toast.textContent).toContain("Busy, try again.");
+    expect(toast.textContent).toContain(
+      "The library is busy. Try again in a few seconds.",
+    );
     expect(toast.querySelector(".request-id")?.textContent).toMatch(
       /^Request ID [0-9A-Z]+-[0-9A-Z]{6}$/,
     );
@@ -1169,7 +1171,7 @@ describe("states (spec section 7, wireframe 07)", () => {
     await until(() => {
       expect(document.querySelector(".toast")).not.toBeNull();
     });
-    button("Dismiss").click();
+    button("Close").click();
     expect(document.querySelector(".toast")).toBeNull();
   });
 
@@ -1183,7 +1185,7 @@ describe("states (spec section 7, wireframe 07)", () => {
     button("Save").click();
     await until(() => {
       expect(document.querySelector(".toast")?.textContent).toContain(
-        "Something went wrong. Retry.",
+        "Something went wrong. Try again.",
       );
     });
     expect(main().querySelector(".status")?.textContent).toBe("Not saved.");
