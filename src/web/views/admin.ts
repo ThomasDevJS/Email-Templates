@@ -21,6 +21,15 @@ export interface AdminData {
   readonly folders: readonly FolderRow[];
 }
 
+/**
+ * The one folder list of the Admin view (test round 1, part D step 14). Every tab reads `current()` when it opens;
+ * a folder write calls `refresh()`, so the next tab shows the change with no page reload.
+ */
+export interface AdminFolders {
+  current(): AdminData;
+  refresh(): Promise<AdminData>;
+}
+
 const TAB_LABELS: Readonly<Record<AdminTab, string>> = {
   folders: "Folders and access",
   memberships: "Groups",
@@ -36,11 +45,11 @@ function openTab(
   name: AdminTab,
   app: AppContext,
   panel: HTMLElement,
-  data: AdminData,
+  folders: AdminFolders,
 ): View {
   switch (name) {
     case "folders":
-      return foldersTab(app, panel, data);
+      return foldersTab(app, panel, folders);
     case "memberships":
       return membershipsTab(app, panel);
     case "audit":
@@ -48,7 +57,7 @@ function openTab(
     case "usage":
       return usageTab(app, panel);
     case "transfer":
-      return transferTab(app, panel, data);
+      return transferTab(app, panel, folders);
     case "config":
       return configTab(app, panel);
   }
@@ -91,7 +100,15 @@ export function adminView(
   );
   let current: View | null = null;
 
-  const show = (data: AdminData, tab: AdminTab) => {
+  const show = (initial: AdminData, tab: AdminTab) => {
+    let data = initial;
+    const folders: AdminFolders = {
+      current: () => data,
+      refresh: async () => {
+        data = await app.api.adminFolders();
+        return data;
+      },
+    };
     const tabs = data.isAdmin ? ADMIN_TABS : MANAGER_TABS;
     let active = tabs.includes(tab) ? tab : "folders";
     const panel = h("div", {
@@ -127,7 +144,7 @@ export function adminView(
       panel.setAttribute("aria-labelledby", `tab-${name}`);
       app.replaceRoute({ name: "admin", tab: name });
       current?.dispose();
-      current = openTab(name, app, panel, data);
+      current = openTab(name, app, panel, folders);
     };
     const tablist = h(
       "div",

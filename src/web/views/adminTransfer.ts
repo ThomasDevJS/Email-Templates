@@ -9,7 +9,7 @@ import { ErrorCode } from "../../shared/errors/codes";
 import { RpcError } from "../rpc/client";
 import { adminLineText, lineText, toRpcError } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
-import type { AdminData } from "./admin";
+import type { AdminData, AdminFolders } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 
@@ -254,7 +254,11 @@ function reportTables(report: ImportReport): HTMLElement[] {
   return [counts, lines];
 }
 
-function importSection(app: AppContext, data: AdminData): HTMLElement {
+function importSection(
+  app: AppContext,
+  data: AdminData,
+  folders: AdminFolders,
+): HTMLElement {
   const status = h("p", {
     class: "status",
     role: "status",
@@ -302,7 +306,9 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
         if (dryRun) return;
         // The Import button turns disabled, so focus goes to the report it produced.
         result.querySelector<HTMLElement>("table")?.focus();
+        // An import can create folders: the library and the other Admin tabs read them again.
         void app.reload();
+        folders.refresh().catch(() => undefined);
       })
       .catch((error: unknown) => {
         status.textContent = adminLineText(error, app.fail(error));
@@ -357,12 +363,13 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
 export function transferTab(
   app: AppContext,
   panel: HTMLElement,
-  data: AdminData,
+  folders: AdminFolders,
 ): View {
+  const data = folders.current();
   replace(
     panel,
     exportSection(app, data),
-    data.isAdmin ? importSection(app, data) : null,
+    data.isAdmin ? importSection(app, data, folders) : null,
   );
   return { dispose: () => undefined };
 }

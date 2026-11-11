@@ -15,7 +15,7 @@ import { openDialog, promptText } from "../ui/dialog";
 import { h, replace, uid } from "../ui/dom";
 import { icon, type IconName } from "../ui/icons";
 import { lineText, skeletonRows } from "../ui/status";
-import type { AdminData } from "./admin";
+import type { AdminFolders } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 import { createFolderTree } from "./tree";
@@ -78,9 +78,9 @@ function labelled(id: string, label: string, ...control: HTMLElement[]) {
 export function foldersTab(
   app: AppContext,
   panel: HTMLElement,
-  initial: AdminData,
+  folders: AdminFolders,
 ): View {
-  let data = initial;
+  let data = folders.current();
   let selected = "";
   let grantTicket = 0;
   const status = h("p", {
@@ -105,7 +105,7 @@ export function foldersTab(
   };
 
   const refresh = async (select: string) => {
-    data = await app.api.adminFolders();
+    data = await folders.refresh();
     selected = folderOf(select) === undefined ? "" : select;
     tree.render(data.folders, selected);
     drawDetail();

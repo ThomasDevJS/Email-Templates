@@ -391,6 +391,30 @@ describe("folders and grants", () => {
     });
   });
 
+  it("lists a folder created in Folders and access under Export and import, with no page reload", async () => {
+    await boot("/?latency=0#/admin");
+    await until(() => {
+      expect(main().querySelector('[role="tablist"]')).not.toBeNull();
+    });
+    button("New top-level folder").click();
+    (dialog().querySelector("input") as HTMLInputElement).value = "Legal";
+    button("OK", dialog()).click();
+    await until(() => {
+      expect(status()).toContain('Created folder "Legal".');
+    });
+    button("Export and import").click();
+    const options = (label: string) => {
+      const field = [...main().querySelectorAll("label")].find(
+        (candidate) => candidate.textContent === label,
+      );
+      return [
+        ...main().querySelectorAll(`#${field?.htmlFor ?? "none"} option`),
+      ].map((option) => option.textContent);
+    };
+    expect(options("Import into")).toContain("Legal");
+    expect(options("Folder")).toContain("Legal");
+  });
+
   it("asks before deleting, Cancel first, and reports a non-empty folder", async () => {
     await boot("/?latency=0#/admin");
     await openQuotes();
