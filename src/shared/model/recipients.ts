@@ -52,13 +52,33 @@ export const FIELD_LABELS: Readonly<Record<RecipientField, string>> = {
 
 export const NO_RECIPIENTS: Recipients = { to: [], cc: [], bcc: [] };
 
-/** A stored item or version file: absent lists (records before slice 9) read as `[]`, with no write. */
-export function recipientsOf(record: {
-  readonly to?: readonly string[];
-  readonly cc?: readonly string[];
-  readonly bcc?: readonly string[];
-}): Recipients {
-  return { to: record.to ?? [], cc: record.cc ?? [], bcc: record.bcc ?? [] };
+type StoredLists = Readonly<Partial<Record<RecipientField, unknown>>>;
+
+/** Shape rule of a stored list (spec 5.7, shared with the index check): absent, or an array of strings. */
+export function isStoredList(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (Array.isArray(value) && value.every((v) => typeof v === "string"))
+  );
+}
+
+/**
+ * A stored item or version file: absent lists (records before slice 9) read as `[]`, with no write. A list that
+ * fails the shape rule (version files have no file-level check) also reads as `[]`; `unreadableRecipients` names it.
+ */
+export function recipientsOf(record: StoredLists): Recipients {
+  const read = (field: RecipientField): readonly string[] => {
+    const value = record[field];
+    return Array.isArray(value) && isStoredList(value)
+      ? (value as string[])
+      : [];
+  };
+  return { to: read("to"), cc: read("cc"), bcc: read("bcc") };
+}
+
+/** Fields of a stored record whose list fails the shape rule. */
+export function unreadableRecipients(record: StoredLists): RecipientField[] {
+  return RECIPIENT_FIELDS.filter((field) => !isStoredList(record[field]));
 }
 
 export function recipientCount(lists: Recipients): number {

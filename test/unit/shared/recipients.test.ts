@@ -8,6 +8,7 @@ import {
   normalizeRecipients,
   recipientsOf,
   splitBlocked,
+  unreadableRecipients,
   validateRecipients,
   type RecipientPolicy,
   type Recipients,
@@ -44,6 +45,17 @@ describe("normalization", () => {
   it("reads absent lists as empty", () => {
     expect(recipientsOf({})).toEqual(NO_RECIPIENTS);
     expect(recipientsOf({ cc: ["x@migway.com"] }).cc).toEqual(["x@migway.com"]);
+  });
+
+  it("reads a list failing the shape rule as empty and names it", () => {
+    const stored = { to: ["a@migway.com"], cc: "x@y.zz", bcc: [1] };
+    expect(recipientsOf(stored)).toEqual({
+      to: ["a@migway.com"],
+      cc: [],
+      bcc: [],
+    });
+    expect(unreadableRecipients(stored)).toEqual(["cc", "bcc"]);
+    expect(unreadableRecipients({})).toEqual([]);
   });
 
   it("treats only `deny` (any case, spaces) as deny", () => {

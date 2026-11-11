@@ -1,6 +1,11 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import type { Item } from "../../shared/model/data";
-import { recipientsOf, type Recipients } from "../../shared/model/recipients";
+import {
+  recipientsOf,
+  unreadableRecipients,
+  type RecipientField,
+  type Recipients,
+} from "../../shared/model/recipients";
 import { reqInt, reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
@@ -111,9 +116,12 @@ export function versionGet(context: HandlerContext): {
 
 /**
  * Restore creates version N+1 from subject, recipients and body of version K (linear history) through the save write
- * path, so K's recipients are validated again (`deny` refuses outside addresses), plus an audit row.
+ * path, so K's recipients are validated again (`deny` refuses outside addresses), plus an audit row. A list of K
+ * that fails the shape rule restores as empty and is named in `recipientsUnreadable`.
  */
-export function versionRestore(context: HandlerContext): Item {
+export function versionRestore(
+  context: HandlerContext,
+): Item & { recipientsUnreadable: RecipientField[] } {
   const id = reqString(context.args, "id");
   const from = reqInt(context.args, "version");
   const baseVersion = reqInt(context.args, "baseVersion");
@@ -145,7 +153,7 @@ export function versionRestore(context: HandlerContext): Item {
       events: [
         templateEvent(source, doc, "version.restore", before, after, body),
       ],
-      result: after,
+      result: { ...after, recipientsUnreadable: unreadableRecipients(old) },
     };
   });
 }

@@ -189,6 +189,36 @@ describe("old data (no recipient fields)", () => {
   });
 });
 
+describe("version file shape", () => {
+  it("a malformed list in a version file reads as empty, restore names it, nothing is written on read", () => {
+    const item = create();
+    const file = world.drive.files.get(item.bodyFileId);
+    if (file === undefined) throw new Error("no body file");
+    file.content = JSON.stringify({
+      ...bodyFile(item),
+      cc: "x@y.zz",
+      bcc: [1],
+    });
+    const v2 = update(item, { cc: [] });
+    const rev = fileIndex().rev;
+    expect(
+      world.ok(OWNER, "version.get", { id: item.id, version: 1 }),
+    ).toMatchObject({ to: [TO], cc: [], bcc: [] });
+    expect(fileIndex().rev).toBe(rev);
+    const restored = world.ok<Item & { recipientsUnreadable: string[] }>(
+      OWNER,
+      "version.restore",
+      { id: item.id, version: 1, baseVersion: v2.currentVersion },
+    );
+    expect(restored).toMatchObject({
+      to: [TO],
+      cc: [],
+      bcc: [],
+      recipientsUnreadable: ["cc", "bcc"],
+    });
+  });
+});
+
 describe("duplicate, restore, version.get", () => {
   it("duplicate copies the lists; restore copies the lists of version K", () => {
     const item = create();

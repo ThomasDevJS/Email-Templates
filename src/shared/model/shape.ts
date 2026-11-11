@@ -3,6 +3,8 @@
  * Each returns "" when the value can be used, else the first problem. The store runs them on every Drive read of
  * these files and on backup copies before a restore, so a damaged file is refused before anything uses it.
  */
+import { isStoredList } from "./recipients";
+
 type Json = Readonly<Record<string, unknown>>;
 
 function isRecord(value: unknown): value is Json {
@@ -29,9 +31,6 @@ function records(
 
 const stringList = (value: unknown) =>
   Array.isArray(value) && value.every(isString);
-/** Recipient lists (spec 5.7): absent in items saved before slice 9. */
-const optStringList = (value: unknown) =>
-  value === undefined || stringList(value);
 
 export function indexProblem(doc: unknown): string {
   if (!isRecord(doc)) return "not a record";
@@ -59,9 +58,9 @@ export function indexProblem(doc: unknown): string {
       folderId: isString,
       title: isString,
       tags: Array.isArray,
-      to: optStringList,
-      cc: optStringList,
-      bcc: optStringList,
+      to: isStoredList,
+      cc: isStoredList,
+      bcc: isStoredList,
       currentVersion: isInt,
       bodyFileId: isString,
       deletedAt: isString,
