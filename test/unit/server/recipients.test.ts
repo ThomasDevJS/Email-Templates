@@ -7,6 +7,7 @@ import type {
 } from "../../../src/shared/model/sidebar";
 import type {
   ExportPage,
+  ExportStart,
   ImportReport,
 } from "../../../src/server/handlers/transfer";
 import { mutateIndex } from "../../../src/server/storage/writer";
@@ -345,8 +346,13 @@ describe("sidebar counts and the switch value", () => {
 
 describe("export and import", () => {
   function exported(): string {
+    const { token } = world.ok<ExportStart>(OWNER, "export.folder", {
+      folderId: sales.id,
+      start: true,
+    });
     const page = world.ok<ExportPage>(OWNER, "export.folder", {
       folderId: sales.id,
+      token,
     });
     return JSON.stringify({ ...page.header, items: page.items });
   }

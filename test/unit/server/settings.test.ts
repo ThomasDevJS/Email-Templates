@@ -356,8 +356,11 @@ const CASES: Readonly<Record<string, Case>> = {
   ],
   "folder.delete": (f) => ["folder.delete", { folderId: f.sub.id }],
   "grant.list": (f) => ["grant.list", { folderId: f.anas.id }],
-  "export.folder": (f) => ["export.folder", { folderId: f.anas.id }],
-  "export.library": () => ["export.library", {}],
+  "export.folder": (f) => [
+    "export.folder",
+    { folderId: f.anas.id, start: true },
+  ],
+  "export.library": () => ["export.library", { start: true }],
   import: (f) => [
     "import",
     {
