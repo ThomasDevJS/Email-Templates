@@ -415,6 +415,26 @@ describe("folders and grants", () => {
     expect(options("Folder")).toContain("Legal");
   });
 
+  it("a tab opened while a folder write is listed draws with the new list", async () => {
+    await boot("/?latency=30#/admin");
+    await until(() => {
+      expect(main().querySelector('[role="tablist"]')).not.toBeNull();
+    });
+    button("New top-level folder").click();
+    (dialog().querySelector("input") as HTMLInputElement).value = "Legal";
+    button("OK", dialog()).click();
+    await until(() => {
+      expect(status()).toContain("Creating folder...");
+    });
+    button("Export and import").click();
+    await until(() => {
+      const options = [...main().querySelectorAll("option")].map(
+        (option) => option.textContent,
+      );
+      expect(options).toContain("Legal");
+    });
+  });
+
   it("asks before deleting, Cancel first, and reports a non-empty folder", async () => {
     await boot("/?latency=0#/admin");
     await openQuotes();

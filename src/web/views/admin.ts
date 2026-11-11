@@ -27,7 +27,8 @@ export interface AdminData {
  */
 export interface AdminFolders {
   current(): AdminData;
-  refresh(): Promise<AdminData>;
+  /** Reads the list again once `after` (a folder write) settles. A tab opened meanwhile waits for the answer. */
+  refresh(after?: Promise<unknown>): Promise<AdminData>;
 }
 
 const TAB_LABELS: Readonly<Record<AdminTab, string>> = {
@@ -102,11 +103,23 @@ export function adminView(
 
   const show = (initial: AdminData, tab: AdminTab) => {
     let data = initial;
+    let pending: Promise<AdminData> | null = null;
     const folders: AdminFolders = {
       current: () => data,
-      refresh: async () => {
-        data = await app.api.adminFolders();
-        return data;
+      refresh: (after = Promise.resolve()) => {
+        const next = after
+          .catch(() => undefined)
+          .then(() => app.api.adminFolders())
+          .then((fresh) => {
+            data = fresh;
+            return fresh;
+          });
+        pending = next;
+        const clear = () => {
+          if (pending === next) pending = null;
+        };
+        next.then(clear, clear);
+        return next;
       },
     };
     const tabs = data.isAdmin ? ADMIN_TABS : MANAGER_TABS;
@@ -144,7 +157,17 @@ export function adminView(
       panel.setAttribute("aria-labelledby", `tab-${name}`);
       app.replaceRoute({ name: "admin", tab: name });
       current?.dispose();
-      current = openTab(name, app, panel, folders);
+      current = null;
+      const open = () => {
+        if (active === name) current = openTab(name, app, panel, folders);
+      };
+      if (pending === null) {
+        open();
+        return;
+      }
+      // A folder write is still being listed: the tab draws with the new list (20a review minor 3).
+      replace(panel, ...skeletonRows(3));
+      pending.then(open, open);
     };
     const tablist = h(
       "div",

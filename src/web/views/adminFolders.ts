@@ -15,7 +15,7 @@ import { openDialog, promptText } from "../ui/dialog";
 import { h, replace, uid } from "../ui/dom";
 import { icon, type IconName } from "../ui/icons";
 import { lineText, skeletonRows } from "../ui/status";
-import type { AdminFolders } from "./admin";
+import type { AdminData, AdminFolders } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 import { createFolderTree } from "./tree";
@@ -104,25 +104,27 @@ export function foldersTab(
     detail.querySelector<HTMLElement>("#folder-heading")?.focus();
   };
 
-  const refresh = async (select: string) => {
-    data = await folders.refresh();
+  const redraw = async (list: Promise<AdminData>, select: string) => {
+    data = await list;
     selected = folderOf(select) === undefined ? "" : select;
     tree.render(data.folders, selected);
     drawDetail();
   };
 
-  /** Busy text at once, the folder write, then the folder list again; a failure shows its text and reloads. */
+  /** Busy text at once, the folder write, then the shared folder list again; a failure shows its text and reloads. */
   const write = (pending: string, work: () => Promise<Outcome>) => {
     status.textContent = pending;
-    work()
+    const running = work();
+    const listed = folders.refresh(running);
+    running
       .then(async (outcome) => {
         app.foldersChanged();
-        await refresh(outcome.select);
+        await redraw(listed, outcome.select);
         status.textContent = outcome.text;
       })
       .catch(async (error: unknown) => {
         status.textContent = lineText(error, app.fail(error));
-        await refresh(selected).catch(() => undefined);
+        await redraw(listed, selected).catch(() => undefined);
       })
       .finally(focusHeading);
   };
