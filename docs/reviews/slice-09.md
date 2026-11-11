@@ -1,6 +1,6 @@
 # Review: slice 9, template recipients (To, Cc, Bcc)
 
-Verdict: FAIL.
+Verdict: PASS (retry 1, head 08955ca). First review: FAIL at 441ab04.
 
 Branch `slice/09-recipients`, base 6c7afc1, head 441ab04 (6 commits: 8d12e62, 8f0e4d3, c2bf572, c0c8cbf, fab1338, 441ab04). Reviewer, 2026-11-10.
 
@@ -59,3 +59,33 @@ i. Clean install and checks: all pass (table above).
 ## Acceptance criteria
 
 1. Validator: met. 2. Data and write paths: met. 3. Server ops: met. 4. Recipient actions: not met (must fix 1). 5. Disclosure: not met (must fixes 2 and 3). 6. Side panel: met (`templateItem` and `previewCard` show no Insert outside compose). 7. S6 removed, record written: met. 8. Smoke and guides: met.
+
+## Retry 1 (2026-11-11): PASS
+
+Commits f0db88a, 5d75b43, d24e506, 08955ca on top of 0fd571d. All 3 must-fixes and minors 4 and 5 are fixed.
+
+Checks from a clean install (`rm -rf node_modules && npm ci`), all exit 0:
+
+| Command | Result |
+|---|---|
+| `npm ci` | 16 audit findings (14 moderate, 2 high), unchanged |
+| `npm run lint`, `npm run typecheck` | clean |
+| `npm run test:coverage` | 60 files, 1414 tests passed; 95.67 stmts, 89.57 branches, 96.59 lines; addon 100 lines, server 99.31, shared/model 100 |
+| `npm run build -- --env dev` | Code.js 346.6 KB, index.html 340.6 KB (unchanged) |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 100 on all 11 views |
+
+Secret scan of the 4 commits: no token pattern; addresses are test and role placeholders; no URL added. Nothing under src/web, test/unit/web, scripts or config. `setSendStatus` only in comments.
+
+1. Unknown draft fields: fixed. `draftRecipients` (src/addon/event.ts) returns null per field; the first source holding the key decides. Probe, To, Cc and Bcc each set to missing, null, a string, an object and `["a@y.z", 5]` (15 cases): the bad field never gets an action, the other fields keep their draft list first. Unknown To counts as filled (template To goes to "Add by hand"). All 3 unknown, in 5 forms, and no event: `{}` recipients, so the response holds body and subject only. Paths through `insertFlow` and `promptInsertFlow` with the real server: plain Insert after Review, "Insert with subject" on a reply with Cc and Bcc unknown, prompt card with "Add recipients" on, all 3 unknown with the switch forced on: no action for an unknown field. The cards name the addresses: "The draft's Cc recipients could not be read and were not changed. Add by hand: safety@example.com." Known cases unchanged: display-name entries kept verbatim and matched, mixed case and trailing spaces matched, draft duplicates kept, 30 addresses kept in order plus 1, an address in another field skipped with no action, empty draft gets all 3.
+2. Prompt card: fixed. It shows "Add recipients" (bottom label "Adds n recipients.") and then `recipientWidgets`, the preview card function. Probe: Bcc line "outside example.com" plus "hidden from other recipients", unknown Cc line, finish-typing line. Switch off: `{}` recipients, lines unchanged.
+3. Finish typing: fixed. One sentence, "Finish typing addresses in the draft first: an address still being typed is lost.", on both cards, only when Insert adds an address (absent on the all-unknown card). docs/spikes/slice-09-s6.md:28 now matches the build.
+4. Version files: fixed. A file with `to: null`, `cc: "x@y.zz"`, `bcc: [1]`: `version.get` gives `[]` for all 3; file and index unchanged after the read. `version.restore` succeeds with `recipientsUnreadable: ["to","cc","bcc"]`; the audit event `version.restore` has before with the item's lists and after with `[]`, and no `recipientsUnreadable` key. A clean restore returns `[]`. The index shape check uses the same `isStoredList`.
+5. Hash and unknown state: accepted. `rh` covers the template lists only; the plan is rebuilt from the tap's event, so a field unknown at the tap never gets an action whatever the card showed (probe: card known, tap Cc unknown: To and Bcc only).
+
+Minors (open):
+- Card built with Cc unknown, tap with Cc known: Insert adds the Cc address to the draft Cc list. The card said "were not changed. Add by hand" and "Adds 2 recipients."; the draft gets 3. The address was shown and no draft address is lost. Option: put the known or unknown state of each field in `rh`.
+- `recipientsUnreadable` is returned by `version.restore`; the web app does not show it yet (slice 8b).
+- Spec 5.7 truth table (unknown column) and spec 7.1 texts (prompt switch label, unknown line, finish-typing line) need the architect's erratum, listed in the handoff.
+- `prof:` cache key with a recipient address: still open.
