@@ -75,6 +75,7 @@ Web app, owner. About 25 minutes.
 11. In "History" pick the version of step 8. Expect: its To and Cc lines show above the subject.
 12. Open "A scratch", type a word, select it, click "Link". Expect: "Insert link" opens. Press the browser Back button. Expect: only "Leave without saving?" shows, the link dialog is gone, and the address stays on the editor. Click "Keep editing": no dialog is left and typing works.
 13. "Save". Library, on the "A scratch" row, "Actions", "Delete...", "Delete". Expect: the row leaves the list.
+14. Library, left sidebar, "Folders": click the arrow left of "Smoke 6a". Expect: `R&D <b>` shows under it and the list does not change. Click the arrow again. Expect: `R&D <b>` hides and the list still does not change. Click the name "Smoke 6a": the folder opens and `R&D <b>` shows. Click "Smoke 6a" again: `R&D <b>` hides and "Smoke 6a" stays open. Repeat in Admin, "Folders and access".
 
 | Step | Record                                 | Result |
 | ---- | -------------------------------------- | ------ |

@@ -125,13 +125,14 @@ export function startApp(host: Host): AppContext {
     openScope(id, false);
   }, null);
   element("side-folders").append(tree.element);
-  const drawSide = () => {
+  /** `reveal`: the user chose this route, so the tree shows its folder (slice 23). */
+  const drawSide = (reveal = false) => {
     const current = navOf(route, favoritesOnly);
     for (const link of document.querySelectorAll<HTMLElement>("[data-nav]"))
       link.toggleAttribute("aria-current", link.dataset["nav"] === current);
     const selected =
       route.name === "library" && !favoritesOnly ? route.folderId : "";
-    tree.render(folders, selected, folderCounts(folders, items));
+    tree.render(folders, selected, folderCounts(folders, items), reveal);
   };
 
   const reload = async () => {
@@ -172,7 +173,7 @@ export function startApp(host: Host): AppContext {
   };
   const rerender = () => {
     void host.location().then((location) => {
-      render(startRoute(location));
+      render(startRoute(location), true);
     });
   };
 
@@ -183,16 +184,16 @@ export function startApp(host: Host): AppContext {
 
   const show = (next: Route) => {
     host.navigate(routeHash(next), false);
-    render(next);
+    render(next, true);
     main.focus();
   };
 
-  const render = (next: Route) => {
+  const render = (next: Route, reveal = false) => {
     view?.dispose();
     route = next;
     if (next.name !== "library") favoritesOnly = false;
     closePanel();
-    drawSide();
+    drawSide(reveal);
     view = viewOf(next);
     firstView ??= view;
   };
@@ -234,7 +235,7 @@ export function startApp(host: Host): AppContext {
     route = next;
     app.pushRoute(next);
     closePanel();
-    drawSide();
+    drawSide(true);
     view.scope(folderId, onlyFavorites);
   };
 
@@ -444,7 +445,7 @@ export function startApp(host: Host): AppContext {
     // Stamps the page's first entry with its position, so a Back to it travels back in place of pushing (8b minor 2).
     host.navigate(routeHash(start), true);
     // A first load that already failed shows its banner; a success renders the route then.
-    if (!blocked) render(start);
+    if (!blocked) render(start, true);
     // Pulls keyboard focus into the page, so the first "/" or arrow key reaches the app (smoke 5b item 8).
     if (document.activeElement === document.body) main.focus();
   });

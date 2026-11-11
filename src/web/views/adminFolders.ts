@@ -29,6 +29,8 @@ import { createFolderTree } from "./tree";
 interface Outcome {
   readonly text: string;
   readonly select: string;
+  /** The folder moved: show it under its new parent. */
+  readonly moved?: true;
 }
 
 const TYPES: readonly [PrincipalType, string][] = [
@@ -94,7 +96,7 @@ export function foldersTab(
   });
   const tree = createFolderTree((id) => {
     selected = id;
-    tree.render(data.folders, id);
+    tree.render(data.folders, id, undefined, true);
     drawDetail();
   }, "All folders");
 
@@ -104,10 +106,21 @@ export function foldersTab(
     detail.querySelector<HTMLElement>("#folder-heading")?.focus();
   };
 
-  const redraw = async (list: Promise<AdminData>, select: string) => {
+  const redraw = async (
+    list: Promise<AdminData>,
+    select: string,
+    moved = false,
+  ) => {
     data = await list;
+    const before = selected;
     selected = folderOf(select) === undefined ? "" : select;
-    tree.render(data.folders, selected);
+    // A new or moved selection shows; a rename keeps the tree as the user left it.
+    tree.render(
+      data.folders,
+      selected,
+      undefined,
+      moved || selected !== before,
+    );
     drawDetail();
   };
 
@@ -119,7 +132,7 @@ export function foldersTab(
     running
       .then(async (outcome) => {
         app.foldersChanged();
-        await redraw(listed, outcome.select);
+        await redraw(listed, outcome.select, outcome.moved === true);
         status.textContent = outcome.text;
       })
       .catch(async (error: unknown) => {
@@ -187,6 +200,7 @@ export function foldersTab(
               return {
                 text: `Moved "${folder.name}" into ${label}.`,
                 select: folder.id,
+                moved: true,
               };
             });
             return true;

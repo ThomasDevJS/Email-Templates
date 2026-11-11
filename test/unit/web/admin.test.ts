@@ -271,6 +271,71 @@ describe("folders and grants", () => {
     ).toBe("Can use");
   });
 
+  it("closes a folder by its chevron or a second click on the selected open row (slice 23)", async () => {
+    await boot("/?latency=0#/admin");
+    await until(() => {
+      expect(main().querySelector('[role="tablist"]')).not.toBeNull();
+    });
+    const grantLists = countCalls("grant.list");
+    const chevron = () =>
+      treeItem("Sales").querySelector(".tree-toggle") as HTMLElement;
+    chevron().click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("true");
+    expect(treeItem("Quotes")).toBeTruthy();
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "All folders",
+    );
+    chevron().click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(grantLists()).toBe(0);
+    treeItem("Sales").click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("true");
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "Sales",
+    );
+    treeItem("Sales").click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "Sales",
+    );
+  });
+
+  it("keeps a closed parent closed after a folder write redraws the tree (slice 23 retry 1)", async () => {
+    await boot("/?latency=0#/admin");
+    await openQuotes();
+    const chevron = () =>
+      treeItem("Sales").querySelector(".tree-toggle") as HTMLElement;
+    chevron().click();
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    button("Rename...").click();
+    button("OK", dialog()).click();
+    await until(() => {
+      expect(status()).toContain('Renamed to "Quotes".');
+    });
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
+    expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
+      "Sales / Quotes",
+    );
+  });
+
+  it("leaves a closed parent open after a double-click on its name (slice 23 retry 1)", async () => {
+    await boot("/?latency=0#/admin");
+    await until(() => {
+      expect(main().querySelector('[role="tablist"]')).not.toBeNull();
+    });
+    const grantLists = countCalls("grant.list");
+    treeItem("Sales").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 1 }),
+    );
+    treeItem("Sales").dispatchEvent(
+      new MouseEvent("click", { bubbles: true, detail: 2 }),
+    );
+    expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("true");
+    await until(() => {
+      expect(grantLists()).toBe(1);
+    });
+  });
+
   it("asks for a principal under the field and marks it invalid", async () => {
     await boot("/?latency=0#/admin");
     await openQuotes();
@@ -474,6 +539,9 @@ describe("folders and grants", () => {
     expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
       "HR / Quotes",
     );
+    // The moved folder shows under its new parent (slice 23 retry 2).
+    expect(treeItem("HR").getAttribute("aria-expanded")).toBe("true");
+    expect(treeItem("Quotes").getAttribute("aria-selected")).toBe("true");
   });
 
   it("shows the conflict and reloads when another tab renamed the folder", async () => {
