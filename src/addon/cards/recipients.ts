@@ -83,7 +83,7 @@ export function recipientPlan(
   return { added, notAdded, unknown };
 }
 
-/** `add` false ("Insert body only", the switch off): no action at all. Unknown fields never get one. */
+/** `add` false (the "Add recipients" switch off): no action at all. Unknown fields never get one. */
 export function recipientActions(
   template: AppliedRecipients,
   draft: DraftRecipients,
