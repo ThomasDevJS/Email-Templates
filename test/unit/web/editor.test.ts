@@ -4,6 +4,7 @@ import { NodeSelection, TextSelection } from "prosemirror-state";
 import { toggleMark } from "prosemirror-commands";
 import { DOMParser as PMDOMParser } from "prosemirror-model";
 import {
+  imageWidth,
   insertPlaceholder,
   markActive,
   newTable,
@@ -23,8 +24,9 @@ import {
   pickerItems,
 } from "../../../src/web/editor/picker";
 import {
+  FONT_FAMILIES,
+  blankParts,
   chipLabel,
-  chipText,
   placeholderAttrs,
   schema,
   styleProperty,
@@ -35,7 +37,7 @@ import {
   serializeDoc,
 } from "../../../src/web/editor/serialize";
 import { createEditor, type Editor } from "../../../src/web/editor/setup";
-import { createToolbar } from "../../../src/web/editor/toolbar";
+import { createToolbar, tooltip } from "../../../src/web/editor/toolbar";
 import { stubLayout } from "./domStubs";
 
 let editor: Editor | null = null;
@@ -75,8 +77,29 @@ describe("placeholder atom in the editor", () => {
     const chip = ed.view.dom.querySelector(".ph");
     expect(chip?.getAttribute("data-ph")).toBe("{{sender.name}}");
     expect(chip?.getAttribute("contenteditable")).toBe("false");
-    expect(chip?.getAttribute("aria-label")).toBe("Placeholder: sender name");
+    expect(chip?.getAttribute("aria-label")).toBe("Field: Sender name");
     expect(chip?.textContent).toBe("Sender name");
+    expect(chip?.className).toBe("ph");
+  });
+
+  it("draws prompts with the ask look and a fallback as name or fallback", () => {
+    const ed = open(
+      "<p>{{ask:Load number}} {{recipient.first_name|there}}</p>",
+    );
+    const [prompt, value] = [...ed.view.dom.querySelectorAll(".ph")];
+    expect(prompt?.className).toBe("ph ask");
+    expect(prompt?.textContent).toBe("Load number");
+    expect(prompt?.getAttribute("aria-label")).toBe(
+      "Field: Load number, asked at insert",
+    );
+    expect(value?.textContent).toBe("Recipient first name or there");
+    expect(value?.querySelector(".ph-or")?.textContent).toBe(" or ");
+    expect(value?.getAttribute("aria-label")).toBe(
+      "Field: Recipient first name, fallback there",
+    );
+    expect(ed.html()).toBe(
+      "<p>{{ask:Load number}} {{recipient.first_name|there}}</p>",
+    );
   });
 
   it("bold across a token yields <strong>{{sender.name}}</strong>", () => {
@@ -338,12 +361,25 @@ describe("schema helpers and picker rules", () => {
     });
     expect(placeholderAttrs("x {{sender.name}}")).toBeNull();
     expect(placeholderAttrs("\\{{")).toBeNull();
-    expect(chipText({ name: "foo.bar", label: "", fallback: null })).toBe(
-      "foo.bar",
-    );
+    expect(blankParts({ name: "foo.bar", label: "", fallback: null })).toEqual({
+      className: "ph",
+      label: "foo.bar",
+      fallback: null,
+    });
+    expect(blankParts({ name: "", label: "Date", fallback: null })).toEqual({
+      className: "ph ask",
+      label: "Date",
+      fallback: null,
+    });
+    expect(
+      blankParts({ name: "sender.phone", label: "", fallback: "n/a" }),
+    ).toEqual({ className: "ph", label: "Sender phone", fallback: "n/a" });
     expect(chipLabel({ name: "", label: "Date", fallback: null })).toBe(
-      "Placeholder: ask: date",
+      "Field: Date, asked at insert",
     );
+    expect(
+      chipLabel({ name: "sender.phone", label: "", fallback: "n/a" }),
+    ).toBe("Field: Sender phone, fallback n/a");
   });
 
   it("checks labels and fallbacks", () => {
@@ -378,6 +414,91 @@ describe("schema helpers and picker rules", () => {
   });
 });
 
+describe("held selection for dialog inserts (slice 8b retry 1)", () => {
+  const caret = (ed: Editor, pos: number) => {
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, pos),
+      ),
+    );
+  };
+
+  /** Fills the open dialog's input and confirms with Enter. */
+  async function answer(value: string): Promise<void> {
+    const input = document.querySelector<HTMLInputElement>(
+      '[role="dialog"] input',
+    ) as HTMLInputElement;
+    input.value = value;
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", cancelable: true }),
+    );
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+  }
+
+  it("inserts at the held caret after the selection moved and text was typed before it", () => {
+    const ed = open("<p>Hello world</p>");
+    caret(ed, 6);
+    const held = ed.hold();
+    caret(ed, 1);
+    ed.view.dispatch(ed.view.state.tr.insertText("Say "));
+    held.run(insertNode(schema.text("!")));
+    expect(ed.html()).toBe("<p>Say Hello! world</p>");
+    // A held link keeps the selected range.
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, 5, 10),
+      ),
+    );
+    const range = ed.hold();
+    caret(ed, 1);
+    range.run(setLink("https://example.com"));
+    expect(ed.html()).toBe(
+      '<p>Say <a href="https://example.com" rel="noopener noreferrer" target="_blank">Hello</a>! world</p>',
+    );
+  });
+
+  it("does nothing on a destroyed editor, and release leaves the document as it was", () => {
+    const ed = open("<p>Hello</p>");
+    const released = ed.hold();
+    released.release();
+    expect(ed.html()).toBe("<p>Hello</p>");
+    const held = ed.hold();
+    ed.destroy();
+    editor = null;
+    held.run(insertNode(schema.text("!")));
+    held.release();
+    expect(ed.view.isDestroyed).toBe(true);
+  });
+
+  it("inserts an asked field at the caret where the dialog opened", async () => {
+    const ed = open("<p>Hello world</p>");
+    caret(ed, 6);
+    pickerItems(ed)
+      .find((item) => item.label === "Ask the user...")
+      ?.run();
+    caret(ed, 1);
+    await answer("Load number");
+    expect(ed.html()).toBe("<p>Hello{{ask:Load number}} world</p>");
+  });
+
+  it("sets the fallback on the chip that was selected when the dialog opened", async () => {
+    const ed = open("<p>Hi {{sender.name}} and {{sender.title}}</p>");
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        NodeSelection.create(ed.view.state.doc, chipPos(ed)),
+      ),
+    );
+    pickerItems(ed)
+      .find((item) => item.label === "Add fallback...")
+      ?.run();
+    caret(ed, 1);
+    await answer("us");
+    expect(ed.html()).toBe("<p>Hi {{sender.name|us}} and {{sender.title}}</p>");
+  });
+});
+
 describe("toolbar", () => {
   it("is one tab stop with arrow keys and aria-pressed", () => {
     const ed = open("<p><strong>bold</strong></p>");
@@ -400,6 +521,10 @@ describe("toolbar", () => {
     );
     document.body.append(toolbar.element);
     const buttons = [...toolbar.element.querySelectorAll("button")];
+    const named = (name: string) =>
+      buttons.find(
+        (button) => button.getAttribute("aria-label") === name,
+      ) as HTMLButtonElement;
     expect(toolbar.element.getAttribute("role")).toBe("toolbar");
     expect(buttons.filter((button) => button.tabIndex === 0)).toHaveLength(1);
     buttons[0]?.focus();
@@ -407,6 +532,7 @@ describe("toolbar", () => {
       new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
     );
     expect(document.activeElement).toBe(buttons.at(-1));
+    expect(buttons.at(-1)?.textContent).toBe("Insert field");
     buttons
       .at(-1)
       ?.dispatchEvent(
@@ -417,20 +543,198 @@ describe("toolbar", () => {
       ed.view.state.tr.setSelection(TextSelection.create(ed.view.state.doc, 2)),
     );
     toolbar.update(ed.view.state);
-    expect(buttons[0]?.getAttribute("aria-pressed")).toBe("true");
-    expect(buttons[1]?.getAttribute("aria-pressed")).toBe("false");
-    buttons[1]?.click();
+    expect(named("Bold").getAttribute("aria-pressed")).toBe("true");
+    expect(named("Italic").getAttribute("aria-pressed")).toBe("false");
+    named("Italic").click();
     expect(ed.view.state.storedMarks?.map((mark) => mark.type.name)).toContain(
       "em",
     );
-    const color = buttons.find((button) => button.textContent === "Color");
-    color?.click();
+    const color = named("Text color");
+    color.click();
     const menu = document.querySelector('[role="menu"]');
     expect(menu?.getAttribute("aria-label")).toBe("Text color");
-    expect(color?.getAttribute("aria-expanded")).toBe("true");
+    expect(color.getAttribute("aria-expanded")).toBe("true");
     menu?.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
     expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("groups icon buttons with dividers, names every button and puts the shortcut in the tooltip", () => {
+    const ed = open("<p>one</p>");
+    const toolbar = createToolbar(
+      {
+        state: () => ed.view.state,
+        run: (command) => {
+          ed.run(command);
+        },
+        focus: () => undefined,
+        insertLink: () => undefined,
+        insertImage: () => undefined,
+        insertTable: () => undefined,
+        insertRule: () => undefined,
+        openPicker: () => undefined,
+      },
+      "ed",
+    );
+    toolbar.update(ed.view.state);
+    const element = toolbar.element;
+    const names = [...element.querySelectorAll("button")].map(
+      (button) => button.getAttribute("aria-label") ?? button.textContent,
+    );
+    expect(names).toEqual([
+      "Undo",
+      "Redo",
+      "Block style: Paragraph",
+      "Text size: Normal",
+      "Font: Default",
+      "Bold",
+      "Italic",
+      "Underline",
+      "Strikethrough",
+      "Text color",
+      "Highlight color",
+      "Align text",
+      "Bulleted list",
+      "Numbered list",
+      "Quote",
+      "Link",
+      "Image",
+      "Table",
+      "Horizontal line",
+      "Insert field",
+    ]);
+    expect(element.querySelectorAll('[role="separator"]')).toHaveLength(4);
+    const bold = element.querySelector('[aria-label="Bold"]');
+    expect(bold?.textContent).toBe("B");
+    expect(bold?.getAttribute("title")).toBe("Bold (Ctrl+B)");
+    expect(
+      element.querySelector('[aria-label="Undo"]')?.getAttribute("title"),
+    ).toBe("Undo (Ctrl+Z)");
+    expect(toolbar.placeholder.getAttribute("title")).toBe(
+      "Insert field (type {{)",
+    );
+    expect(tooltip("Quote")).toBe("Quote");
+    const picker = element.querySelector(".picker") as HTMLButtonElement;
+    expect(picker.textContent).toBe("Paragraph");
+    ed.run(setTextStyle(2));
+    toolbar.update(ed.view.state);
+    expect(picker.getAttribute("aria-label")).toBe("Block style: Heading 2");
+    expect(picker.textContent).toBe("Heading 2");
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, 1, 4),
+      ),
+    );
+    ed.run(setMark(schema.marks["font_size"], { size: "18px" }));
+    toolbar.update(ed.view.state);
+    expect(
+      element.querySelectorAll(".picker")[1]?.getAttribute("aria-label"),
+    ).toBe("Text size: Large");
+    (element.querySelector('[aria-label="Undo"]') as HTMLButtonElement).click();
+    expect(ed.html()).toBe("<h2>one</h2>");
+    (element.querySelector('[aria-label="Redo"]') as HTMLButtonElement).click();
+    expect(ed.html()).toBe('<h2><span style="font-size: 18px">one</span></h2>');
+  });
+
+  it("sets and reads back each font family from the Font picker, shown in its own face", () => {
+    const ed = open("<p>word</p>");
+    const toolbar = createToolbar(
+      {
+        state: () => ed.view.state,
+        run: (command) => {
+          ed.run(command);
+        },
+        focus: () => undefined,
+        insertLink: () => undefined,
+        insertImage: () => undefined,
+        insertTable: () => undefined,
+        insertRule: () => undefined,
+        openPicker: () => undefined,
+      },
+      "ed",
+    );
+    document.body.append(toolbar.element);
+    const font = toolbar.element.querySelectorAll<HTMLButtonElement>(
+      ".picker",
+    )[2] as HTMLButtonElement;
+    const pick = (label: string) => {
+      font.click();
+      const items = [
+        ...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+      ];
+      const item = items.find((entry) => entry.textContent === label);
+      if (item === undefined) throw new Error(`no item ${label}`);
+      item.click();
+      toolbar.update(ed.view.state);
+      return items;
+    };
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, 1, 5),
+      ),
+    );
+    toolbar.update(ed.view.state);
+    expect(font.textContent).toBe("Font");
+    expect(font.getAttribute("aria-haspopup")).toBe("menu");
+    for (const family of FONT_FAMILIES) {
+      const items = pick(family.label);
+      expect(items.map((entry) => entry.getAttribute("style"))).toEqual([
+        ...FONT_FAMILIES.map((f) => `font-family: ${f.value}`),
+        null,
+      ]);
+      expect(ed.html()).toBe(
+        `<p><span style="font-family: ${family.value}">word</span></p>`,
+      );
+      expect(font.getAttribute("aria-label")).toBe(`Font: ${family.label}`);
+      expect(font.textContent).toBe("Font");
+      font.click();
+      expect(
+        document.querySelector('[role="menuitemradio"][aria-checked="true"]')
+          ?.textContent,
+      ).toBe(family.label);
+      document
+        .querySelector('[role="menu"]')
+        ?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
+    }
+    pick("Default");
+    expect(ed.html()).toBe("<p>word</p>");
+    expect(font.getAttribute("aria-label")).toBe("Font: Default");
+    const pasted = open('<p><span style="font-family: Calibri">x</span></p>');
+    pasted.view.dispatch(
+      pasted.view.state.tr.setSelection(
+        TextSelection.create(pasted.view.state.doc, 2),
+      ),
+    );
+    const other = createToolbar(
+      {
+        state: () => pasted.view.state,
+        run: () => undefined,
+        focus: () => undefined,
+        insertLink: () => undefined,
+        insertImage: () => undefined,
+        insertTable: () => undefined,
+        insertRule: () => undefined,
+        openPicker: () => undefined,
+      },
+      "ed",
+    );
+    other.update(pasted.view.state);
+    expect(
+      other.element.querySelectorAll(".picker")[2]?.getAttribute("aria-label"),
+    ).toBe("Font: Other font");
+  });
+});
+
+describe("images (slice 8b fix)", () => {
+  it("keeps the image's own width up to 600 px and never stretches it", () => {
+    expect(imageWidth(240)).toBe("240");
+    expect(imageWidth(600)).toBe("600");
+    expect(imageWidth(1800)).toBe("600");
+    expect(imageWidth(320.4)).toBe("320");
+    expect(imageWidth(0)).toBeNull();
+    expect(imageWidth(Number.NaN)).toBeNull();
   });
 });

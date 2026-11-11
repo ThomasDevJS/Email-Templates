@@ -5,11 +5,19 @@
  * (`&failSkip=<n>`: not the first n calls; `&failTimes=<n>`: only n calls),
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
  * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
- * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only.
+ * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only,
+ * `?external=deny` turns outside recipients off, `?unreadable=cc,bcc` makes `version.restore` report those lists of the old
+ * version as unreadable.
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { Folder, Item } from "../shared/model/data";
+import {
+  NO_RECIPIENTS,
+  RECIPIENT_FIELDS,
+  type RecipientPolicy,
+  type Recipients,
+} from "../shared/model/recipients";
 import {
   isSettingName,
   isSettingValue,
@@ -20,7 +28,7 @@ import { scanBody } from "../shared/placeholders/validate";
 import type { AccessLevel } from "../shared/permissions/levels";
 import type { GoogleScript, ScriptLocation } from "./host";
 
-interface Version {
+interface Version extends Recipients {
   readonly version: number;
   readonly subject: string;
   readonly html: string;
@@ -30,8 +38,8 @@ interface Version {
 }
 
 const ME = "dev.user@example.com";
-const NOW = "2026-11-09T14:03:00.000Z";
 const PARAMS = new URLSearchParams(window.location.search);
+const NOW = "2026-11-09T14:03:00.000Z";
 const FREIGHT = PARAMS.get("sample") === "freight";
 const PERSONAL_OFF = PARAMS.get("personal") === "off";
 const MINE_LEVEL: AccessLevel = PERSONAL_OFF ? "use" : "edit";
@@ -106,6 +114,20 @@ function needLevel(folderId: string, need: "use" | "edit"): void {
     );
 }
 
+/** Templates stored before the admin turned outside recipients off keep them (spec 5.7). */
+let seeding = true;
+
+/** The server's recipient rule, with the dev domain and the admin setting (slice 11). */
+function devPolicy(): RecipientPolicy {
+  return {
+    domain: "example.com",
+    external:
+      !seeding && settings.recipientsExternal.value === "deny"
+        ? "deny"
+        : "allow",
+  };
+}
+
 function store(
   id: string,
   folderId: string,
@@ -115,13 +137,15 @@ function store(
   by = ME,
   restoredFrom = 0,
   subject = "",
+  lists: Recipients = NO_RECIPIENTS,
 ): Item {
-  const body = prepareBody(html, {}, subject);
+  const body = prepareBody(html, {}, subject, { lists, policy: devPolicy() });
   const list = versions.get(id) ?? [];
   const version = list.length + 1;
   list.push({
     version,
     subject: body.subject,
+    ...body.recipients,
     html: body.html,
     savedAt: new Date(Date.parse(NOW) + version * 60000).toISOString(),
     savedBy: by,
@@ -134,6 +158,7 @@ function store(
     folderId,
     title,
     subject: body.subject,
+    ...body.recipients,
     tags,
     status: "published",
     currentVersion: version,
@@ -281,6 +306,11 @@ function seedFreight(): void {
       by,
       from,
       "Rate confirmation for load {{ask:Load number}}",
+      {
+        to: ["dispatch@example.com"],
+        cc: ["safety@example.com"],
+        bcc: ["records@partner-logistics.com"],
+      },
     );
     dated("T-RATECON", at, by);
   }
@@ -375,6 +405,7 @@ function seedDefault(): void {
 
 if (FREIGHT) seedFreight();
 else seedDefault();
+seeding = false;
 
 interface DevGrant {
   readonly id: string;
@@ -443,7 +474,10 @@ const settings: Record<SettingName, SettingEntry> = {
   personalTemplates: PERSONAL_OFF
     ? { value: "off", updatedAt: "", updatedBy: "" }
     : { value: "on", updatedAt: "2026-11-09T13:05:00.000Z", updatedBy: ANA },
-  recipientsExternal: { value: "allow", updatedAt: "", updatedBy: "" },
+  recipientsExternal:
+    PARAMS.get("external") === "deny"
+      ? { value: "deny", updatedAt: "2026-11-09T13:05:00.000Z", updatedBy: ANA }
+      : { value: "allow", updatedAt: "", updatedBy: "" },
 };
 
 /** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale base, no-op on the same value. */
@@ -704,6 +738,20 @@ function tags(args: Record<string, unknown>): string[] {
     : [];
 }
 
+/** The lists of a save; a list left out keeps `kept`, like the server's `template.update`. */
+function lists(
+  args: Record<string, unknown>,
+  kept: Partial<Recipients> = {},
+): Recipients {
+  const read = (field: (typeof RECIPIENT_FIELDS)[number]) => {
+    const value = args[field];
+    return Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === "string")
+      : (kept[field] ?? []);
+  };
+  return { to: read("to"), cc: read("cc"), bcc: read("bcc") };
+}
+
 function title(args: Record<string, unknown>): string {
   const value = str(args, "title").trim();
   if (value === "")
@@ -733,6 +781,12 @@ const OPS: Readonly<Record<string, Op>> = {
     title: "Sales Manager",
     department: "Sales",
     phone: "+1 555 0100",
+  }),
+  me: () => ({
+    email: ME,
+    isAdmin: isAdmin(),
+    env: "dev",
+    recipientsExternal: devPolicy().external,
   }),
   "folder.list": () => ({ folders: liveFolders() }),
   "template.list": (args) => ({
@@ -786,6 +840,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       0,
       str(args, "subject"),
+      lists(args),
     );
   },
   "template.update": (args) => {
@@ -803,6 +858,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       0,
       str(args, "subject"),
+      lists(args, found),
     );
   },
   "template.duplicate": (args) => {
@@ -818,6 +874,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       0,
       found.subject,
+      lists({}, found),
     );
   },
   "template.move": (args) => {
@@ -1040,7 +1097,7 @@ const OPS: Readonly<Record<string, Op>> = {
       ?.find((candidate) => candidate.version === from);
     if (entry === undefined)
       throw new AppError(ErrorCode.NOT_FOUND, "Version not found");
-    return store(
+    const restored = store(
       found.id,
       found.folderId,
       found.title,
@@ -1049,7 +1106,14 @@ const OPS: Readonly<Record<string, Op>> = {
       ME,
       from,
       entry.subject,
+      entry,
     );
+    const unreadable = (PARAMS.get("unreadable") ?? "")
+      .split(",")
+      .filter((field) =>
+        (RECIPIENT_FIELDS as readonly string[]).includes(field),
+      );
+    return { ...restored, recipientsUnreadable: unreadable };
   },
 };
 
@@ -1131,15 +1195,15 @@ const fake: GoogleScript = {
     },
   },
   history: {
-    push: (_state, _params, hash) => {
-      window.history.pushState(null, "", `#${hash}`);
+    push: (state, _params, hash) => {
+      window.history.pushState(state, "", `#${hash}`);
     },
-    replace: (_state, _params, hash) => {
-      window.history.replaceState(null, "", `#${hash}`);
+    replace: (state, _params, hash) => {
+      window.history.replaceState(state, "", `#${hash}`);
     },
     setChangeHandler: (handler) => {
-      window.addEventListener("popstate", () => {
-        handler({ location: currentLocation() });
+      window.addEventListener("popstate", (event) => {
+        handler({ state: event.state, location: currentLocation() });
       });
     },
   },

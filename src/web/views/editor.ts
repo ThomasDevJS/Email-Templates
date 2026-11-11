@@ -1,29 +1,59 @@
 import { ErrorCode } from "../../shared/errors/codes";
 import type { Item } from "../../shared/model/data";
+import {
+  RECIPIENT_FIELDS,
+  recipientsOf,
+  validateRecipients,
+  type RecipientField,
+  type RecipientPolicy,
+  type RecipientProblem,
+  type Recipients,
+} from "../../shared/model/recipients";
 import { TAGS_MAX, TAG_MAX, TITLE_MAX } from "../../shared/model/validate";
+import { atLeast } from "../../shared/permissions/levels";
+import { domainOf } from "../../shared/permissions/principals";
 import { SUBJECT_MAX } from "../../shared/placeholders/subject";
 import { scanBody } from "../../shared/placeholders/validate";
-import { insertNode, newTable, setLink } from "../editor/commands";
+import type { FolderRow, Me } from "../rpc/api";
+import { imageWidth, insertNode, newTable, setLink } from "../editor/commands";
 import { pickerItems, subjectPickerItems } from "../editor/picker";
 import { safeHref, schema } from "../editor/schema";
 import { backslashProblems } from "../editor/serialize";
 import { createEditor, type Editor } from "../editor/setup";
 import { createToolbar } from "../editor/toolbar";
-import { editableFolders } from "../library/model";
-import { formatTime, h, replace } from "../ui/dom";
-import { openDialog, promptText } from "../ui/dialog";
+import { editableFolders, folderPath, privateReadOnly } from "../library/model";
+import { formatTime, h, replace, uid } from "../ui/dom";
+import { PERSONAL_OFF_TEXT } from "../../shared/model/settings";
+import {
+  cancelDialogs,
+  openDialog,
+  promptText,
+  type OpenDialog,
+} from "../ui/dialog";
+import { icon } from "../ui/icons";
 import { openMenu } from "../ui/menu";
 import { toRpcError } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { problemList, type ListedProblem } from "./problems";
-import { previewAsMe, subjectAsMe } from "./preview";
-import { tagEditor } from "./tags";
+import { escapeText } from "../../shared/html/escape";
+import { parseText } from "../../shared/placeholders/grammar";
+import {
+  previewAsMe,
+  promptUses,
+  subjectAsMe,
+  usedText,
+  withChips,
+} from "./preview";
+import { recipientBlock, recipientField, type ChipField } from "./recipients";
+import { tagEditor, type TagEditor } from "./tags";
 
 /**
- * Editor (screen 4, flow 4.2 save): title, subject, folder, tags, toolbar, ProseMirror body, preview as me,
- * problems (role alert) and status (role status). Save by button or Ctrl+S; disabled while saving. A stale base
- * version opens the conflict dialog with three choices; nothing is overwritten silently. The subject is a plain
- * input: tokens are typed as text, and the Placeholder menu inserts token text there while it has focus.
+ * Editor (screen 4, flow 4.2 save; design system direction A): header with the folder path, the saved state,
+ * History and Save; the toolbar; the email on a sheet with the subject line on top; the right panel with Details
+ * (title, folder, tags, To, Cc, Bcc), "The sender fills in" and the tabs "Preview as me" and "Problems". Save by
+ * button or Ctrl+S; disabled while saving. A stale base version opens the conflict dialog with three choices; nothing
+ * is overwritten silently. The subject is a plain input: tokens are typed as text, and "Insert field" inserts token
+ * text there while it has focus. A caller with `use` only sees the template read-only.
  */
 interface Loaded {
   readonly id: string;
@@ -32,10 +62,14 @@ interface Loaded {
   readonly subject: string;
   readonly folderId: string;
   readonly tags: readonly string[];
+  readonly recipients: Recipients;
   readonly html: string;
+  readonly updatedAt: string;
 }
 
 const EDITOR_ID = "editor-body";
+/** An image that has not loaded by then is inserted without a width. */
+const IMAGE_WAIT_MS = 5000;
 
 function blank(folderId: string): Loaded {
   return {
@@ -45,7 +79,9 @@ function blank(folderId: string): Loaded {
     subject: "",
     folderId,
     tags: [],
+    recipients: { to: [], cc: [], bcc: [] },
     html: "",
+    updatedAt: "",
   };
 }
 
@@ -57,8 +93,20 @@ function fromItem(item: Item, html: string): Loaded {
     subject: item.subject,
     folderId: item.folderId,
     tags: item.tags,
+    recipients: recipientsOf(item),
     html,
+    updatedAt: item.updatedAt,
   };
+}
+
+/** "Saved as version 4, 2:05 PM" for today, with the date for an older save (local time). */
+export function savedText(
+  version: number,
+  iso: string,
+  now: Date = new Date(),
+): string {
+  const today = new Date(iso).toDateString() === now.toDateString();
+  return `Saved as version ${String(version)}, ${formatTime(iso, today ? "time" : "date", now)}`;
 }
 
 /** Problems in the subject name the field (wireframe 04): "Subject: Unknown placeholder ...". */
@@ -67,13 +115,27 @@ function fieldMessage(problem: { message?: unknown; field?: unknown }) {
   return problem.field === "subject" ? `Subject: ${message}` : message;
 }
 
-function serverProblems(details: unknown): ListedProblem[] {
+function detailProblems(
+  details: unknown,
+): { message?: unknown; field?: unknown }[] {
   const problems = (details as { problems?: unknown } | undefined)?.problems;
-  if (!Array.isArray(problems)) return [];
-  return problems.map((problem: { message?: unknown; field?: unknown }) => ({
+  return Array.isArray(problems)
+    ? (problems as { message?: unknown; field?: unknown }[])
+    : [];
+}
+
+function serverProblems(details: unknown): ListedProblem[] {
+  return detailProblems(details).map((problem) => ({
     kind: "error",
     message: fieldMessage(problem),
   }));
+}
+
+/** The server's recipient problems (spec 7.1), shown under their fields. */
+function serverRecipientProblems(details: unknown): RecipientProblem[] {
+  return detailProblems(details).filter((problem) =>
+    (RECIPIENT_FIELDS as readonly unknown[]).includes(problem.field),
+  ) as unknown as RecipientProblem[];
 }
 
 function warningsOf(html: string, subject: string): ListedProblem[] {
@@ -81,6 +143,166 @@ function warningsOf(html: string, subject: string): ListedProblem[] {
     kind: "warning",
     message: fieldMessage(warning),
   }));
+}
+
+/** The image's own width in pixels, 0 when it does not load in time. */
+function naturalWidth(src: string): Promise<number> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const done = (width: number) => {
+      window.clearTimeout(timer);
+      resolve(width);
+    };
+    const timer = window.setTimeout(() => {
+      done(0);
+    }, IMAGE_WAIT_MS);
+    image.addEventListener("load", () => {
+      done(image.naturalWidth);
+    });
+    image.addEventListener("error", () => {
+      done(0);
+    });
+    image.src = src;
+  });
+}
+
+/** Loading state shaped like the editor: toolbar, sheet with a subject line and text, panel rows. */
+function editorSkeleton(): HTMLElement {
+  const bone = (width: string) => h("span", { class: `bone ${width}` });
+  return h(
+    "div",
+    { class: "editor-work", "aria-hidden": "true" },
+    h(
+      "div",
+      { class: "doc" },
+      h("div", { class: "toolbar skeleton-bar" }, bone("w40")),
+      h(
+        "div",
+        { class: "sheet editor-sheet" },
+        h("div", { class: "subject-row" }, bone("w40")),
+        h(
+          "div",
+          { class: "skeleton-text" },
+          ...["w40", "w90", "w80", "w60", "w90", "w20"].map(bone),
+        ),
+      ),
+    ),
+    h(
+      "div",
+      { class: "editor-panel skeleton-text" },
+      ...["w40", "w90", "w90", "w60", "w90", "w80"].map(bone),
+    ),
+  );
+}
+
+/**
+ * A panel section. Under 860 px the panel moves below the sheet and each section collapses with its heading button;
+ * on wide screens the heading is plain text and the section stays open.
+ */
+function panelSection(
+  title: string,
+  content: readonly HTMLElement[],
+  quietHeading = false,
+): HTMLElement {
+  const bodyId = uid("panel-section");
+  const body = h("div", { id: bodyId, class: "section-body" }, ...content);
+  const toggle = h(
+    "button",
+    {
+      type: "button",
+      class: "section-toggle",
+      "aria-expanded": "true",
+      "aria-controls": bodyId,
+    },
+    icon("down"),
+    title,
+  );
+  toggle.addEventListener("click", () => {
+    const open = toggle.getAttribute("aria-expanded") !== "true";
+    toggle.setAttribute("aria-expanded", String(open));
+    body.classList.toggle("collapsed", !open);
+  });
+  return h(
+    "section",
+    { class: "panel-section" },
+    h(
+      "h2",
+      { class: quietHeading ? "panel-heading quiet" : "panel-heading" },
+      toggle,
+      h("span", { class: "section-title" }, title),
+    ),
+    body,
+  );
+}
+
+/** "Preview as me" and "Problems" as an ARIA tab list; arrows move between the two tabs. */
+function panelTabs(preview: HTMLElement, problems: HTMLElement) {
+  const count = h("span", { class: "tab-count" }, "0");
+  const tabs = [
+    h(
+      "button",
+      { type: "button", role: "tab", id: "tab-preview" },
+      "Preview as me",
+    ),
+    h(
+      "button",
+      { type: "button", role: "tab", id: "tab-problems" },
+      "Problems ",
+      count,
+    ),
+  ];
+  const panels = [preview, problems].map((content, i) =>
+    h(
+      "div",
+      {
+        role: "tabpanel",
+        id: `tabpanel-${String(i)}`,
+        "aria-labelledby": tabs[i]?.id,
+        tabindex: "0",
+        class: "tab-body",
+      },
+      content,
+    ),
+  );
+  const select = (index: number, focus = false) => {
+    tabs.forEach((tab, i) => {
+      tab.setAttribute("aria-selected", String(i === index));
+      tab.setAttribute("aria-controls", `tabpanel-${String(i)}`);
+      tab.tabIndex = i === index ? 0 : -1;
+      (panels[i] as HTMLElement).hidden = i !== index;
+    });
+    if (focus) tabs[index]?.focus();
+  };
+  tabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => {
+      select(i);
+    });
+    tab.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+        event.preventDefault();
+        select(1 - i, true);
+      }
+    });
+  });
+  select(0);
+  return {
+    element: h(
+      "div",
+      { class: "panel-tabs" },
+      h(
+        "div",
+        {
+          role: "tablist",
+          "aria-label": "Preview and problems",
+          class: "pill-tabs",
+        },
+        ...tabs,
+      ),
+      ...panels,
+    ),
+    select,
+    count,
+  };
 }
 
 export function editorView(
@@ -93,6 +315,13 @@ export function editorView(
   let editor: Editor | null = null;
   let saving = false;
   let previewTimer = 0;
+  let readOnly = false;
+  let built = false;
+  let me: Me | null = null;
+  /** The form as last loaded or saved; the header says "Unsaved changes" while the form differs. */
+  let savedKey = "";
+  /** "Saved as version 4, 2:05 PM", or "" for a template not saved yet. */
+  let lastSaved = "";
 
   const titleInput = h("input", {
     type: "text",
@@ -108,16 +337,29 @@ export function editorView(
     autocomplete: "off",
     "aria-describedby": "subject-count",
   });
-  const subjectCount = h("span", { id: "subject-count", class: "hint" });
-  /** True while the subject input was the last field in focus, so the Placeholder menu targets it. */
+  const subjectCount = h("span", { id: "subject-count", class: "count-hint" });
+  /** The subject with its placeholders drawn as blanks, while it holds one (the input shows the text form). */
+  const readsAs = h("p", { class: "reads-as" });
+  /** True while the subject input was the last field in focus, so "Insert field" targets it. */
   let subjectActive = false;
   const folderSelect = h("select", { id: "folder" });
-  const tags = tagEditor(TAGS_MAX, TAG_MAX);
-  const heading = h("h1", { class: "editor-title" }, "New template");
-  const versionText = h("span", { class: "version" });
+  let tags: TagEditor = tagEditor(TAGS_MAX, TAG_MAX);
+  let fields: Readonly<Record<RecipientField, ChipField>> | null = null;
+  const crumbs = h("ol", { class: "crumbs" });
+  const heading = h(
+    "h1",
+    { class: "crumb-title editor-title" },
+    "New template",
+  );
+  const savedState = h("p", {
+    class: "saved-state",
+    role: "status",
+    "aria-live": "polite",
+  });
   const historyButton = h(
     "button",
-    { type: "button", class: "link" },
+    { type: "button", class: "ghost" },
+    icon("clock"),
     "History",
   );
   const saveButton = h(
@@ -131,32 +373,187 @@ export function editorView(
     role: "status",
     "aria-live": "polite",
   });
+  const notice = h(
+    "p",
+    { class: "page-note read-only-note" },
+    "You can use this template but not change it. To change it, ask a folder manager for edit access.",
+  );
   const preview = h("div", { class: "preview-body" });
+  const previewRecipients = h("div");
   const previewSubject = h("p", { class: "preview-subject" });
+  const asks = h("div", { class: "asks" });
   const mount = h("div", { class: "editor-mount" });
-  const body = h(
+  const tabs = panelTabs(
+    h("div", { class: "preview" }, previewRecipients, previewSubject, preview),
+    problems,
+  );
+  const work = h(
     "div",
-    { class: "editor-area", "aria-busy": "true" },
-    h("div", { class: "skeleton-block", "aria-hidden": "true" }),
+    { class: "editor-slot", "aria-busy": "true" },
+    editorSkeleton(),
   );
 
+  const recipients = (): Recipients => ({
+    to: fields?.to.values() ?? [],
+    cc: fields?.cc.values() ?? [],
+    bcc: fields?.bcc.values() ?? [],
+  });
+
+  const policy = (): RecipientPolicy => ({
+    domain: domainOf(me?.email ?? ""),
+    external: me?.recipientsExternal ?? "allow",
+  });
+
+  const formKey = () =>
+    JSON.stringify([
+      titleInput.value,
+      subjectInput.value,
+      folderSelect.value,
+      tags.values(),
+      recipients(),
+      editor?.html() ?? "",
+    ]);
+
+  /** Problems of the last save; the ones the live check also finds go when they are fixed. */
+  let saveListed: readonly ListedProblem[] = [];
+  let recipientErrors: readonly RecipientProblem[] = [];
+  let shownProblems = "";
+
+  /** Moves focus to the field a problem is in; a collapsed panel section (narrow screen) opens first. */
+  const focusField = (field: string) => {
+    const target =
+      field === "body"
+        ? editor?.view.dom
+        : field === "subject"
+          ? subjectInput
+          : document.getElementById(`rcpt-${field}`);
+    const section = target?.closest(".panel-section");
+    if (section?.querySelector(".section-body.collapsed"))
+      section.querySelector<HTMLElement>(".section-toggle")?.click();
+    target?.focus();
+  };
+
+  /** Every problem the save would refuse now: backslashes and placeholders in body and subject, recipients. */
+  const liveProblems = (): ListedProblem[] => {
+    if (readOnly || editor === null) return [];
+    const error = (message: string, field: string): ListedProblem => ({
+      kind: "error",
+      message,
+      field,
+    });
+    return [
+      ...backslashProblems(editor.view.state.doc).map((problem) =>
+        error(problem.message, "body"),
+      ),
+      ...scanBody(editor.html(), [], subjectInput.value.trim()).problems.map(
+        (problem) => error(fieldMessage(problem), problem.field ?? "body"),
+      ),
+      ...recipientErrors.map((problem) =>
+        error(problem.message, problem.field),
+      ),
+    ];
+  };
+
+  /** The Problems tab: live problems, then the last save's others. Redrawn only on a change (it is an alert). */
+  const drawProblems = (): readonly ListedProblem[] => {
+    const live = liveProblems();
+    const list = [
+      ...live,
+      ...saveListed.filter(
+        (problem) => !live.some((shown) => shown.message === problem.message),
+      ),
+    ];
+    const key = JSON.stringify(list);
+    if (key !== shownProblems) {
+      shownProblems = key;
+      replace(problems, ...problemList(list, focusField));
+      tabs.count.textContent = String(list.length);
+    }
+    return list;
+  };
+
   const showProblems = (list: readonly ListedProblem[]) => {
-    replace(problems, ...problemList(list));
+    saveListed = list;
+    if (drawProblems().some((problem) => problem.kind === "error"))
+      tabs.select(1);
+  };
+
+  const showRecipientProblems = (found: readonly RecipientProblem[]) => {
+    recipientErrors = found;
+    for (const field of RECIPIENT_FIELDS)
+      fields?.[field].show(found.filter((problem) => problem.field === field));
+  };
+
+  /** Header state: "Saving..." wins, then "Unsaved changes", then the last save. */
+  const showSaved = () => {
+    if (saving) return;
+    const dirty = !readOnly && formKey() !== savedKey;
+    const text = dirty ? "Unsaved changes" : lastSaved || "Not saved yet";
+    savedState.classList.toggle("is-saved", !dirty && lastSaved !== "");
+    replace(savedState, icon("check"), text);
+  };
+
+  const showAsks = () => {
+    const uses = promptUses(editor?.html() ?? "", subjectInput.value);
+    replace(
+      asks,
+      uses.length === 0
+        ? h(
+            "p",
+            { class: "hint" },
+            readOnly
+              ? "None."
+              : "Nothing yet. To add a question, choose Insert field, then Ask the user.",
+          )
+        : h(
+            "ul",
+            { class: "ask-list" },
+            ...uses.map((use) =>
+              h(
+                "li",
+                {},
+                h("span", {}, use.label),
+                h("span", { class: "ask-count" }, usedText(use.count)),
+              ),
+            ),
+          ),
+    );
   };
 
   const updatePreview = () => {
     window.clearTimeout(previewTimer);
     previewTimer = window.setTimeout(() => {
       const subject = subjectInput.value.trim();
-      previewSubject.textContent =
-        subject === "" ? "" : `Subject: ${subjectAsMe(subject, app.profile())}`;
+      replace(previewRecipients, recipientBlock(recipients()));
+      replace(
+        previewSubject,
+        subject === ""
+          ? null
+          : h("span", { class: "subject-label" }, "Subject:"),
+        subject === "" ? null : ` ${subjectAsMe(subject, app.profile())}`,
+      );
       if (editor !== null)
         preview.innerHTML = previewAsMe(editor.html(), app.profile());
+      showAsks();
+      showSaved();
+      drawProblems();
     }, 250);
+  };
+
+  const recipientsChanged = () => {
+    showRecipientProblems(validateRecipients(recipients(), policy()).problems);
+    updatePreview();
   };
 
   const showSubjectCount = () => {
     subjectCount.textContent = `${String(subjectInput.value.length)}/${String(SUBJECT_MAX)} (optional)`;
+    const subject = subjectInput.value;
+    readsAs.hidden = !parseText(subject).some(
+      (segment) => segment.kind === "variable" || segment.kind === "prompt",
+    );
+    if (readsAs.hidden) return;
+    // `withChips` escapes every text run; the subject is plain text, so it goes in escaped.
+    readsAs.innerHTML = `<span class="reads-label">Reads as</span><span>${withChips(escapeText(subject))}</span>`;
   };
 
   const fillFolders = () => {
@@ -165,7 +562,10 @@ export function editorView(
       current.folderId !== "" &&
       !options.some((option) => option.id === current.folderId)
     )
-      options.unshift({ id: current.folderId, label: "Current folder" });
+      options.unshift({
+        id: current.folderId,
+        label: folderPath(app.folders(), current.folderId) || "Current folder",
+      });
     replace(
       folderSelect,
       ...options.map((option) =>
@@ -176,17 +576,45 @@ export function editorView(
       current.folderId !== "" ? current.folderId : (options[0]?.id ?? "");
   };
 
-  const showVersion = () => {
+  /** Folder path as links to the library, then the title. */
+  const showHeader = () => {
+    const byId = new Map(app.folders().map((folder) => [folder.id, folder]));
+    const chain: FolderRow[] = [];
+    for (
+      let folder = byId.get(current.folderId);
+      folder !== undefined && !chain.includes(folder);
+      folder = byId.get(folder.parentId)
+    )
+      chain.unshift(folder);
+    replace(
+      crumbs,
+      ...chain.map((folder) =>
+        h(
+          "li",
+          {},
+          h(
+            "button",
+            {
+              type: "button",
+              class: "crumb",
+              onclick: () => {
+                app.go({ name: "library", folderId: folder.id });
+              },
+            },
+            folder.name,
+          ),
+          icon("chev"),
+        ),
+      ),
+    );
     heading.textContent = current.id === "" ? "New template" : current.title;
-    versionText.textContent =
-      current.id === "" ? "" : `Version ${String(current.version)}`;
-    historyButton.hidden = current.id === "";
+    historyButton.hidden = current.id === "" || readOnly;
   };
 
   const openPicker = (anchor: HTMLElement, onDismiss?: () => void) => {
     if (subjectActive) {
       openMenu({
-        label: "Placeholders",
+        label: "Insert field",
         anchor,
         items: subjectPickerItems(subjectInput),
         returnFocus: () => {
@@ -198,7 +626,7 @@ export function editorView(
     if (editor === null) return;
     const target = editor;
     openMenu({
-      label: "Placeholders",
+      label: "Insert field",
       anchor,
       items: pickerItems(target),
       returnFocus: () => {
@@ -209,8 +637,9 @@ export function editorView(
   };
 
   const insertLink = async () => {
+    const held = editor?.hold();
     const href = await promptText({
-      title: "Link",
+      title: "Insert link",
       label: "Web address",
       hint: "Starts with https://, http://, mailto: or tel:",
       check: (value) =>
@@ -218,25 +647,28 @@ export function editorView(
           ? ""
           : "Use an address that starts with https://, http://, mailto: or tel:.",
     });
-    if (href !== null) editor?.run(setLink(href));
-    else editor?.focus();
+    if (href !== null) held?.run(setLink(href));
+    else held?.release();
   };
 
   const insertImage = async () => {
+    const held = editor?.hold();
     const src = await promptText({
-      title: "Image",
+      title: "Insert image",
       label: "Image address (https)",
-      hint: "Images are linked, not uploaded. Width is set to 600 pixels or less.",
+      hint: "The email links to the image; nothing is uploaded. An image wider than 600 pixels is shown 600 pixels wide.",
       check: (value) =>
         /^https:\/\/\S+$/i.test(value.trim()) ? "" : "Use an https:// address.",
     });
-    if (src !== null)
-      editor?.run(
-        insertNode(
-          schema.nodes["image"].create({ src, alt: "", width: "600" }),
-        ),
-      );
-    else editor?.focus();
+    if (src === null) {
+      held?.release();
+      return;
+    }
+    // The width read waits for the image; the held selection keeps the insert at the caret meanwhile.
+    const width = imageWidth(await naturalWidth(src));
+    held?.run(
+      insertNode(schema.nodes["image"].create({ src, alt: "", width })),
+    );
   };
 
   const toolbar = createToolbar(
@@ -275,7 +707,7 @@ export function editorView(
           updatePreview();
         },
         onBraces: () => {
-          openPicker(toolbar.element.lastElementChild as HTMLElement, () => {
+          openPicker(toolbar.placeholder, () => {
             editor?.run((state, dispatch) => {
               dispatch?.(state.tr.insertText("{{"));
               return true;
@@ -289,35 +721,156 @@ export function editorView(
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": "Template body",
+        "aria-readonly": String(readOnly),
         class: "editor",
       },
+      readOnly,
     );
     toolbar.update(editor.view.state);
-    updatePreview();
+  };
+
+  const detailRow = (label: string, control: HTMLElement) =>
+    h(
+      "div",
+      { class: "panel-row" },
+      h("label", { for: control.id }, label),
+      h("div", { class: "panel-control" }, control),
+    );
+
+  /** Builds the work area once, when the caller's level is known. */
+  const build = () => {
+    built = true;
+    tags = tagEditor(TAGS_MAX, TAG_MAX, updatePreview, readOnly);
+    const options = {
+      domain: () => domainOf(me?.email ?? ""),
+      readOnly,
+      onChange: recipientsChanged,
+      describedBy: "rcpt-help",
+      announce: (text: string) => {
+        status.textContent = text;
+      },
+    };
+    fields = {
+      to: recipientField("to", options),
+      cc: recipientField("cc", options),
+      bcc: recipientField("bcc", options),
+    };
+    titleInput.readOnly = readOnly;
+    subjectInput.readOnly = readOnly;
+    folderSelect.disabled = readOnly;
+    saveButton.hidden = readOnly;
+    const details = h(
+      "div",
+      { class: "details" },
+      detailRow("Title", titleInput),
+      detailRow("Folder", folderSelect),
+      tags.element,
+      h(
+        "div",
+        { class: "rcpt-group" },
+        fields.to.element,
+        fields.cc.element,
+        fields.bcc.element,
+      ),
+      h(
+        "p",
+        { class: "hint rcpt-help", id: "rcpt-help" },
+        "Added to the draft when someone inserts this template. Users see every address before it is added.",
+      ),
+    );
+    // The toolbar and its menu take focus too; only a field or the body changes the "Insert field" target.
+    for (const area of [details, subjectInput, mount])
+      area.addEventListener("focusin", (event) => {
+        subjectActive = event.target === subjectInput;
+      });
+    details.addEventListener("input", updatePreview);
+    details.addEventListener("change", updatePreview);
+    replace(
+      work,
+      h(
+        "div",
+        { class: "editor-work" },
+        h(
+          "div",
+          { class: "doc" },
+          readOnly ? notice : toolbar.element,
+          h(
+            "div",
+            { class: "sheet editor-sheet" },
+            h(
+              "div",
+              { class: "subject-row" },
+              h("label", { for: "subject" }, "Subject"),
+              subjectInput,
+              subjectCount,
+              readsAs,
+            ),
+            mount,
+          ),
+        ),
+        h(
+          "aside",
+          { class: "editor-panel", "aria-label": "Template details" },
+          panelSection("Details", [details]),
+          panelSection("The sender fills in", [asks]),
+          panelSection("Preview", [tabs.element], true),
+        ),
+      ),
+    );
   };
 
   const show = (loaded: Loaded) => {
     current = loaded;
+    if (!built) build();
     titleInput.value = loaded.title;
     subjectInput.value = loaded.subject;
     showSubjectCount();
     tags.set(loaded.tags);
+    for (const field of RECIPIENT_FIELDS)
+      fields?.[field].set(loaded.recipients[field]);
     fillFolders();
-    showVersion();
+    showHeader();
     mountEditor();
-    body.setAttribute("aria-busy", "false");
-    replace(body, toolbar.element, mount);
+    work.setAttribute("aria-busy", "false");
+    savedKey = formKey();
+    lastSaved =
+      loaded.id === "" ? "" : savedText(loaded.version, loaded.updatedAt);
+    recipientsChanged();
+    showSaved();
+  };
+
+  /** The caller's level on the template; a template the library does not list is left to the server. */
+  const canEdit = (id: string) => {
+    const level = app.items().find((item) => item.id === id)?.level;
+    return level === undefined || atLeast(level, "edit");
   };
 
   /** A new template keeps its `start` route after the first save, so the saved ID wins over `start`. */
   const load = async () => {
     await loading;
     const id = current.id !== "" ? current.id : "id" in start ? start.id : "";
+    if (!built) {
+      readOnly = id !== "" && !canEdit(id);
+      const folderId = app.items().find((entry) => entry.id === id)?.folderId;
+      // Personal templates off (slice 11): the owner keeps `use` on the own folder; the note names that reason.
+      if (
+        readOnly &&
+        folderId !== undefined &&
+        privateReadOnly(app.folders(), folderId)
+      )
+        notice.textContent = `${PERSONAL_OFF_TEXT} You can still insert this template.`;
+    }
+    const caller = me ?? app.api.me();
     if (id === "") {
+      me = await caller;
       show(current);
       return;
     }
-    const { item, html } = await app.api.template(id);
+    const [{ item, html }, who] = await Promise.all([
+      app.api.template(id),
+      caller,
+    ]);
+    me = who;
     show(fromItem(item, html));
   };
 
@@ -337,11 +890,11 @@ export function editorView(
           label: "Open their version",
           primary: true,
           run: () => {
-            status.textContent = "Loading the latest version...";
+            status.textContent = "Opening their version...";
             load().then(
               () => {
                 status.textContent =
-                  "Loaded the latest version. Your changes were discarded.";
+                  "Opened their version. Your changes were discarded.";
               },
               (error: unknown) => app.fail(error),
             );
@@ -371,7 +924,7 @@ export function editorView(
         }),
       ]);
       status.textContent =
-        "Your text is on the clipboard. Open their version and paste it where needed.";
+        "Copied your text. Open their version and paste it where needed.";
     } catch {
       status.textContent =
         "Copy failed. Select the text in the editor and press Ctrl+C.";
@@ -385,7 +938,8 @@ export function editorView(
       showProblems(
         listed.length > 0 ? listed : [{ kind: "error", message: rpc.message }],
       );
-      status.textContent = "Not saved. Fix the problems listed above.";
+      showRecipientProblems(serverRecipientProblems(rpc.details));
+      status.textContent = "Not saved. Fix the problems in the Problems tab.";
     } else if (rpc.code === ErrorCode.CONFLICT) {
       status.textContent = "Not saved: someone else saved a newer version.";
       conflict(rpc.details);
@@ -397,20 +951,24 @@ export function editorView(
     }
   };
 
-  const save = async () => {
-    if (saving || editor === null) return;
+  /** True when the save succeeded ("Save and leave" leaves only then). */
+  const save = async (): Promise<boolean> => {
+    if (saving || readOnly || editor === null) return false;
     const blocked = backslashProblems(editor.view.state.doc);
     if (blocked.length > 0) {
       showProblems(
         blocked.map((problem) => ({ kind: "error", message: problem.message })),
       );
-      status.textContent = "Not saved. Fix the problems listed above.";
-      return;
+      status.textContent = "Not saved. Fix the problems in the Problems tab.";
+      return false;
     }
+    for (const field of RECIPIENT_FIELDS) fields?.[field].commit();
     saving = true;
     saveButton.disabled = true;
     saveButton.textContent = "Saving...";
-    status.textContent = "Saving...";
+    replace(savedState, "Saving...");
+    savedState.classList.remove("is-saved");
+    status.textContent = "";
     const html = editor.html();
     const args = {
       title: titleInput.value,
@@ -418,7 +976,9 @@ export function editorView(
       folderId: folderSelect.value,
       tags: tags.values(),
       html,
+      ...recipients(),
     };
+    const key = formKey();
     try {
       const item =
         current.id === ""
@@ -426,13 +986,21 @@ export function editorView(
           : await app.api.update(current.id, current.version, args);
       const isNew = current.id === "";
       current = fromItem(item, html);
-      showVersion();
+      savedKey = key;
+      showHeader();
       showProblems(warningsOf(html, args.subject));
-      status.textContent = `Saved as version ${String(item.version)}, ${formatTime(item.updatedAt, "time")}`;
+      // Just saved: the time alone, from the server's clock.
+      lastSaved = `Saved as version ${String(item.version)}, ${formatTime(item.updatedAt, "time")}`;
+      saving = false;
+      showSaved();
       if (isNew) app.replaceRoute({ name: "edit", id: item.id });
       void app.reload();
+      return true;
     } catch (error: unknown) {
+      saving = false;
+      showSaved();
       fail(error);
+      return false;
     } finally {
       saving = false;
       saveButton.disabled = false;
@@ -444,35 +1012,6 @@ export function editorView(
     showSubjectCount();
     updatePreview();
   });
-  const fields = h(
-    "div",
-    { class: "editor-fields" },
-    h(
-      "div",
-      { class: "field" },
-      h("label", { for: "title" }, "Title"),
-      titleInput,
-    ),
-    h(
-      "div",
-      { class: "field" },
-      h("label", { for: "subject" }, "Subject"),
-      subjectInput,
-      subjectCount,
-    ),
-    h(
-      "div",
-      { class: "field" },
-      h("label", { for: "folder" }, "Folder"),
-      folderSelect,
-    ),
-    tags.element,
-  );
-  // The toolbar and its menu take focus too; only a field or the body changes the Placeholder target.
-  for (const area of [fields, mount])
-    area.addEventListener("focusin", (event) => {
-      subjectActive = event.target === subjectInput;
-    });
   saveButton.addEventListener("click", () => void save());
   historyButton.addEventListener("click", () => {
     app.go({ name: "history", id: current.id });
@@ -485,6 +1024,75 @@ export function editorView(
   };
   document.addEventListener("keydown", ctrlS);
 
+  /** Unsaved changes: the form differs from the last load or save, for a caller who may edit. */
+  const dirty = () =>
+    built &&
+    !readOnly &&
+    editor !== null &&
+    // A view no longer on the page (a test booting a new app) has nothing to lose.
+    mount.isConnected &&
+    formKey() !== savedKey;
+
+  /** The open "Leave without saving?" question; a second exit attempt while it shows only focuses it. */
+  let asking: OpenDialog | null = null;
+
+  /** Leaving the editor with unsaved changes asks first; "Save and leave" leaves only after a successful save. */
+  const canLeave = (leave: () => void): boolean => {
+    if (!dirty()) return true;
+    if (asking !== null) {
+      asking.element.querySelector("button")?.focus();
+      return false;
+    }
+    const answer = (then: () => void) => () => {
+      asking = null;
+      then();
+      return true;
+    };
+    // A link, image or field dialog open at Back or Forward closes first, so the question is the only dialog.
+    cancelDialogs();
+    const from = document.activeElement;
+    asking = openDialog({
+      title: "Leave without saving?",
+      body: h(
+        "p",
+        {},
+        "Your changes to this template are not saved. They are lost if you leave now.",
+      ),
+      // Focus goes back to the control that started the exit, or to the body when focus was nowhere.
+      returnFocus:
+        from instanceof HTMLElement && from !== document.body
+          ? from
+          : (editor?.view.dom ?? saveButton),
+      onCancel: () => {
+        asking = null;
+      },
+      actions: [
+        {
+          label: "Keep editing",
+          autofocus: true,
+          run: answer(() => undefined),
+        },
+        { label: "Discard changes", run: answer(leave) },
+        {
+          label: "Save and leave",
+          primary: true,
+          run: answer(() => {
+            void save().then((saved) => {
+              if (saved) leave();
+            });
+          }),
+        },
+      ],
+    });
+    return false;
+  };
+
+  /** Closing or reloading the page while changes are unsaved: the browser asks (where the frame allows it). */
+  const beforeUnload = (event: BeforeUnloadEvent) => {
+    if (dirty()) event.preventDefault();
+  };
+  window.addEventListener("beforeunload", beforeUnload);
+
   replace(
     main,
     h(
@@ -492,38 +1100,20 @@ export function editorView(
       { class: "editor-page" },
       h(
         "div",
-        { class: "editor-header" },
+        { class: "editor-head" },
         h(
-          "button",
-          {
-            type: "button",
-            class: "link",
-            onclick: () => {
-              app.go({ name: "library", folderId: current.folderId });
-            },
-          },
-          "‹ Library",
+          "div",
+          { class: "crumb-line" },
+          h("nav", { "aria-label": "Folder" }, crumbs),
+          heading,
         ),
-        heading,
-        versionText,
+        h("span", { class: "grow" }),
+        savedState,
         historyButton,
         saveButton,
       ),
-      fields,
-      h(
-        "div",
-        { class: "editor-columns" },
-        body,
-        h(
-          "aside",
-          { class: "preview", "aria-labelledby": "preview-heading" },
-          h("h2", { id: "preview-heading" }, "Preview as me"),
-          previewSubject,
-          preview,
-        ),
-      ),
-      problems,
       status,
+      work,
     ),
   );
 
@@ -539,7 +1129,9 @@ export function editorView(
   });
 
   return {
+    canLeave,
     dispose: () => {
+      window.removeEventListener("beforeunload", beforeUnload);
       document.removeEventListener("keydown", ctrlS);
       window.clearTimeout(previewTimer);
       editor?.destroy();

@@ -1,7 +1,7 @@
 # Implementer memory
 ## Environment facts (2026-11-09)
 - Worktrees may start at an old commit. Reset to the orchestrator branch `claude/gracious-franklin-3n8zbq` first (task prompt gives the command).
-- Worktree guard rejects some heredocs and multi-command scripts it cannot verify (cat > file heredoc, `git` plus python in one command, backslash-heavy python). `python3 - <<'EOF'` edits alone usually pass; new files go through the Write tool; fall back to the Edit tool.
+- Worktree guard rejects some heredocs and multi-command scripts (cat > file heredoc, cat-heredoc appends, `cd X && python3 - <<EOF`, `git` plus python, backslash-heavy python). Run `python3 - <<'EOF'` edits alone; new files via Write; fall back to Edit.
 - Chromium for browser checks: /opt/pw-browsers/chromium. puppeteer-core and chrome-launcher arrive with lighthouse (dev dep). Scratch scripts that import repo code must live inside the worktree (delete before commit).
 - No external binaries (permission classifier). Node 22.23.4, npm 10.9.9; clasp login impossible here.
 
@@ -51,11 +51,7 @@
 - Every server-checked action needs a server call right before it acts; cached bodies alone skip the permission check. `template.apply` `followUp: true` = re-check without a second event.
 
 ## Code map (after slice 4b)
-- `src/shared/requestId.ts`: `newRequestId`, `requestIdNow` (`XXXXXXXX-XXXXXX`), used by web, add-on, `web.open`, rpc fallback.
-- `src/server/metrics.ts`: `newStats`, `meterProps/Cache/Lock/Drive/Directory` (method table `Record<keyof T, true>`, method looked up per call so test monkeypatches work), `snapshotProps` (one `getProperties` per request; triggers live). `Services.startedMs`; `RequestStats` has `calls` and `ms`.
-- Log line: `calls`, `timing` (numbers only); add-on sends `timing` (`requestTiming` in protocol.ts filters keys and ranges).
-- `loadIndex` is lock-free; `maintain` runs in `doGet` only. Body cache `bd:<bodyFileId>` in handlers/body.ts (`readStoredBody`, `cacheBody`).
-- Web: views/rowActions.ts (row menu), grid "Actions" column, `AppContext.pushRoute`, library selects folders in place, `openDialog({ returnFocus })`.
+- shared/requestId.ts (`requestIdNow`); server/metrics.ts (`meter*`, `snapshotProps`: one `getProperties` per request); log `calls`, `timing`; body cache `bd:<bodyFileId>`; web views/rowActions.ts, `AppContext.pushRoute`.
 
 ## Lessons (slices 4b to 6b, merged)
 - Snapshots break read-check-write; re-read live in the lock.
@@ -85,12 +81,10 @@
 - Web: router `ADMIN_TABS` (6), admin.ts `openTab`, views/adminAudit, adminUsage, adminTransfer, adminConfig; dialog `variant: "drawer"`; admin/model.ts `exportFileName`, `localDayStart`, `formatBytes`, `importSummary`. Harness ops for all 8.
 - Tests: test/unit/server/adminReports.test.ts, test/unit/web/adminReports.test.ts.
 
-## Lessons (slice 6b)
+## Lessons (slices 5b to 6b)
 - Dialog actions close in a microtask (focus asserts need `until`). First admin call after `setupWorld` reads `members.json` (cold `gm:*`).
 - 6b review FAIL: data read back from Drive (backups) needs a shape check before it is written (shared/model/shape.ts). Multi-file writes: keep the old copies, write sides first, index last, undo on failure.
-## Lessons kept from 5b to 6b
-- `app.fail(error)?.textContent` leaks banner link text; use `lineText` for status lines. jsdom: `vi.stubEnv("TZ", ...)` changes Date local time.
-- A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
+- `app.fail(error)?.textContent` leaks banner link text; use `lineText`. jsdom: `vi.stubEnv("TZ", ...)` changes Date local time. A negative test must fail for the reason under test. Check accepted ADRs before following a review fix request.
 
 ## Slice 8a (UI shell, 2026-11-10)
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
@@ -106,8 +100,7 @@
 - Retry 1: draft lists are known or unknown (`DraftRecipients`, null); an unknown field never gets a replace action. `recipientWidgets` is the single source of recipient lines on both cards. Version-file lists: `isStoredList`, `unreadableRecipients`.
 ## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
 - Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry`; cards take `entry`; `onMessageOpen` + `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
-- TEMPORARY: src/addon/spikeS7.ts, `onS7Card/Compose/Notify`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-10-s7.md.
-- Harness guard stays outside the error wrapper (the guard test expects a throw). `perl -0pi` multi-file edits pass the worktree guard; python heredocs do not.
+- TEMPORARY: src/addon/spikeS7.ts, `onS7*`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts (inventory: slice-10-s7 handoff). Harness guard stays outside the error wrapper.
 ## Slice 12 (add-on layout and wording, 2026-11-11)
 - Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.
 - `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
@@ -116,13 +109,21 @@
 ## Slice 8c (admin UI, 2026-11-10)
 - `views/adminTable.ts` (`adminTable`, `tableRow` with `data-label`, `noteRow`, `toneTag`); `admin/actions.ts` (`actionWords`, `resultTag`, `purgeText`). Tint tokens `--ok-bg`, `--warn-bg`, `--red-bg`.
 - Admin h1 then tab h2s (Lighthouse heading order). Admin tables stack under 860 px via `td[data-label]::before`.
-- Worktree guard refuses `cmd && python3 - <<EOF`; scratchpad `ed8c.py` (@@@/<<</===/>>>) run alone works. Screens: scratchpad `shoot8c.cjs`, dev server on a fixed port, rebuild by restart.
 
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
 - Focus ring rule: on the active item (`outline-offset: -2px`), never around a listbox. Stacked labels `content: attr(data-label) / ""`.
 - CSS-only fixes get a text test in test/unit/web/styles.test.ts. Old-code check: copy src/web to scratchpad, `git checkout HEAD -- src/web`, run, copy back.
+
+## Slice 8b (editor direction A, 2026-11-11)
+- views/editor.ts builds the work area once in `build()` after `loading` (level from `app.items()`; `use` = read-only); `savedText`, `panelSection`, `panelTabs`, `editorSkeleton`. views/recipients.ts `recipientField` (chips, `splitAddresses`, `recipientBlock`). preview.ts `blankHtml`, `promptUses`, `recipientLines`. schema `blankParts`, names "Field: ...". toolbar `GROUPS`, `tooltip`, `Toolbar.placeholder`. commands `imageWidth`. `api.me()`.
+- `button { display }` beats `[hidden]`: the editor has `.editor-page [hidden] { display: none }`. Harness `?external=deny` (seeding stays allow), `?unreadable=`.
+- Screens: /opt/node-tools/node_modules/playwright via createRequire, dev-web on port 5188.
+- Guard: `View.canLeave(leave)`, app.ts `leaving()` + onBackForward hold; editor `dirty()` needs `mount.isConnected` (old apps in tests keep window listeners). Font picker shows fixed "Font" (row width).
+
+- Retry 1: `Editor.hold()` bookmark for dialog inserts; editor keeps one `asking` dialog; `Host.go`, `onBackForward(hash, moved)` from `{page, at}` history state; Problems tab = live errors + save's others; CSS minified in web.mjs `minifiedStyles`. jsdom: `history.go` fires popstate; caret via DOM selection + `selectionchange`.
+- Merge with main (slice 11, 13): Back/Forward runs `cancelDialogs()` first, then `canLeave` (a held question is cancelled and asked again: one dialog). Harness `devPolicy` reads `settings.recipientsExternal`; `?external=deny` seeds that setting.
 
 ## Slice 11 (admin settings, D29, 2026-11-11)
 - shared/model/settings.ts: `SETTINGS` list, `settingsOf` (defaults at read, never written), `personalTemplatesOn`, `settingsProblem` (in `indexProblem`), `PERSONAL_OFF_TEXT`. `IndexDoc.settings` optional.
@@ -137,8 +138,7 @@
 
 ## Open items handed forward
 - Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
-- Smoke step with a 4.9 MB import (spec 13.5) not written.
-- Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check vs Apps Script reformatting.
+- Smoke step with a 4.9 MB import (spec 13.5) not written. Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check vs Apps Script reformatting.
 
 ## Slice 13 (fix round, 2026-11-11)
 - `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
@@ -146,4 +146,4 @@
 - Retry 2 (replaces retry 1 export design): `export.* { start: true }` commits one event via `commit` and returns `{ token, total }`; token `exp:<id>` in Script Cache, 600 s sliding, bound to caller and scope; pages without it answer VALIDATION `EXPORT_RESTART`. Pages read bodies with `readStoredBody(..., false)` (no cache fill). Buffer: apply|denied only, evicted slot first, `evt:lost` = "<lost> <seen>" in one key. Audit row `exportTemplates`. Web retries any `retryable` error 3 times; harness `&failTimes=n`, `&failSkip=n`. Seed 1,000 templates fast with 5 imports of 200.
 - Old `from` args: reload hint. `RequestStats.target` feeds the log `targetId` when args lack `id`/`folderId`.
 - `prof:<sha256>` keys; `FakeCache.keys()`. `cancelDialogs()` on Back/Forward; backdrop `preventDefault`. Library folder choice for New template (`lastNewFolder`); harness `?access=use`.
-- Search: `SearchFields.addresses` + `Query.words`, web only. Worktree guard: `cd X && python3 - <<EOF` refused; run `python3 - <<'EOF'` alone, cat-heredoc appends refused (use Edit).
+- Search: `SearchFields.addresses` + `Query.words`, web only.

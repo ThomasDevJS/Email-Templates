@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { localPage } from "../../../scripts/lib/html.mjs";
 import { BUDGET_BYTES } from "../../../scripts/lib/budget.mjs";
-import { DEV_PAGE_VALUES, webPage } from "../../../scripts/web.mjs";
+import {
+  DEV_PAGE_VALUES,
+  minifiedStyles,
+  webPage,
+} from "../../../scripts/web.mjs";
 
 describe("web app page (ADR-0005 inlined bundle)", () => {
   it("leaves the dev harness out of the production page and stays under budget", async () => {
@@ -19,6 +23,27 @@ describe("web app page (ADR-0005 inlined bundle)", () => {
     expect(page).toContain("dev.user@example.com");
     expect(page).not.toContain("<?=");
     expect(page).toContain('<meta name="viewport"');
+  });
+
+  it("inlines the stylesheet minified, with no comment, // or scriptlet in it", async () => {
+    const page = await webPage({ harness: false });
+    const styles = page.slice(
+      page.indexOf("<style>") + "<style>".length,
+      page.indexOf("</style>"),
+    );
+    expect(styles).toContain(".ProseMirror{position:relative}");
+    // Both sides of the slice 8b merge: the editor's status line stays scoped, so the settings status keeps its rule.
+    expect(styles).toContain(".editor-page>.status{");
+    expect(styles).toContain(".setting-actions .status{");
+    expect(styles).not.toMatch(/(^|})\.status{[^}]*display:none/);
+    for (const part of ["/*", "//", "<?", "\n.", "</style"])
+      expect(styles).not.toContain(part);
+    await expect(minifiedStyles('a{content:"<?"}')).rejects.toThrow(
+      "Minified styles contain <?.",
+    );
+    await expect(
+      minifiedStyles("a{background:url(//x.example/a.png)}"),
+    ).rejects.toThrow("Minified styles contain //.");
   });
 
   it("escapes scriptlet values", () => {

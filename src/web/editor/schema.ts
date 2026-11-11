@@ -194,15 +194,30 @@ export function tokenOf(attrs: PlaceholderAttrs): string {
     : variableToken(attrs.name, attrs.fallback);
 }
 
-/** Visible chip text: "Sender name", "Recipient first name | there", "Ask: Meeting date". */
-export function chipText(attrs: PlaceholderAttrs): string {
-  if (attrs.name === "") return `Ask: ${attrs.label}`;
-  const label = placeholderInfo(attrs.name)?.label ?? attrs.name;
-  return attrs.fallback === null ? label : `${label} | ${attrs.fallback}`;
+/** A placeholder drawn as a blank (design system "Placeholder"): its class, its label and its fallback. */
+export interface BlankParts {
+  readonly className: "ph" | "ph ask";
+  readonly label: string;
+  readonly fallback: string | null;
 }
 
+export function blankParts(attrs: PlaceholderAttrs): BlankParts {
+  if (attrs.name === "")
+    return { className: "ph ask", label: attrs.label, fallback: null };
+  return {
+    className: "ph",
+    label: placeholderInfo(attrs.name)?.label ?? attrs.name,
+    fallback: attrs.fallback,
+  };
+}
+
+/** Accessible name: "Field: Load number, asked at insert", "Field: Recipient first name, fallback there". */
 export function chipLabel(attrs: PlaceholderAttrs): string {
-  return `Placeholder: ${chipText(attrs).toLowerCase()}`;
+  const { label, fallback } = blankParts(attrs);
+  if (attrs.name === "") return `Field: ${label}, asked at insert`;
+  return fallback === null
+    ? `Field: ${label}`
+    : `Field: ${label}, fallback ${fallback}`;
 }
 
 const placeholder: NodeSpec = {
@@ -225,16 +240,20 @@ const placeholder: NodeSpec = {
   ],
   toDOM: (node): DOMOutputSpec => {
     const attrs = node.attrs as PlaceholderAttrs;
+    const { className, label, fallback } = blankParts(attrs);
     return [
       "span",
       {
-        class: "ph",
+        class: className,
         "data-ph": tokenOf(attrs),
         contenteditable: "false",
         role: "img",
         "aria-label": chipLabel(attrs),
       },
-      chipText(attrs),
+      label,
+      ...(fallback === null
+        ? []
+        : [["span", { class: "ph-or" }, " or "] as DOMOutputSpec, fallback]),
     ];
   },
 };

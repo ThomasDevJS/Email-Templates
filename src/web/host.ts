@@ -25,7 +25,10 @@ export interface GoogleScript {
     push(state: unknown, params: object, hash: string): void;
     replace(state: unknown, params: object, hash: string): void;
     setChangeHandler(
-      handler: (event: { readonly location: ScriptLocation }) => void,
+      handler: (event: {
+        readonly state?: unknown;
+        readonly location: ScriptLocation;
+      }) => void,
     ): void;
   };
 }
@@ -35,10 +38,16 @@ export interface Host {
   location(): Promise<ScriptLocation>;
   /** `hash` without the leading `#`, for example `/edit/01ABC`. */
   navigate(hash: string, replace: boolean): void;
-  onBackForward(handler: (hash: string) => void): void;
+  /** `moved`: entries traveled (-1 for one Back), 0 when unknown (an entry from before this page load). */
+  onBackForward(handler: (hash: string, moved: number) => void): void;
+  /** Travels `delta` entries in the browser history, as Back (-1) and Forward (+1) do. */
+  go(delta: number): void;
 }
 
 export function googleHost(script: GoogleScript): Host {
+  // Each entry this page writes stores its position, so a Back or Forward reports how far it moved.
+  const page = String(Date.now());
+  let at = 0;
   return {
     runner: {
       run: (op, args, requestId, onReply, onFailure) => {
@@ -53,13 +62,23 @@ export function googleHost(script: GoogleScript): Host {
         script.url.getLocation(resolve);
       }),
     navigate: (hash, replace) => {
-      if (replace) script.history.replace(null, {}, hash);
-      else script.history.push(null, {}, hash);
+      if (replace) script.history.replace({ page, at }, {}, hash);
+      else {
+        at += 1;
+        script.history.push({ page, at }, {}, hash);
+      }
     },
     onBackForward: (handler) => {
       script.history.setChangeHandler((event) => {
-        handler(event.location.hash);
+        const state = event.state as { page?: unknown; at?: unknown } | null;
+        const to = state?.page === page ? state.at : undefined;
+        const moved = typeof to === "number" ? to - at : 0;
+        if (typeof to === "number") at = to;
+        handler(event.location.hash, moved);
       });
+    },
+    go: (delta) => {
+      window.history.go(delta);
     },
   };
 }

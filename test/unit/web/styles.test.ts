@@ -50,3 +50,42 @@ describe("styles (slice 8d)", () => {
     );
   });
 });
+
+describe("styles (slice 8b editor)", () => {
+  it("hides elements with the hidden attribute inside the editor, buttons included", () => {
+    expect(rule(".editor-page [hidden]")).toContain("display: none");
+  });
+
+  it("puts the email on a 680 px sheet over the canvas with 15 px body text at 1.6", () => {
+    expect(rule(".editor-sheet")).toContain("width: 680px");
+    expect(rule(".doc")).toContain("background: var(--canvas)");
+    const body = rule(".editor");
+    expect(body).toContain("font-size: 15px");
+    expect(body).toContain("line-height: 1.6");
+    expect(rule(".editor-work")).toContain(
+      "grid-template-columns: minmax(0, 1fr) 340px",
+    );
+  });
+
+  it("stacks the panel under the sheet and scrolls the toolbar in its row under 860 px", () => {
+    const narrow = CSS.slice(CSS.indexOf("/* Under 860 px the panel moves"));
+    expect(narrow).toContain(
+      ".editor-work {\n    grid-template-columns: minmax(0, 1fr);",
+    );
+    expect(narrow).toContain(
+      "flex-wrap: nowrap;\n    padding: 6px 12px;\n    overflow-x: auto;",
+    );
+    expect(narrow).toContain(
+      ".tool:focus-visible {\n    outline-offset: -2px;",
+    );
+    expect(narrow).toContain(".section-body.collapsed {\n    display: none;");
+  });
+  it("gives detail fields the full panel width and aligns the read-only note with the sheet (retry 1)", () => {
+    expect(rule(".details .panel-row")).toContain(
+      "grid-template-columns: minmax(0, 1fr)",
+    );
+    const note = rule(".read-only-note");
+    expect(note).toContain("width: 680px");
+    expect(note).toContain("margin: 20px auto -8px");
+  });
+});

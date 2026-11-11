@@ -1171,42 +1171,419 @@ table {
   height: auto;
 }
 
-/* Editor (slice 8b redesigns it; these rules keep it working on the new tokens) */
+/* Editor (slice 8b, design system "Editor"): header, toolbar, the email on a sheet over the canvas, right panel */
 
-.editor-header {
+.editor-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  margin: 0 -28px -28px;
+}
+
+/* Buttons and lists set their own display; `hidden` (read-only state, empty lists) still wins. */
+.editor-page [hidden] {
+  display: none;
+}
+
+.editor-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 18px 0 14px;
+  gap: 8px 12px;
+  min-height: 56px;
+  padding: 10px 28px;
+  border-bottom: 1px solid var(--line);
 }
 
-.editor-title {
-  flex: 1;
-}
-
-.editor-fields {
+.crumb-line {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-#title {
-  min-width: 320px;
-}
-
-.tag-row {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crumbs li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-3);
+}
+
+.crumb {
+  height: auto;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.crumb:hover {
+  background: none;
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.crumb-title {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.saved-state svg.i {
+  display: none;
+}
+
+.saved-state.is-saved svg.i {
+  display: block;
+  color: var(--ok);
+}
+
+.editor-page > .status {
+  margin: 8px 28px 0;
+}
+
+/* The read-only note heads the sheet column, aligned with the sheet. */
+.read-only-note {
+  width: 680px;
+  max-width: calc(100% - 56px);
+  margin: 20px auto -8px;
+}
+
+.editor-page > .status:empty {
+  display: none;
+}
+
+.editor-slot {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.editor-work {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.doc {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--canvas);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.tool {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.tool:hover,
+.tool[aria-pressed="true"],
+.tool[aria-expanded="true"] {
+  background: var(--select);
+  color: var(--ink);
+}
+
+.tool.letter {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tool[aria-label="Bold"] {
+  font-weight: 700;
+}
+
+.tool[aria-label="Italic"] {
+  font-style: italic;
+}
+
+.tool[aria-label="Underline"] {
+  text-decoration: underline;
+}
+
+.tool[aria-label="Strikethrough"] {
+  text-decoration: line-through;
+}
+
+.tool.picker {
+  width: auto;
+  gap: 2px;
+  padding: 0 4px 0 6px;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.tool.picker svg.i {
+  width: 12px;
+  height: 12px;
+}
+
+.tool-sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--line);
+}
+
+.tool-ph {
+  width: auto;
+  margin-left: auto;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid var(--blank-line);
+  background: var(--blank-bg);
+  color: var(--blank-ink);
+  font-weight: 500;
+}
+
+.tool-ph:hover,
+.tool-ph[aria-expanded="true"] {
+  border-color: var(--blank-ink);
+  background: var(--blank-bg);
+  color: var(--blank-ink);
+}
+
+.editor-sheet {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 680px;
+  max-width: calc(100% - 56px);
+  margin: 24px auto;
+}
+
+.subject-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.subject-row label {
+  flex: none;
+  width: 64px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+/* The subject line reads as part of the sheet; the focus ring shows where typing goes. */
+#subject {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+#subject:hover {
+  border-color: var(--field-line);
+}
+
+.subject-row {
+  flex-wrap: wrap;
+}
+
+.reads-as {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 12px;
+  align-items: baseline;
+  margin: 0 0 4px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.reads-label {
+  flex: none;
+  width: 64px;
+  white-space: nowrap;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.count-hint {
+  flex: none;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.editor-mount {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.editor {
+  flex: 1;
+  min-height: 360px;
+  padding: 22px 28px;
+  border-radius: 0 0 8px 8px;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.editor:focus,
+.editor:focus-visible {
+  outline: 2px solid var(--slate);
+  outline-offset: -2px;
+}
+
+.editor p {
+  margin: 0 0 14px;
+}
+
+.editor table {
+  margin: 4px 0 18px;
+}
+
+.editor td,
+.editor th {
+  min-width: 60px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+}
+
+.editor th {
+  background: var(--canvas);
+  text-align: left;
+}
+
+.ph-or {
+  color: var(--ink-2);
+}
+
+.editor-panel {
+  min-width: 0;
+  padding: 18px 20px;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.panel-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-section:last-child {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.panel-heading {
+  margin: 0 0 8px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.panel-heading.quiet .section-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.section-toggle {
+  display: none;
+}
+
+.panel-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 0 8px;
+  align-items: start;
+  margin-bottom: 8px;
+}
+
+.panel-row > label,
+.panel-row > .row-label {
+  padding-top: 5px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.panel-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.panel-control > input,
+.panel-control > select {
+  width: 100%;
+  min-height: 30px;
+}
+
+.panel-control .hint,
+.rcpt-help {
+  font-size: 12px;
+}
+
+.panel-control .error {
+  margin: 0;
+  font-size: 12px;
+}
+
+.panel-control .error:empty {
+  display: none;
+}
+
+.panel-control .error p {
+  margin: 0;
 }
 
 .tags {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  margin: 0;
+  margin: 2px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1220,92 +1597,225 @@ table {
   color: inherit;
 }
 
-.editor-columns {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 16px;
+.tag-entry {
+  display: flex;
+  gap: 6px;
 }
 
-.toolbar {
+.tag-entry input {
+  flex: 1;
+  min-width: 0;
+  min-height: 30px;
+}
+
+.tag-entry button {
+  height: 30px;
+}
+
+/* Detail fields take the full panel width, with the label above (wireframe 04): a folder path fits its select. */
+.rcpt-group {
+  margin-top: 12px;
+}
+
+.details .panel-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.details .panel-row > label,
+.details .panel-row > .row-label {
+  padding-top: 0;
+}
+
+.rcpt-help {
+  margin: 0;
+}
+
+.chips-box {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
-  padding: 6px;
-  border: 1px solid var(--line-strong);
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-  background: var(--canvas);
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 30px;
+  padding: 3px 4px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  cursor: text;
 }
 
-.tool {
-  height: 28px;
-  padding: 0 8px;
+.chips-box:focus-within {
+  outline: 2px solid var(--slate);
+  outline-offset: 2px;
+}
+
+.chips-box.readonly {
+  padding-left: 0;
   border-color: transparent;
+  cursor: default;
+}
+
+.chips-box input {
+  flex: 1 0 80px;
+  min-width: 80px;
+  min-height: 22px;
+  padding: 0 4px;
+  border: none;
   background: transparent;
 }
 
-.tool:hover,
-.tool[aria-pressed="true"] {
-  background: var(--select);
+.chips-box input:focus-visible {
+  outline: none;
 }
 
-.tool[aria-pressed="true"] {
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 100%;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 0 2px 0 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--select);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.chips-box.readonly .chip {
+  padding-right: 8px;
+}
+
+.chip.bad {
+  border-color: var(--red);
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-remove {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+}
+
+.chip-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 4px;
+  color: var(--warn);
+  font-size: 12px;
+}
+
+.chip-mark svg.i {
+  width: 12px;
+  height: 12px;
+}
+
+.ask-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.ask-count {
+  color: var(--ink-3);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pill-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.pill-tabs [role="tab"] {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.pill-tabs [role="tab"][aria-selected="true"] {
+  background: var(--select);
+  color: var(--ink);
   font-weight: 600;
 }
 
-.tool-ph {
-  border-color: var(--blank-line);
-  background: var(--blank-bg);
-  color: var(--blank-ink);
-}
-
-.editor {
-  min-height: 320px;
-  padding: 12px 16px;
-  border: 1px solid var(--line-strong);
-  border-radius: 0 0 8px 8px;
-  font-size: 15px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.editor:focus-visible,
-.editor:focus {
-  outline: 2px solid var(--slate);
-  outline-offset: 0;
-}
-
-.editor td,
-.editor th {
-  min-width: 60px;
-  padding: 4px 8px;
-  border: 1px solid var(--line-strong);
-}
-
-.preview {
-  min-width: 0;
-}
-
-.editor-columns .preview {
-  padding: 12px 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--canvas);
-}
-
-.editor-columns .preview h2 {
-  margin-bottom: 8px;
-  font-size: 13px;
+.editor-panel .preview {
+  overflow-wrap: anywhere;
 }
 
 .preview-subject {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   font-weight: 600;
 }
 
+.preview-subject .subject-label {
+  margin-right: 4px;
+}
+
+.rcpt-lines {
+  margin: 0 0 10px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.rcpt-lines p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.rcpt-label {
+  display: inline-block;
+  min-width: 32px;
+  margin-right: 6px;
+  color: var(--ink-3);
+}
+
+.sheet-recipients .rcpt-lines {
+  margin: 0;
+  padding: 12px 28px 0;
+}
+
 .problems:not(:empty) {
-  margin-top: 12px;
   padding: 8px 12px;
   border: 1px solid var(--line-strong);
   border-left: 3px solid var(--red);
@@ -1327,6 +1837,151 @@ table {
 
 .problems .warning {
   color: var(--warn);
+}
+
+/* A problem with a field is a button that moves focus there; it keeps the problem's color. */
+.problems button.problem-link {
+  display: inline;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+}
+
+.skeleton-bar {
+  height: 41px;
+}
+
+.skeleton-text {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 28px;
+}
+
+.w60 {
+  width: 60%;
+}
+
+.w80 {
+  width: 80%;
+}
+
+.w90 {
+  width: 90%;
+}
+
+/* Under 860 px the panel moves below the sheet as collapsible sections; the toolbar scrolls inside its row. */
+@media (max-width: 859px) {
+  .editor-page {
+    min-height: 0;
+    margin: 0 -16px -24px;
+  }
+
+  .editor-head {
+    padding: 8px 16px;
+  }
+
+  .crumb-line,
+  .saved-state {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .editor-head .grow {
+    display: none;
+  }
+
+  .editor-page > .status {
+    margin: 8px 16px 0;
+  }
+
+  .read-only-note {
+    width: auto;
+    max-width: none;
+    margin: 12px 12px 0;
+  }
+
+  .editor-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .toolbar {
+    flex-wrap: nowrap;
+    padding: 6px 12px;
+    overflow-x: auto;
+  }
+
+  .tool:focus-visible {
+    outline-offset: -2px;
+  }
+
+  .editor-sheet {
+    width: auto;
+    max-width: none;
+    margin: 12px;
+  }
+
+  .subject-row {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 6px 16px;
+  }
+
+  .subject-row #subject {
+    flex-basis: 160px;
+  }
+
+  .editor {
+    min-height: 240px;
+    padding: 16px;
+  }
+
+  .editor-panel {
+    padding: 8px 16px 16px;
+    border-top: 1px solid var(--line);
+    border-left: none;
+  }
+
+  .panel-section {
+    margin-bottom: 0;
+    padding-bottom: 8px;
+  }
+
+  .panel-heading {
+    margin: 0;
+  }
+
+  .section-toggle {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .section-toggle[aria-expanded="false"] svg.i {
+    transform: rotate(-90deg);
+  }
+
+  .section-title,
+  .panel-heading.quiet .section-title {
+    display: none;
+  }
+
+  .section-body.collapsed {
+    display: none;
+  }
+
+  .sheet-recipients .rcpt-lines {
+    padding: 12px 16px 0;
+  }
 }
 
 /* Admin (slice 8c): page title, underlined tab row, tables and forms from the components above */
@@ -1876,7 +2531,6 @@ code,
 
 @media (max-width: 1023px) {
   .admin-folders,
-  .editor-columns,
   .history-columns {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2176,10 +2830,5 @@ code,
 
   .key-hint {
     display: none;
-  }
-
-  #title {
-    min-width: 0;
-    width: 100%;
   }
 }

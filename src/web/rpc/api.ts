@@ -6,6 +6,11 @@ import type {
   PrincipalType,
 } from "../../shared/model/data";
 import type {
+  ExternalRule,
+  RecipientField,
+  Recipients,
+} from "../../shared/model/recipients";
+import type {
   SettingEntry,
   SettingName,
   SettingValue,
@@ -47,7 +52,14 @@ export interface VersionList {
   readonly versions: readonly VersionEntry[];
 }
 
-export interface VersionBody {
+/** `me`: the caller and the outside-recipients rule the editor checks addresses against (spec 5.7). */
+export interface Me {
+  readonly email: string;
+  readonly isAdmin: boolean;
+  readonly recipientsExternal: ExternalRule;
+}
+
+export interface VersionBody extends Recipients {
   readonly version: number;
   readonly subject: string;
   readonly html: string;
@@ -56,7 +68,8 @@ export interface VersionBody {
   readonly restoredFrom: number;
 }
 
-export interface SaveArgs {
+/** `to`, `cc`, `bcc` are always sent: an empty list clears a field (spec 4.2). */
+export interface SaveArgs extends Recipients {
   readonly title: string;
   readonly subject: string;
   readonly folderId: string;
@@ -202,6 +215,7 @@ export interface ConfigView {
 
 export interface Api {
   profile(): Promise<Profile>;
+  me(): Promise<Me>;
   folders(): Promise<{ folders: FolderRow[] }>;
   /** The library with the caller's Favorites (newest first) and Recent (last used first). */
   templates(): Promise<{
@@ -217,7 +231,12 @@ export interface Api {
   update(id: string, baseVersion: number, args: SaveArgs): Promise<Item>;
   versions(id: string): Promise<VersionList>;
   version(id: string, version: number): Promise<VersionBody>;
-  restore(id: string, version: number, baseVersion: number): Promise<Item>;
+  /** `recipientsUnreadable`: fields of version K whose stored list could not be read and were restored empty. */
+  restore(
+    id: string,
+    version: number,
+    baseVersion: number,
+  ): Promise<Item & { recipientsUnreadable?: RecipientField[] }>;
   duplicate(id: string): Promise<Item>;
   move(id: string, folderId: string, baseVersion: number): Promise<Item>;
   remove(id: string, baseVersion: number): Promise<Item>;
@@ -275,6 +294,7 @@ export function createApi(client: RpcClient): Api {
     client.call(op, args) as Promise<T>;
   return {
     profile: () => call("profile.me"),
+    me: () => call("me"),
     folders: () => call("folder.list"),
     templates: () => call("template.list"),
     setFavorite: (id, favorite) =>

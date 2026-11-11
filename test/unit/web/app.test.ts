@@ -527,7 +527,9 @@ describe("editor (screen 4, flow 4.2)", () => {
         (tag) => tag.firstChild?.textContent,
       ),
     ).toEqual(["pricing", "quotes"]);
-    expect(main().querySelector(".version")?.textContent).toBe("Version 2");
+    expect(main().querySelector(".saved-state")?.textContent).toMatch(
+      /^Saved as version 2, (Nov 9, (2026, )?)?\d{1,2}:\d\d [AP]M$/,
+    );
     expect(main().querySelector('[role="toolbar"]')).not.toBeNull();
     await until(() => {
       expect(main().querySelector(".preview-body")?.textContent).toContain(
@@ -546,17 +548,17 @@ describe("editor (screen 4, flow 4.2)", () => {
     key(tagInput, "Enter");
     key(document.body, "s", { ctrlKey: true });
     const save = main().querySelector<HTMLButtonElement>(
-      ".editor-header .primary",
+      ".editor-head .primary",
     );
     expect(save?.disabled).toBe(true);
     expect(save?.textContent).toBe("Saving...");
+    expect(main().querySelector(".saved-state")?.textContent).toBe("Saving...");
     await until(() => {
       expect(main().querySelector('[role="status"]')?.textContent).toMatch(
         /^Saved as version 3, \d{1,2}:\d\d [AP]M$/,
       );
     });
     expect(save?.disabled).toBe(false);
-    expect(main().querySelector(".version")?.textContent).toBe("Version 3");
     (
       main().querySelector('[aria-label="Remove tag new"]') as HTMLButtonElement
     ).click();
@@ -579,7 +581,7 @@ describe("editor (screen 4, flow 4.2)", () => {
     subject.focus();
     subject.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
     subject.setSelectionRange(0, 0);
-    button("{{ Placeholder").click();
+    button("Insert field").click();
     const menu = document.querySelector('[role="menu"]') as HTMLElement;
     const items = [...menu.querySelectorAll('[role="menuitem"]')];
     (
@@ -604,7 +606,9 @@ describe("editor (screen 4, flow 4.2)", () => {
     subject.dispatchEvent(new Event("input"));
     button("Save").click();
     await until(() => {
-      expect(main().querySelector(".version")?.textContent).toBe("Version 3");
+      expect(main().querySelector(".saved-state")?.textContent).toMatch(
+        /^Saved as version 3, /,
+      );
     });
     expect(
       (
@@ -638,7 +642,7 @@ describe("editor (screen 4, flow 4.2)", () => {
       expect(main().querySelector(".ProseMirror")).not.toBeNull();
     });
     (document.getElementById("title") as HTMLInputElement).value = "Fresh";
-    button("{{ Placeholder").click();
+    button("Insert field").click();
     const menu = document.querySelector('[role="menu"]') as HTMLElement;
     expect(
       [...menu.querySelectorAll('[role="menuitem"]')].map(
@@ -707,7 +711,9 @@ describe("editor (screen 4, flow 4.2)", () => {
     await until(() => {
       expect(main().querySelector(".ProseMirror")?.textContent).toBe("theirs");
     });
-    expect(main().querySelector(".version")?.textContent).toBe("Version 2");
+    expect(main().querySelector(".saved-state")?.textContent).toMatch(
+      /^Saved as version 2, /,
+    );
   });
 
   it("opens their version of a template created in this tab (smoke defect 1)", async () => {
@@ -718,7 +724,9 @@ describe("editor (screen 4, flow 4.2)", () => {
     (document.getElementById("title") as HTMLInputElement).value = "Mine";
     button("Save").click();
     await until(() => {
-      expect(main().querySelector(".version")?.textContent).toBe("Version 1");
+      expect(main().querySelector(".saved-state")?.textContent).toMatch(
+        /^Saved as version 1, /,
+      );
     });
     const id = window.location.hash.replace("#/edit/", "");
     expect((await otherTabSave(id, 1)).ok).toBe(true);
@@ -730,9 +738,11 @@ describe("editor (screen 4, flow 4.2)", () => {
     await until(() => {
       expect(main().querySelector(".ProseMirror")?.textContent).toBe("theirs");
     });
-    expect(main().querySelector(".version")?.textContent).toBe("Version 2");
+    expect(main().querySelector(".saved-state")?.textContent).toMatch(
+      /^Saved as version 2, /,
+    );
     expect(main().querySelector(".status")?.textContent).toBe(
-      "Loaded the latest version. Your changes were discarded.",
+      "Opened their version. Your changes were discarded.",
     );
   });
 
@@ -779,7 +789,7 @@ describe("history (screen 5)", () => {
     await until(() => {
       expect(
         main().querySelector(".preview-body .ph")?.getAttribute("aria-label"),
-      ).toBe("Placeholder: recipient first name | there");
+      ).toBe("Field: Recipient first name, fallback there");
     });
     key(list, "r");
     const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
@@ -808,12 +818,12 @@ describe("history (screen 5)", () => {
     await boot("/?latency=0#/history/T-QUOTE");
     await until(() => {
       expect(main().querySelector(".preview-subject")?.textContent).toBe(
-        "Subject: Quote for Ask: Product name",
+        "Subject: Quote for Product name",
       );
     });
     expect(
       main().querySelector(".preview-subject .ph")?.getAttribute("aria-label"),
-    ).toBe("Placeholder: ask: product name");
+    ).toBe("Field: Product name, asked at insert");
   });
 });
 

@@ -1,5 +1,5 @@
 // Web app page builder and local server, shared by build.mjs, dev-web.mjs and lighthouse.mjs.
-import { build } from "esbuild";
+import { build, transform } from "esbuild";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, join, resolve } from "node:path";
@@ -48,11 +48,34 @@ export async function webPage({ harness }) {
     charset: "utf8",
   });
   const template = readFileSync(join(WEB_DIR, "index.html"), "utf8");
-  const styles = WEB_STYLES.map((path) => readFileSync(path, "utf8").trim());
+  const styles = await minifiedStyles(
+    WEB_STYLES.map((path) => readFileSync(path, "utf8")).join("\n"),
+  );
   return inlineHtml(template, {
     script: (result.outputFiles[0]?.text ?? "").trim(),
-    styles: styles.join("\n"),
+    styles,
   });
+}
+
+/**
+ * The stylesheet minified (comments dropped, about 11 KB less). Like the script, it may hold no `//`, `/*`, `<?`
+ * (an HtmlService scriptlet) or `</style`.
+ * @param {string} css
+ * @returns {Promise<string>}
+ */
+export async function minifiedStyles(css) {
+  const { code } = await transform(css, {
+    loader: "css",
+    minify: true,
+    legalComments: "none",
+    charset: "utf8",
+  });
+  const found = ["//", "/*", "<?", "</style"].filter((part) =>
+    code.toLowerCase().includes(part),
+  );
+  if (found.length > 0)
+    throw new Error(`Minified styles contain ${found.join(", ")}.`);
+  return code.trim();
 }
 
 /**

@@ -1,3 +1,8 @@
+import {
+  FIELD_LABELS,
+  recipientsOf,
+  type RecipientField,
+} from "../../shared/model/recipients";
 import type { VersionEntry, VersionList } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { escapeText } from "../../shared/html/escape";
@@ -6,6 +11,23 @@ import { shortName } from "../ui/person";
 import { skeletonRows, toRpcError } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { withChips } from "./preview";
+import { recipientBlock } from "./recipients";
+
+/** "Restored as version 5.", plus the fields of version K whose stored list could not be read (restored empty). */
+export function restoredText(
+  version: number,
+  from: number,
+  unreadable: readonly RecipientField[],
+): string {
+  const done = `Restored as version ${String(version)}.`;
+  if (unreadable.length === 0) return done;
+  const names = unreadable.map((field) => FIELD_LABELS[field]);
+  const list =
+    names.length === 1
+      ? (names[0] ?? "")
+      : `${names.slice(0, -1).join(", ")} and ${names.at(-1) ?? ""}`;
+  return `${done} The ${list} addresses of version ${String(from)} could not be read and were left empty. Add them again in the editor.`;
+}
 
 /**
  * History (screen 5): version list (`role="listbox"`, arrows move, Enter previews, R restores), preview of the
@@ -37,6 +59,7 @@ export function historyView(
     "Version",
   );
   const preview = h("div", { class: "preview-body" });
+  const recipients = h("div", { class: "sheet-recipients" });
   const subject = h("p", { class: "preview-subject" });
   const restoreButton = h(
     "button",
@@ -121,6 +144,7 @@ export function historyView(
     preview.setAttribute("aria-busy", "true");
     try {
       const body = await app.api.version(id, entry.version);
+      replace(recipients, recipientBlock(recipientsOf(body)));
       subject.innerHTML =
         body.subject === ""
           ? ""
@@ -153,7 +177,11 @@ export function historyView(
     try {
       const item = await app.api.restore(id, version, base);
       selected = 0;
-      status.textContent = `Restored as version ${String(item.version)}.`;
+      status.textContent = restoredText(
+        item.version,
+        version,
+        item.recipientsUnreadable ?? [],
+      );
       await load();
       void app.reload();
     } catch (error: unknown) {
@@ -261,7 +289,7 @@ export function historyView(
             "aria-labelledby": "version-heading",
           },
           previewTitle,
-          h("div", { class: "sheet" }, subject, preview),
+          h("div", { class: "sheet" }, recipients, subject, preview),
         ),
       ),
     ),

@@ -9,6 +9,8 @@ export interface MenuItem {
   readonly checked?: boolean;
   /** Shown in red after a divider (Delete). */
   readonly destructive?: boolean;
+  /** CSS font family the item's label is drawn in (the font picker shows each face). */
+  readonly font?: string;
   readonly run: () => void;
 }
 
@@ -55,6 +57,8 @@ export function openMenu(options: MenuOptions): HTMLElement {
         tabindex: "-1",
         class:
           item.destructive === true ? "menu-item destructive" : "menu-item",
+        style:
+          item.font === undefined ? undefined : `font-family: ${item.font}`,
         onclick: () => {
           close(true);
           item.run();

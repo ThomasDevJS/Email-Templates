@@ -50,10 +50,11 @@ async function askLabel(): Promise<string | null> {
 }
 
 async function askPrompt(editor: Editor): Promise<void> {
+  const held = editor.hold();
   const label = await askLabel();
   if (label !== null)
-    editor.run(insertPlaceholder({ name: "", label, fallback: null }));
-  else editor.focus();
+    held.run(insertPlaceholder({ name: "", label, fallback: null }));
+  else held.release();
 }
 
 async function askFallback(

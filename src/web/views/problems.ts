@@ -4,9 +4,14 @@ import { h } from "../ui/dom";
 export interface ListedProblem {
   readonly kind: "error" | "warning";
   readonly message: string;
+  /** Where the problem is ("subject", "body", "to", "cc", "bcc"); its list item then moves focus there. */
+  readonly field?: string;
 }
 
-export function problemList(problems: readonly ListedProblem[]): HTMLElement[] {
+export function problemList(
+  problems: readonly ListedProblem[],
+  focusField: (field: string) => void = () => undefined,
+): HTMLElement[] {
   if (problems.length === 0) return [];
   const errors = problems.filter((problem) => problem.kind === "error").length;
   const title =
@@ -16,15 +21,30 @@ export function problemList(problems: readonly ListedProblem[]): HTMLElement[] {
     h(
       "ul",
       {},
-      ...problems.map((problem) =>
-        h(
-          "li",
-          { class: problem.kind },
+      ...problems.map((problem) => {
+        const text =
           problem.kind === "warning"
             ? `Warning: ${problem.message}`
-            : `Error: ${problem.message}`,
-        ),
-      ),
+            : `Error: ${problem.message}`;
+        const { field } = problem;
+        return h(
+          "li",
+          { class: problem.kind },
+          field === undefined
+            ? text
+            : h(
+                "button",
+                {
+                  type: "button",
+                  class: "link problem-link",
+                  onclick: () => {
+                    focusField(field);
+                  },
+                },
+                text,
+              ),
+        );
+      }),
     ),
   ];
 }

@@ -29,6 +29,11 @@ export interface AppContext {
 /** A mounted view; `dispose` runs before the next route renders. */
 export interface View {
   dispose(): void;
+  /**
+   * Editor only (unsaved-changes guard): true lets the route change happen now; false means the view asks first and
+   * calls `leave` if the user leaves.
+   */
+  canLeave?(leave: () => void): boolean;
   /** Library only: shows another folder ("" for all), or the favorites of every folder, in place. */
   scope?(folderId: string, favorites: boolean): void;
 }
