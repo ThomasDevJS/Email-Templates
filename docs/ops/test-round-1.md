@@ -5,7 +5,7 @@ This plan tests the dev build of Migway Templates: the web editor, the Gmail car
 ## Rules for the browser agent
 
 1. Work only in tabs you open yourself. Leave every other tab alone.
-2. Send no email. Discard every draft when its step ends (the trash icon "Discard draft" in the draft window). One exception: part G keeps the drafts of its steps 1 and 2 until its step 4.
+2. Send no email. Discard every draft when its step ends (the trash icon "Discard draft" in the draft window).
 3. Never type a password.
 4. Stop at any sign in page or permission (consent) page. Report the page title and its text, then wait.
 5. Before step 1, read the build version (see "The build") and report it.
@@ -193,27 +193,7 @@ For the second tester, with the owner on a call or in chat. About 20 minutes. At
 
 ## Part G: spike S7 in the side panel
 
-This is the one part that tests an unfinished feature: the side panel cannot insert yet, and these steps decide how it will. Run it in the side panel only, never from a draft's toolbar. About 30 minutes. Needs: a default signature in Gmail settings (step 4) and one received message with several people in To and Cc (step 3). Discard every draft after its step, except the drafts of steps 1 and 2: keep them until step 4, then discard them.
-
-The section "Spike S7 (temporary)" sits at the end of the side panel home card. "Open S7 harness" opens a card with the event shape, whether a message ID and an access token are present, and 4 buttons. "New email", "Reply" and "Reply all" each open a draft in a compose window: subject "S7 test" (New email only), a text with bold words, a 2 item list, a link to google.com and one image, To `s7-to@migway.com` (New email only), Cc `s7-cc@migway.com`, Bcc `s7-bcc@migway.com`. "Reply" and "Reply all" are greyed out until a message is open. "Notify" should show a notification and open no draft. A failure shows as a notification starting "S7" or a card "Spike S7 failed"; copy its text into Notes. The fresh consent check (old step 1) is part H step 2; the callback times are part H step 3.
-
-1. Inbox, no message open. "Open S7 harness", "New email". Expect: a compose window opens, or an error text to copy. Keep this draft until step 4. Record: a compose window opens (y/n); bold, list, link and image kept; Subject "S7 test"; To, Cc and Bcc set.
-2. Open a received message with the side panel open. Record: the add-on card reloads for the message, and the harness card says "message ID present: yes". Tap "Reply". Expect: a reply draft opens, or an error text to copy. Keep this draft until step 4. Record: the reply opens in the conversation; To is the sender; Subject "Re: ..."; Cc and Bcc added; the quoted earlier message is there (y/n).
-3. Open the message with several people in To and Cc. "Reply all". Expect: a reply draft opens, or an error text to copy. Record: the original Cc kept and `s7-cc@` added (add), or the original Cc gone (replace).
-4. No button. Look at the drafts of steps 1 and 2. Expect: both drafts are still open. Record: the Gmail signature is there (y/n). Then discard both drafts.
-5. Inbox. "Notify". Expect: a notification or an error text. Record: a notification shows and no draft opens (y/n), or the error text.
-6. Open a new compose window and type a line. Then, in the side panel, "New email", then "Reply" (message open). Expect: no window loses text you typed. Record: a second window opens (y/n); the typed line in the first window is unchanged (y/n). Discard the first window's draft; keep the newest window for step 7.
-7. Close the newest compose window without sending. Expect: the window closes. Record: the draft is left in Drafts (y/n). Then delete every S7 draft from Drafts, so the next run starts clean.
-
-| Step | Setup                       | Action           | Result | Callback ms | Notes |
-| ---- | --------------------------- | ---------------- | ------ | ----------- | ----- |
-| 1    | Inbox, no message           | New email        |        |             |       |
-| 2    | Message open                | Reply            |        |             |       |
-| 3    | Message with several To, Cc | Reply all        |        |             |       |
-| 4    | Drafts of steps 1 and 2     | none             |        |             |       |
-| 5    | Inbox                       | Notify           |        |             |       |
-| 6    | Compose window with text    | New email, Reply |        |             |       |
-| 7    | Close the new window        | none             |        |             |       |
+Spike S7 passed on 2026-11-11; its record is docs/spikes/slice-10-s7.md. Part J tests the side panel now.
 
 ## Part H: checks by hand
 
@@ -254,3 +234,32 @@ Web app. The browser agent acts as the owner in every step not marked "Second te
 9. Second tester, in the page still open from step 7: under "Personal templates" pick the other choice and press "Save". Expect: "You are no longer an admin, so nothing was changed. Ask an admin if you need access." Reload: no "Admin" in the left menu.
 10. "Settings and backups". Expect: "Personal templates" still shows the value from before step 9.
 11. "Audit log", this month, "Action" "Admin added", "Filter". Older rows from earlier runs may be listed; look only at rows with today's date and a time after the one you wrote down. Expect: exactly 1 such row, with your address in "User" (step 5). "Action" "Admin removed", "Filter". Expect: exactly 1 such row, with your address in "User" (step 8). The refused tries of steps 2 to 4 wrote none. Step 9 adds a "Setting changed" row with the result "Denied" for the second account (within 5 minutes); it shows only under that action.
+
+## Part J: side panel
+
+Gmail web, dev build of slice 18, browser agent, about 25 minutes. Run it in Gmail's right side panel: click the Migway Templates icon in the panel on the right edge of Gmail, not in a draft's toolbar, except step 12. Needs the templates of "Templates to create once" and one automated notification message in the inbox (from a no-reply sender); open no other message. Discard every draft when its step ends; at the end, Drafts holds no draft of this part. In this part, "row New email" and "row Reply" mean the button on a template row.
+
+1. Inbox, no message open, open the add-on in the side panel. Expect: each template row has a "New email" button; the last line of the card reads "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar."; no "Spike S7" section. Record: row labels on one line, wrapped or cut.
+2. Row "New email" on "T1 plain". Expect: a new email window with Subject "T1 subject", text "T1 text.", To empty. Record: the window opened (y/n); a Gmail signature is in it (y/n, expected n).
+3. Row "New email" on "T6 recipients". Expect: To `test-to@<your domain>`; Cc `test-cc@<your domain>` and `test-out@example.com`; Bcc `test-bcc@<your domain>`; Subject "T6 subject"; text "Hello".
+4. Row "New email" on "T2 fields". Expect: Subject "Load"; text "Hi, load is ready." followed by your phone when the directory has one; no "{{".
+5. Click the name "T2 fields". Expect: a card with boxes "Load number" and "Driver name", the line 'Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.', and a "New email" button at the bottom. Type `77` in "Load number" and `Ann` in "Driver name", click "New email". Expect: Subject "Load 77", text "Hi Ann, load 77 is ready.". Record: the typed values arrived (y/n).
+6. Back to the list. Click the name "T3 copies", turn off "Add recipients", click "New email". Expect: no Cc and no Bcc. Record: the switch was followed (y/n).
+7. Open the one automated notification message. Expect: the card reloads and rows show "Reply". Row "Reply" on "T3 copies". Expect: a reply in the conversation, To the sender, Subject "Re: ...", Cc `test-cc@<your domain>`, Bcc `test-bcc@<your domain>`, text "T3 text.". Record: the signature is there and above or below the text; click the "..." (show trimmed content) in the reply: the earlier message is quoted (y/n).
+8. Same message. Row "Reply" on "T6 recipients". Expect: To is only the sender; `test-to@<your domain>` is not added; Cc both test addresses; Bcc `test-bcc@<your domain>`; Subject "Re: ...".
+9. Same message. Click the name "T6 recipients". Expect: the line "A reply goes to the sender, so the template's To is not added. New email adds it."; "Reply" and "Reply all" at the bottom; a "New email" button above them. Click "Reply all". Expect: the reply keeps every Cc the message had and adds the 2 template Cc; Bcc `test-bcc@<your domain>`.
+10. Same message. Double-click the row "Reply" on "T1 plain". Record: how many reply drafts opened (1 or 2). Discard all.
+11. Library in a new tab: "New template" in "Smoke 6a", title "T9 temp", text `T9`, Save. In Gmail, close the message. In the panel click "Open library", close the library window, then open the folder "Smoke 6a" in the panel. Expect: "T9 temp" is listed. In the library tab delete "T9 temp". Panel: row "New email" on "T9 temp". Expect: "This template was deleted or moved. Open the panel again to update the list." and no new email. T9 stays in the trash.
+12. Regression, compose toolbar: Compose, click into the text, open Migway Templates from the draft's toolbar, row "Insert" on "T1 plain". Expect: text and subject inserted as in part B.
+
+Decisions taken by this part: step 5 or 6 "n" makes the details card drop its boxes and switch (Q68); no window or an error at step 2 or 5 moves that button into a button row (Q74); an error naming a scope at step 7 or 9 goes to the owner; 2 drafts at step 10 is accepted (Q69). The owner's checks by hand for this part (fresh consent, callback times, log lines) are in docs/ops/smoke.md, section "Slice 18".
+
+| Step | Record                                          | Result |
+| ---- | ----------------------------------------------- | ------ |
+| 1    | row labels: one line, wrapped or cut            |        |
+| 2    | window opened (y/n); signature in it (y/n)      |        |
+| 5    | typed values arrived (y/n)                      |        |
+| 6    | switch followed (y/n)                           |        |
+| 7    | signature there, above or below; quoted (y/n)   |        |
+| 10   | reply drafts opened (1 or 2)                    |        |
+| 1-12 | pass, fail or blocked per step, with what shows |        |
