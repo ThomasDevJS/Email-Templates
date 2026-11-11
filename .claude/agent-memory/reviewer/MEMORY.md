@@ -91,6 +91,10 @@
   - Import ReportLine has no code field; reasonOf dropped `code:` so SUBJ_/PH_ codes left the response (minor, freeze forbids a field). Chip announcer .sr-only.chip-status verified in Chromium AX tree.
   - Retry 1 PASS (d52d084, review on top): 13 quotes fixed, 40-quote sample 0 misses, src text only + roleWords (actions.ts), 1780 tests, Code.js 360.5 KB, index.html 375.7 KB, Lighthouse 100x15. Open: import code gone from report (minor 1).
   - Doc check method: extract every "quoted" string from guides/smoke, grep first 40 chars in src; read misses by hand (most are composed strings).
+- Slice 15 one-click insert D31 (2026-11-11): PASS (on 581232a, merge of main 223f9bb into e9ef9d8). 67 files, 1818 tests, lines 97.82, Code.js 358.2 KB, index.html 376.1 KB, Lighthouse 100x15, 10 scopes + layoutProperties.secondaryColor.
+  - Code: render.ts `closeGaps(parts)` (null = gap); flows.ts Flow A `insertFlow` (rc vs list lengths, unknown -> details card counted=1), Flow B `previewFlow`, Flow C `promptInsertFlow`; cards/details.ts `detailsCard`, `panelDetailsCard`.
+  - Probes: 10,000 fuzz renders without a gap byte-identical to base, sanitize idempotent on outputs; apply events per path via readBuffer(world.cache).
+  - Open minors: re-rendered details card (counted, followUp) loses recipient first name (flows.ts:491); Rendered.missing unread in src; rule 2 ASCII punctuation only; rendered subject uncapped (691 chars); smoke step 11 needs a non-admin.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -131,4 +135,6 @@
 - Keyboard engine probes: pace keys (60 ms) before diffing builds; unpaced runs differ on both builds.
 - Paged ops: probe audit events at offset > 0 with a busy or full buffer; count the Script Cache puts the same op makes (1,000 items, FIFO); world.clock +7 h for a cold cache.
 - Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.
+- Merge heads: compare `git diff <main> <merge>` with the slice's own diff per file; equal = nothing lost.
+- Renderer changes: fuzz head vs base copy in one vitest file importing both src trees.
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
