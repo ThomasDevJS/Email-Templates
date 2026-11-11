@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: buffer slots, log `targetId`, export event; Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: buffer slots, log `targetId`, export event; Proposed) (Amendment 2026-11-11, D32: in-app admin list; Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -92,7 +92,7 @@ Interface (contract, not code):
 - Switch to `directory` after an admin grants Groups Reader to the server owner (2.5b): adds scope `admin.directory.group.member.readonly` (owner consent only), `nested: true`. `cloud_identity` needs Enterprise or Cloud Identity Premium plus a standard GCP project.
 - OU grants: `groupsapp_direct` cannot resolve OUs. Grants to OUs are stored but inactive and shown as "Inactive: OU resolution needs the Directory resolver" (Q4).
 
-Admin role: member of `ADMIN_GROUP` (Script Property, group email) via the snapshot, or listed in `ADMIN_EMAILS` (Script Property, break-glass, initial value the owner). Admin membership is never granted in-app.
+Admin role: member of `ADMIN_GROUP` (Script Property, group email) via the snapshot, or listed in `ADMIN_EMAILS` (Script Property, break-glass, initial value the owner). Admin membership is never granted in-app. [D32, 2026-11-11, Proposed: a third source, the in-app list `admins` in `index.json`, edited by admins with `admin.add` and `admin.remove`. See Amendment 2026-11-11 (D32).]
 
 ### Triggers
 
@@ -228,6 +228,55 @@ Event buffer. Options: (1) separate caps for apply and denied events (two counte
 
 Export audit: one start event per export run through `commit`, then a run token; mechanism and options in ADR-0002 Amendment 2026-11-11. The audit tab reads "Library export started, 25 templates" and "Folder export started: Sales / Quotes, 12 templates".
 
+## Amendment 2026-11-11 (D32): in-app admin list
+
+Status: Proposed until the owner approves. Owner (2026-11-11), quoting the admin guide: "Admin status is never granted in the app - lets change that and add setting for admins to add more admins". Storage follows ADR-0008 (Amendment 2026-11-11, D32).
+
+Today (src/shared/permissions/principals.ts `isAdminEmail`, src/server/membership/snapshot.ts `subjectFor`): admin = listed in `ADMIN_EMAILS` (Script Property, break-glass, `setup()` seeds the owner) or a member of `ADMIN_GROUP` in the membership snapshot. Only the owner edits both, in the Apps Script editor.
+
+### Options for where the list lives
+
+1. A field `admins` in `index.json`, changed through `commit` (lock, in-lock re-check, one write with its audit event, `INDEX_REV` rises). Cost: the admin check reads the index for callers outside the two properties. The index is already loaded by every op except `any` rows and admin rows.
+2. A Script Property written by the app. Rejected for the reasons of ADR-0008 section 1: a property read in the lock is not the index the lock re-checks, the change and its audit are two writes, and script editors can change it with no audit. It would also put app-written data next to the break-glass the app must never edit.
+3. The app adds people to `ADMIN_GROUP`. Needs a Groups write scope (new consent) and an `ADMIN_GROUP`. Rejected: new scope, and Google Groups changes reach the snapshot only every 15 min.
+
+Decision: option 1.
+
+### Options for the op
+
+1. A setting inside `config.set` with the whole list as `value` and `baseAt`, `baseBy`. Two admins adding two different people conflict; the audit event holds two lists and no target person.
+2. Own ops `admin.add { email }` and `admin.remove { email }`. Each is a delta applied to the fresh list in the lock, so no write can overwrite another admin's change and no base is needed; a repeat answers `changed: false`. The audit event names the person in `targetId`.
+
+Decision: option 2. This replaces the orchestrator's "stale-write refusal as in `config.set`": a delta has no stale base to refuse.
+
+### Mechanism
+
+- Admin = `ADMIN_EMAILS` or `ADMIN_GROUP` member or in `admins` of the index. `isAdminEmail` gains a fourth input, the in-app addresses. `subjectFor` checks the two properties first and reads the index (`loadIndex`, Script Cache) only when both say no.
+- In-lock re-check: dispatch `recheck` for admin rows passes the in-lock index's list, so an admin removed a moment ago is refused inside the lock of every admin write, `admin.add` and `admin.remove` included.
+- Who may add or remove: any admin, from any of the 3 sources. Web app only (policy surface `web`); the add-on token route is refused like every web-only op. Manage holders and users: DENIED with one denied audit row (existing rule).
+- Addresses: people of the own domain only. The server checks the form (the recipient rule of spec 5.7), the domain part equals `DOMAIN`, then reads the Directory with the existing scope (`directoryUsers().get(email, { viewType: "domain_public", projection: "basic" })`, as `lookupProfile` does). Not found: refused. A group address is not a user and is refused the same way; groups go in `ADMIN_GROUP`. The stored address is the reply's `primaryEmail`, lower case, so an alias resolves to the address the caller signs in with. Other Directory errors: SERVER, nothing written. Reason for a check here while recipients have none (Q38): a typo in a privilege grant hands admin to whoever gets that address later.
+- Cap: 20 addresses in the list. The 21st add is refused.
+- No lockout: `ADMIN_EMAILS` is out of the app's reach (no op writes a Script Property), and `setup()` seeds it with the owner. So the app can empty its own list and admins still exist. An admin cannot remove themself (refused by the server; the UI hides the button on the own row). Two admins removing each other at once: the lock serializes them; the second finds itself removed in the re-check and gets DENIED, so one stays.
+- The list cannot hold or remove a break-glass or group admin: `admin.remove` edits only `admins`. Removing the owner's break-glass entry is impossible by design; the Settings section shows `ADMIN_EMAILS` and `ADMIN_GROUP` read only.
+- Effect timing: the change commits with `INDEX_REV`, so the next request of any caller sees it (Script Cache index chunks are keyed by `INDEX_REV`). The caller's page updates from the op result. The membership snapshot (`members.json`) is not touched. The add-on User Cache `view:*` (10 min) can show a new admin's sidebar without the extra folders, or a removed admin's sidebar with them; the server re-checks on every `template.apply`, so nothing is inserted that the server refuses.
+- A removed admin with a page open: data already on screen stays until reload; every next op is refused (DENIED). Accepted.
+- Audit: one durable event per change in the same commit: `admin.add` or `admin.remove`, `targetType: admin`, `targetId` the address, `before` and `after` `{ email, admin: true|false }`. `changed: false` writes nothing. Log line: `targetId: ""`, as `config.set`.
+- `backup.restore` keeps the live `admins` (a restore must not bring back a removed, possibly taken-over admin). Export and import carry none. `setup()` writes none.
+
+### Threats
+
+| Threat | Cover |
+|---|---|
+| A taken-over admin account adds other accounts | Every add is an audit event with actor and target. Recovery: a Workspace admin suspends the account; the owner (break-glass) removes the added addresses in Admin, Config, Settings and checks the Audit log for that actor; if the account is in `ADMIN_EMAILS`, the owner edits the property. Runbook step (slice 16) |
+| A taken-over admin removes the other in-app admins | Same audit; break-glass and group admins cannot be removed in the app, so recovery always has an admin |
+| A removed admin with a page still open | Server re-checks per request and in the lock; DENIED |
+| An address that is not a real account | Directory check at add; refused |
+| An outside address | Domain check before the Directory call; refused |
+| Removing the owner's break-glass entry | No op writes Script Properties; impossible by design |
+| An admin removes themself by mistake | Refused; another admin removes them |
+
+Default deny holds: an address is admin only when one of the 3 sources lists it exactly (trim, lower case). A malformed `admins` entry grants nothing (ADR-0008 Amendment 2026-11-11, D32).
+
 ## Consequences
 
 - Easier: one enforcement point, testable as a table. Storage never leaves the server account. D7 answers change one Script Property.
@@ -245,6 +294,7 @@ Export audit: one start event per export run through `commit`, then a run token;
 - Q7. If `getActiveUser` is blank on token calls: switch to `id_token`. Recommendation: accept the config fallback now.
 - Q8. If the project must be shared with callers: share the prod project as Viewer with an all-staff group. Viewers see code only; the code holds no secrets and no data, and Viewers cannot edit or deploy. Recommendation: accept.
 - Q10. Audit retention 24 months. Recommendation: accept.
+- Q62 to Q66 (spec 15, D32): cap 20, no self-removal, Directory check, any admin may remove any in-app admin, no email to the new admin.
 
 ## Sources
 

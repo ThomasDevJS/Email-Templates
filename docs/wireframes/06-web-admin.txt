@@ -113,6 +113,33 @@ The tab is admin only (manage holders never see it); config.get and config.set a
   Off -> On and migway.com only -> Allowed save with no dialog.
   Each change writes one audit event (config.set, before and after); the Audit log tab shows it.
 
+  Admins (D32, slice 16, Proposed; spec 5.8, 7.3; ADR-0003 and ADR-0008 Amendments 2026-11-11)
+  +--------------------------------------------------------------------------------+
+  | Admins                                                                         |  fieldset legend
+  | Admins manage every shared folder, grants, settings, imports and backups.      |
+  | Add people by their migway.com address.                                        |
+  |                                                                                |
+  | person-a@migway.com                                               [Remove]     |  in-app list (index.json admins)
+  |   Added by owner on 11 Nov 2026, 14:05.                                        |
+  | person-b@migway.com                                                            |  caller's own row: no Remove
+  |   Added by person-a on 10 Nov 2026, 09:12.                                     |
+  | Set by the owner: owner@migway.com. These cannot be removed here.              |  ADMIN_EMAILS, read only
+  | Members of admins@migway.com.                                                  |  ADMIN_GROUP, only when set
+  |                                                                                |
+  | Email address                                                                  |
+  | [ ______________________________ ]  [Add admin]                                |  busy "Adding..."
+  | Status: "person-c@migway.com is now an admin."                                 |  role="status"; errors inline
+  +--------------------------------------------------------------------------------+
+  Empty list: "No admins added here yet." At 20: the add answers "The list holds 20 admins. Remove one first."
+
+  Remove dialog (Cancel has focus):
+  +--------------------------------------------------------------------------------+
+  | Remove person-a@migway.com as admin?                                           |
+  | They lose admin access at their next action. Their templates and folders stay. |
+  |                                               [Remove admin]  [Cancel]         |
+  +--------------------------------------------------------------------------------+
+  Each add and remove writes one audit event (admin.add, admin.remove, target the address).
+
   Environment (read only)
   Domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_REV, app version, index size (0.85 MB, warn at 3 MB).
   Jobs                 Schedule    Last OK            Status

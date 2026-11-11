@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Proposed until the owner approves. D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Proposed until the owner approves.
 Date: 2026-11-09, amended 2026-11-10 and 2026-11-11
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D31), docs/research/*.md, ADR-0001 to ADR-0009.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D32), docs/research/*.md, ADR-0001 to ADR-0009.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -38,7 +38,7 @@ Web app (same project, /exec, runs as the owner)
   History  (?view=history&id=...)
     Version list, preview, restore
   Admin    (?view=admin, admins and manage holders)
-    Folders and grants | Memberships | Audit log | Usage | Export and import | Config (Settings: 2 admin switches; environment read only)
+    Folders and grants | Memberships | Audit log | Usage | Export and import | Config (Settings: 2 admin switches and the Admins list (D32); environment read only)
 ```
 
 Two entry points (D27, ADR-0007). The compose toolbar changes the draft being written (`UpdateDraftActionResponse`, insert at the cursor). The side panel cannot reach that draft: it creates a new draft or a reply with compose actions (`ComposeActionResponse`), which Gmail opens in a compose window. `entryOf(event)` decides the entry (`compose`, `message`, `inbox`) in one place.
@@ -322,6 +322,7 @@ Mechanism and options in ADR-0008, Accepted 2026-11-11. Built in slice 11, harde
 - Delay: the server follows a change from the next request on; writes already running re-check in the lock on the fresh index. Web app controls follow on the next library load. The sidebar view cache can show old lists for up to 10 min; inserting stays allowed under `off`, so the cache exposes nothing the server refuses.
 - Two admins (slice 13): `config.set` carries `baseAt` and `baseBy`, the `updatedAt` and `updatedBy` of the entry the admin saw ("" for the default). In the lock, the same new value answers ok with `changed: false` and writes nothing; else a last change other than the base answers CONFLICT with the current entry in `details`, so an A, B, A sequence cannot hide B. The web app applies `details` and shows the section 7.3 conflict text.
 - `setup()` writes no settings. `backup.restore` keeps the live `settings`; its audit event `after` holds `liveSettingsKept: true`. Export and import carry none.
+- Admins list (D32, added 2026-11-11, Proposed; ADR-0003 and ADR-0008 Amendments 2026-11-11). Optional `index.json` field `admins: [{ email, addedAt, addedBy }]`, absent = `[]`, at most 20. Admin = `ADMIN_EMAILS` or `ADMIN_GROUP` member or in `admins` (trim, lower case, exact). Changed only by `admin.add` and `admin.remove` through `commit`. `appAdminsOf(index)` drops malformed entries, which grant nothing and never fail the index. Every index writer keeps the field. `backup.restore` keeps the live `admins` (event `after` adds `liveAdminsKept: true`). `setup()`, export and import write none. `ADMIN_EMAILS` and `ADMIN_GROUP` stay owner-set Script Properties; no op writes them.
 
 Enforcement points of `personalTemplates` = `off`. One rule in `levelResolver` covers every level check, before the handler and in the in-lock re-check (`commit`). The implementer touches each row below and adds a role matrix test for it; rows marked "test only" need no code beyond the rule.
 
@@ -374,6 +375,7 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | export.folder | manage | web |
 | export.library, import, audit.query, usage.report, membership.status, membership.refresh, config.get, backup.list, backup.restore | admin | web |
 | config.set | admin, in-lock admin re-check; `{ name, value, baseAt, baseBy }` against the fixed list of section 5.8 (D29, ADR-0008) | web |
+| admin.add, admin.remove | admin (any of the 3 sources), in-lock admin re-check on the in-lock index; `{ email }` (D32, section 5.8) | web |
 | me | none beyond a valid caller | both |
 
 `spike.s4` and its policy row were removed in slice 5.
@@ -384,7 +386,9 @@ Arguments and results for export (slice 13, section 4.5): `export.library {}` an
 
 Arguments and results for settings (D29, slices 11 and 13, section 5.8, ADR-0008 section 2):
 - `config.set { name, value, baseAt, baseBy }`. `name` in the fixed list; `value` in that setting's values; `baseAt` and `baseBy` strings of at most 254 characters; any other or extra arg answers VALIDATION (section 7.3 texts). A call that still carries the old arg `from` answers VALIDATION "This page is out of date. Reload it and save again." Result `{ name, value, updatedAt, updatedBy, changed }`. Same as `value`: `changed: false`, no write, no audit event. Last change other than `baseAt`, `baseBy`: CONFLICT with the current entry in `details`.
-- `config.get` adds `settings`: per name `{ value, updatedAt, updatedBy }`.
+- `config.get` adds `settings`: per name `{ value, updatedAt, updatedBy }`. D32: also `admins` (`[{ email, addedAt, addedBy }]`) and `breakGlass` (the `ADMIN_EMAILS` addresses).
+- `admin.add { email }` (D32): any other or extra arg answers VALIDATION. Checks in order: form (recipient rule of 5.7, after trim and lower case) `ADMIN_FORMAT`; domain part equals `DOMAIN` `ADMIN_OUTSIDE`; Directory `users.get` (`domain_public`, `basic`) not found `ADMIN_NO_ACCOUNT`, other Directory error SERVER; then in the lock: caller still admin, else DENIED; `primaryEmail` already listed: ok `changed: false`, no write; 20 listed `ADMIN_TOO_MANY`; else append `{ email: primaryEmail, addedAt, addedBy: caller }`. Result `{ admins, changed }`.
+- `admin.remove { email }` (D32): the caller's own address `ADMIN_SELF`; in the lock: caller still admin, else DENIED; not listed: ok `changed: false`; else remove. Result `{ admins, changed }`. Only `admins` changes; a break-glass or group admin stays admin.
 - `me` adds `personalTemplates` (`on`, `off`). `sidebar.home` adds `personalTemplates`.
 - While `personalTemplates` is `off`, a DENIED whose target sits in a private tree carries the text "Personal templates are turned off by your admin."
 
@@ -499,6 +503,28 @@ Config tab, section "Settings" (wireframe 06). Admins only.
 The server CONFLICT message is "<name part> changed this setting. The page now shows the current value."; the client adds the local time. Save stays enabled while saving with `aria-disabled`; when Save ends disabled after it had focus, focus moves to the status line (slice 13).
 
 The domain in the texts is Script Property `DOMAIN`.
+
+Admins (D32, added 2026-11-11, Proposed). Config tab, Settings, section "Admins" after the two switches (wireframe 06). Admins only.
+
+| Place | Text |
+|---|---|
+| Legend | "Admins" |
+| Explanation | "Admins manage every shared folder, grants, settings, imports and backups. Add people by their migway.com address." |
+| Row of the in-app list | the address; bottom line "Added by <name part> on <local time>."; button "Remove", screen reader "Remove <address> as admin". No button on the caller's own row |
+| Read-only rows | "Set by the owner: <addresses>. These cannot be removed here." (`ADMIN_EMAILS`); "Members of <group>." (`ADMIN_GROUP`, only when set) |
+| Empty list | "No admins added here yet." |
+| Add | input label "Email address"; button "Add admin", busy "Adding..."; status "<address> is now an admin." / "<address> is already an admin." |
+| Remove confirm (Cancel has focus) | Title "Remove <address> as admin?" Body "They lose admin access at their next action. Their templates and folders stay." Buttons "Remove admin", "Cancel" |
+| Remove result | "<address> is no longer an admin." / "<address> is not in the list." |
+| `ADMIN_FORMAT` | "Enter an email address, for example name@migway.com." |
+| `ADMIN_OUTSIDE` | "Only migway.com addresses can be admins." |
+| `ADMIN_NO_ACCOUNT` | "No migway.com account has this address. A group goes in the admin group the owner sets." |
+| `ADMIN_TOO_MANY` | "The list holds 20 admins. Remove one first." |
+| `ADMIN_SELF` | "You cannot remove yourself. Ask another admin." |
+| Directory error (SERVER) | "The address could not be checked. Try again." |
+| Caller no longer admin (DENIED) | existing DENIED text of section 7 |
+
+After an add or a remove the list shows the op's `admins`; focus moves to the status line.
 
 ### 7.4 Compose card: one-click insert and details card (D31, added 2026-11-11)
 
@@ -683,6 +709,7 @@ Mechanism: ADR-0003 Amendment 2026-11-10 (errata run 3).
 - Log lines keep the closed field list above. `grant.add` and `grant.remove` (slice 13): `targetId` = folder ID, ok and denied. `folder.create` under a parent logs the parent ID. No line carries a principal key. `import`: `targetId` = target folder; `export.folder`: folder ID; `export.library`: `""`; `backup.restore`: `""`, the date is not logged. No line carries a title, subject or body of an import file.
 - Audit events: `grant.*` with before and after; one `import` event per created folder and template; `backup.restore` with before `{ rev, items }` and after `{ date, rev, items, liveSettingsKept: true }`; `trash.purge` one event per purged template and folder; `audit.dropped`. Export (slice 13): one `export.library` or `export.folder` event per run, committed at the start call (section 4.5), `targetType` `library` or `folder`, `after: { scope, templates }`.
 - `config.set` (D29, ADR-0008): one audit event per change, `targetType: config`, `targetId` the setting name, `before: { name, value }`, `after: { name, value }`, in the same commit as the change. No event when nothing changed. Log line: `action: config.set`, `targetId: ""` (no `id`, no `folderId`, no folder target), result `ok`, `conflict`, `denied` or `error`; the value is not logged. A non-admin call writes one denied row; VALIDATION writes none.
+- `admin.add`, `admin.remove` (D32): one audit event per change in the same commit, `targetType: admin`, `targetId` the address, `before: { email, admin }`, `after: { email, admin }` (booleans). No event when `changed: false`. Log line: `targetId: ""`, no address; result `ok`, `denied`, `error`. A non-admin call writes one denied row; VALIDATION writes none.
 - Cache keys hold no address (slice 13): Directory profiles are cached as `prof:<sha256 of the lower-case address>`; old `prof:<email>` keys are never read and expire within 6 h. Export run tokens are `exp:<token>` (section 4.5).
 
 ## 12. Measurable targets (BRIEF 9)
@@ -769,6 +796,7 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | Last fix round: `config.set` base and CONFLICT, in-lock recipient re-check, export start event and run token, buffer slots, log `targetId`, `prof:` hash, `trash.purge` counts, New template folder choice, library address search, settings focus | 13, done |
 | Wording pass on web and add-on texts with open review minors | 14, in build; sections 7 to 7.3 follow its result |
 | 7.4 One-click insert, details card, home card order (D31) | 15, after 14 merges (section 13.9) |
+| 5.8 Admins list, `admin.add`, `admin.remove`, 7.3 Admins texts (D32) | 16, in parallel with 15 (section 13.10) |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -901,6 +929,46 @@ Acceptance criteria (each checked by a unit test, a build check or the named smo
 14. Home, folder and search footers: primary "Open library" `FILLED` with background #2a3c49. Manifest has `addOns.common.layoutProperties.secondaryColor` "#2a3c49" and the same 10 scopes (build check).
 15. Removed from src/addon: "Review", `insertButtons`, `withSubjectButton`, `bodyOnlyButton`, `tooManyFieldsCard`, `needsReview`, `SEARCH_HINT`. `git diff --stat` shows no file under src/server.
 16. Side panel entries (`inbox`, `message`): no Insert on rows or on the details card, no inputs on the details card, hint last (unit test per entry). Smoke "Slice 15" steps 1 to 13 run on dev; the handoff records steps 1, 3, 4, 10 and 13.
+
+### 13.10 Slice 16: in-app admins (D32, added 2026-11-11)
+
+Built in parallel with slice 15. Spec 5.8 (Admins list), 6 (`admin.add`, `admin.remove`, `config.get`), 7.3 (Admins texts), 11.1; ADR-0003 and ADR-0008 Amendments 2026-11-11 (D32); wireframe 06. No spike, no new scope (the Directory read uses `admin.directory.user.readonly`, already granted).
+
+Files. Slice 16 owns: src/shared/permissions/**, src/shared/model/** (`appAdminsOf`, index type, shape), src/shared/errors/**, src/server/**, src/web/** except src/web/views/editor.ts, docs/guide/admin-guide.md, docs/ops/runbook.md, the "Slice 16" section of docs/ops/smoke.md. Slice 15 owns src/addon/**, src/shared/placeholders/**, appsscript.json, docs/guide/user-quick-start.md, docs/guide/editor-guide.md, the editor help string in src/web/views/editor.ts, the "Slice 15" section of docs/ops/smoke.md. The second slice to merge resolves docs/ops/smoke.md by keeping both sections.
+
+Acceptance criteria (each checked by a unit test, a build check or the named smoke step):
+1. `isAdminEmail` is true for an address in `ADMIN_EMAILS`, in the `ADMIN_GROUP` snapshot, or in `appAdminsOf(index)`, compared trimmed and lower case; false otherwise. A malformed `admins` entry (non-string, other domain, bad form) grants nothing and the index still loads.
+2. `subjectFor` reads the index only when the two properties say no (test counts index loads).
+3. Role matrix: `admin.add` and `admin.remove` allowed for an in-app, a break-glass and a group admin; DENIED with one denied audit row for a manage holder and a user; refused on the add-on surface.
+4. `admin.add` answers `ADMIN_FORMAT`, `ADMIN_OUTSIDE`, `ADMIN_NO_ACCOUNT`, `ADMIN_TOO_MANY` (21st address) in that check order, and VALIDATION for an extra arg; a Directory error other than not found answers SERVER; none of them writes.
+5. An alias resolves to the Directory `primaryEmail`, stored lower case.
+6. A repeated add and a remove of an unlisted address answer `changed: false`, write nothing and log no audit event.
+7. In-lock re-check: a caller removed between the pre-check and the lock gets DENIED and nothing is written; two admins removing each other leave one of them in the list.
+8. `admin.remove` of the caller's own address answers `ADMIN_SELF`. No op calls `setProperty` on `ADMIN_EMAILS` or `ADMIN_GROUP` (property store spy over the whole op suite).
+9. Each change writes one audit event in the same commit (`targetType: admin`, `targetId` the address, `before` and `after` with `admin` booleans); the log line has `targetId: ""` and no address.
+10. After `admin.add` the added person's next request is admin; after `admin.remove` the removed person's next admin op is DENIED (index rev cache test).
+11. `admins` survives every index writer: `template.create`, `folder.create`, `grant.add`, `config.set`, `import`, `trash.purge` after an add each read back the same list.
+12. `backup.restore` keeps the live `admins`; its event `after` holds `liveAdminsKept: true`.
+13. `config.get` returns `admins` and `breakGlass` to admins only.
+14. Config tab: the Admins section with the 7.3 texts; no Remove on the caller's row; the remove dialog opens with Cancel focused; after add or remove focus moves to the status line; Lighthouse accessibility 100 on the Config tab.
+15. Admin guide and runbook carry the corrections listed below; the scope list stays at 10 (build check).
+16. Smoke "Slice 16" steps 1 to 8 run on dev; the handoff records each result.
+
+Smoke "Slice 16" (dev, web app; the implementer copies these steps into docs/ops/smoke.md):
+1. Owner opens Admin, Config, Settings. Admins shows "Set by the owner: <owner address>. These cannot be removed here." and "No admins added here yet."
+2. Owner adds the pilot user's address. Status "<address> is now an admin."; the row reads "Added by <owner name part> on <time>."; the Audit log tab shows `admin.add`, actor the owner, target the pilot.
+3. Pilot reloads the web app: Admin shows the admin tabs; Config opens; the pilot's own row has no Remove button.
+4. Pilot tries: an outside address (ADMIN_OUTSIDE text), a made-up migway.com address (ADMIN_NO_ACCOUNT text), a group address (ADMIN_NO_ACCOUNT text), an alias of a real user if one exists (stored as the primary address).
+5. With the pilot's Config tab open, the owner removes the pilot (dialog, Cancel focused, "Remove admin"). The pilot changes a setting and presses Save: the DENIED text. Reload: no admin tabs.
+6. Pilot in Gmail presses Refresh in the add-on: the sidebar lists only the folders granted to the pilot.
+7. Owner restores yesterday's backup (dev only): the Admins list is unchanged; the restore event shows `liveAdminsKept: true`.
+8. Owner checks the Audit log: one `admin.add` and one `admin.remove` for the pilot, none for the refused tries.
+
+Corrections for the implementer (text to apply, slice 16):
+- docs/guide/admin-guide.md, the line "Admin status is never granted in the app...": replace with "Admins come from 3 places: the Admins list in Admin, Config, Settings; the admin group (`ADMIN_GROUP`); and the owner's list (`ADMIN_EMAILS`). Any admin adds or removes people in the Admins list. Only the owner changes `ADMIN_GROUP` and `ADMIN_EMAILS`, in the Apps Script editor, Project Settings, Script Properties. `setup()` puts the owner in `ADMIN_EMAILS`."
+- Admin guide, new steps "Add an admin": open Admin, Config, Settings; type the person's migway.com address under Admins; press Add admin; the person reloads the web app. "Remove an admin": press Remove on the row, then Remove admin; they lose access at their next action. Say: groups go in `ADMIN_GROUP`; you cannot remove yourself; the list holds 20; every change is in the Audit log.
+- docs/ops/runbook.md, new section "An admin account is taken over": 1. A Workspace admin suspends the account and resets its sign-in. 2. The owner opens Admin, Audit log, filters on that actor, and lists `admin.add`, `admin.remove`, `config.set`, `grant.*` and `backup.restore` events since the takeover. 3. The owner removes every address that actor added under Admins and adds back any admin it removed. 4. If the account is in `ADMIN_EMAILS`, the owner deletes it from the property; if it is in `ADMIN_GROUP`, a Workspace admin removes it from the group and an admin presses "Refresh memberships now". 5. The owner undoes the settings and grant changes found in step 2.
+- Runbook, section "Restore from backup": add "The Admins list and the settings stay as they are now; a restore does not bring back a removed admin."
 
 ## 14. Spikes
 
@@ -1037,6 +1105,11 @@ Decision table:
 | Q59 (D31) | Search hint under the input | Drop it. The no-match text and the quick start name `folder:` and `tag:` |
 | Q60 (D31) | Row label order | Recipient hint first, then fields, then folder path, so a cut label keeps the disclosure. Slice 12 order (path first) if the smoke shows labels wrap |
 | Q61 (D31) | Opening the details card no longer counts a use; only Insert counts (changes Q14 for the card) | Accept. Usage then counts inserts, which is what Recent and the Usage tab mean |
+| Q62 (D32) | Cap on the in-app Admins list | 20. Admins see every shared folder and the audit; a longer list is a group, which belongs in `ADMIN_GROUP` |
+| Q63 (D32) | May an admin remove themself | No. The server refuses and the UI hides the button; another admin removes them. Prevents a one-click loss of access mid-task |
+| Q64 (D32) | Check that an added address is a real account | Yes, with the Directory read the app already has (no new scope). A typo in a privilege grant would give admin to whoever gets that address later; recipients keep no check (Q38) |
+| Q65 (D32) | Any admin may remove any in-app admin, including the one who added them | Yes, one admin level. The owner's `ADMIN_EMAILS` and the group stay out of the app's reach, so recovery always has an admin |
+| Q66 (D32) | Tell the added person by email | No. Sending mail needs a Gmail send scope (new consent). The adder tells them; the Audit log records it |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance
