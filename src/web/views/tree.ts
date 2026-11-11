@@ -12,10 +12,12 @@ import { icon } from "../ui/icons";
  */
 export interface FolderTree {
   readonly element: HTMLElement;
+  /** `reveal`: the user chose this folder, so its parents open (once the folder is in the list). */
   render(
     folders: readonly FolderRow[],
     selected: string,
     counts?: ReadonlyMap<string, number>,
+    reveal?: boolean,
   ): void;
 }
 
@@ -76,8 +78,8 @@ export function createFolderTree(
   const expanded = new Set<string>();
   let roots: TreeNode[] = [];
   let selected = "";
-  /** The selection whose parents were last opened. */
-  let opened = "";
+  /** A folder the user chose whose parents open once it is in the list (a deep link waits for the load). */
+  let toReveal: string | null = null;
   let focused = "";
   let counts: ReadonlyMap<string, number> = new Map();
 
@@ -133,6 +135,7 @@ export function createFolderTree(
               onclick: (event: Event) => {
                 // A pointer shortcut: opens or closes the row, opens no folder.
                 event.stopPropagation();
+                if ((event as MouseEvent).detail > 1) return;
                 focused = row.id;
                 toggle(row.id);
               },
@@ -205,13 +208,19 @@ export function createFolderTree(
 
   return {
     element: list,
-    render: (folders, folderId, folderCounts = new Map<string, number>()) => {
+    render: (
+      folders,
+      folderId,
+      folderCounts = new Map<string, number>(),
+      reveal = false,
+    ) => {
       roots = buildTree(folders);
-      // Only a new selection opens its parents, once its folder is loaded; a redraw keeps a parent the user
-      // closed (slice 23 retry 1).
-      if (folderId !== opened && folders.some((f) => f.id === folderId)) {
+      // Only a choice by the user opens parents; a redraw, Back or Forward keeps a parent the user closed (slice 23).
+      if (reveal) toReveal = folderId;
+      else if (folderId !== selected) toReveal = null;
+      if (toReveal === folderId && folders.some((f) => f.id === folderId)) {
         for (const id of ancestorsOf(folders, folderId)) expanded.add(id);
-        opened = folderId;
+        toReveal = null;
       }
       selected = folderId;
       focused = folderId;

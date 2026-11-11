@@ -539,6 +539,9 @@ describe("folders and grants", () => {
     expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
       "HR / Quotes",
     );
+    // The moved folder shows under its new parent (slice 23 retry 2).
+    expect(treeItem("HR").getAttribute("aria-expanded")).toBe("true");
+    expect(treeItem("Quotes").getAttribute("aria-selected")).toBe("true");
   });
 
   it("shows the conflict and reloads when another tab renamed the folder", async () => {

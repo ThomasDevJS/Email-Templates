@@ -54,3 +54,15 @@ What the user sees now (replaces item 3 above): a parent closed by the user stay
 Left:
 - Minor 1: Admin at 390 px with a 60-character folder name scrolls sideways (`src/web/styles.css` `.admin-folders`); same on base.
 - Minor 4: on touch, a tap just outside the 24 px target opens the folder (`src/web/styles.css` `.tree-toggle::before`).
+
+## Retry 2 (review docs/reviews/slice-23.md, newest section)
+
+Rule now in code: `FolderTree.render(folders, selected, counts, reveal)`. `reveal` is true for a choice by the user: `app.go` and the route start (`show`, first render, late first-load render), `openScope` (sidebar, Favorites, All templates, tree rows), Admin tree clicks, and Admin writes that change the selection or move it (create, delete, move). A reveal waits until the folder is in the list (deep link before the load). Every other render (library reload, Duplicate, save, rename, idle refresh, browser Back and Forward) keeps closed parents closed.
+
+| Item | State | Test |
+|---|---|---|
+| MF breadcrumb left the folder hidden | fixed | app.test "opens again when the user picks the folder in the editor breadcrumb" (fails on a26e7f3) |
+| Redraw keeps closed parents | kept | app.test "stays closed when the library loads again after Duplicate"; admin.test "keeps a closed parent closed after a folder write..." |
+| Minor 2 All templates, Back | decided by the rule: Back keeps the tree as the user left it, so Sales stays closed while the Quotes page shows | app.test "stays closed after All templates and browser Back" |
+| Admin move | the moved folder shows under its new parent | admin.test "moves a folder after the dialog" |
+| Minor 3 double-click | the chevron also ignores the second click; on a name the first click acts and the second is ignored in every state. A double-click on the selected open row therefore closes it once (its first click is a close) | app.test "changes the open state once on a double-click on the chevron" (fails on a26e7f3); admin.test "leaves a closed parent open after a double-click" |

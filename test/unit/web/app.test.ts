@@ -321,6 +321,81 @@ describe("library (screen 3)", () => {
     });
   });
 
+  describe("a closed parent of the selected folder (slice 23 retry 2)", () => {
+    const row = (name: string) =>
+      [...sideTree().querySelectorAll<HTMLElement>('[role="treeitem"]')].find(
+        (item) => item.textContent === name,
+      );
+    const salesOpen = () => row("Sales")?.getAttribute("aria-expanded");
+    /** Quotes selected, then Sales closed by its chevron. */
+    async function closedSales(): Promise<void> {
+      await boot("/?latency=0#/library?folder=F-QUOTES");
+      await until(() => {
+        expect(main().querySelectorAll('tbody [role="row"]').length).toBe(2);
+        expect(salesOpen()).toBe("true");
+      });
+      (row("Sales")?.querySelector(".tree-toggle") as HTMLElement).click();
+      expect(salesOpen()).toBe("false");
+    }
+
+    it("opens again when the user picks the folder in the editor breadcrumb", async () => {
+      await closedSales();
+      key(main().querySelector('td[tabindex="0"]') as HTMLElement, "Enter");
+      await until(() => {
+        expect(window.location.hash).toMatch(/^#\/edit\//);
+        expect(main().querySelector(".crumbs button")).not.toBeNull();
+      });
+      button("Quotes", main()).click();
+      await until(() => {
+        expect(window.location.hash).toBe("#/library?folder=F-QUOTES");
+      });
+      expect(salesOpen()).toBe("true");
+      expect(row("Quotes")?.getAttribute("aria-selected")).toBe("true");
+    });
+
+    it("stays closed when the library loads again after Duplicate", async () => {
+      await closedSales();
+      (
+        main().querySelector('[aria-label^="Actions for"]') as HTMLButtonElement
+      ).click();
+      (
+        [...document.querySelectorAll('[role="menuitem"]')].find(
+          (item) => item.textContent === "Duplicate",
+        ) as HTMLElement
+      ).click();
+      await until(() => {
+        expect(main().querySelectorAll('tbody [role="row"]').length).toBe(3);
+      });
+      expect(salesOpen()).toBe("false");
+    });
+
+    it("stays closed after All templates and browser Back", async () => {
+      await closedSales();
+      (document.querySelector("[data-nav=library]") as HTMLElement).click();
+      expect(window.location.hash).toBe("#/library");
+      window.history.back();
+      await until(() => {
+        expect(window.location.hash).toBe("#/library?folder=F-QUOTES");
+        expect(main().querySelector("#list-heading")?.textContent).toBe(
+          "Sales / Quotes",
+        );
+      });
+      expect(salesOpen()).toBe("false");
+    });
+
+    it("changes the open state once on a double-click on the chevron", async () => {
+      await closedSales();
+      const chevron = row("Sales")?.querySelector(
+        ".tree-toggle",
+      ) as HTMLElement;
+      for (const detail of [1, 2])
+        chevron.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, detail }),
+        );
+      expect(salesOpen()).toBe("true");
+    });
+  });
+
   it("opens and closes a folder by its chevron or a second click, without opening it (slice 23)", async () => {
     await boot("/?latency=0#/library");
     await until(() => {
