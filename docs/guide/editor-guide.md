@@ -36,14 +36,14 @@ Open it with the "Actions" button of a row, or with Shift+F10 on a selected row.
 
 Each action shows a status at once ("Duplicating...", "Moving...", "Deleting...") and the result when it is done.
 
-Folders are created, renamed, moved and deleted in Admin, "Folders and grants". That needs `manage` on the parent folder; top-level folders need an admin.
+Folders are created, renamed, moved and deleted in Admin, "Folders and access". That needs `manage` on the parent folder; top-level folders need an admin.
 
 ## The editor
 
 The editor has three parts.
 
 - Header: the folder path (click a folder to open it in the library), the title, the saved state, "History" and "Save". The saved state reads "Saved as version N, <time>" with a check, "Unsaved changes" after an edit, and "Saving..." while it saves.
-- The email on a white sheet: the "Subject" line on top, the body under it. Placeholders show as blanks: a value such as "Sender name" on a light amber background with a dotted line; a question ("Ask the user") in a dashed box; a value with a fallback as "Recipient first name or there".
+- The email on a white sheet: the "Subject" line on top, the body under it. Fields show as blanks: a value such as "Sender name" on a light amber background with a dotted line; a field the sender fills in ("Ask the sender") in a dashed box; a value with default text as "Recipient first name or there".
 - The panel on the right: "Details", "The sender fills in", and the tabs "Preview as me" and "Problems".
 
 | Details field | Rules |
@@ -53,11 +53,11 @@ The editor has three parts.
 | "Tags" | Up to 10 tags, each 1 to 30 characters. Type a tag, then Enter or "Add tag" |
 | "To", "Cc", "Bcc" | Addresses added to the draft at Insert. See "Recipients" below |
 
-"The sender fills in" lists each question of the subject and body with how often it is used ("used once", "used 2 times"). "Preview as me" shows the email with your own directory values, the To, Cc and Bcc lines above the subject, and each question as "[Label]". "Problems" holds the errors and warnings of the last save; its tab shows the count and opens by itself when a save fails.
+"The sender fills in" lists each field the sender fills in, from the subject and the text, with how often it is used ("used once", "used 2 times"). "Preview as me" shows the email with your own directory values, the To, Cc and Bcc lines above the subject, and each question as "[Label]". "Problems" holds the errors and warnings of the last save; its tab shows the count and opens by itself when a save fails.
 
 Under about 860 pixels wide (a phone or a narrow window) the panel moves below the sheet and each part opens and closes with its heading.
 
-Users with use access (no edit) see the same screen without the toolbar, "Save" and "History", and the note "You can use this template but not change it. To change it, ask a folder manager for edit access."
+Users with use access (no edit) see the same screen without the toolbar, "Save" and "History", and the note "You can use this template but not change it. To change it, ask a folder manager for "Can edit" access."
 
 ### Toolbar
 
@@ -78,16 +78,16 @@ The toolbar is one Tab stop. Arrow keys move between its buttons; Home and End j
 | Image | Image by its https:// address. The email links to the image; nothing is uploaded. The image keeps its own width; an image wider than 600 pixels is shown 600 pixels wide. A smaller image is never stretched |
 | Table | Inserts a table |
 | Horizontal line | Inserts a line |
-| "Insert field" | Placeholder menu. Typing `{{` in the text opens the same menu |
+| "Insert field" | Field menu. Typing `{{` in the text opens the same menu |
 
 >>>
 <<<
-- Placeholders work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
+- Fields work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
 ===
-- Placeholders work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`; while it holds a placeholder, the line "Reads as" under it shows the subject with blanks, as the reader sees it.
-## Placeholders and fallbacks
+- Fields work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`; while it holds a field, the line "Reads as" under it shows the subject with blanks, as the reader sees it.
+## Fields and default text
 
-The placeholder menu lists 5 values and one question type.
+The "Insert field" menu lists 5 values and "Ask the sender...".
 
 | Menu item | Text form | Filled with |
 |---|---|---|
@@ -98,27 +98,27 @@ The placeholder menu lists 5 values and one question type.
 | "Recipient first name" | `{{recipient.first_name}}` | First name of the To recipient, only with exactly one To address inside Migway |
 | "Ask the sender..." | `{{ask:Meeting date}}` | What the user types in the panel |
 
-- Fallback: select a blank, open "Insert field", "Add fallback...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
-- A value with no directory entry and no fallback becomes a field the user must fill. Nothing is ever inserted blank.
-- Saving warns about "Recipient first name" without a fallback: "users will be asked for it".
-- "Ask the sender..." takes a label of 1 to 40 characters. The same label used several times is asked once. Questions take no fallback.
-- At most 20 questions per template, subject and text together.
-- Placeholders work in text only, never inside a link address.
-- One placeholder must keep one format. Bolding a whole blank works; bolding half of a typed `{{...}}` is an error.
+- Default text: select a blank, open "Insert field", "Add default text...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
+- A value with no directory entry and no default text becomes a field the sender must fill. Nothing is ever inserted blank.
+- Saving warns about "Recipient first name" without default text: "The sender is asked for it when it is unknown."
+- "Ask the sender..." takes a field name of 1 to 40 characters. The same field name used several times is asked once. A field the sender fills in takes no default text.
+- At most 20 fields the sender fills in per template, subject and text together.
+- Fields work in text only, never inside a link or image address.
+- One field must keep one format. Bolding a whole blank works; bolding half of a typed `{{...}}` is an error.
 - `\{{` writes literal double braces.
-- An unknown name fails the save with a hint, for example "Unknown placeholder sender.nmae at character 7. Did you mean sender.name?".
+- An unknown name fails the save with a hint, for example "Unknown field sender.nmae at character 7. Did you mean sender.name?".
 
 ## The Subject field
 
 - Plain text, one line, up to 200 characters. Line breaks are refused on save ("Subject must be one line").
-- Placeholders work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
-- A question used in subject and text is asked once and fills both.
+- Fields work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
+- A field name used in subject and text is asked once and fills both.
 - Empty subject: inserting the template never touches the draft subject.
 - In Gmail the template subject fills an empty subject box only. A subject already in the draft is kept unless the user picks "Insert with subject". Details: [quick start](user-quick-start.md).
 
 ## Recipients (To, Cc, Bcc)
 
-A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no placeholders.
+A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 20 together, plain `name@company.com` addresses, no fields.
 
 - Type an address, then Enter, comma, semicolon or space: it becomes a chip. Pasting a list makes one chip per address. Leaving the field does the same. Backspace in the empty field removes the last chip; each chip has its own × button.
 - An address outside migway.com shows "outside migway.com" under its chip. Bcc shows "Hidden from the other recipients of the email."
@@ -130,7 +130,7 @@ Users with use access see every address on a card before Insert and cannot chang
 ## Saving and the "This template changed" dialog
 
 1. Click "Save" or press Ctrl+S. The button and the header read "Saving...", then the header reads "Saved as version N, <time>".
-2. Errors appear in the "Problems" tab, each as "Error: ...". Placeholder errors name the character position. Subject errors start with "Subject:". Recipient errors also show under their field. The line under the header reads "Not saved. Fix the problems in the Problems tab."
+2. Errors appear in the "Problems" tab, each as "Error: ...". Field errors name the character position. Subject errors start with "Subject:". Recipient errors also show under their field. The line under the header reads "Not saved. Fix the problems in the Problems tab."
 3. When someone else saved a newer version while you edited, the dialog "This template changed" opens: "<name> saved version N at <time> while you edited."
    - "Open their version" loads the newest version: "Opened their version. Your changes were discarded."
    - "Copy my text" puts your text on the clipboard. Then open their version and paste where needed.
@@ -166,7 +166,7 @@ The Trash view is not yet verified in Gmail's library window (its smoke step is 
 
 Every save runs a cleanup on the server. Pasted text from Word, web pages or Gmail goes through it.
 
-- The text may be at most 100 KB (102,400 bytes) after cleanup. A larger one fails to save with "Error: Body is too large".
+- The text may be at most 100 KB (102,400 bytes) after cleanup. A larger one fails to save with "Error: The template text is too large. Shorten it or remove some formatting.".
 - Removed with their content: scripts, styles, frames, forms, embedded objects, SVG and similar elements.
 - Unknown tags are removed and their text is kept.
 - Links that do not start with https://, http://, mailto: or tel: lose the link, for example `javascript:` links.

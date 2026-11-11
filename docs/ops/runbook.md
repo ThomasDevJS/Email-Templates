@@ -44,8 +44,8 @@ B2 steps, once built (not built, not yet exercised):
 2. Old project shared with the new owner as editor.
 3. New owner deploys a new project and runs `setup()`.
 4. Old owner sets Script Property `READ_ONLY`.
-5. New owner runs the pull from the Config tab until it is done.
-6. Compare template, folder, grant and version counts in both Config tabs.
+5. New owner runs the pull from the "Settings and backups" tab until it is done.
+6. Compare template, folder, grant and version counts in both "Settings and backups" tabs.
 7. The Workspace admin moves the domain install to the new deployment.
 8. Old owner deletes the old triggers and deployment. The old data folder is kept 30 days, then trashed.
 
@@ -75,9 +75,9 @@ All commands and the first-deploy steps are in [deploy.md](deploy.md).
 | `refreshMembers` | every 15 min                           | 30 min without a success |
 | `daily`          | daily, 02:00 to 03:00 script time zone | 48 h without a success   |
 
-- Late means: the last success is more than 2 schedule intervals old. The Config tab shows "late" with the last error, or "never ran".
+- Late means: the last success is more than 2 schedule intervals old. The "Settings and backups" tab shows "Late" with the last error, or "never ran".
 - Apps Script also sends a trigger failure email to the owner account.
-- "Trigger reinstall failed: ..." on the Config tab: the trigger update after a deploy failed. The old triggers stay. The next page load or `tick` retries. If it repeats, run `setup()` as the owner and read its error.
+- "The background jobs could not be set up again: ..." on the "Settings and backups" tab: the trigger update after a deploy failed. The old triggers stay. The next page load or `tick` retries. If it repeats, run `setup()` as the owner and read its error.
 - Time zone: `appsscript.json` `timeZone` (deploy.md, Time zone).
 
 ## Quotas
@@ -149,16 +149,16 @@ No line holds template text, subjects, prompt values, recipient addresses or tok
 
 ## Restore from backup
 
-Use the Config tab: [admin guide, Backups and restore](../guide/admin-guide.md#backups-and-restore). It restores `index.json`, `favorites.json` and `usage.json` of one of the last 14 nights. Every change after that date is lost. Not yet verified on dev.
+Use the "Settings and backups" tab: [admin guide, Backups and restore](../guide/admin-guide.md#backups-and-restore). It restores `index.json`, `favorites.json` and `usage.json` of one of the last 14 nights. Every change after that date is lost. Not yet verified on dev.
 
 ## Recovery of a damaged index.json
 
-Symptom: every action answers an error with "index.json is damaged: ...", Config tab and restore included. Only the backup list still loads. Not yet exercised.
+Symptom: every action answers an error with "index.json is damaged: ...", "Settings and backups" tab and restore included. Only the backup list still loads. Not yet exercised.
 
 1. Drive, as the owner: open "Migway Templates Data/backups/", pick the newest date, download its `index.json`.
 2. Open the live "Migway Templates Data/index.json", File information, Manage versions, Upload new version, pick the downloaded file. Do not upload it as a new file and do not make a copy: the app cannot see files it did not create.
 3. Apps Script editor, as the owner: run `setup()`. It reads `index.json`, republishes `INDEX_REV` and the cache, and reinstalls triggers.
-4. Web app: open the library and the Config tab. Check `INDEX_REV` and the template count.
+4. Web app: open the library and the "Settings and backups" tab. Check `INDEX_REV` and the template count.
 5. A damaged `favorites.json` or `usage.json`: the same steps with that file.
 
 Unverified: that Upload new version keeps the file ID and its app properties. Changes after the backup date are lost. An owner-run `restoreBackup(date)` would replace these steps (Q31, not built).
@@ -184,20 +184,20 @@ Unverified: that Upload new version keeps the file ID and its app properties. Ch
 
 ## When something breaks
 
-| Symptom                                                                             | Likely cause                                                  | First check                              | Fix                                                                       |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------- |
-| "Migway Templates is not set up yet."                                               | `setup()` has not run (`DOMAIN` unset)                        | Script Properties                        | Owner runs `setup()`                                                      |
-| Every action fails with "index.json is damaged"                                     | A damaged live file                                           | Executions, error text                   | Recovery of a damaged index.json                                          |
-| Panel shows "Something went wrong." with "Network: Server returned HTTP 401" or 403 | Wrong `execUrl` or web app access                             | `deploy/<env>.json`, deployment settings | deploy.md step 6 and the note after step 10                               |
-| "Cannot identify your Migway account."                                              | Several Google accounts signed in                             | Ask the user                             | Separate Chrome profile                                                   |
-| Config tab: a job "late"                                                            | Trigger failing or missing                                    | Editor, Triggers; the last error         | Fix the error, redeploy or roll back; run `setup()` to reinstall triggers |
-| "Trigger reinstall failed: ..."                                                     | Trigger create failed after a deploy                          | Error text                               | Run `setup()` as the owner                                                |
-| "Service is busy. Try again in a minute." often                                     | Quota or simultaneous runs                                    | Executions, run count and length         | Wait; look for a looping run                                              |
-| "Busy right now. Press Retry in a few seconds." often                               | Script lock held over 10 s by long writes                     | Executions, `lockMs`                     | Wait; check large imports or restores                                     |
-| A group grant gives no access                                                       | Person is in a child group, or the owner cannot see the group | Memberships tab warning                  | Add the person directly; make the group's members visible                 |
-| New template missing in the Gmail panel                                             | Panel copy up to 10 min old                                   | Library shows it                         | "Open library" in the panel, or wait 10 min                               |
-| Web app page blank after a deploy                                                   | Bundle cut or blocked by a new page policy                    | Browser console in the app frame         | Roll back; see ADR-0005 amendment "web bundle inlining"                   |
-| Deploy aborts on drift                                                              | Code edited in the browser editor                             | The pulled copy deploy names             | deploy.md, drift check                                                    |
+| Symptom                                                                                            | Likely cause                                                  | First check                              | Fix                                                                       |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------- |
+| "Migway Templates is not set up yet."                                                              | `setup()` has not run (`DOMAIN` unset)                        | Script Properties                        | Owner runs `setup()`                                                      |
+| Every action fails with "index.json is damaged"                                                    | A damaged live file                                           | Executions, error text                   | Recovery of a damaged index.json                                          |
+| Panel shows "Something went wrong." with "Details for your admin: Server returned HTTP 401" or 403 | Wrong `execUrl` or web app access                             | `deploy/<env>.json`, deployment settings | deploy.md step 6 and the note after step 10                               |
+| "Cannot identify your Migway account."                                                             | Several Google accounts signed in                             | Ask the user                             | Separate Chrome profile                                                   |
+| "Settings and backups" tab: a job "Late"                                                           | Trigger failing or missing                                    | Editor, Triggers; the last error         | Fix the error, redeploy or roll back; run `setup()` to reinstall triggers |
+| "Trigger reinstall failed: ..."                                                                    | Trigger create failed after a deploy                          | Error text                               | Run `setup()` as the owner                                                |
+| "Service is busy. Try again in a minute." often                                                    | Quota or simultaneous runs                                    | Executions, run count and length         | Wait; look for a looping run                                              |
+| "Busy right now. Press Retry in a few seconds." often                                              | Script lock held over 10 s by long writes                     | Executions, `lockMs`                     | Wait; check large imports or restores                                     |
+| A group grant gives no access                                                                      | Person is in a child group, or the owner cannot see the group | Groups tab warning                       | Add the person directly; make the group's members visible                 |
+| New template missing in the Gmail panel                                                            | Panel copy up to 10 min old                                   | Library shows it                         | "Open library" in the panel, or wait 10 min                               |
+| Web app page blank after a deploy                                                                  | Bundle cut or blocked by a new page policy                    | Browser console in the app frame         | Roll back; see ADR-0005 amendment "web bundle inlining"                   |
+| Deploy aborts on drift                                                                             | Code edited in the browser editor                             | The pulled copy deploy names             | deploy.md, drift check                                                    |
 
 ## Rollback exercise
 

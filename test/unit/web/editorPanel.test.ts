@@ -1147,6 +1147,34 @@ describe("merge with the main line (slices 11 and 13 meet slice 8b)", () => {
     );
   });
 
+  it("shows the server's refusal on Save when the setting turned to deny after the page loaded", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    type(byId("rcpt-bcc"), "records@partner.com");
+    // The page still knows "allow": the client check passes, so only the server can refuse this save.
+    expect(errorOf("bcc")).toBe("");
+    await harnessCall("config.set", {
+      name: "recipientsExternal",
+      value: "deny",
+      baseAt: "",
+      baseBy: "",
+    });
+    button("Save").click();
+    await until(() => {
+      expect(main().querySelector('.status[role="status"]')?.textContent).toBe(
+        "Not saved. Fix the problems in the Problems tab.",
+      );
+    });
+    const refusal =
+      "Bcc, address 1 is outside example.com. Your admin allows only example.com addresses. Remove it to save.";
+    expect(errorOf("bcc")).toBe(refusal);
+    expect(main().querySelector(".problems")?.textContent).toContain(refusal);
+    // Nothing was saved: the header still says so and the chip stays for the user to remove.
+    expect(main().querySelector(".saved-state")?.textContent).toBe(
+      "Unsaved changes",
+    );
+    expect(chips("bcc")).toEqual(["records@partner.com"]);
+  });
+
   it("personal templates off: a personal template opens read-only with the reason, and leaving never asks", async () => {
     await openEditor("/?latency=0&sample=freight&personal=off#/edit/T-BOOKED");
     expect(main().querySelector(".read-only-note")?.textContent).toBe(
