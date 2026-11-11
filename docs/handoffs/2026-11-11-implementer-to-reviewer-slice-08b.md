@@ -170,3 +170,32 @@ Screenshots re-taken at scale 2: editor, editor-dark, editor-390, placeholder-me
 Left for later: Bcc box empty input line, Title input border in read-only, Bcc note under "None" (review h.2, h.5); Back then Discard still pushes the target (one extra entry); `me` failing blocks the editor (review c).
 
 Files: src/web/{app,host,dev-harness,styles.css}, src/web/editor/{setup,picker,schema}.ts, src/web/views/{editor,recipients,problems}.ts, scripts/web.mjs, test/unit/web/{editor,editorPanel,styles}.test.ts, test/unit/scripts/webBundle.test.ts, docs/ops/smoke.md, docs/design/screens/8b/.
+
+## Merge with the main line (2026-11-11)
+
+`git merge claude/gracious-franklin-3n8zbq` (fe33d50, slices 11 and 13) into `slice/08b-ui-editor` (8ff05b9). Merge commit f1d9c45, fixes 3b3e51c, 60687b7, a4f586c, plus this handoff commit. Not merged into the main line, not pushed.
+
+Conflicts (8 files):
+1. src/web/app.ts: the Back and Forward handler keeps the 8b guard (`canLeave`, held route, `Host.go` travel back, return event ignored) and slice 13's `cancelDialogs()` plus the main focus. Dialogs close only inside `open()`, when the route really changes, so a held leave question stays open.
+2. src/web/dev-harness.ts: both option lists and both imports. `devPolicy` reads `settings.recipientsExternal` (seeding stays allow); `?external=deny` now seeds that setting with a last-change marker. A duplicate `PARAMS` from the auto-merge removed.
+3. src/web/rpc/api.ts: both type imports.
+4. scripts/lighthouse.mjs: 15 runs (8b editor dark, main's admin config, admin config dark, library personal off); comment names all.
+5. docs/ops/smoke.md: sections in order 8b, 9, 11, 12, S7. Slice 9 setup: recipients set in the editor's To, Cc, Bcc fields; "Admin, Config, Settings, Outside recipients: allowed"; no Script Property.
+6. docs/guide/editor-guide.md: 8b chip text; the deny rule names the admin setting "Outside recipients" (Admin, Config, Settings); the "fields arrive with the redesign" sentence dropped.
+7. Implementer and reviewer MEMORY.md: both sides, duplicates merged, 149 lines each.
+
+Fixes after the merge:
+- 3b3e51c: the editor's leave question runs `cancelDialogs()` before it opens. Before, Back with a link dialog open and unsaved changes stacked the question over the link dialog.
+- 60687b7: with personal templates off, a template in a private tree opens read-only with "Personal templates are turned off by your admin. You can still insert this template." (was "ask a folder manager for edit access"). Uses `privateReadOnly`, the library's rule.
+
+Meeting points, tests (editorPanel "merge with the main line", webBundle) and Chromium (Playwright, harness):
+1. Back dirty: 1 question, Back again still 1, Keep editing: history length and address unchanged, 0 inert. Link dialog open plus Back: only the question; clean plus Back: dialog closed, library opens.
+2. Folder choice, Create: `#/new?folder=F-QUOTES`; edit then Trash or Back: one question, route held.
+3. Allow: "outside example.com" mark, no error, save passes. `?external=deny` and the Settings radio switched to "example.com only": deny error under Bcc, save refused.
+4. `?personal=off&sample=freight`, T-BOOKED: no toolbar, no Save, the reason note; Trash leaves without a question.
+5. Cc `finance.desk@example.com` saved in the editor; library search for it lists "Discount approval" only.
+6. Library, editor, Config with Settings, trash dialog at 1440 and 390, light and dark, plus the folder-choice dialog: 0 px sideways overflow on all 16 view shots; Settings look matches docs/design/screens/13. Test: minified CSS keeps `.editor-page>.status` and `.setting-actions .status`.
+
+Checks from a clean install (`rm -rf node_modules && npm ci`: 559 packages): lint clean; typecheck clean; test:coverage 65 files, 1774 tests, 96.97% statements, 90.99% branches, 96.41% functions, 97.77% lines; build dev Code.js 358.6 KB of 800, index.html 374.3 KB of 400; scopes:check 10 approved; format:check clean; lighthouse 100 on 15 of 15. scripts/lib/html.mjs unchanged.
+
+Left for later: smoke "Slice 8b" has no step for a link dialog open at Back (covered by tests only).
