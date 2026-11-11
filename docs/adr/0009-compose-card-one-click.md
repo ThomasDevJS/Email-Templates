@@ -1,6 +1,6 @@
 # ADR-0009: Compose card for one-click insert and optional pre-fill (D31)
 
-Status: Accepted 2026-11-11 (owner decision D31; built in slice 15, review PASS with follow-up 1; side panel in slice 18). Was Proposed 2026-11-11. Q58 to Q61 are built at their defaults and covered by D31. Section "As built 2026-11-11" holds the facts of the build and of the owner's test round 1.
+Status: Accepted 2026-11-11 (owner decision D31; built in slice 15, review PASS with follow-up 1; side panel in slice 18). Was Proposed 2026-11-11. Q58 to Q61 are built at their defaults and covered by D31. Section "As built 2026-11-11" holds the facts of the build and of the owner's test round 1. Amendment 2026-11-12 (D34, D35, D36; slices 20b, 21, 22 with follow-up 1): card look, list caps, spinner, colors, hint and error lines, Search button. Accepted 2026-11-12 on the owner decisions D34, D35 and D36 (PLAN.md), as built at 8e82a07.
 Date: 2026-11-11, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
@@ -19,7 +19,7 @@ Field rule: ADR-0004 Amendment 2026-11-11. Recipient disclosure: ADR-0006 Amendm
 | `DecoratedText` holds one button, or one switch, or one end icon; a start icon; top and bottom labels; `setOnClickAction` on the whole widget; text "supports basic HTML formatting" | [A43] |
 | `FixedFooter`: "The primary button must be a FILLED button"; the secondary "must be a OUTLINED button"; an unset primary background falls back to the manifest color | [A40] |
 | `TextButtonStyle`: `OUTLINED` (default), `FILLED` (colored background, `setBackgroundColor`), `FILLED_TONAL`, `BORDERLESS`; `TEXT` deprecated | [A41] |
-| Manifest `addOns.common.layoutProperties`: `primaryColor` "Toolbar color. Defaults to grey (#424242)"; `secondaryColor` "Default button color. Defaults to the primary color if set; otherwise defaults to blue (#2196F3)". The manifest sets neither | [A42], appsscript.json |
+| Manifest `addOns.common.layoutProperties`: `primaryColor` "Toolbar color. Defaults to grey (#424242)"; `secondaryColor` "Default button color. Defaults to the primary color if set; otherwise defaults to blue (#2196F3)". The manifest sets neither [slice 15 set `secondaryColor`, slice 21 `primaryColor`, both #2a3c49] | [A42], appsscript.json |
 | An insert callback returns `UpdateDraftActionResponse` (body, subject, To, Cc, Bcc only); notifications and navigation live on `ActionResponse` | [A15], [A44] |
 | The compose card closed after an insert tap on Gmail web (spike S6 step 0); not stated in Google's compose guide | docs/spikes/slice-09-s6.md, [A14] |
 | Row `FILLED` buttons with `setBackgroundColor("#2a3c49")` render slate on Gmail web | owner screenshot 2026-11-11 |
@@ -89,9 +89,55 @@ Facts checked in src at 16df87a and in the owner's Gmail (test round 1, dev-56bf
 - A card pushed by a row Insert (count change, unknown draft field) carries `counted=1`: the row call already buffered the apply event.
 - `replacesSubject(draftHasSubject)` takes one argument.
 - Follow-up 1: a re-rendered card carries the merged values of each call, so the row Insert, the first details Insert and a re-rendered Insert give the same body and subject (reviewer: 18 of 18). The recipient first name is a field on every details card when the template holds it without default text, because a `followUp` call never resolves it; the box starts empty with the hint "Leave blank to use the To recipient's first name, when known."
-- The change line is the first section, prefixed "(!) ".
+- The change line is the first section, prefixed "(!) ". [Slice 22 follow-up 1 removed the prefix: the line is an error line, red with the `error` icon and alt text "Error". See Amendment 2026-11-12.]
 - Slice 18: one render function `rendered(body, input)` serves `insertFlow`, `promptInsertFlow` and both side-panel flows.
-- Open: rule 2 punctuation (Q76); no cap on the rendered subject (slice 20b); row Insert gives no notice for a left-out outside address or a skipped To (Q77, ADR-0006 Amendment 2026-11-11).
+- Open: rule 2 punctuation (Q76); no cap on the rendered subject (slice 20b) [capped in slice 20b, `renderSubject`]; row Insert gives no notice for a left-out outside address or a skipped To (Q77, ADR-0006 Amendment 2026-11-11).
+
+## Amendment 2026-11-12: card look, list caps, feedback and search (D34, D35, D36)
+
+Status: Accepted 2026-11-12. Owner decisions in PLAN.md: D34 (2026-11-11, "todays ui/ux looks best of these proposals"), D35 (2026-11-11, spinner yes, brand colors where appropriate), D36 (2026-11-11, hints should look like hints, the search box is too plain, the error line can be improved). Built in slices 20b, 21, 22 and 22 follow-up 1, reviews PASS (docs/reviews/slice-20b.md, slice-21.md, slice-22.md). Facts checked in `src/addon/cards/render.ts`, `home.ts`, `folder.ts`, `details.ts`, `states.ts`, `appsscript.json` at 8e82a07 and in the owner's Gmail on dev (2026-11-11). Texts: spec 7.4 "Look and list caps of the Gmail cards".
+
+### A. List caps (slice 20b)
+
+Gmail refuses a card of more than 100 widgets. With an email open a row is 2 widgets (D33), so a home card broke at 69 top-level folders.
+
+Options:
+1. Cap each list and end it with a line that says where the rest is.
+2. Page every list as the folder card does (Previous, Next). 2 more widgets and 1 more click per list, and more state in callbacks.
+3. Leave as is. A large library breaks the home card for every user.
+
+Decision: option 1. Mechanism: `LIST_MAX` (Favorites 10, Recent 5, Folders 40, results 20) and `capped` in `folder.ts`: whole rows only, then the hint "Showing <shown> of <total> <noun>. Use Search or Open library for the rest." Worst cards: folder card with an email open 84 widgets, home 76, search 44 (180 cards probed). Only the Folders cap can fire today; the server caps the other lists first.
+
+### B. Spinner (D35, slice 21)
+
+Options:
+1. One rule in the one builder of actions: `toAction` sets `LoadIndicator.SPINNER` on every action except `onBack` and `onOpenLink`, which make no server or Gmail call.
+2. Set the indicator per button. 10 callbacks in 6 files; a new button can miss it.
+
+Decision: option 1. Owner saw the spinner on compose Insert, search and side-panel actions (dev, 2026-11-11).
+
+### C. Colors (D35, slice 21)
+
+- Filled buttons: `setBackgroundColor("#2a3c49")` in `toButton`, the one place.
+- Manifest `layoutProperties.primaryColor` "#2a3c49" (top bar) next to `secondaryColor` "#2a3c49". Owner measured the bar at #2A3B48 (dev, 2026-11-11). One manifest key, no scope.
+
+### D. Hint and error lines (D36, slice 22 and follow-up 1)
+
+Options for the look:
+1. A `DecoratedText` with a start icon (`info` for hints, `error` with alt text "Error" for errors) and the escaped text inside one `<font color>` tag: grey #5f6368 for hints, red #b32025 for errors.
+2. Plain `TextParagraph` with a text prefix ("Tip:", "(!)"). The color alone would carry the tone; the prefix costs words on a 300 px card.
+3. Chips or tonal buttons. Need Google's preview program (research R5); D34 keeps today's look.
+
+Decision: option 1. Error lines lost the "(!) " prefix in follow-up 1; the icon's alt text gives screen readers the word "Error". The finish-typing line stays plain text, because it warns that an address can be lost. Gmail's dark theme keeps add-on cards white, and the owner read both colors there (dev, 2026-11-11); red is 6.67:1 and grey 6.05:1 on white. Open: whether Gmail draws the `error` icon (Q83); `toIcon` has no try/catch (Q80).
+
+### E. Search button (D36, slice 22 and follow-up 1)
+
+Options:
+1. An outlined "Search" button with the `search` icon on the same `onSearch` callback as the box. Compose popup: box and button in one row (Card Service Columns, which Google supports in the dialog opened from a draft). Side panel: stacked. A row that cannot be built falls back to stacked (`toColumns` try/catch).
+2. Keep the box alone. Enter or leaving the box searches, but nothing on the card says so (owner: "too plain").
+3. Columns in the side panel too. Google documents Columns for the compose dialog; the panel is not named.
+
+Decision: option 1. The owner saw the row render in the popup (dev, 2026-11-11). Cost: a press right after typing can run `onSearch` twice, 2 read-only calls (Q79).
 
 ## Consequences
 
@@ -102,7 +148,7 @@ Facts checked in src at 16df87a and in the owner's Gmail (test round 1, dev-56bf
 
 ## Open questions
 
-Spec section 15: Q56 to Q61 (built at their defaults), Q76, Q77.
+Spec section 15: Q56 to Q61 (built at their defaults), Q76, Q77. Amendment 2026-11-12: Q79, Q80, Q83.
 
 ## Sources
 
