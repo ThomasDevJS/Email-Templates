@@ -155,6 +155,10 @@ const OPS: Readonly<Record<string, Case>> = {
   ],
   import: (f) => ["import", { folderId: f.quotes.id, file: f.file }],
   "config.get": () => ["config.get", {}],
+  "config.set": () => [
+    "config.set",
+    { name: "personalTemplates", value: "on", from: "off" },
+  ],
   "backup.list": () => ["backup.list", {}],
   "backup.restore": () => [
     "backup.restore",
@@ -171,6 +175,7 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
   "import (validate)": ADMIN_ONLY,
   import: ADMIN_ONLY,
   "config.get": ADMIN_ONLY,
+  "config.set": ADMIN_ONLY,
   "backup.list": ADMIN_ONLY,
   "backup.restore": ADMIN_ONLY,
 };
@@ -196,7 +201,7 @@ describe("role matrix of the slice 6b ops", () => {
     }
   });
 
-  it("re-checks the admin inside the lock on backup.restore and import", () => {
+  it("re-checks the admin inside the lock on backup.restore, import and config.set", () => {
     const f = fixture("admin");
     const date = new Date(world.clock.now).toISOString().slice(0, 10);
     const tryLock = world.lock.tryLock.bind(world.lock);
@@ -208,6 +213,15 @@ describe("role matrix of the slice 6b ops", () => {
     expect(
       codeOf(OWNER, "import", { folderId: f.quotes.id, file: f.file }),
     ).toBe("DENIED");
+    world.props.setProperty("ADMIN_EMAILS", OWNER);
+    expect(
+      codeOf(OWNER, "config.set", {
+        name: "personalTemplates",
+        value: "on",
+        from: "off",
+      }),
+    ).toBe("DENIED");
+    expect(fileIndex().settings).toBeUndefined();
   });
 });
 

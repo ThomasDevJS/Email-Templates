@@ -8,7 +8,7 @@ import type { Folder, IndexDoc, Item } from "../../../src/shared/model/data";
 import { handleRpc } from "../../../src/server/dispatch/handle";
 import { WRITE_LOCK_MS } from "../../../src/server/lock";
 import type { RpcResponse } from "../../../src/shared/model/protocol";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
 let world: World;
@@ -243,5 +243,35 @@ describe("folder writes re-check their parents inside the lock", () => {
     );
     expect(response).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
     expect(fileIndex().folders.find((x) => x.id === f.id)?.deletedAt).toBe("");
+  });
+});
+
+describe("personal templates switched off while a write runs (D29, ADR-0008 section 1)", () => {
+  it("refuses the owner's save in the lock on the fresh index; nothing is written", () => {
+    setSetting(world, "personalTemplates", "on");
+    const mine = world
+      .ok<{ folders: Folder[] }>(ANA, "folder.list")
+      .folders.find((folder) => folder.kind === "private") as Folder;
+    const item = world.ok<Item>(ANA, "template.create", {
+      folderId: mine.id,
+      title: "Mine",
+      html: "<p>x</p>",
+    });
+    const response = racing(
+      ANA,
+      "template.update",
+      { id: item.id, baseVersion: 1, title: "Changed", html: "<p>y</p>" },
+      () => {
+        setSetting(world, "personalTemplates", "off");
+      },
+    );
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "DENIED",
+        message: "Personal templates are turned off by your admin.",
+      },
+    });
+    expect(fileIndex().items.find((x) => x.id === item.id)?.title).toBe("Mine");
   });
 });
