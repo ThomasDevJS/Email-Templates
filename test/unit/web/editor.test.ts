@@ -25,8 +25,8 @@ import {
 } from "../../../src/web/editor/picker";
 import {
   FONT_FAMILIES,
+  blankParts,
   chipLabel,
-  chipText,
   placeholderAttrs,
   schema,
   styleProperty,
@@ -361,13 +361,19 @@ describe("schema helpers and picker rules", () => {
     });
     expect(placeholderAttrs("x {{sender.name}}")).toBeNull();
     expect(placeholderAttrs("\\{{")).toBeNull();
-    expect(chipText({ name: "foo.bar", label: "", fallback: null })).toBe(
-      "foo.bar",
-    );
-    expect(chipText({ name: "", label: "Date", fallback: null })).toBe("Date");
-    expect(chipText({ name: "sender.phone", label: "", fallback: "n/a" })).toBe(
-      "Sender phone or n/a",
-    );
+    expect(blankParts({ name: "foo.bar", label: "", fallback: null })).toEqual({
+      className: "ph",
+      label: "foo.bar",
+      fallback: null,
+    });
+    expect(blankParts({ name: "", label: "Date", fallback: null })).toEqual({
+      className: "ph ask",
+      label: "Date",
+      fallback: null,
+    });
+    expect(
+      blankParts({ name: "sender.phone", label: "", fallback: "n/a" }),
+    ).toEqual({ className: "ph", label: "Sender phone", fallback: "n/a" });
     expect(chipLabel({ name: "", label: "Date", fallback: null })).toBe(
       "Field: Date, asked at insert",
     );

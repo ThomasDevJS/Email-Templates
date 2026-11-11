@@ -211,12 +211,6 @@ export function blankParts(attrs: PlaceholderAttrs): BlankParts {
   };
 }
 
-/** Visible blank text: "Sender name", "Recipient first name or there", "Meeting date". */
-export function chipText(attrs: PlaceholderAttrs): string {
-  const { label, fallback } = blankParts(attrs);
-  return fallback === null ? label : `${label} or ${fallback}`;
-}
-
 /** Accessible name: "Field: Load number, asked at insert", "Field: Recipient first name, fallback there". */
 export function chipLabel(attrs: PlaceholderAttrs): string {
   const { label, fallback } = blankParts(attrs);
