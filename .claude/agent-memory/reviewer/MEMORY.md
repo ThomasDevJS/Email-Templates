@@ -96,6 +96,12 @@
   - Gaps: bottom label `\n`-><br> plus escaping vs Google guide 'labels must use plain text' (unverified, smoke step 1); no-match echoes unbounded query; folder rows repeat header path, snippet gone (wireframe 01 had it); stale smoke.md:47-48, deploy.md:20.
   - Follow-up 9d48a79, 85d6d50: PASS, 1440 tests. Labels escapeText only, one line joined ' · '; folder rows hints only; ECHO_MAX 60 (cut by UTF-16 unit, can split a surrogate pair: minor). Draft responses still identical to base.
 
+- Slice 8b editor (2026-11-11): FAIL (671c7a7). 63 files, 1481 tests, lines 97.01, index.html 376.9 KB, Lighthouse 100x13 (editor dark new), 10 scopes. Web only.
+  - Blocker 1: insertImage awaits naturalWidth, caret moves to doc start; Enter in the dialog puts the image before the text (editor.ts:600). Fix: selection bookmark before the dialog.
+  - Blocker 2: Back (or Back after a sidebar click) while "Leave without saving?" is open opens a 2nd dialog (app.ts:290, editor.ts:957).
+  - Minors: openScope sets favoritesOnly before app.go (app.ts:200); 390 Keep editing closes panel, focus BODY; Forward+Keep pushes entry; no live region on chips; Problems 0 with live errors; folder select clipped; smoke.md:37,62 stale; chipText test-only; `me` failure blocks editor.
+  - Engine probe: 5 of 5 keyboard docs identical html on base/head (create + reopen + save).
+
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -130,3 +136,6 @@
 - Card Service docs: fetch developers.google.com/apps-script/reference/card-service/<class> with curl; extract <article> text. Unknown MaterialIcon name renders no icon, no error. TextButton unset style = OUTLINED. Labels plain text per add-on widget guide.
 - Behaviour-freeze slices: run one probe script on base and head copies, dump replies with text stripped, diff.
 - rm -rf with a shell variable path is blocked; use literal absolute paths.
+- Harness RPC capture/taint: addInitScript defines a `google` setter, wrap run as wrap(r,h): withSuccessHandler stores h, withFailureHandler(f) wraps r.withFailureHandler(f), rpc calls r.withSuccessHandler(v=>h(taint(op,v))). Replies are {ok,data,...}: mutate env.data.
+- Async UI commands (await before editor.run): probe insert position with keyboard Enter; focus return moves the PM selection.
+- Guards/dialogs: probe two exits in a row (click then Back, Back twice) for stacked dialogs.
