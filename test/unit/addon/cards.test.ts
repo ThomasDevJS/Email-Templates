@@ -32,8 +32,16 @@ import {
 import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
 import { NO_RECIPIENTS } from "../../../src/shared/model/recipients";
 
+const SEARCH_BUTTON = {
+  text: "Search",
+  icon: "search",
+  alt: "Search templates",
+  style: "outlined",
+  action: { fn: "onSearch" },
+};
 const NO_PLAN = { added: NO_RECIPIENTS, notAdded: [], unknown: NO_RECIPIENTS };
 import {
+  hint,
   CALLBACKS,
   type CardSpec,
   type Widget,
@@ -104,7 +112,7 @@ describe("home card (wireframe 01)", () => {
         bottomLabel: "0 templates",
       }),
     ]);
-    expect(buttons(card)).toEqual([]);
+    expect(buttons(card)).toEqual([SEARCH_BUTTON]);
     expect(card.footer).toEqual({
       primary: {
         text: "Open library",
@@ -141,7 +149,7 @@ describe("home card (wireframe 01)", () => {
     expect(card.sections[2]?.widgets).toEqual([
       expect.objectContaining({ icon: "schedule", text: "Template T2" }),
     ]);
-    expect(buttons(card)[0]).toEqual({
+    expect(buttons(card)[1]).toEqual({
       text: "Insert",
       alt: "Insert Template T3",
       style: "filled",
@@ -386,7 +394,7 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
     expect(card.sections[0]).toEqual({
       header: "Fields",
       widgets: [
-        { kind: "text", text: FIELDS_LINE },
+        hint(FIELDS_LINE),
         {
           kind: "input",
           name: "p-1",
@@ -512,7 +520,7 @@ describe.each([
       card === null
         ? []
         : buttons(card).flatMap((b) =>
-            b.style === "outlined"
+            b.style === "outlined" && b.action.fn === "onCompose"
               ? [[b.text, b.compose, b.action.params?.["as"]]]
               : [],
           );
@@ -535,9 +543,7 @@ describe.each([
           compose,
         },
       ]);
-      expect(card.sections.at(-1)?.widgets).toEqual([
-        { kind: "text", text: TOOLBAR_HINT },
-      ]);
+      expect(card.sections.at(-1)?.widgets).toEqual([hint(TOOLBAR_HINT)]);
       expect(TOOLBAR_HINT).toBe(
         "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
       );
@@ -564,9 +570,7 @@ describe.each([
         [text, compose],
         [text, compose],
       ]);
-      expect(folder?.sections.at(-1)?.widgets).toEqual([
-        { kind: "text", text: TOOLBAR_HINT },
-      ]);
+      expect(folder?.sections.at(-1)?.widgets).toEqual([hint(TOOLBAR_HINT)]);
       const search = searchCard(full, "t", full.templates, entry);
       expect(rowButtons(search)).toHaveLength(3);
       expect(rowButtons(search).every((b) => b.text === text)).toBe(true);
@@ -649,9 +653,7 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
       press("New email", "new", "outlined", "STANDALONE_DRAFT"),
       edit,
     ]);
-    expect(card.sections.at(-1)?.widgets).toEqual([
-      { kind: "text", text: TOOLBAR_HINT },
-    ]);
+    expect(card.sections.at(-1)?.widgets).toEqual([hint(TOOLBAR_HINT)]);
     expect(card.footer?.primary.action.params).not.toHaveProperty("counted");
   });
 
@@ -891,11 +893,12 @@ describe("layout (slice 12)", () => {
       favorites: templates.slice(0, 10).map((t) => t.id),
       recent: templates.slice(10).map((t) => t.id),
     });
-    // Widgets: search 1, Favorites 10 rows, Recent 5 rows, Folders 30, hint 1 (panel); a row is 2 with a message open.
+    // Widgets: search box and button 2, Favorites 10 rows, Recent 5 rows, Folders 30, hint 1 (panel); a row is 2
+    // with a message open.
     for (const [entry, perRow, total] of [
-      ["compose", 1, 46],
-      ["inbox", 1, 47],
-      ["message", 2, 62],
+      ["compose", 1, 47],
+      ["inbox", 1, 48],
+      ["message", 2, 63],
     ] as const) {
       const card = homeCard(big, entry);
       expect(widgets(card)).toHaveLength(total);
@@ -922,7 +925,7 @@ describe("layout (slice 12)", () => {
     expect(folder?.sections[1]?.widgets).toHaveLength(40);
     const search = searchCard(big, "t", templates.slice(0, 20), "message");
     expect(search.sections[1]?.widgets).toHaveLength(40);
-    expect(widgets(search)).toHaveLength(42);
+    expect(widgets(search)).toHaveLength(43);
   });
 
   it("has one filled button per details card, in the footer", () => {

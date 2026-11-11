@@ -9,6 +9,7 @@ import { composeButton, sidePanelHint } from "./sidePanel";
 import {
   LIBRARY_FOOTER,
   action,
+  hint,
   type ButtonSpec,
   type CardSpec,
   type IconName,
@@ -22,8 +23,8 @@ export const PAGE_SIZE = 20;
 export const VISIBLE_ROWS = 5;
 /**
  * Rows a list shows at most (Gmail: 100 widgets per card). With an email open a template row is 2 widgets. Worst
- * home card: search 1 + Favorites 21 + Recent 11 + Folders 41 + hint 1 = 75; worst folder card: Folders 41 + page 40
- * + pager 2 + hint 1 = 84; search 1 + 41 + 1 = 43. Favorites, Recent and search match the server's own caps.
+ * home card: search box and button 2 + Favorites 21 + Recent 11 + Folders 41 + hint 1 = 76; worst folder card:
+ * Folders 41 + page 40 + pager 2 + hint 1 = 84; search 2 + 41 + 1 = 44. Favorites, Recent and search match the server's own caps.
  */
 export const LIST_MAX = {
   favorites: 10,
@@ -148,10 +149,9 @@ export function listSection(
 
 /** The last row of a cut list: how many show, and where the rest is. */
 function moreLine(shown: number, total: number, noun: string): Widget {
-  return {
-    kind: "text",
-    text: `Showing ${String(shown)} of ${String(total)} ${noun}. Use Search or Open library for the rest.`,
-  };
+  return hint(
+    `Showing ${String(shown)} of ${String(total)} ${noun}. Use Search or Open library for the rest.`,
+  );
 }
 
 /** At most `max` whole rows (a row is never split from its buttons), then `moreLine` when rows were cut. */

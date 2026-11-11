@@ -11,6 +11,7 @@ exports[`card look is frozen (D34) > compose: home, folder, search, no match 1`]
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "Favorites",
@@ -55,6 +56,7 @@ exports[`card look is frozen (D34) > compose: home, folder, search, no match 1`]
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "Results",
@@ -74,6 +76,7 @@ exports[`card look is frozen (D34) > compose: home, folder, search, no match 1`]
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "",
@@ -164,6 +167,7 @@ exports[`card look is frozen (D34) > inbox: home, folder, search, no match 1`] =
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "Favorites",
@@ -216,6 +220,7 @@ exports[`card look is frozen (D34) > inbox: home, folder, search, no match 1`] =
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "Results",
@@ -239,6 +244,7 @@ exports[`card look is frozen (D34) > inbox: home, folder, search, no match 1`] =
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "",
@@ -265,6 +271,7 @@ exports[`card look is frozen (D34) > message: home, folder, search, no match 1`]
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "Favorites",
@@ -321,6 +328,7 @@ exports[`card look is frozen (D34) > message: home, folder, search, no match 1`]
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "Results",
@@ -347,6 +355,7 @@ exports[`card look is frozen (D34) > message: home, folder, search, no match 1`]
       [
         "",
         "input: Search templates",
+        "buttons: Search",
       ],
       [
         "",

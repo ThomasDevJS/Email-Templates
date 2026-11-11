@@ -25,6 +25,13 @@ type ComposeResponse = GoogleAppsScript.Card_Service.ComposeActionResponse;
 export const SLATE = "#2a3c49";
 /** Brand red: error lines only (design system principle 2). */
 export const RED = "#b32025";
+/** Grey of hint lines (D36). */
+export const GREY = "#5f6368";
+
+/** Escaped text in a color: only the wrapper tag is markup, the text inside is escaped as everywhere. */
+function colored(color: string, text: string): string {
+  return `<font color="${color}">${markup(text)}</font>`;
+}
 
 function markup(text: string): string {
   return escapeText(text).replace(/\n/g, "<br>");
@@ -67,6 +74,14 @@ function toButton(spec: ButtonSpec): GoogleAppsScript.Card_Service.TextButton {
       .setBackgroundColor(SLATE);
   if (spec.style === "outlined")
     button = button.setTextButtonStyle(CardService.TextButtonStyle.OUTLINED);
+  // shortcut: the typings lack TextButton.setMaterialIcon (Google documents it); skipped where the runtime lacks it.
+  const withIcon = button as typeof button & {
+    setMaterialIcon?: (
+      icon: GoogleAppsScript.Card_Service.MaterialIcon,
+    ) => unknown;
+  };
+  if (spec.icon !== undefined && typeof withIcon.setMaterialIcon === "function")
+    withIcon.setMaterialIcon(CardService.newMaterialIcon().setName(spec.icon));
   return button;
 }
 
@@ -115,11 +130,13 @@ function toInput(spec: Extract<Widget, { kind: "input" }>) {
 function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
   switch (spec.kind) {
     case "text":
+      if (spec.tone === "hint")
+        return CardService.newDecoratedText()
+          .setText(colored(GREY, spec.text))
+          .setWrapText(true)
+          .setStartIcon(toIcon("info"));
       return CardService.newTextParagraph().setText(
-        // Only the wrapper tag is markup; the text inside is escaped as everywhere.
-        spec.tone === "error"
-          ? `<font color="${RED}">${markup(spec.text)}</font>`
-          : markup(spec.text),
+        spec.tone === "error" ? colored(RED, spec.text) : markup(spec.text),
       );
     case "item":
       return toItem(spec);

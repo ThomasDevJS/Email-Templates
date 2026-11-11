@@ -14,6 +14,7 @@ import { composeButton, sidePanelHint, type ComposeAs } from "./sidePanel";
 import {
   SUBJECT_SWITCH,
   action,
+  hint,
   type ButtonSpec,
   type CardSpec,
   type SectionSpec,
@@ -107,7 +108,7 @@ function fieldsSection(
     {
       header: "Fields",
       widgets: [
-        line(FIELDS_LINE),
+        hint(FIELDS_LINE),
         ...state.order.flatMap((index) =>
           fieldInput(state, index, firstNameHint),
         ),
@@ -267,7 +268,7 @@ export function panelDetailsCard(
         entry === "message" ? REPLY_FIRST_NAME_HINT : null,
       ),
       ...recipientSection(state, state.addRecipients, false, toLine, reply),
-      { widgets: [line(SIGNATURE_LINE)] },
+      { widgets: [hint(SIGNATURE_LINE)] },
       previewSection(state),
       ...(rest.length === 0
         ? []
