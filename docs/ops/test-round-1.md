@@ -62,11 +62,11 @@ Web app, owner. About 25 minutes.
 
 1. Library, click "T2 fields". Expect: the header shows "Smoke 6a", the title, "Saved as version" with a time, "History" and "Save". The right panel shows "Details", "The sender fills in" (each field with "used once" or "used n times") and the tabs "Preview as me" and "Problems 0".
 2. Library, "All templates", "New template", "Create the template in" "Smoke 6a", "Create". Title `A scratch`, text `one`, "Save". Expect: "Saved as version 1, " and the time.
-3. Press Tab until a toolbar button has focus, then the arrow keys. Expect: focus moves along the buttons; Home and End jump to the ends; hovering "Bold" shows "Bold (Ctrl+B)".
+3. Press Tab until a toolbar button has focus, then the arrow keys. Expect: focus moves along the buttons; Home and End jump to the ends. The hover text "Bold (Ctrl+B)" does not show in screenshots; a person checks it in part H.
 4. Select a word, "Font", "Georgia". Expect: the word turns Georgia; "Font" again shows a check on "Georgia". Record: each font name shows in its own face (y/n).
-5. Type `{{`. Expect: the "Insert field" menu opens. Pick "Sender name": a blank chip appears. Press Backspace: the chip goes away whole.
+5. Type `{{`. Expect: the "Insert field" menu opens. Pick "Sender name": a chip with the words "Sender name" on an amber background appears. Press Backspace: the chip goes away whole.
 6. Type a word. Expect: "Unsaved changes". Click "All templates". Expect: "Leave without saving?" with "Keep editing" focused. Click "Keep editing": the editor stays. Click "All templates" again, then "Save and leave". Expect: the library opens.
-7. Open "A scratch". In To type `test-to@<your domain>` and press Enter. In Cc paste `test-a@<your domain>, test-out@example.com`. Expect: three chips; the outside one says "outside <your domain>".
+7. Open "A scratch". In To type `test-to@<your domain>` and press Enter. In Cc paste or type `test-a@<your domain>, test-out@example.com` and press Enter. Expect: three chips; the outside one says "outside <your domain>".
 8. In Bcc type `not-an-address` and press Enter. Expect: "Bcc, address 1 is not an email address. Use the form name@company.com." Remove it with its × button, then "Save". Expect: "Preview as me" shows the To and Cc lines above the subject. Reload the page and open "A scratch": the chips are back.
 9. "Insert field", "Ask the sender...", type `Product` in "Field name the sender sees", OK, "Save". Expect: "The sender fills in" lists "Product" with "used once".
 10. Click "Image". In "Image address (https)" paste the wide image address the owner gives (wider than 600 pixels), confirm. Repeat with the narrow image address. "Save". Expect: both images show in the text. Open "History" and pick the newest version. Record: the wide image shows 600 pixels wide and the narrow one at its own width (y/n).
@@ -228,6 +228,7 @@ For the owner, not for the browser agent. Steps 1 and 2 need the Google Account 
 9. Window and reload checks. Open "T2 fields", type a word, reload the page. Record: the browser asks before leaving (y/n). Then make the window about 390 pixels wide (or use the browser's device mode). Expect: no sideways scroll; the toolbar scrolls inside its row; the panel sits below the sheet with "Details", "The sender fills in" and "Preview" as headings that open and close.
 10. Backup restore (optional, dev data only, after every other part). Admin, "Settings and backups", "Backups", "Restore" next to the newest date. Expect: a dialog that names the date with "Cancel" focused. Confirm. Expect: "Restored the backup of " and the date. This puts back the library of that night: the setup templates and everything made after the backup leave the library. "Audit log": a row for the restore with your name.
 11. Admins in the log (part I). "Executions", the runs of part I steps 3 and 4 of this run. Expect: one warn line `directory.users.get` each, with `errorCode` like `ADMIN_NO_ACCOUNT:404` and no address. A line `ADMIN_CHECK:` with a status means the Directory answer was not read as "not found": record the status. The `admin.add` and `admin.remove` lines carry `targetId` "" and no address.
+12. Web editor, any template you can edit: hold the mouse over "Bold" in the toolbar. Expect: the hover text "Bold (Ctrl+B)".
 
 | Step | Record                            | Result |
 | ---- | --------------------------------- | ------ |
