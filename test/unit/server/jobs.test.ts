@@ -4,6 +4,7 @@ import {
   BUFFER_MAX,
   bufferEvent,
   readBuffer,
+  type BufferedEvent,
 } from "../../../src/server/audit/buffer";
 import {
   auditEvent,
@@ -598,6 +599,41 @@ describe("event buffer cap", () => {
       after: { dropped: 3 },
     });
     expect(world.services.store().readSide("usage").items["I1"]).toBeDefined();
+  });
+
+  it("counts apply and denied events lost to a busy lock once, and a refused change event not at all", () => {
+    const tryLock = world.lock.tryLock.bind(world.lock);
+    world.lock.tryLock = () => false;
+    const apply: BufferedEvent = {
+      kind: "apply",
+      itemId: "I1",
+      actor: "a@example.com",
+      ts: "2026-11-09T12:00:00.000Z",
+    };
+    expect(bufferEvent(world.cache, world.lock, apply)).toBe(false);
+    expect(
+      bufferEvent(world.cache, world.lock, {
+        kind: "denied",
+        event: denied("busy"),
+      }),
+    ).toBe(false);
+    expect(
+      bufferEvent(world.cache, world.lock, {
+        kind: "change",
+        event: denied("export"),
+      }),
+    ).toBe(false);
+    world.lock.tryLock = tryLock;
+    expect(runTick(world.services)).toMatchObject({ dropped: 2 });
+    expect(fileIndex().pendingAudit.at(-1)).toMatchObject({
+      action: "audit.dropped",
+      after: { dropped: 2 },
+    });
+    expect(runTick(world.services)).toMatchObject({ dropped: 0 });
+    world.lock.tryLock = () => false;
+    bufferEvent(world.cache, world.lock, apply);
+    world.lock.tryLock = tryLock;
+    expect(runTick(world.services)).toMatchObject({ dropped: 1 });
   });
 
   it("drops an apply event when the full buffer holds no denied event, and counts it", () => {

@@ -10,7 +10,12 @@ import type {
   IndexDoc,
   Item,
 } from "../../../src/shared/model/data";
-import { readBuffer } from "../../../src/server/audit/buffer";
+import {
+  BUFFER_MAX,
+  bufferEvent,
+  readBuffer,
+  type BufferedEvent,
+} from "../../../src/server/audit/buffer";
 import { AUDIT_PAGE_SIZE, parseLines } from "../../../src/server/audit/query";
 import { INDEX_REV_KEY } from "../../../src/server/cache/indexCache";
 import type { AuditQueryResult } from "../../../src/server/handlers/audit";
@@ -422,16 +427,20 @@ describe("export", () => {
     setSetting(world, "personalTemplates", "on");
   });
 
-  it("writes one audit event per export with who, scope and count, and no content", () => {
+  const exportEvents = () =>
+    fileIndex().pendingAudit.filter((event) =>
+      event.action.startsWith("export."),
+    );
+
+  it("writes one audit event per export page with who, scope, offset and counts, and no content", () => {
     const sales = folder("Sales");
     for (let n = 0; n < EXPORT_PAGE + 1; n++)
       template(sales.id, `T${String(n)}`, "Secret subject", "<p>Secret</p>");
     exportAll(OWNER, "export.folder", { folderId: sales.id });
     exportAll(OWNER, "export.library");
     runTick(world.services);
-    const events = fileIndex().pendingAudit.filter((event) =>
-      event.action.startsWith("export."),
-    );
+    const events = exportEvents();
+    const total = EXPORT_PAGE + 1;
     expect(events).toEqual([
       expect.objectContaining({
         action: "export.folder",
@@ -439,17 +448,84 @@ describe("export", () => {
         targetType: "folder",
         targetId: sales.id,
         targetPath: "/Sales",
-        after: { scope: "folder", templates: EXPORT_PAGE + 1 },
+        after: { scope: "folder", offset: 0, templates: EXPORT_PAGE, total },
         result: "ok",
+      }),
+      expect.objectContaining({
+        action: "export.folder",
+        after: { scope: "folder", offset: EXPORT_PAGE, templates: 1, total },
       }),
       expect.objectContaining({
         action: "export.library",
         targetType: "library",
         targetId: "",
-        after: { scope: "library", templates: EXPORT_PAGE + 1 },
+        after: { scope: "library", offset: 0, templates: EXPORT_PAGE, total },
+      }),
+      expect.objectContaining({
+        action: "export.library",
+        after: { scope: "library", offset: EXPORT_PAGE, templates: 1, total },
       }),
     ]);
     expect(JSON.stringify(events)).not.toContain("Secret");
+  });
+
+  it("writes an event for every page whatever offset the client sends (offsets 1 and 21)", () => {
+    const sales = folder("Sales");
+    for (let n = 0; n < 25; n++) template(sales.id, `T${String(n)}`);
+    world.ok(OWNER, "export.library", { offset: 1 });
+    world.ok(OWNER, "export.library", { offset: 21 });
+    runTick(world.services);
+    expect(exportEvents().map((event) => event.after)).toEqual([
+      { scope: "library", offset: 1, templates: 20, total: 25 },
+      { scope: "library", offset: 21, templates: 4, total: 25 },
+    ]);
+  });
+
+  it("refuses a page with BUSY and no data when the lock is busy", () => {
+    const sales = folder("Sales");
+    template(sales.id, "T", "", "<p>Secret</p>");
+    world.lock.tryLock = () => false;
+    const response = world.call(OWNER, "export.folder", { folderId: sales.id });
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "BUSY", retryable: true },
+    });
+    expect(JSON.stringify(response)).not.toContain("Secret");
+    expect(readBuffer(world.cache).dropped).toBe(0);
+  });
+
+  it("refuses a page when the buffer is full of change events, and makes room among applies", () => {
+    const sales = folder("Sales");
+    template(sales.id, "T", "", "<p>Secret</p>");
+    const fill = (entry: () => BufferedEvent) => {
+      for (let n = 0; n < BUFFER_MAX; n++)
+        bufferEvent(world.cache, world.lock, entry());
+    };
+    const change = (): BufferedEvent => ({
+      kind: "change",
+      event: {
+        ...fileIndex().pendingAudit[0],
+        id: world.services.newId(),
+      } as AuditEvent,
+    });
+    fill(change);
+    const refused = world.call(OWNER, "export.folder", { folderId: sales.id });
+    expect(refused).toMatchObject({ ok: false, error: { code: "BUSY" } });
+    expect(JSON.stringify(refused)).not.toContain("Secret");
+    expect(readBuffer(world.cache).dropped).toBe(0);
+    runTick(world.services);
+    fill(() => ({
+      kind: "apply",
+      itemId: "I1",
+      actor: OWNER,
+      ts: "2026-11-09T12:00:00.000Z",
+    }));
+    world.ok(OWNER, "export.folder", { folderId: sales.id });
+    const buffered = readBuffer(world.cache);
+    expect(buffered.dropped).toBe(1);
+    expect(
+      buffered.events.filter((entry) => entry.kind === "change"),
+    ).toHaveLength(1);
   });
 
   it("exports the folder subtree with subjects and only the grants inside it", () => {

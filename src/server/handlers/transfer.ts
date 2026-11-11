@@ -115,7 +115,14 @@ function exportPage(
   const items = index.items.filter(
     (item) => item.deletedAt === "" && scopeIds.has(item.folderId),
   );
-  const page = items.slice(offset, offset + EXPORT_PAGE).map((item) => ({
+  const slice = items.slice(offset, offset + EXPORT_PAGE);
+  // Before any body is read: a page whose audit event cannot be stored returns nothing.
+  recordExport(context, scope, {
+    offset,
+    templates: slice.length,
+    total: items.length,
+  });
+  const page = slice.map((item) => ({
     meta: {
       id: item.id,
       folderId: item.folderId,
@@ -126,7 +133,6 @@ function exportPage(
     },
     html: readStoredBody(context.services, item),
   }));
-  if (offset === 0) recordExport(context, scope, items.length);
   const end = offset + page.length;
   return {
     header: {
@@ -144,14 +150,15 @@ function exportPage(
 }
 
 /**
- * One audit event per export (ADR-0002 security events), written with its first page: who, the scope and how many
- * templates, no content. An export changes no file, so the event goes through the `evt:*` buffer as a change event
- * that `tick` moves into `pendingAudit`.
+ * One audit event per export page (ADR-0002 security events), whatever offset the client sends: who, the scope,
+ * the offset, the templates on the page and in the scope; no title, content or address. An export changes no file,
+ * so the event goes through the `evt:*` buffer as a change event that `tick` moves into `pendingAudit`. When the
+ * buffer cannot take it (lock busy, buffer full of change events) the page answers BUSY and exports nothing.
  */
 function recordExport(
   context: HandlerContext,
   scope: ExportScope,
-  templates: number,
+  counts: { offset: number; templates: number; total: number },
 ): void {
   const { index } = context.access();
   const folder = scope.kind === "folder";
@@ -160,12 +167,17 @@ function recordExport(
     targetType: folder ? "folder" : "library",
     targetId: scope.folderId,
     targetPath: folder ? folderPath(index, scope.folderId) : "",
-    after: { scope: scope.kind, templates },
+    after: { scope: scope.kind, ...counts },
   });
-  bufferEvent(context.services.cache, context.services.lock, {
+  const stored = bufferEvent(context.services.cache, context.services.lock, {
     kind: "change",
     event,
   });
+  if (!stored)
+    throw new AppError(
+      ErrorCode.BUSY,
+      "The export could not be recorded in the audit log. Try again in a moment.",
+    );
 }
 
 /** `export.folder` (manage on the folder): the folder and its subtree. */
