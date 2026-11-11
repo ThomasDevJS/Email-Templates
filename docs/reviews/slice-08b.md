@@ -1,8 +1,8 @@
 # Review: slice 8b (editor in direction A, recipients, leave guard, "Reads as")
 
-Verdict: FAIL. Head 671c7a7, base 7ce6810, reviewed 2026-11-11.
+Verdict: PASS after retry 1 (head 5bd5ec6, reviewed 2026-11-11). Both blockers fixed in Chromium. 5 minor gaps open (see "Retry 1").
 
-Two blockers. Everything else passes or is minor.
+First review: FAIL. Head 671c7a7, base 7ce6810. Two blockers. Everything else passed or was minor.
 
 ## Blockers
 
@@ -109,3 +109,85 @@ index.html 376.9 KB: script 329.0 KB (esbuild 321.5 KB: prosemirror-view 96.4, p
 ## Next
 
 Fix blockers 1 and 2, then re-review. Minors can ride along.
+
+## Retry 1
+
+Verdict: PASS. Head 5bd5ec6, retry base d8de28d, engine base 7ce6810. Diff: 28 files, +764 -88.
+
+### Commands (clean install, worktree)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | 559 packages, 16 audit findings (14 moderate, 2 high), unchanged |
+| `npm run lint` | clean |
+| `npm run typecheck` | clean |
+| `npm run test:coverage` | 63 files, 1498 passed, 0 failed; statements 96.48, branches 90.36, functions 95.95, lines 97.35 (web 92.85) |
+| `npm run build -- --env dev` | Code.js 347.9 KB of 800, index.html 367.7 KB of 400 (was 376.9 at 671c7a7) |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 100 on 13 of 13 runs |
+
+New tests on old code: the 4 changed test files copied into a d8de28d copy, 15 tests fail there (all new retry tests).
+
+### Blocker 1, insert position: fixed
+
+Chromium, head harness, body "Hello world" + "Second para". 72 runs: image (fast 200 px PNG, 1.5 s delay, aborted request), link, table, "Sender name", "Ask the user..."; Enter and OK; caret in the middle, at the start, at the end, a 5-character selection, after an undo, and a document change made while the dialog was open (DOM edit at the paragraph start, read by ProseMirror).
+
+- Every node lands at the saved caret in 72 of 72 runs. The selection is replaced by image, table, blank and asked field. The DOM edit case gives "ZZHello[node] world": the bookmark follows the change.
+- Width: fast and slow image store `width="200"`. The failing image stores no width.
+- d8de28d, same script: 15 image runs with Enter put the image at the document start (the blocker). Head: 0.
+- No leak: open Image, cancel by Esc and by Cancel, move the caret to the end, insert. Then open Link at "He|llo", Esc, insert an image at the end. Stored `<p>Hello world more<img ... width="200"><img ...></p>`: both at the current caret. Focus after a cancel is the editor body.
+- A second user action cannot type into the editor while a dialog is open: the dialog makes the page inert.
+
+### Blocker 2, one leave dialog: fixed
+
+| Sequence | Dialogs | Focus on the second attempt | After Keep editing |
+|---|---|---|---|
+| Back, Back | 1 | Keep editing | Template body |
+| Trash, Back | 1 | Keep editing | Trash |
+| Breadcrumb, History | 1 | History is inert under the dialog | Quotes |
+| Forward, Forward | 1 | Keep editing | Template body |
+| 390 px menu Trash, Back | 1 | Keep editing | Trash, panel stays open |
+
+### Gaps 3 to 9
+
+- 3 fixed. Favorites, Keep editing, breadcrumb "Quotes", Discard: "Sales / Quotes", hash `#/library?folder=F-QUOTES`. d8de28d opened Favorites. Favorites then Discard still opens Favorites.
+- 4 fixed. 390 px: Keep editing keeps the panel open and focuses Trash.
+- 5 fixed for entries this page wrote. Library, Sales, editor, Back, Keep editing: `history.length` 4 before and after, state `at` 2 before and after, 2 popstate events (out and back), no third. Back then Save and leave: one save, library opens; Back then returns to the editor with no question. Back then Discard pushes one entry (declared, left for later).
+- 6 fixed, with a visual cost. Each add and each removal writes one status text ("Added a@x.com to Cc", "Removed c@z.com from Cc"). See minor 3.
+- 7 fixed. Backslash before a blank, bad subject token, bad To, bad Cc: "Problems 4" while typing, back to 0 as each is fixed. Each item is a button: focus goes to `editor-body`, `subject`, `rcpt-to`, `rcpt-cc` at 1440 and 390. At 390 a collapsed Details section opens first.
+- 8 fixed. Folder select 299 px at 1440 and 1024, 358 px at 390, full panel width. The read-only note has the sheet's left edge and width at 1440 (334, 680), 1024 (276, 380) and 390 (12, 366).
+- 9 fixed. smoke.md:37, 38, 62 match the app texts. `chipText` has no reference left. Its 3 cases now check `blankParts` (label, fallback, class). The visible "X or Y" text is still checked on the rendered blank (editor.test.ts:95-96).
+
+### CSS minification
+
+- Head page against the same head with minification turned off (scratch copy, `return css.trim()`): library, editor and admin audit at 1440 and 390, light and dark, 12 of 12 pixel-identical on the final run. One earlier run showed 76 to 102 px of differences in the library header; a rerun was identical, so it was timing noise.
+- Head against d8de28d: library and admin audit 8 of 8 identical. The editor differs only in the restacked Details rows (gap 8).
+- `minifiedStyles` throws on `url(http://...)`, a `/*` in a string, `<?=` and a stray `//`. `</style` in a string is escaped by esbuild to `<\/style`, so no raw `</style` reaches the page.
+- `scripts/lib/html.mjs` unchanged. contrast.test.ts reads `src/web/styles.css`, the source file.
+
+### Engine freeze
+
+- No file under test/fixtures or test/unit/shared changed since 7ce6810. serialize.ts and load.ts unchanged.
+- The 5 keyboard documents of the first review (T-QUOTE, T-DISCOUNT, T-WELCOME, T-OLD, new): 5 of 5 identical stored HTML on 7ce6810 and head, 2 runs. The script needs 60 ms between keys; without the pause the link selection length varies on both builds alike.
+
+### Scope and secrets
+
+- No change in src/server, src/addon, src/shared, appsscript.json, scripts/lib, library, tree, grid, trash or admin views. app.ts changes: outside press ignores the dialog backdrop (gap 4), `show` helper and `openScope` (gap 3), history return trip (gap 5). dev-harness.ts passes the history state.
+- Secret scan of added lines: no keys or tokens. Emails: a@x.com, b@y.com, a@example.com, late@example.com, ops@example.com, b@partner.com. URLs: example.com only. `window.history.go` is no network call.
+
+### Google's frame (gap 5)
+
+Simulated in Chromium: `history.go` does nothing; the change event carries no state; `go` moves but fires no change event. In all 3 cases the edits stay, every Back asks again and Discard leaves. With a no-op `go` the address shows the previous page while the editor stays, until the next Back. No case loses text or leaves the page stuck.
+
+### Minor gaps (open)
+
+1. docs/ops/smoke.md:157 has no step for `Host.go`. The handoff asks for one ("Forward, Keep editing, Back once: the library opens, not History") but smoke.md does not have it. Add it, and record `history.length` before and after.
+2. The page's first entry has no state (src/web/host.ts:75 reads `moved` 0), so a Back to it still pushes (app.ts:318) and drops the Forward entries. Library, editor, Back, Keep editing: length 3 kept, current entry replaced. Fix: `navigate(hash, true)` once at start to stamp `{ page, at: 0 }`.
+3. Chip announcements use the visible status line (src/web/views/editor.ts:743-745). The first chip moves the toolbar and the sheet down 27 px. The text stays until the next status, and it overwrites "Not saved..." messages. Recommendation: a separate `.sr-only` `role=status` element for chip texts (the class exists, styles.css:136); keep the visible line for save results.
+4. After an insert at the document start by Enter, the caret sits before the new node ("#[IMG]Hello"); the next keystroke goes before it. Same on d8de28d. Not an insert-position defect.
+5. Declared and left for later: Back then Discard adds one entry; `me` failure blocks the editor; Bcc box empty input line; read-only Title border; Bcc note under "None".
+
+## Next
+
+Merge. Minors 1 to 3 in the next web slice; minor 1 before the next smoke run.
