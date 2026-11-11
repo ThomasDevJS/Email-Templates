@@ -77,7 +77,7 @@ The card closes (S6 step 0). The draft is the result: body at the cursor, subjec
 
 ## 6. Side panel (ADR-0007, decision unchanged)
 
-Until spike S7: panel rows and the details card show no Insert, as built. After S7: the row button ("New email", "Reply") is a compose action with the same one-click rules (removal of blank fields, row `rc` check, `recipientActions` on the computed draft); the row tap opens the details card whose footer button is the compose action and reads its inputs from the event's form inputs (S7 records that a compose-action callback receives them). The blank-field notification and the "Check" fallback of ADR-0007 section 3 drop, since a blank field is removed.
+Until spike S7: panel rows and the details card show no Insert, as built. After S7: the row button ("New email", "Reply") is a compose action with the same one-click rules (removal of blank fields, row `rc` check, `recipientActions` on the computed draft); the row tap opens the details card whose footer button is the compose action and reads its inputs from the event's form inputs (S7 records that a compose-action callback receives them). The blank-field notification and the "Check" fallback of ADR-0007 section 3 drop, since a blank field is removed. [2026-11-11, S7 passed: the panel details card is set in ADR-0007 "Acceptance 2026-11-11" section A2: no subject switch, "Add recipients" kept, footer "Reply" and "Reply all" with a message open. Form inputs in a compose callback are checked in the slice 18 smoke (Q68).]
 
 ## Consequences
 
