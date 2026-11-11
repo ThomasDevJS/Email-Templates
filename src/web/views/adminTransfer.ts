@@ -25,11 +25,11 @@ export const EXPORT_RETRY_MS = 200;
  */
 export function exportFailedText(
   done: number,
-  total: number,
+  total: number | null,
   answer: string | null,
 ): string {
   const head =
-    total === 0
+    total === null
       ? "The export did not start"
       : `The export stopped after ${String(done)} of ${String(total)} templates`;
   return answer === null
@@ -131,7 +131,7 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
 
   const pages = async (
     folderId: string,
-    progress: { done: number; total: number },
+    progress: { done: number; total: number | null },
   ) => {
     const run = requestIdNow();
     const { token, total } = await retrying(() =>
@@ -161,7 +161,11 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     }
     run.disabled = true;
     status.textContent = "Exporting...";
-    const progress = { done: 0, total: 0 };
+    // total stays null until the start answers: a start of 0 templates did start (14 minor 8).
+    const progress: { done: number; total: number | null } = {
+      done: 0,
+      total: null,
+    };
     pages(folderId, progress)
       .then(({ file, count }) => {
         const name = exportFileName(file.scope, new Date());
@@ -178,9 +182,10 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
           noAnswer
             ? null
             : // The library export is admin only; a folder export needs manage.
+              // A toast closes; the line keeps the reason (14 minor 10).
               (folderId === "" ? adminLineText : lineText)(
                 error,
-                app.fail(error),
+                app.fail(error) ?? status,
               ),
         );
       })

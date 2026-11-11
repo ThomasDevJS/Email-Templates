@@ -447,8 +447,9 @@ describe("export and import tab", () => {
 
   it("shows the server's own message when the server answered with an error after the retries", async () => {
     const { clicks, createUrl } = await exportWith("fail=QUOTA&failSkip=1");
+    // The reason stays in the line after the toast closes (14 minor 10).
     await waitStatus(
-      "The export stopped after 0 of 4 templates and no file was downloaded.",
+      "The export stopped after 0 of 4 templates and no file was downloaded. Service is busy. Try again in a minute.",
     );
     expect(status()).not.toContain("did not answer");
     expect(toasts()).toContain("Service is busy. Try again in a minute.");
@@ -506,11 +507,15 @@ describe("export and import tab", () => {
   });
 
   it("words a failed export from its progress and the server's answer", () => {
-    expect(exportFailedText(0, 0, null)).toBe(
+    expect(exportFailedText(0, null, null)).toBe(
       "The export did not start: the server did not answer after 4 tries. No file was downloaded, so wait a few minutes and export again.",
     );
-    expect(exportFailedText(0, 0, "")).toBe(
+    expect(exportFailedText(0, null, "")).toBe(
       "The export did not start and no file was downloaded.",
+    );
+    // A start of 0 templates did start (14 minor 8).
+    expect(exportFailedText(0, 0, "")).toBe(
+      "The export stopped after 0 of 0 templates and no file was downloaded.",
     );
     expect(exportFailedText(40, 100, "Ask a folder manager.")).toBe(
       "The export stopped after 40 of 100 templates and no file was downloaded. Ask a folder manager.",
