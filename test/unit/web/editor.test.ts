@@ -170,6 +170,70 @@ describe("placeholder atom in the editor", () => {
     expect(ed.html()).toBe("<p>Hi</p>");
   });
 
+  it("while the page is busy, {{ stays as text and opens no picker (slice 24 retry 2)", () => {
+    vi.useFakeTimers();
+    const onBraces = vi.fn();
+    const mount = document.createElement("div");
+    mount.dataset["blocked"] = "";
+    document.body.append(mount);
+    const ed = createEditor(
+      mount,
+      "<p>Hi</p>",
+      { onChange: () => undefined, onBraces, onLink: () => undefined },
+      { id: "ed" },
+    );
+    editor = ed;
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(TextSelection.create(ed.view.state.doc, 3)),
+    );
+    for (const text of ["{", "{"]) {
+      const { from, to } = ed.view.state.selection;
+      const handled = ed.view.someProp("handleTextInput", (handler) =>
+        handler(ed.view, from, to, text, () =>
+          ed.view.state.tr.insertText(text, from, to),
+        ),
+      );
+      if (handled !== true)
+        ed.view.dispatch(ed.view.state.tr.insertText(text, from, to));
+    }
+    vi.runAllTimers();
+    vi.useRealTimers();
+    expect(onBraces).not.toHaveBeenCalled();
+    // Literal braces are stored escaped (the text reads "{{").
+    expect(ed.html()).toBe("<p>Hi\\{{</p>");
+  });
+
+  it("while the page is busy, Ctrl+K opens nothing and Ctrl+B still bolds (slice 24 retry 2)", () => {
+    const onLink = vi.fn();
+    const mount = document.createElement("div");
+    mount.dataset["blocked"] = "";
+    document.body.append(mount);
+    const ed = createEditor(
+      mount,
+      "<p>Hi\\{{</p>",
+      { onChange: () => undefined, onBraces: () => undefined, onLink },
+      { id: "ed" },
+    );
+    editor = ed;
+    const press = (key: string) =>
+      ed.view.dom.dispatchEvent(
+        new KeyboardEvent("keydown", { key, ctrlKey: true, bubbles: true }),
+      );
+    press("k");
+    expect(onLink).not.toHaveBeenCalled();
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, 1, 3),
+      ),
+    );
+    press("b");
+    expect(ed.html()).toBe("<p><strong>Hi</strong>\\{{</p>");
+    // The page is free again: Ctrl+K asks for the link.
+    delete mount.dataset["blocked"];
+    press("k");
+    expect(onLink).toHaveBeenCalledTimes(1);
+  });
+
   it("copy and paste keep the token", () => {
     const ed = open("<p>A {{ask:Date}} B</p>");
     const slice = ed.view.state.doc.slice(

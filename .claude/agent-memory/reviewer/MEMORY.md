@@ -31,7 +31,6 @@
 - Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
 - Slice 8a UI (2026-11-10): FAIL (23bf981), retry 1 PASS (5b0aa2c, 1265 tests, index.html 340.6 KB). Retry: panel modal (main inert + aria-hidden, trapTab exported, matchMedia close), focus selector a[href] (SVG use href was counted), --star #a87400, --star-off #78838b, --field-line #7f8b93/#7c8a94 for field and button borders, contrast.test.ts token pairs (does not check CSS usage).
   First review 52 files, 1256 tests, lines 96.4, Code.js 318.9 KB, index.html 340.0 KB, 10 scopes, Lighthouse 100x11 (incl. library dark). No server/shared change.
-  - Must fix: 390 px panel (`.side.open .side-panel` absolute) lets Tab reach search/grid under it; no outside-click close (app.ts:74-86). `--star` #c58a00 2.99 on paper, 2.74 on canvas; star-off 2.80 on `--select` (button hover).
 - Slice 10 S7 harness (2026-11-10): PASS (f7f05a7). 58 files, 1332 tests, lines 96.48, Code.js 335.7 KB, 10 scopes, manifest adds contextualTriggers unconditional onMessageOpen.
   - `entryOf` (event.ts): draftMetadata -> compose, else gmail.messageId or messageMetadata.messageId -> message, else inbox. Compose clicks carry top-level draftMetadata (runbook.md:125 fields).
 - Slice 8c UI admin (2026-11-10): PASS (75ebb53). 56 files, 1295 tests, lines 96.45, index.html 352.9 KB (+12.3, css +7.2), Lighthouse 100x12 (incl. admin audit dark), 10 scopes. No server/shared/addon/editor change.
@@ -43,7 +42,6 @@
   - Must fix: draftRecipients (addon/event.ts) reads missing/non-array/mixed list as [], and REPLACE actions then wipe the draft field (tests assert it). Prompt card switchLabel lacks Bcc marker, Not added, blocked. No "finish typing" line on cards.
 - Slice 12 add-on layout and wording (2026-11-11): PASS (00c91a3). 62 files, 1437 tests, lines 96.67, Code.js 347.8 KB, 10 scopes. Add-on only.
   - Probe base vs head pure flows (6 events x 5 templates, all insert params, prompt switches): 502/526 replies identical incl. 322 draft responses; 24 diffs = Open library moved to fixed footer.
-  - New: CardSpec.title optional, ButtonSpec.style filled (slate #2a3c49 via setBackgroundColor) | outlined, item icon (Material names star/schedule/description/folder), SectionSpec.collapseAfter (VISIBLE_ROWS 5), LIBRARY_FOOTER, sidePanel.ts sidePanelHint.
   - Gaps: bottom label `\n`-><br> plus escaping vs Google guide 'labels must use plain text' (unverified, smoke step 1); no-match echoes unbounded query; folder rows repeat header path, snippet gone (wireframe 01 had it); stale smoke.md:47-48, deploy.md:20.
   - Follow-up 9d48a79, 85d6d50: PASS, 1440 tests. Labels escapeText only, one line joined ' · '; folder rows hints only; ECHO_MAX 60 (cut by UTF-16 unit, can split a surrogate pair: minor). Draft responses still identical to base.
 - Slice 11 admin settings (2026-11-11): PASS (f84a021). 64 files, 1664 tests, lines 96.68 (server 99.31, web 91.92), Code.js 351.4 KB, index.html 359.5 KB, Lighthouse 100x14, 10 scopes.
@@ -98,6 +96,7 @@
   - Recording Card Service is one shared Proxy chain: to fake a missing/throwing method wrap newX() in a Proxy that returns itself.
 - Slice 22b follow-up (2026-11-11): PASS (review on 0b90f44). 1986 tests, Code.js 373.5 KB. Error tone = DecoratedText icon error + alt "Error", no "(!)"; compose search row = Columns (try/catch fallback to stack). Minor: toIcon start icon unguarded.
 - Slice 23 tree collapse by mouse (2026-11-11): FAIL (review on 8101c13). 71 files, 1989 tests, index.html 381.2 KB, Lighthouse 100x16. Must fix: tree.ts:209 render re-expands ancestors on every reload (Duplicate, Admin rename reopen a collapsed ancestor); tree.ts:111 double-click on a closed parent name opens then closes it. Retry 1 FAIL (a26e7f3): `opened` keeps closed parents through redraws, detail>1 ignored; but editor breadcrumb (app.go) to the opened folder leaves it hidden; need reveal on explicit selection only. Retry 2 PASS (8db30c1, 1996 tests): render(..., reveal) from user choices (show, openScope, first route, Admin click/create/delete/move); Back/Forward and reloads keep closed parents.
+- Slice 24 loader D37 (2026-11-11): FAIL (815a0cb). 72 files, 2003 tests, index.html 383.2 KB, Lighthouse 100x16. busy.ts capture guard on main+side, 300 ms bar, 20 s max; itemSaved replaces save reload; Admin grants cache + app.background. Must fix: keys typed during save dropped (base kept, dirty); toast Retry restore x2 = 2 writes (history.ts:173). Retry 1 FAIL (78172c8): typing passes in text fields (TYPING_EVENTS), per-call 20 s, restoring guard; but Ctrl+K and {{ open link dialog/field menu during a call. Retry 2 PASS (ae2ff12, 2008 tests): pageBusy ([data-blocked] ancestor) guards Mod-k and bracesRule.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -147,3 +146,4 @@
 - First-load/error UI: count toasts plus banners per failure, and check focus after the retry button removes itself.
 
 - Toggle UIs: probe double-click (event.detail) and every redraw path (reloads, writes) after a user collapse; state kept in a view must survive its own render.
+- Page blockers: probe typing during a slow save vs base, toast Retry (outside regions) for writes, never-answer and overlap; c24.cjs in scratchpad/20a/p delays one op via window.__delays.

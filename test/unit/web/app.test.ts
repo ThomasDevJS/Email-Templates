@@ -20,6 +20,29 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+interface ScriptRun {
+  withSuccessHandler(handler: (value: unknown) => void): ScriptRun;
+  withFailureHandler(handler: (error: unknown) => void): ScriptRun;
+  rpc(op: string, args: unknown, id: string): void;
+}
+
+/** Wraps the harness's `google.script.run`, so tests can count calls per op. */
+function recordCalls(): void {
+  sent.length = 0;
+  const script = (
+    window as unknown as { google: { script: { run: ScriptRun } } }
+  ).google.script;
+  const wrap = (inner: ScriptRun): ScriptRun => ({
+    withSuccessHandler: (handler) => wrap(inner.withSuccessHandler(handler)),
+    withFailureHandler: (handler) => wrap(inner.withFailureHandler(handler)),
+    rpc: (op, args, id) => {
+      sent.push(op);
+      inner.rpc(op, args, id);
+    },
+  });
+  script.run = wrap(script.run);
+}
+
 /** Loads the page at `url` (path, query and hash) with a fresh harness and app. */
 async function boot(url: string): Promise<void> {
   window.history.replaceState(null, "", url);
@@ -28,10 +51,14 @@ async function boot(url: string): Promise<void> {
     .replace(/<script>[\s\S]*<\/script>/, "")
     .replace(/<\?=\s*\w+\s*\?>/g, "");
   await import("../../../src/web/dev-harness");
+  recordCalls();
   await import("../../../src/web/app");
 }
 
 const main = () => document.getElementById("main") as HTMLElement;
+/** Server calls by op since boot, read from the harness's request log. */
+const sent: string[] = [];
+const calls = (op: string) => sent.filter((name) => name === op).length;
 const text = () => main().textContent;
 /** A row's or a cell's template title, without the subject line under it. */
 const titleOf = (element: Element | null | undefined) =>
@@ -215,6 +242,23 @@ describe("library (screen 3)", () => {
       ),
     ).toBe("Price quote 2026");
     expect(text()).not.toContain("Searching text...");
+  });
+
+  it("blocks the page while the library loads, but never for the text search (D37)", async () => {
+    await boot("/?latency=200#/library");
+    expect(main().hasAttribute("data-blocked")).toBe(true);
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    const search = document.getElementById("search") as HTMLInputElement;
+    search.value = "interest";
+    search.dispatchEvent(new Event("input"));
+    await until(() => {
+      expect(calls("search.body")).toBe(1);
+    });
+    expect(text()).toContain("Searching text...");
+    expect(main().hasAttribute("data-blocked")).toBe(false);
   });
 
   it("shows the no-match text once a failed search.body settles", async () => {
@@ -687,10 +731,59 @@ describe("editor (screen 4, flow 4.2)", () => {
       );
     });
     expect(save?.disabled).toBe(false);
+    // D37: the save's own answer updates the library; no folder.list or template.list after it.
+    expect([calls("folder.list"), calls("template.list")]).toEqual([1, 1]);
     (
       main().querySelector('[aria-label="Remove tag new"]') as HTMLButtonElement
     ).click();
     expect(main().querySelectorAll(".tag")).toHaveLength(2);
+  });
+
+  it("keeps what is typed during a save and then says Unsaved changes; clicks stay blocked (slice 24 retry 1)", async () => {
+    await boot("/?latency=300#/edit/T-QUOTE");
+    await until(() => {
+      expect(main().querySelector(".ph")).not.toBeNull();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    const title = document.getElementById("title") as HTMLInputElement;
+    const body = main().querySelector(".ProseMirror") as HTMLElement;
+    title.value = "Price quote 2027";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+    key(document.body, "s", { ctrlKey: true });
+    expect(main().hasAttribute("data-blocked")).toBe(true);
+    // Typing goes through: keys, Backspace and paste in the title and the text.
+    const passes = (target: Element, event: Event) =>
+      target.dispatchEvent(event);
+    const typed = (name: string) =>
+      new KeyboardEvent("keydown", {
+        key: name,
+        bubbles: true,
+        cancelable: true,
+      });
+    expect(passes(title, typed("x"))).toBe(true);
+    expect(passes(title, typed("Backspace"))).toBe(true);
+    expect(passes(body, typed("y"))).toBe(true);
+    expect(
+      passes(body, new Event("paste", { bubbles: true, cancelable: true })),
+    ).toBe(true);
+    title.value = "Price quote 2027 abc";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+    // A click on the sidebar does not go through.
+    const trash = document.querySelector("[data-nav=trash]") as HTMLElement;
+    expect(
+      passes(
+        trash,
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      ),
+    ).toBe(false);
+    await until(() => {
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    expect(title.value).toBe("Price quote 2027 abc");
+    expect(main().querySelector(".saved-state")?.textContent).toBe(
+      "Unsaved changes",
+    );
+    expect(window.location.hash).toBe("#/edit/T-QUOTE");
   });
 
   it("edits the subject: counter, placeholder menu at the caret, preview and save", async () => {
@@ -892,10 +985,53 @@ describe("editor (screen 4, flow 4.2)", () => {
 });
 
 describe("history (screen 5)", () => {
+  it("starts no second restore from a toast's Retry while one runs (slice 24 retry 1)", async () => {
+    await boot(
+      "/?latency=50&fail=INTERNAL&failOp=version.restore&failTimes=2#/history/T-QUOTE",
+    );
+    await until(() => {
+      expect(main().querySelectorAll('[role="option"]')).toHaveLength(2);
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    const list = main().querySelector('[role="listbox"]') as HTMLElement;
+    key(list, "ArrowDown");
+    const restoreFails = async (count: number) => {
+      await until(() => {
+        expect(main().hasAttribute("data-blocked")).toBe(false);
+      });
+      key(list, "r");
+      button(
+        "Restore",
+        document.querySelector('[role="dialog"]') as HTMLElement,
+      ).click();
+      await until(() => {
+        expect(document.querySelectorAll(".toast")).toHaveLength(count);
+      });
+    };
+    await restoreFails(1);
+    await restoreFails(2);
+    const [first, second] = [
+      ...document.querySelectorAll<HTMLElement>(".toast"),
+    ];
+    button("Retry", first).click();
+    button(
+      "Restore",
+      document.querySelector('[role="dialog"]') as HTMLElement,
+    ).click();
+    await Promise.resolve();
+    button("Retry", second).click();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await until(() => {
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    expect(calls("version.restore")).toBe(3);
+  });
+
   it("lists versions, previews with chips and restores with confirmation", async () => {
     await boot("/?latency=0#/history/T-QUOTE");
     await until(() => {
       expect(main().querySelectorAll('[role="option"]')).toHaveLength(2);
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     const list = main().querySelector('[role="listbox"]') as HTMLElement;
     expect(list.getAttribute("aria-activedescendant")).toBe("version-2");
@@ -918,6 +1054,7 @@ describe("history (screen 5)", () => {
       expect(
         main().querySelector(".preview-body .ph")?.getAttribute("aria-label"),
       ).toBe("Field: Recipient first name, default text there");
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     key(list, "r");
     const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
@@ -1057,6 +1194,7 @@ describe("shell (slice 8a)", () => {
     await boot("/?latency=0#/trash");
     await until(() => {
       expect(sideTree().querySelectorAll('[role="treeitem"]')).toHaveLength(4);
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     (
       [...sideTree().querySelectorAll('[role="treeitem"]')].find(

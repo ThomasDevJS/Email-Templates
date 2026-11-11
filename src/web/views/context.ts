@@ -1,9 +1,12 @@
+import type { Item } from "../../shared/model/data";
 import type { Api, FolderRow, ItemRow, Profile } from "../rpc/api";
 import type { Route } from "../router";
 
 /** What every view gets: the server API, the loaded library, navigation and error handling. */
 export interface AppContext {
   readonly api: Api;
+  /** The same calls without the page loader, for refreshes the user did not ask for (D37). */
+  readonly background: Api;
   readonly profile: () => Profile | null;
   readonly folders: () => readonly FolderRow[];
   readonly items: () => readonly ItemRow[];
@@ -15,6 +18,8 @@ export interface AppContext {
   setFavorite(id: string, favorite: boolean): Promise<void>;
   /** Reloads folders and templates from the server. */
   reload(): Promise<void>;
+  /** A save answered with the template: the loaded list takes it, with no second read (D37). */
+  itemSaved(item: Item): void;
   /** Folders changed on the server (admin view): the next library, trash or editor view loads them again. */
   foldersChanged(): void;
   go(route: Route): void;

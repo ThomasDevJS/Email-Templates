@@ -122,14 +122,21 @@ function countCalls(op: string): () => number {
   return () => count;
 }
 
+/** Waits until no call blocks the page (D37 loader). */
+async function idle(): Promise<void> {
+  await until(() => {
+    expect(main().hasAttribute("data-blocked")).toBe(false);
+  });
+}
+
 async function openQuotes(): Promise<void> {
   await until(() => {
     expect(main().querySelector('[role="tablist"]')).not.toBeNull();
   });
+  await idle();
   treeItem("Sales").click();
-  await until(() => {
-    treeItem("Quotes").click();
-  });
+  await idle();
+  treeItem("Quotes").click();
   await until(() => {
     expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(2);
   });
@@ -158,6 +165,7 @@ describe("admin view entry", () => {
     await until(() => {
       expect(main().querySelector('[role="tablist"]')).not.toBeNull();
     });
+    await idle();
   });
 
   it("shows only the DENIED state when the server refuses", async () => {
@@ -204,6 +212,7 @@ describe("tablist and memberships", () => {
     await until(() => {
       expect(main().querySelectorAll('[role="tab"]')).toHaveLength(6);
     });
+    await idle();
     const tabs = [...main().querySelectorAll<HTMLElement>('[role="tab"]')];
     expect(tabs.map((tab) => tab.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
     key(tabs[0] as HTMLElement, "ArrowRight");
@@ -232,11 +241,13 @@ describe("tablist and memberships", () => {
       expect(status()).toContain("Refreshed 2 groups.");
     });
     expect(document.activeElement).toBe(refresh);
+    await idle();
     key(tabs[1] as HTMLElement, "Home");
     expect(document.activeElement).toBe(tabs[0]);
     key(tabs[0] as HTMLElement, "End");
     expect(document.activeElement).toBe(tabs[5]);
     expect(window.location.hash).toBe("#/admin/config");
+    await idle();
     key(tabs[5] as HTMLElement, "ArrowRight");
     expect(document.activeElement).toBe(tabs[0]);
     key(tabs[0] as HTMLElement, "ArrowLeft");
@@ -276,6 +287,7 @@ describe("folders and grants", () => {
     await until(() => {
       expect(main().querySelector('[role="tablist"]')).not.toBeNull();
     });
+    await idle();
     const grantLists = countCalls("grant.list");
     const chevron = () =>
       treeItem("Sales").querySelector(".tree-toggle") as HTMLElement;
@@ -293,6 +305,7 @@ describe("folders and grants", () => {
     expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
       "Sales",
     );
+    await idle();
     treeItem("Sales").click();
     expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("false");
     expect(main().querySelector("h2#folder-heading")?.textContent).toBe(
@@ -323,6 +336,7 @@ describe("folders and grants", () => {
     await until(() => {
       expect(main().querySelector('[role="tablist"]')).not.toBeNull();
     });
+    await idle();
     const grantLists = countCalls("grant.list");
     treeItem("Sales").dispatchEvent(
       new MouseEvent("click", { bubbles: true, detail: 1 }),
@@ -333,6 +347,22 @@ describe("folders and grants", () => {
     expect(treeItem("Sales").getAttribute("aria-expanded")).toBe("true");
     await until(() => {
       expect(grantLists()).toBe(1);
+    });
+  });
+
+  it("shows the access of a folder seen before at once and refreshes it without blocking (D37)", async () => {
+    await boot("/?latency=50#/admin");
+    await openQuotes();
+    await idle();
+    const grantLists = countCalls("grant.list");
+    treeItem("Sales").click();
+    await idle();
+    treeItem("Quotes").click();
+    // Known rows at once; the read again runs in the background, so the page takes clicks.
+    expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(2);
+    expect(main().hasAttribute("data-blocked")).toBe(false);
+    await until(() => {
+      expect(grantLists()).toBe(2);
     });
   });
 
@@ -423,6 +453,7 @@ describe("folders and grants", () => {
     await until(() => {
       expect(main().querySelector('[role="tablist"]')).not.toBeNull();
     });
+    await idle();
     const opener = button("New top-level folder");
     opener.focus();
     opener.click();
@@ -461,12 +492,14 @@ describe("folders and grants", () => {
     await until(() => {
       expect(main().querySelector('[role="tablist"]')).not.toBeNull();
     });
+    await idle();
     button("New top-level folder").click();
     (dialog().querySelector("input") as HTMLInputElement).value = "Legal";
     button("OK", dialog()).click();
     await until(() => {
       expect(status()).toContain('Created folder "Legal".');
     });
+    await idle();
     button("Export and import").click();
     const options = (label: string) => {
       const field = [...main().querySelectorAll("label")].find(
@@ -480,17 +513,24 @@ describe("folders and grants", () => {
     expect(options("Folder")).toContain("Legal");
   });
 
-  it("a tab opened while a folder write is listed draws with the new list", async () => {
+  it("ignores a tab click while a folder write runs, and the tab then lists the new folder", async () => {
     await boot("/?latency=30#/admin");
     await until(() => {
       expect(main().querySelector('[role="tablist"]')).not.toBeNull();
     });
+    await idle();
     button("New top-level folder").click();
     (dialog().querySelector("input") as HTMLInputElement).value = "Legal";
     button("OK", dialog()).click();
     await until(() => {
       expect(status()).toContain("Creating folder...");
     });
+    // D37: the page takes no clicks while the write runs.
+    button("Export and import").click();
+    expect(button("Export and import").getAttribute("aria-selected")).toBe(
+      "false",
+    );
+    await idle();
     button("Export and import").click();
     await until(() => {
       const options = [...main().querySelectorAll("option")].map(
@@ -667,6 +707,7 @@ describe("trash", () => {
     await until(() => {
       expect(button("Refresh groups")).toBeTruthy();
     });
+    await idle();
     button("Refresh groups").click();
     await until(() => {
       expect(status()).toContain(text16);

@@ -47,9 +47,15 @@ export interface Editor {
   destroy(): void;
 }
 
-/** `{{` typed in text: drop both braces and ask for a placeholder. */
-export function bracesRule(onBraces: () => void): InputRule {
+/** True while the page loader blocks the page (D37): shortcuts that open a menu or a dialog then do nothing. */
+function pageBusy(element: Element | undefined): boolean {
+  return element?.closest("[data-blocked]") != null;
+}
+
+/** `{{` typed in text: drop both braces and ask for a placeholder. While the page is busy the braces stay as text. */
+export function bracesRule(onBraces: () => void, mount?: Element): InputRule {
   return new InputRule(/\{\{$/, (state, _match, start, end) => {
+    if (pageBusy(mount)) return null;
     setTimeout(onBraces, 0);
     return state.tr.delete(start, end);
   });
@@ -58,8 +64,8 @@ export function bracesRule(onBraces: () => void): InputRule {
 function keys(callbacks: EditorCallbacks) {
   const mark = (name: string) => toggleMark(schema.marks[name] as MarkType);
   const item = schema.nodes["list_item"];
-  const link: Command = () => {
-    callbacks.onLink();
+  const link: Command = (_state, _dispatch, view) => {
+    if (!pageBusy(view?.dom)) callbacks.onLink();
     return true;
   };
   return keymap({
@@ -87,7 +93,7 @@ export function createEditor(
   const state = EditorState.create({
     doc: parseHtml(html),
     plugins: [
-      inputRules({ rules: [bracesRule(callbacks.onBraces)] }),
+      inputRules({ rules: [bracesRule(callbacks.onBraces, mount)] }),
       keys(callbacks),
       keymap(baseKeymap),
       history(),

@@ -1,6 +1,6 @@
 import { ErrorCode } from "../../shared/errors/codes";
 import { ADMIN_TABS, LIBRARY, type AdminTab } from "../router";
-import type { FolderRow } from "../rpc/api";
+import type { FolderRow, GrantRow } from "../rpc/api";
 import { h, replace } from "../ui/dom";
 import { skeletonRows, toRpcError } from "../ui/status";
 import { auditTab } from "./adminAudit";
@@ -29,6 +29,8 @@ export interface AdminFolders {
   current(): AdminData;
   /** Reads the list again once `after` (a folder write) settles. A tab opened meanwhile waits for the answer. */
   refresh(after?: Promise<unknown>): Promise<AdminData>;
+  /** "Who has access" per folder, as last read in this Admin page (never stored). */
+  readonly grants: Map<string, readonly GrantRow[]>;
 }
 
 const TAB_LABELS: Readonly<Record<AdminTab, string>> = {
@@ -105,6 +107,7 @@ export function adminView(
     let data = initial;
     let pending: Promise<AdminData> | null = null;
     const folders: AdminFolders = {
+      grants: new Map(),
       current: () => data,
       refresh: (after = Promise.resolve()) => {
         const next = after

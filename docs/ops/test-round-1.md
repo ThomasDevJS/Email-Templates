@@ -302,3 +302,18 @@ Gmail web, dev build of slice 22, a person (not the browser agent), about 5 minu
 | 2    | spinner after the click: once or twice                                                                                          |        |
 | 3    | Search button works in the popup (y/n); one row in the popup, stacked in the side panel (y/n); error icon on the red line (y/n) |        |
 | 4    | grey hint readable, icon shows, dark (y/n)                                                                                      |        |
+
+## Part M: page loader and faster screens (D37)
+
+Web app, owner, a second browser window signed in as the same account. About 10 minutes.
+
+1. Library, open "T1 plain", change one word, click "Save" and at once click "All templates" several times. Expect: a thin dark bar moves at the top of the page after a short moment; the clicks do nothing while it shows; "Saved as version" appears, then the page takes clicks again.
+2. Open "T1 plain", press Ctrl+S, and at once type `abc` in the text, press Backspace, and paste a word. Expect: the bar shows, the typed and pasted text stays, and after "Saved as version" the header reads "Unsaved changes". Click "Save" again: the new text is saved.
+3. Admin, "Folders and access", select "Smoke 6a", then "HR", then "Smoke 6a" again. Expect: the second time, "Who has access" shows at once, with no grey rows and no bar.
+4. In the second window, Admin, "Folders and access", "Smoke 6a", give access to `test-to@<your domain>` with "Can use". Back in the first window, select "HR", then "Smoke 6a". Expect: the old list shows at once, and within a few seconds `test-to@<your domain>` appears in it. Remove that access again.
+5. After step 1, click "All templates". Expect: the list shows at once, with no grey rows and no bar; "T1 plain" is in it.
+6. Record: how long the bar showed in step 1, in seconds.
+
+| Step | Record                 | Result |
+| ---- | ---------------------- | ------ |
+| 6    | seconds the bar showed |        |

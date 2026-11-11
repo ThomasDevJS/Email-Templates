@@ -105,6 +105,7 @@ async function openEditor(url: string): Promise<void> {
   await until(() => {
     expect(main().querySelector(".ProseMirror")).not.toBeNull();
     expect(byId("rcpt-to")).not.toBeNull();
+    expect(main().hasAttribute("data-blocked")).toBe(false);
   });
 }
 
@@ -905,6 +906,7 @@ describe("unsaved-changes guard", () => {
     await boot("/?latency=0#/library");
     await until(() => {
       expect(main().querySelector('td[tabindex="0"]')).not.toBeNull();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     // An entry the app pushed (the page's first entry carries no position).
     document.querySelector<HTMLElement>("[data-nav=library]")?.click();
@@ -912,6 +914,7 @@ describe("unsaved-changes guard", () => {
     await until(() => {
       expect(window.location.hash).toMatch(/^#\/edit\//);
       expect(byId("title").value).not.toBe("");
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
   }
 
@@ -996,6 +999,7 @@ describe("unsaved-changes guard", () => {
     await boot("/?latency=0#/library");
     await until(() => {
       expect(main().querySelector('td[tabindex="0"]')).not.toBeNull();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     const state = window.history.state as { page?: unknown; at?: unknown };
     expect(typeof state.page).toBe("string");
@@ -1108,12 +1112,14 @@ describe("merge with the main line (slices 11 and 13 meet slice 8b)", () => {
     await boot("/?latency=0#/library");
     await until(() => {
       expect(main().querySelector('td[tabindex="0"]')).not.toBeNull();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     document.querySelector<HTMLElement>("[data-nav=library]")?.click();
     key(main().querySelector('td[tabindex="0"]') as HTMLElement, "Enter");
     await until(() => {
       expect(window.location.hash).toMatch(/^#\/edit\//);
       expect(byId("title").value).not.toBe("");
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
   }
 
