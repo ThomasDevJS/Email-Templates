@@ -1,6 +1,10 @@
 # Review: slice 13, last fix round
 
-## Final verdict (retry 1, head f3f8156): FAIL
+## Final verdict (retry 2, head c96a38b): PASS
+
+No export data leaves the server without a committed start event. The start commits one `export.*` event into `pendingAudit` through `commit` (lock, recheck, index write) and only then issues a run token; every page needs that token for the same caller and scope, and the dispatch permission check still runs first. The 1,000-template cold export keeps its event and writes 0 `bd:*` entries. All 13 items that passed earlier still pass. Minor gaps are listed under "Retry 2". Merge.
+
+## Retry 1 verdict (head f3f8156): FAIL
 
 A cold library export of 1,000 templates (the brief's stated size) returns all 50 pages and stores 47 of 50 page events. The export's own `bd:*` body cache writes evict its first `evt:*` entries from the 1,000-item Script Cache before `tick`; `audit.dropped` stays 0. See "Retry 1" below. The first review follows.
 
@@ -106,3 +110,48 @@ j. Secret scan of added lines: 0 keys or tokens. Matches: "Secret" fixture strin
 | `npm run lighthouse` | 14 of 14 views at 100 |
 
 Probes: scratch copy (`git archive HEAD`) with test/unit/server/probe13r.test.ts (28 tests, all pass), probe13evict.test.ts (1,000 templates: expected 50 events, got 47) and puppeteer-core scripts against `node scripts/dev-web.mjs`. Nothing added to the worktree.
+
+## Retry 2
+
+Date: 2026-11-11. Diff `d0f00be..c96a38b` (7 commits, 18 files, +609 -448). Reviewer.
+
+### Verdict: PASS
+
+### Minor (no merge block)
+
+1. `src/web/views/adminTransfer.ts:19`: "the server did not answer after 4 tries" is shown for BUSY and INTERNAL too, where the server did answer. Suggested: "the server was busy or failed 4 times".
+2. `src/web/views/adminTransfer.ts:114`: a start retried after a NETWORK error whose commit had landed writes a second start event. The log over-reports intent; it never under-reports.
+3. `src/web/admin/actions.ts:35-36`: "Library export started, 25 templates" does not read as "completed". Nothing in the Audit log says the download may have been partial or abandoned (opinion: one hint line under the table, or "(download not recorded)" in the Details drawer).
+4. `src/server/runtime.ts:124`: the token is `newId()`, 26 characters, 16 of them random from `Math.random` (80 bits, not a CSPRNG). Harmless here: the cache entry binds the token to the actor, so a guessed or stolen token of another user is refused (probe).
+5. `src/web/views/adminTransfer.ts:122`: progress uses the start's `total`; a page computes the live total. A save during the export can make the text and the file count differ; offsets can shift (pre-existing).
+6. First review minor 4 (in-lock recipient re-check refuses the whole import) stays open, as the handoff says.
+7. Docs for the architect: the handoff's "Spec and ADR sentences now untrue" list (spec 11.1 lines 575 and 578, 13.5 line 719, 4.5 line 133; ADR-0002 lines 19, 128, 139, 200; ADR-0003 lines 185, 208) checked against the code: correct. The handoff lists `views/adminAudit.ts` as touched; it is unchanged in this diff (no effect).
+
+### Judgements per check
+
+1. No data without a committed start. Server tests plus probe `probe13r2.test.ts` (scratch copy, 5 tests pass). Refused with VALIDATION `EXPORT_RESTART`, no body in the answer: no token at offsets 0, 1, 21, 25, 1000; empty, malformed and unknown tokens; another user's token; library token on a folder page; folder A token on folder B; expired token and replay after expiry; evicted token. With a valid token offsets 1, 21 and 25 give 20, 4 and 0 items. Lock busy at start: BUSY, retryable, rev unchanged, 0 events, 0 `exp:*` keys. Drive `update` fails at start: INTERNAL "Internal error", retryable, rev unchanged, 0 events, 0 `exp:*` keys. The start event is in `pendingAudit` right after the call and in the month file after `tick` (pending 0, 1 file holds its ID). Fields: actor, actorRoles, surface, action `export.folder`, targetType folder, targetId, targetPath "/Sales/Quotes", before null, `after { scope, templates }`, result ok, requestId, appVersion. No title, subject, body or other address.
+2. 1,000 templates, cold cache (5 imports, clock +7 h): 1,000 items, 0 `bd:*` puts, event present before and after `tick` (test and probe). 300 other entries put before the run: 300 survive. `readStoredBody(…, false)` at `transfer.ts:209`.
+3. Permissions per page: dispatch policy runs before `checkRun`. `manage` holder: own subtree only; HR start and page DENIED; library start DENIED. Library export leaves out the private folder ("PrivNote" absent). Grant removed after page 1: page 2 DENIED, no body. Demoted to edit with a valid token: DENIED.
+4. Token hygiene: the token is absent from every log line, every Drive file (index, month file) and every error answer (probe searched all). Cache value `{"actor","kind","folderId"}`, no content. 10 starts at 1,000 templates add 70 cache keys: 10 `exp:*` plus 60 `idx*` chunks of the new revs, the same cache cost as 10 saves. Each start holds the lock for one index write (about 1 s), so one admin makes at most about 600 starts per 10 min, each audited. Bulk eviction needs about 140 starts at this size; a save flood by any edit holder does the same today. No per-user limit for v1 (opinion).
+5. Cost: one Drive index write per export run (plus the `idx` chunk puts), versus 0 in slice 12 and 1 per page in retry 1. Busy lock degrades to BUSY retryable with no token; the web retries 3 times.
+6. Audit words (unit tests, adminActions.test.ts:78, 85): "Library export started, 25 templates", "Folder export started: Sales / Quotes, 1 template". Details drawer in Chromium: opens with focus in the drawer, Escape returns focus to Details, Back closes it with 0 `[inert]`. The dev harness has no export row, so the export row was not seen in Chromium. Removed names: `joinExportPages`, `exportPageOf`, `ExportPageCounts`, `exportPageText`, `recordExport`, `EXPORT_BUSY_TEXT`, `lostSeen`, buffer kind "change": 0 hits in src and test.
+7. Buffer (`probebuf.test.ts`): 250 denied + 30 applies: 200 kept, 30 applies kept, dropped 80. Full of 200 applies: denied refused (counted), apply refused (counted). Two evicted slots: the next denied and the next apply take them with no count; the following apply takes the denied slot (counted); dropped 3. Busy lock: 5 applies + 2 denied give dropped 7, `evt:lost` "7 0"; after `clearBuffer` "7 7", dropped 0; 3 more give "10 7", dropped 3. One `evt:lost` key only.
+8. Web export (Chromium 1243, dev harness, `failOp=export.library`): no failure: 1 file. Start BUSY 3 times: 1 file. Start BUSY always: retry text, 0 `createObjectURL`, 0 downloads. Page NETWORK 3 times (`failSkip=1`): 1 file. Page INTERNAL always: retry text, 0 files. Page VALIDATION: stops at once, 0 files. Start DENIED: access text, 0 files. Progress text "Exporting N of T templates..." is unit-tested only (harness has 4 templates, 1 page).
+9. Regression (Chromium): folder dialog options HR, My templates, Sales, Sales / Onboarding, Sales / Quotes, focus on the select; outside click closes it with focus on New template; Back closes it, 0 dialogs, 0 `[inert]`, focus on `main`. Trash confirm "The 1 template in it is removed for good", focus Cancel; result "Emptied the trash: 1 template removed for good.", focus on the h1. Settings conflict and reload hint: settings.test.ts passes (no UI change since review 1). Recipient search: logic.test.ts:262 passes; the harness sample has no recipients. 8 related test files: 487 passed.
+10. Scope: whole slice (`8f6c972..c96a38b`) changes none of src/web/views/editor.ts, src/web/editor/, history, preview, problems, tags or their tests, styles.css, appsscript.json, package files, scripts/. src/web/ui/dialog.ts +14 -1 (from round 1, unchanged in retry 2).
+11. Secret scan of added lines: 0 keys or tokens. Addresses added: `a@example.com`. URLs added: none. No new network call. Scopes unchanged (10, all approved).
+
+### Commands (worktree, clean install)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 64 files, 1710 passed, 0 failed. All files lines 96.79 (addon 100, server 99.31, shared 100, web 92.26) |
+| `npm run build -- --env dev` | exit 0. Code.js 358.6 KB of 800, index.html 361.8 KB of 400 |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 14 of 14 views at 100 |
+
+Probes: scratch copy (`git archive HEAD`) with test/unit/server/probe13r2.test.ts (5 tests) and probebuf.test.ts (3 tests), all pass; Playwright scripts against `node scripts/dev-web.mjs --port 5392`. Nothing added to the worktree.
