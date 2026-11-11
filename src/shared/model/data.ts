@@ -66,7 +66,7 @@ export interface Item {
 export type AuditSurface = "addon" | "webapp" | "trigger";
 export type AuditResult = "ok" | "denied" | "conflict" | "error";
 export type AuditTargetType =
-  "template" | "folder" | "grant" | "library" | "config";
+  "template" | "folder" | "grant" | "library" | "config" | "admin";
 
 /** ADR-0003 Part D. `before` and `after` hold metadata only; bodies appear as `{ version, fileId, sha256 }`. */
 export interface AuditEvent {
@@ -98,6 +98,8 @@ export interface IndexDoc {
   readonly pendingAudit: readonly AuditEvent[];
   /** D29 (slice 11): admin settings; absent reads as the defaults (`settingsOf`, spec 5.8). */
   readonly settings?: StoredSettings | undefined;
+  /** D32 (slice 16): in-app admins, `[{ email, addedAt, addedBy }]`; read only through `adminEntriesOf` (spec 5.8). */
+  readonly admins?: unknown;
 }
 
 export interface BodyFile {

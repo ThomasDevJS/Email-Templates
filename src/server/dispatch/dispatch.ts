@@ -191,7 +191,7 @@ function placement(index: IndexDoc, targets: readonly string[]): string {
 /**
  * Same check on the index read inside the lock (save step 4). A concurrent move changes the resolved targets:
  * CONFLICT, so the caller reloads. Unchanged targets with a lower level (grant removed): DENIED. Admin rows read
- * the membership snapshot again, so an admin removed meanwhile is refused.
+ * the membership snapshot again and the in-app list of the in-lock index, so an admin removed meanwhile is refused.
  */
 function recheck(
   row: PolicyRow,
@@ -203,8 +203,10 @@ function recheck(
   const need = needOf(actionOf(row, request.args));
   if (need.kind === "admin") {
     const { services, caller } = context;
+    const fresh = () => index;
     if (
-      !subjectFor(caller.email, readSnapshot(services), services.props).isAdmin
+      !subjectFor(caller.email, readSnapshot(services), services.props, fresh)
+        .isAdmin
     )
       throw deniedError();
     return;

@@ -257,11 +257,19 @@ describe("refresh job and admin determination", () => {
   it("makes ADMIN_GROUP members and ADMIN_EMAILS admins, nobody else", () => {
     refreshSnapshot(world.services, loadIndex(world.services));
     const snapshot = readSnapshot(world.services);
-    expect(subjectFor("boss@example.com", snapshot, world.props).isAdmin).toBe(
-      true,
-    );
-    expect(subjectFor(OWNER, snapshot, world.props).isAdmin).toBe(true);
-    expect(subjectFor(ANA, snapshot, world.props).isAdmin).toBe(false);
+    let indexReads = 0;
+    const index = () => {
+      indexReads++;
+      return loadIndex(world.services);
+    };
+    expect(
+      subjectFor("boss@example.com", snapshot, world.props, index).isAdmin,
+    ).toBe(true);
+    expect(subjectFor(OWNER, snapshot, world.props, index).isAdmin).toBe(true);
+    // D32: the index (in-app list) is read only when both properties say no.
+    expect(indexReads).toBe(0);
+    expect(subjectFor(ANA, snapshot, world.props, index).isAdmin).toBe(false);
+    expect(indexReads).toBe(1);
     expect(
       world.ok<{ isAdmin: boolean }>("boss@example.com", "me").isAdmin,
     ).toBe(true);
