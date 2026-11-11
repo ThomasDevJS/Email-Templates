@@ -24,7 +24,7 @@ import {
   toRpcError,
 } from "./ui/status";
 import { cancelDialogs, setInert, trapTab } from "./ui/dialog";
-import { h } from "./ui/dom";
+import { h, replace } from "./ui/dom";
 import { icon, iconSprite } from "./ui/icons";
 import { initials, shortName } from "./ui/person";
 import { folderCounts } from "./library/model";
@@ -37,6 +37,9 @@ import { trashView } from "./views/trash";
 import { createFolderTree } from "./views/tree";
 
 declare const google: { readonly script: GoogleScript };
+
+/** The first load may take this long before the page says it failed (test round 1: a blank page until a retry). */
+export const FIRST_LOAD_MS = 15_000;
 
 function element(id: string): HTMLElement {
   const found = document.getElementById(id);
@@ -288,7 +291,48 @@ export function startApp(host: Host): AppContext {
     },
   };
 
-  void load(rerender).then(showAdminLink);
+  /** True while main shows the first-load error or its "Loading..." line, so a late success renders the route. */
+  let blocked = false;
+  const firstLoad = (): Promise<boolean> => {
+    const timer = window.setTimeout(stalled, FIRST_LOAD_MS);
+    return load(rerender).then((ok) => {
+      window.clearTimeout(timer);
+      if (!ok) stalled();
+      else if (blocked) {
+        blocked = false;
+        rerender();
+      }
+      return ok;
+    });
+  };
+  /** No answer in time, or a failed first load: one plain error with Reload. The auth page has replaced main. */
+  const stalled = () => {
+    if (!main.isConnected) return;
+    blocked = true;
+    replace(
+      main,
+      h(
+        "div",
+        { class: "banner", role: "alert" },
+        h("p", {}, "Templates could not be loaded. Press Reload to try again."),
+        h(
+          "button",
+          {
+            type: "button",
+            onclick: () => {
+              replace(
+                main,
+                h("p", { class: "status", role: "status" }, "Loading..."),
+              );
+              void firstLoad().then(showAdminLink);
+            },
+          },
+          "Reload",
+        ),
+      ),
+    );
+  };
+  void firstLoad().then(showAdminLink);
   api
     .profile()
     .then((me) => {

@@ -353,3 +353,12 @@ New texts, spec 7.2. Paths are relative to `src/`.
 | `addon/panel.ts` | The email is in your Drafts, but Gmail could not open it. Open Drafts to find it. |
 | `addon/panel.ts` | This template was deleted or moved. Open the panel again to update the list. |
 | `addon/panel.ts` | Something went wrong. Try again. (alone: a side-panel action shows its failure as one sentence in Gmail's error bar, with no request ID or technical message) |
+
+## Web app fix round (slice 20a)
+
+New texts. Paths are relative to `src/`.
+
+| Where | Text |
+|---|---|
+| `web/index.html`, `web/app.ts` | Loading... (first paint, until the first view draws) |
+| `web/app.ts` | Templates could not be loaded. Press Reload to try again. / Reload (button) |

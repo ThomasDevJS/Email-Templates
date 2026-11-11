@@ -1175,6 +1175,48 @@ describe("states (spec section 7, wireframe 07)", () => {
     expect(document.querySelector(".toast")).toBeNull();
   });
 
+  it("shows Loading... from the first paint, before the script runs", () => {
+    const html = /<main[^>]*>([\s\S]*?)<\/main>/.exec(INDEX)?.[1] ?? "";
+    document.body.innerHTML = html;
+    const line = document.querySelector('[role="status"]');
+    expect(line?.textContent).toBe("Loading...");
+  });
+
+  it("a failed first load shows one plain error with Reload, and Reload loads the page", async () => {
+    await boot("/?latency=0&fail=INTERNAL&failOp=template.list#/library");
+    await until(() => {
+      expect(main().querySelector('[role="alert"]')?.textContent).toContain(
+        "Templates could not be loaded. Press Reload to try again.",
+      );
+    });
+    window.history.replaceState(null, "", "/?latency=0#/library");
+    button("Reload").click();
+    expect(main().querySelector('[role="status"]')?.textContent).toBe(
+      "Loading...",
+    );
+    await until(() => {
+      expect(main().querySelectorAll("tbody tr").length).toBeGreaterThan(0);
+    });
+    expect(main().querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it("a first load with no answer in 15 seconds shows the error, and a late answer renders the page", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await boot("/?latency=20000#/library");
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(main().querySelector('[role="alert"]')?.textContent).toContain(
+        "Press Reload to try again.",
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(main().querySelector('[role="alert"]')).toBeNull();
+      expect(main().querySelectorAll("tbody tr").length).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("INTERNAL on save shows the generic toast", async () => {
     await boot(
       "/?latency=0&fail=INTERNAL&failOp=template.update#/edit/T-QUOTE",
