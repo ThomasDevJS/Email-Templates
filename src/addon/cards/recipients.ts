@@ -17,7 +17,7 @@ import type { Widget } from "./spec";
  * of strings is unknown and never gets an action.
  */
 
-/** Prompt card switch "Add recipients" (wireframe 02). */
+/** Details card switch "Add recipients" (wireframe 02). */
 export const RECIPIENT_SWITCH = "rcpt";
 export const RECIPIENTS_CHANGED =
   "The recipients of this template changed. Check them and press Insert again.";
@@ -111,10 +111,6 @@ export function recipientsText(template: AppliedRecipients): string {
   ]);
 }
 
-export function hasRecipients(template: AppliedRecipients): boolean {
-  return recipientCount(template) > 0;
-}
-
 /** "Adds To 1, Cc 1, Bcc 1": fields with addresses only; "" when none. */
 export function rowHint(rc: readonly number[] | undefined): string {
   const parts = RECIPIENT_FIELDS.flatMap((field, n) => {
@@ -143,7 +139,7 @@ const REASONS: Readonly<Record<NotAddedReason, (domain: string) => string>> = {
 };
 
 /**
- * Recipient lines of the preview card and the prompt card (spec 7.1), one function so the two cards show the same:
+ * Recipient lines of the details card (spec 7.1, 7.4) in the compose toolbar and the side panel:
  * one line per added address with its field and markers, the ones not added and why, one line per unreadable draft
  * field naming the addresses to add by hand, and the finish-typing line when Insert adds an address.
  */
