@@ -27,8 +27,13 @@ export interface StateContext {
 const back: ButtonSpec = { text: "Back", action: action("onBack") };
 const refresh: ButtonSpec = { text: "Refresh", action: action("onRefresh") };
 
+/** The first line is the error sentence (red); the lines after it say what to do or carry the request ID. */
 function card(lines: readonly string[], buttons: ButtonSpec[]): CardSpec {
-  const text: Widget[] = lines.map((line) => ({ kind: "text", text: line }));
+  const text: Widget[] = lines.map((line, n) =>
+    n === 0
+      ? { kind: "text", text: line, tone: "error" }
+      : { kind: "text", text: line },
+  );
   const row: Widget[] =
     buttons.length === 0 ? [] : [{ kind: "buttons", buttons }];
   return {

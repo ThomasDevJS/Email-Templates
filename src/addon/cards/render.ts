@@ -23,6 +23,8 @@ type ComposeResponse = GoogleAppsScript.Card_Service.ComposeActionResponse;
 
 /** Brand slate of docs/design/design-system.md: the fill of the one main button. */
 export const SLATE = "#2a3c49";
+/** Brand red: error lines only (design system principle 2). */
+export const RED = "#b32025";
 
 function markup(text: string): string {
   return escapeText(text).replace(/\n/g, "<br>");
@@ -113,7 +115,12 @@ function toInput(spec: Extract<Widget, { kind: "input" }>) {
 function toWidget(spec: Widget): GoogleAppsScript.Card_Service.Widget {
   switch (spec.kind) {
     case "text":
-      return CardService.newTextParagraph().setText(markup(spec.text));
+      return CardService.newTextParagraph().setText(
+        // Only the wrapper tag is markup; the text inside is escaped as everywhere.
+        spec.tone === "error"
+          ? `<font color="${RED}">${markup(spec.text)}</font>`
+          : markup(spec.text),
+      );
     case "item":
       return toItem(spec);
     case "buttons":

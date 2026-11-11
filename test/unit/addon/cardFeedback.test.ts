@@ -95,3 +95,39 @@ describe("load indicator", () => {
     });
   });
 });
+
+describe("red for errors only", () => {
+  const red = (text: string) => `<font color="#b32025">${text}</font>`;
+
+  it("colors the (!) line and each state card's error sentence, nothing else", () => {
+    for (const card of CARDS) renderCard(card);
+    const colored = argsOf("setText").filter((t) =>
+      String(t).includes("<font"),
+    );
+    expect(new Set(colored)).toEqual(
+      new Set([
+        red(`(!) ${problem}`),
+        red("Cannot identify your Migway account."),
+        red("Migway Templates is not set up yet."),
+        red("You don't have access to this template. Ask a folder manager."),
+        red(
+          "This template was deleted or moved. Press Refresh to update the list.",
+        ),
+        red("The library is busy. Try again in a few seconds."),
+        red("Service is busy. Try again in a minute."),
+        red("Something went wrong. Press Retry."),
+      ]),
+    );
+    expect(argsOf("setText")).toContain("Request ID R1");
+    expect(argsOf("setText")).toContain(
+      "Ask your admin to finish setup, then press Retry.",
+    );
+  });
+
+  it("adds only the wrapper tag: the text inside stays escaped", () => {
+    renderCard(detailsCard(details({ problem: 'Shorten <b>"x"</b> & y' })));
+    expect(argsOf("setText")).toContain(
+      red('(!) Shorten &lt;b&gt;"x"&lt;/b&gt; &amp; y'),
+    );
+  });
+});
