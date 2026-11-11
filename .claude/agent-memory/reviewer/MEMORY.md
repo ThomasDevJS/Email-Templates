@@ -25,21 +25,13 @@
   - Add-on: src/addon/flows.ts (logic), cards/*.ts pure data, cards/render.ts Card Service only. Write path shared/body/prepare.ts + server/handlers/body.ts. REQUEST_ID_PATTERN shared, checked on both surfaces.
   - Search shared/search/match.ts; favorites/usage side caches server/cache/sideCache.ts (FAVORITES_REV, USAGE_REV). Q21/D24 draft info in addon/event.ts (draftInfo, draftHasSubject), replacesSubject in cards/spec.ts. folderLabel in handlers/folders.ts.
 - Slice 6a (2026-11-10): FAIL (2b6b30f), retry 1 PASS (bb53d6c, 1132 tests, lines 96.56, Code.js 286.0 KB). Retry: PRINCIPAL_KEY_MAX 254 on trimmed lowercased key; dispatch buffers denied event for handler or in-lock DENIED (no double rows); grant.list sourcePath hidden above visible part; PURGE_FILES_MAX 50 after commit. Admin into others' private folders is ADR-0003 C (line 113), not a defect; my minor 3 withdrawn.
-  First review: 49 files, 1120 tests, lines 96.54 (addon 100, server 99.31, shared 100, web 95.89), Code.js 284.7 KB, index.html 301.4 KB, 10 scopes, Lighthouse 100x6. New tests on old src: 58 fail.
-  - Blocker 1: grant.add principalKey unbounded (grants.ts:73 principalKeyFor); manage holder stored a 20,004-char domain key.
-  - Blocker 2: refused admin.folders (handler DENIED, admin.ts:34) writes no denied audit row; ADR-0003 Part C line 144 requires one.
-  - Accepted: escalation probes all DENIED (above, sibling, root, private, foreign move); FOLDER_DEPTH_MAX 5; restoreTargets (purged folder = ROOT, admin only); Q23 create-then-delete; in-lock admin re-check (props are snapshot reads in prod).
   - Minors: grant.list sourcePath leaks ancestor names; trash.purge body loop unbounded; admin restore into others' private folders; failed old-trigger delete leaves 6; spec 6 rows for admin.folders, membership.status.
   - New ops: admin.folders (grant.manage list op), membership.status (admin.ops). Trash: template.list {trash:true} adds folderLive, folderPath, canPurge.
 - Slice 6b (2026-11-10): FAIL (ffd3957), retry 1 PASS (f6b567f, 1238 tests, lines 96.68, Code.js 318.9 KB). Retry: shared/model/shape.ts on backup copies (VALIDATION) and every live Drive read (INTERNAL); restore writes sides first, index last, undo; purge guard; import "Nothing was imported"; lineText in 11 places. Shape check verified on data from 9 builds (64078b8..292d7ad). Open: damaged live index blocks backup.restore (runbook); undo failure loses first error.
-  First review: FAIL (ffd3957). 51 files, 1225 tests, lines 96.6 (addon 100, server 99.31, shared 100, web 95.16), Code.js 312.6 KB, index.html 316.2 KB, 10 scopes, Lighthouse 100x10.
-  - Blocker: backup.restore casts backup JSON `as BackupDocs` (driveStore.ts readBackup); index without folders bricks every op incl. the next restore (dispatch folderMap); favorites `{}` writes rev null, sidebar.home INTERNAL. Fix: shape check before the lock.
-  - Accepted: import probes (XSS, 2 MB, CR/LF subject, 10k items, proto keys, cycles, existing IDs) all safe; Validate writes nothing; export.folder subtree only, in-scope grants = grant.list visibility; audit drawer is text; config.get has no ADMIN_EMAILS/OWNER_EMAIL/STORE.
   - Warm props: production 1 (entry.test.ts:293 pins via snapshotProps). world.ts meters live fake props, so world counts (6) are getProperty calls, not service calls.
   - Minors: import failure says only "Internal error"; dup folder IDs; shared folders inside private tree; buffer flood drops applies; restore dialog silent on post-backup versions and purged bodies; side writes after index commit; no 5 MB smoke step; export offset paging.
   - Architect: export.library drops privates, import drops grants, 200 cap: ADR-0002 owner-change path does not hold.
 - Slice 7 docs (2026-11-10): FAIL (039392e), retry 1 PASS (d74ad53, quick start 844 words, 1244 tests). Open minors: temp password delivery after admin reset; quick start "asks" ignores fallback; recipient address as prof: cache key 6 h.
-  First review FAIL (039392e). 52 files, 1244 tests, Code.js 318.9 KB, 10 scopes. 64 doc claims checked against src.
   - Must fix: runbook.md:21 password and 2SV handover person to person (fix: Workspace admin resets, new holder enrolls). Quick start D18 omits insert log lines (actor + targetId) and usage.json recent per email.
   - Minors: Recent "about 5 min" is up to 15 (tick + 10 min view cache); forward subject unverified; grid "By" column; QUOTA Retry not disabled (notice); image width fixed 600; quick start 1,087 words.
 - Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
@@ -101,6 +93,9 @@
   - Code: render.ts `closeGaps(parts)` (null = gap); flows.ts Flow A `insertFlow` (rc vs list lengths, unknown -> details card counted=1), Flow B `previewFlow`, Flow C `promptInsertFlow`; cards/details.ts `detailsCard`, `panelDetailsCard`.
   - Probes: 10,000 fuzz renders without a gap byte-identical to base, sanitize idempotent on outputs; apply events per path via readBuffer(world.cache).
   - Follow-up 1 PASS (04af35b, 1825 tests): `cardFields` always lists first name (blank box + hint); Flow C carries `mergedValues` into re-renders; Rendered.missing gone. Probe 3 templates x 6 drafts x 3 paths, 18/18 same. Open: rule 2 ASCII only; subject uncapped; smoke step 11 non-admin; spec 7.4 signatures.
+- Slice 17 docs, smoke rewrite + test-round-1.md (2026-11-11): FAIL (review on b942e94). 68 files, 1883 tests, format clean, Code.js 364.7 KB. 79 steps checked.
+  - Must fix: D11/I11 audit counts for "this month" ignore earlier smoke rows; D14 leaves "Import test" (uniqueSiblingName blocks rerun); G4 needs drafts rule 2 discards; C4 omits the phone after T2 text.
+  - Test plans for a browser agent: check counts against data from earlier runs, rerun of each part, rule conflicts between global rules and steps, cache TTLs (view 600 s).
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
