@@ -97,6 +97,9 @@
 - Slice 20b add-on fix round (2026-11-11): PASS (review on 496e4bf). 69 files, 1949 tests, lines 97.97, Code.js 369.8 KB, 10 scopes. 0 must-fix, 8 minors.
   - Code: folder.ts LIST_MAX (fav 10, recent 5, folders 40, results 20) + `capped` cut line; only Folders can fire (server caps sidebar.ts:36-38). Worst card 84 (folder, message). event.ts mailboxesOf; addsLine(plan, reply); capSubject in renderSubject.
   - Minors: "A reply adds n" counts a Cc already on the email; capSubject leaves trailing ZWJ; `{{{ask:N}}{ask:M}}` puts `{{ask:M}}` in draft (base same); spec 458 panel text.
+- Slice 21 card feedback D35 (2026-11-11): FAIL (review on 9e338cb). Code clean; part K step 2 "Same popup" after a row Insert that closes the card. 71 files, 1958 tests, Code.js 370.4 KB, 10 scopes.
+  - Code: render.ts toAction sole Action builder, INSTANT {onBack, onOpenLink} = NONE else SPINNER; Widget text tone "error" -> <font color="#b32025"> around escaped text (details (!) line, state card first line). primaryColor slate. cardLook snapshot (5de6f7f) passes on base.
+  - #b32025: 6.67 on white, 2.41 on #202124. No red passes 4.5 on both; part K must record dark card background.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
