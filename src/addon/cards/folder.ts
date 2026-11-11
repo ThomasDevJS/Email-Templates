@@ -50,29 +50,35 @@ function rowParams(template: SidebarTemplate): Record<string, string> {
 }
 
 /**
- * The row's one filled button per entry (spec 7.2): compose "Insert"; side panel "New email" with no message open,
- * "Reply" with one open, as compose actions (`onCompose`). Q74 fallback, if a row compose button fails in Gmail:
- * no button in the side panel, so rows keep only the tap to the details card.
+ * The row's buttons per entry (spec 7.2, D33): compose "Insert"; side panel "New email" with no message open;
+ * "Reply" (filled) and "Reply all" (outlined) with one open. Side-panel buttons are compose actions (`onCompose`).
  */
-function rowButton(template: SidebarTemplate, entry: Entry): ButtonSpec {
-  if (entry === "compose") return insertButton(template);
-  return composeButton(
-    entry === "message" ? "reply" : "new",
-    template.title,
-    "onCompose",
-    rowParams(template),
-    "filled",
-  );
+function rowButtons(
+  template: SidebarTemplate,
+  entry: Entry,
+): [ButtonSpec, ...ButtonSpec[]] {
+  if (entry === "compose") return [insertButton(template)];
+  const params = rowParams(template);
+  if (entry === "inbox")
+    return [
+      composeButton("new", template.title, "onCompose", params, "filled"),
+    ];
+  return [
+    composeButton("reply", template.title, "onCompose", params, "filled"),
+    composeButton("replyAll", template.title, "onCompose", params, "outlined"),
+  ];
 }
 
-export function folderItem(folder: SidebarFolder): Widget {
-  return {
-    kind: "item",
-    icon: "folder",
-    text: folder.name,
-    bottomLabel: templatesLabel(folder.count),
-    onClick: action("onOpenFolder", { folderId: folder.id, page: "1" }),
-  };
+export function folderItem(folder: SidebarFolder): Widget[] {
+  return [
+    {
+      kind: "item",
+      icon: "folder",
+      text: folder.name,
+      bottomLabel: templatesLabel(folder.count),
+      onClick: action("onOpenFolder", { folderId: folder.id, page: "1" }),
+    },
+  ];
 }
 
 /**
@@ -87,36 +93,45 @@ function rowLabel(template: SidebarTemplate, path: string): string {
 }
 
 /**
- * One row layout in every list: the icon of its section, the title, the hints and folder path ("" on a folder card)
- * below, a tap that opens the details card, and the row button of the entry.
+ * One row in every list: the icon of its section, the title, the hints and folder path ("" on a folder card) below,
+ * a tap that opens the details card. One button sits in the row; two (Reply, Reply all) go in a button set right
+ * under it, because a `DecoratedText` holds one button. So a row is 1 or 2 widgets.
  */
 export function templateItem(
   template: SidebarTemplate,
   entry: Entry,
   path: string,
   icon: IconName,
-): Widget {
+): Widget[] {
   const bottom = rowLabel(template, path);
-  return {
+  const item = {
     kind: "item",
     icon,
     text: template.title,
     ...(bottom === "" ? {} : { bottomLabel: bottom }),
     onClick: action("onPreview", { id: template.id }),
-    button: rowButton(template, entry),
-  };
+  } as const;
+  const [first, ...more] = rowButtons(template, entry);
+  return more.length === 0
+    ? [{ ...item, button: first }]
+    : [item, { kind: "buttons", buttons: [first, ...more] }];
 }
 
-/** A list section; none without rows (Card Service rejects an empty section), collapsible past `VISIBLE_ROWS`. */
+/**
+ * A list section of rows (each 1 or 2 widgets); none without rows (Card Service rejects an empty section),
+ * collapsible past `VISIBLE_ROWS` rows.
+ */
 export function listSection(
   header: string,
-  rows: readonly Widget[],
+  rows: readonly (readonly Widget[])[],
 ): SectionSpec[] {
   if (rows.length === 0) return [];
+  const widgets = rows.flat();
+  const shown = rows.slice(0, VISIBLE_ROWS).flat().length;
   return [
     rows.length > VISIBLE_ROWS
-      ? { header, widgets: rows, collapseAfter: VISIBLE_ROWS }
-      : { header, widgets: rows },
+      ? { header, widgets, collapseAfter: shown }
+      : { header, widgets },
   ];
 }
 
@@ -178,7 +193,7 @@ function templateSections(
   const pages = pageCount(templates.length);
   const shown = templates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const list: SectionSpec = {
-    widgets: shown.map((template) =>
+    widgets: shown.flatMap((template) =>
       // The card header already shows the path: rows show their hints only.
       templateItem(template, entry, "", "description"),
     ),

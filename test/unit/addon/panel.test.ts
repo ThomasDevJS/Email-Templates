@@ -280,6 +280,33 @@ describe("Reply all from the details card (AC 5)", () => {
   });
 });
 
+describe("Reply all from a row (D33)", () => {
+  it("one apply without a first name, then createDraftReplyAll with the new Cc only", () => {
+    const item = create({
+      html: "<p>Hi {{recipient.first_name|all}}</p>",
+      to: [TO],
+      cc: [CC, "ann@example.com"],
+    });
+    const reply = composeFlow(
+      ports("message", { from: `Bob <${BOB}>`, cc: "ann@example.com" }),
+      opened,
+      { id: item.id, as: "replyAll", rc: "1,2,0" },
+    );
+    expect(reply.kind).toBe("compose");
+    expect(draftCall()).toEqual({
+      method: "createDraftReplyAll",
+      args: ["", { htmlBody: "<p>Hi all</p>", cc: CC }],
+    });
+    expect(sent).toEqual([
+      {
+        op: "template.apply",
+        args: { id: item.id, knownVersion: 0, recipientEmailIfInternal: "" },
+      },
+    ]);
+    expect(applies()).toHaveLength(1);
+  });
+});
+
 describe("rendering (AC 6): the compose pipeline", () => {
   const T2 = {
     subject: "Load {{ask:Load number}}",

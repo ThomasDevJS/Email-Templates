@@ -505,8 +505,17 @@ describe.each([
         template("T3", { folderId: "F2" }),
       ],
     });
+    /** The filled button of each row; with a message open each row also has an outlined "Reply all" (D33). */
     const rowButtons = (card: CardSpec | null) =>
-      card === null ? [] : buttons(card);
+      card === null ? [] : buttons(card).filter((b) => b.style === "filled");
+    const replyAll = (card: CardSpec | null) =>
+      card === null
+        ? []
+        : buttons(card).flatMap((b) =>
+            b.style === "outlined"
+              ? [[b.text, b.compose, b.action.params?.["as"]]]
+              : [],
+          );
 
     it("home: every row has one filled compose button; the hint is the last section", () => {
       const card = homeCard(full, entry);
@@ -536,6 +545,14 @@ describe.each([
         text: "Template T1",
         onClick: { fn: "onPreview", params: { id: "T1" } },
       });
+      expect(replyAll(card)).toEqual(
+        entry === "message"
+          ? [
+              ["Reply all", "REPLY_AS_DRAFT", "replyAll"],
+              ["Reply all", "REPLY_AS_DRAFT", "replyAll"],
+            ]
+          : [],
+      );
       const empty = homeCard(view({ templates: [] }), entry);
       expect(texts(empty).at(-1)).toBe(TOOLBAR_HINT);
       expectNoEmptySection(card);
@@ -553,6 +570,7 @@ describe.each([
       const search = searchCard(full, "t", full.templates, entry);
       expect(rowButtons(search)).toHaveLength(3);
       expect(rowButtons(search).every((b) => b.text === text)).toBe(true);
+      expect(replyAll(search)).toHaveLength(entry === "message" ? 3 : 0);
       expect(texts(searchCard(full, "t", [], entry)).at(-1)).toBe(TOOLBAR_HINT);
     });
   },
@@ -767,21 +785,26 @@ describe("state cards (wireframe 07, spec section 7)", () => {
 describe("layout (slice 12)", () => {
   const row = (n: number): Widget => ({ kind: "text", text: String(n) });
 
-  it("drops an empty list section and collapses one past VISIBLE_ROWS", () => {
+  it("drops an empty list section and collapses one past VISIBLE_ROWS rows", () => {
     expect(listSection("Recent", [])).toEqual([]);
-    const five = Array.from({ length: VISIBLE_ROWS }, (_, n) => row(n));
+    const five = Array.from({ length: VISIBLE_ROWS }, (_, n) => [row(n)]);
     expect(listSection("Recent", five)).toEqual([
-      { header: "Recent", widgets: five },
+      { header: "Recent", widgets: five.flat() },
     ]);
-    const six = [...five, row(6)];
+    const six = [...five, [row(6)]];
     expect(listSection("Folders", six)).toEqual([
-      { header: "Folders", widgets: six, collapseAfter: VISIBLE_ROWS },
+      { header: "Folders", widgets: six.flat(), collapseAfter: VISIBLE_ROWS },
     ]);
+    // Rows of 2 widgets (D33): the collapsed section still shows 5 whole rows.
+    const pairs = Array.from({ length: 6 }, (_, n) => [row(n), row(n + 10)]);
+    expect(listSection("Recent", pairs)[0]?.collapseAfter).toBe(
+      2 * VISIBLE_ROWS,
+    );
   });
 
   it("puts the recipient hint, the fields hint and the path on one line, and drops empty parts (spec 7.4)", () => {
     const rc = template("T9", { prompts: ["A"], rc: [0, 1, 1] });
-    expect(templateItem(rc, "compose", "HR", "star")).toMatchObject({
+    expect(templateItem(rc, "compose", "HR", "star")[0]).toMatchObject({
       bottomLabel: "Adds Cc 1, Bcc 1 · 1 field to fill · HR",
       button: {
         text: "Insert",
@@ -791,21 +814,52 @@ describe("layout (slice 12)", () => {
       },
     });
     expect(
-      templateItem(template("T7", { rc: [1, 0, 0] }), "compose", "", "star"),
+      templateItem(template("T7", { rc: [1, 0, 0] }), "compose", "", "star")[0],
     ).toMatchObject({ bottomLabel: "Adds To 1" });
-    expect(templateItem(template("T8"), "inbox", "", "star")).toEqual({
-      kind: "item",
-      icon: "star",
-      text: "Template T8",
-      onClick: { fn: "onPreview", params: { id: "T8" } },
-      button: {
-        text: "New email",
-        alt: "New email from Template T8",
-        style: "filled",
-        action: { fn: "onCompose", params: { id: "T8", as: "new" } },
-        compose: "STANDALONE_DRAFT",
+    expect(templateItem(template("T8"), "inbox", "", "star")).toEqual([
+      {
+        kind: "item",
+        icon: "star",
+        text: "Template T8",
+        onClick: { fn: "onPreview", params: { id: "T8" } },
+        button: {
+          text: "New email",
+          alt: "New email from Template T8",
+          style: "filled",
+          action: { fn: "onCompose", params: { id: "T8", as: "new" } },
+          compose: "STANDALONE_DRAFT",
+        },
       },
+    ]);
+  });
+
+  it("message entry (D33): the row without a button, then Reply (filled) and Reply all (outlined) right under it", () => {
+    const t = template("T8", { rc: [0, 1, 0] });
+    const compose = (as: string, text: string, alt: string, style: string) => ({
+      text,
+      alt: `${alt} Template T8`,
+      style,
+      action: { fn: "onCompose", params: { id: "T8", rc: "0,1,0", as } },
+      compose: "REPLY_AS_DRAFT",
     });
+    expect(templateItem(t, "message", "Sales", "star")).toEqual([
+      {
+        kind: "item",
+        icon: "star",
+        text: "Template T8",
+        bottomLabel: "Adds Cc 1 · Sales",
+        onClick: { fn: "onPreview", params: { id: "T8" } },
+      },
+      {
+        kind: "buttons",
+        buttons: [
+          compose("reply", "Reply", "Reply with", "filled"),
+          compose("replyAll", "Reply all", "Reply all with", "outlined"),
+        ],
+      },
+    ]);
+    expect(templateItem(t, "compose", "", "star")).toHaveLength(1);
+    expect(templateItem(t, "inbox", "", "star")).toHaveLength(1);
   });
 
   it("keeps the home card under 100 widgets with 10 favorites, 5 recent and 30 folders", () => {
@@ -824,18 +878,38 @@ describe("layout (slice 12)", () => {
       favorites: templates.slice(0, 10).map((t) => t.id),
       recent: templates.slice(10).map((t) => t.id),
     });
-    for (const entry of ["compose", "inbox"] as const) {
+    // Widgets: search 1, Favorites 10 rows, Recent 5 rows, Folders 30, hint 1 (panel); a row is 2 with a message open.
+    for (const [entry, perRow, total] of [
+      ["compose", 1, 46],
+      ["inbox", 1, 47],
+      ["message", 2, 62],
+    ] as const) {
       const card = homeCard(big, entry);
-      // Each row is one widget; its button is part of it. The footer button adds 1.
-      expect(widgets(card).length + 1).toBeLessThan(100);
+      expect(widgets(card)).toHaveLength(total);
+      expect(
+        Math.max(...card.sections.map((s) => s.widgets.length)),
+      ).toBeLessThan(100);
       expect(card.sections.map((section) => section.collapseAfter)).toEqual([
         undefined,
-        VISIBLE_ROWS,
+        perRow * VISIBLE_ROWS,
         undefined,
         VISIBLE_ROWS,
         ...(entry === "compose" ? [] : [undefined]),
       ]);
     }
+  });
+
+  it("a folder page of 20 and 20 search results stay under 100 widgets with a message open (D33)", () => {
+    const templates = Array.from({ length: 25 }, (_, n) =>
+      template(`T${String(n)}`),
+    );
+    const big = view({ templates });
+    const folder = folderCard(big, "F1", "1", "message");
+    // 20 rows of 2 widgets in one section; the pager is its own section.
+    expect(folder?.sections[1]?.widgets).toHaveLength(40);
+    const search = searchCard(big, "t", templates.slice(0, 20), "message");
+    expect(search.sections[1]?.widgets).toHaveLength(40);
+    expect(widgets(search)).toHaveLength(42);
   });
 
   it("has one filled button per details card, in the footer", () => {

@@ -68,7 +68,7 @@ function listed(
   view: SidebarHome,
   entry: Entry,
   icon: IconName,
-): (template: SidebarTemplate) => Widget {
+): (template: SidebarTemplate) => Widget[] {
   return (template) =>
     templateItem(template, entry, folderPath(view, template.folderId), icon);
 }
@@ -131,7 +131,7 @@ export function searchCard(
       ? { widgets: [{ kind: "text", text: noMatchText(query) }] }
       : {
           header: "Results",
-          widgets: results.map(listed(view, entry, "description")),
+          widgets: results.flatMap(listed(view, entry, "description")),
         };
   return {
     name: HOME_CARD,
