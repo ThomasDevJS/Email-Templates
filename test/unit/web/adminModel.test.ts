@@ -12,6 +12,8 @@ import {
   principalHint,
   conflictText,
   lastChangeText,
+  addedByText,
+  fixedAdminTexts,
   settingTexts,
 } from "../../../src/web/admin/model";
 import type { FolderRow, GrantRow } from "../../../src/web/rpc/api";
@@ -175,6 +177,29 @@ describe("admin model", () => {
     expect(conflictText(entry, now)).toBe(
       "ana changed this setting on Nov 10, 2:05 PM. The page now shows the current value.",
     );
+  });
+
+  it("words the Admins rows: added by, owner list, group (D32, spec 7.3)", () => {
+    const now = new Date("2026-11-10T20:00:00");
+    expect(
+      addedByText(
+        {
+          addedAt: new Date("2026-11-10T14:05:00").toISOString(),
+          addedBy: "ana@example.com",
+        },
+        now,
+      ),
+    ).toBe("Added by ana on Nov 10, 2:05 PM.");
+    expect(
+      fixedAdminTexts(
+        ["owner@example.com", "it@example.com"],
+        "admins@example.com",
+      ),
+    ).toEqual([
+      "Set by the owner: owner@example.com, it@example.com. These cannot be removed here.",
+      "Members of admins@example.com.",
+    ]);
+    expect(fixedAdminTexts([], "")).toEqual([]);
   });
 
   it("names what each principal type takes and shows paths with spaces", () => {

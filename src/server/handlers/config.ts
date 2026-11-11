@@ -1,5 +1,6 @@
 import { AppError, ErrorCode } from "../../shared/errors/codes";
 import { TRIGGER_JOBS, type TriggerJob } from "../../shared/entryPoints";
+import { adminEntriesOf, type AdminEntry } from "../../shared/model/admins";
 import type { IndexDoc } from "../../shared/model/data";
 import {
   allowedWords,
@@ -29,7 +30,11 @@ import {
   TRIGGERS_VERSION_KEY,
 } from "../jobs/triggers";
 import { WRITE_LOCK_MS, withLock } from "../lock";
-import { ADMIN_GROUP_KEY, RESOLVER_KEY } from "../membership/snapshot";
+import {
+  ADMIN_EMAILS_KEY,
+  ADMIN_GROUP_KEY,
+  RESOLVER_KEY,
+} from "../membership/snapshot";
 import { resolverId } from "../membership/resolver";
 import { nowIso, type Services } from "../services";
 import type { BackupDocs, SideDocs } from "../storage/port";
@@ -96,6 +101,10 @@ export interface ConfigView {
   readonly callerIdentity: string;
   /** Admin settings (D29, spec 5.8), defaults filled in. */
   readonly settings: Settings;
+  /** In-app admins (D32, spec 5.8), well-formed entries only. */
+  readonly admins: AdminEntry[];
+  /** `ADMIN_EMAILS` addresses, read only here (D32). */
+  readonly breakGlass: string[];
   readonly indexRev: string;
   readonly appVersion: string;
   readonly indexBytes: number;
@@ -115,6 +124,11 @@ export function configGet(context: HandlerContext): ConfigView {
     resolver: resolverId(services.props.getProperty(RESOLVER_KEY)),
     callerIdentity: prop(CALLER_IDENTITY_KEY) || "active_user",
     settings: settingsOf(index.settings),
+    admins: adminEntriesOf(index.admins, prop(DOMAIN_KEY)),
+    breakGlass: prop(ADMIN_EMAILS_KEY)
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => entry !== ""),
     indexRev: prop(INDEX_REV_KEY),
     appVersion: services.appVersion,
     indexBytes: utf8Length(JSON.stringify(index)),
@@ -203,7 +217,7 @@ function undoSides(services: Services, replaced: Readonly<Replaced>): void {
  * Restore from backup (admin, ADR-0002 Backup). The 3 copies are read and shape-checked before the lock (a damaged
  * copy answers VALIDATION naming the file). Under the lock: admin re-check, refusal when templates of the backup
  * were emptied from the trash since, then `favorites.json` and `usage.json`, then `index.json` as the commit point
- * (`rev = current + 1`, current `pendingAudit` and `settings` kept, one `backup.restore` event). A failure before the index write
+ * (`rev = current + 1`, current `pendingAudit`, `settings` and `admins` kept, one `backup.restore` event). A failure before the index write
  * puts the replaced side files back. Revs and cache sets are published, so readers see the restored data at once.
  */
 export function backupRestore(context: HandlerContext): {
@@ -240,6 +254,7 @@ export function backupRestore(context: HandlerContext): {
             rev: latest.rev + 1,
             items: restored.items.length,
             liveSettingsKept: true,
+            liveAdminsKept: true,
           },
         });
         return {
@@ -247,6 +262,7 @@ export function backupRestore(context: HandlerContext): {
             ...restored,
             pendingAudit: latest.pendingAudit,
             settings: latest.settings,
+            admins: latest.admins,
           },
           events: [event],
           result: latest.rev + 1,

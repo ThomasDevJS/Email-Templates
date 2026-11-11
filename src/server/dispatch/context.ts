@@ -27,7 +27,7 @@ export interface HandlerContext {
   readonly surface: Surface;
   readonly requestId: string;
   readonly services: Services;
-  /** Principals and admin flag from the membership snapshot; loaded on first use, memoized. */
+  /** Principals and admin flag from the membership snapshot (and the index for the in-app list); memoized. */
   readonly subject: () => Subject;
   /** Subject plus the loaded index; loaded on first use and memoized. Ops open to any caller never pay for it. */
   readonly access: () => Access;
@@ -47,15 +47,18 @@ export function createContext(
   const { services, caller } = request;
   let subject: Subject | undefined;
   let access: Access | undefined;
+  let loaded: IndexDoc | undefined;
+  const indexOf = (): IndexDoc => (loaded ??= loadIndex(services));
   const subjectOf = (): Subject =>
     (subject ??= subjectFor(
       caller.email,
       readSnapshot(services),
       services.props,
+      indexOf,
     ));
   const accessOf = (): Access => {
     if (access !== undefined) return access;
-    const index = loadIndex(services);
+    const index = indexOf();
     const who = subjectOf();
     access = { subject: who, index, levelOf: levelResolver(who, index) };
     return access;

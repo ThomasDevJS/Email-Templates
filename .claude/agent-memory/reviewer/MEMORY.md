@@ -91,6 +91,12 @@
   - Import ReportLine has no code field; reasonOf dropped `code:` so SUBJ_/PH_ codes left the response (minor, freeze forbids a field). Chip announcer .sr-only.chip-status verified in Chromium AX tree.
   - Retry 1 PASS (d52d084, review on top): 13 quotes fixed, 40-quote sample 0 misses, src text only + roleWords (actions.ts), 1780 tests, Code.js 360.5 KB, index.html 375.7 KB, Lighthouse 100x15. Open: import code gone from report (minor 1).
   - Doc check method: extract every "quoted" string from guides/smoke, grep first 40 chars in src; read misses by hand (most are composed strings).
+- Slice 16 in-app admins D32 (2026-11-11): FAIL (review on 6bf8c86). Security core clean; 2 client texts. 66 files, 1827 tests, lines 97.84, Code.js 366.2 KB, index.html 378.7 KB, Lighthouse 100x16, 10 scopes.
+  - Mechanism: index.json `admins` (shared/model/admins.ts adminEntriesOf, ADMINS_MAX 20), isAdminEmail 5th input lazy, subjectFor(email, snap, props, index thunk); dispatch admin-row recheck passes in-lock index. handlers/admins.ts change() = withLock + recheck + commitLocked.
+  - Must fix: DENIED shows "...this template. Ask a folder manager." in Admins section (status.ts messageOf); Directory INTERNAL text never shown (generic toast).
+  - Minors: level-row recheck uses pre-lock isAdmin (removed admin's in-flight grant.add lands); `?? []` latent wipe admins.ts:109; no auto-retry in web client (handoff wrong); smoke "record Directory text" impossible (raw message not logged).
+  - Retry 1 PASS (review on 64adc1c): ADMIN_DENIED_TEXT via adminLineText (status.ts) on 8 admin-only actions; ADMIN_CHECK shown in line; lockedSubject (dispatch.ts) for admin+level rechecks (9 ops DENIED in race, 5 passed on old code); editedList CONFLICT; Directory warn line errorCode reason:status. 68 files, 1882 tests, index.html 379.2 KB, Lighthouse 100x16.
+
 - Slice 15 one-click insert D31 (2026-11-11): PASS (on 581232a, merge of main 223f9bb into e9ef9d8). 67 files, 1818 tests, lines 97.82, Code.js 358.2 KB, index.html 376.1 KB, Lighthouse 100x15, 10 scopes + layoutProperties.secondaryColor.
   - Code: render.ts `closeGaps(parts)` (null = gap); flows.ts Flow A `insertFlow` (rc vs list lengths, unknown -> details card counted=1), Flow B `previewFlow`, Flow C `promptInsertFlow`; cards/details.ts `detailsCard`, `panelDetailsCard`.
   - Probes: 10,000 fuzz renders without a gap byte-identical to base, sanitize idempotent on outputs; apply events per path via readBuffer(world.cache).
@@ -135,6 +141,9 @@
 - Keyboard engine probes: pace keys (60 ms) before diffing builds; unpaced runs differ on both builds.
 - Paged ops: probe audit events at offset > 0 with a busy or full buffer; count the Script Cache puts the same op makes (1,000 items, FIFO); world.clock +7 h for a cold cache.
 - Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.
+- Privilege lists: probe stored-variant matrix (case, plus, dots, homoglyph, display name, nested, proto) and a level-row race, not only admin rows.
+
+- Merges with memory conflicts: `git show --remerge-diff <merge>` shows how each conflict was resolved; check both sides kept.
 - Merge heads: compare `git diff <main> <merge>` with the slice's own diff per file; equal = nothing lost.
 - Renderer changes: fuzz head vs base copy in one vitest file importing both src trees.
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.

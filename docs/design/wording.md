@@ -82,6 +82,10 @@ Exceptions, on purpose:
 - "Audit log", "Denied", "Conflict", "Error" stay: short result words that staff of a regulated business know. Conflict means someone else saved first.
 - Messages for requests the screens cannot send (wrong argument type, unknown op, a damaged data file) keep their developer wording: `src/server/dispatch/args.ts`, `dispatch.ts` (unknown op), `handle.ts`, `shared/model/shape.ts`, `shared/model/settings.ts`, `grants.ts` (type and level names), `config.ts` (setting name and value checks), `audit.ts` (filter formats), `storage/*`, `membership/*`, `jobs/*`.
 
+## Admin-only actions refused (slice 16 retry 1)
+
+A DENIED answer to an admin-only action means the caller lost admin after the page loaded. Text, decided by the orchestrator 2026-11-11: "You are no longer an admin, so nothing was changed. Ask an admin if you need access." (`ADMIN_DENIED_TEXT`, `web/ui/status.ts`). It replaces "You don't have access to this template. Ask a folder manager." on: Add admin, Remove admin, Settings Save, Restore a backup, Export of the whole library, Import and Check file, Empty trash, Refresh groups. Actions open to folder managers (folder and access changes, folder export, restore from trash) keep the folder text.
+
 ## Changed texts (220)
 
 `{name}` stands for a value filled in at run time. A cell with " / " lists the texts of one source line. Paths are relative to `src/`. Tests and guides quote the new texts; `src/web/dev-harness.ts` repeats the server texts and is not listed.

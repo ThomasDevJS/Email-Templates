@@ -93,6 +93,8 @@ export const POLICY: PolicyTable = {
   "membership.status": web("admin.ops"),
   "config.get": web("admin.ops"),
   "config.set": web("admin.ops"),
+  "admin.add": web("admin.ops"),
+  "admin.remove": web("admin.ops"),
   "backup.list": web("admin.ops"),
   "backup.restore": web("admin.ops"),
 };

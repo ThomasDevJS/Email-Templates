@@ -83,8 +83,7 @@
 ## Slice 8a (UI shell, 2026-11-10)
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
 - Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
-- Screens: Playwright via `createRequire("/opt/node22/lib/node_modules/")`, `servePage(localPage(webPage({harness:true})))`, context `colorScheme`, `timezoneId: "UTC"` (scratchpad s13/shot.mjs). Plain chromium `--screenshot` hangs. Lighthouse dark: `--force-dark-mode`.
-- The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
+- Screens: Playwright `servePage(localPage(webPage({harness:true})))`, `colorScheme`, `timezoneId: "UTC"`. Scratchpad is shared: unique file names.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
 ## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
@@ -107,7 +106,6 @@
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
 - Focus ring rule: on the active item (`outline-offset: -2px`), never around a listbox. Stacked labels `content: attr(data-label) / ""`.
 - CSS-only fixes get a text test in test/unit/web/styles.test.ts. Old-code check: copy src/web to scratchpad, `git checkout HEAD -- src/web`, run, copy back.
-
 ## Slice 8b (editor direction A, 2026-11-11)
 - views/editor.ts builds the work area once in `build()` after `loading` (level from `app.items()`; `use` = read-only); `savedText`, `panelSection`, `panelTabs`, `editorSkeleton`. views/recipients.ts `recipientField` (chips, `splitAddresses`, `recipientBlock`). preview.ts `blankHtml`, `promptUses`, `recipientLines`. schema `blankParts`, names "Field: ...". toolbar `GROUPS`, `tooltip`, `Toolbar.placeholder`. commands `imageWidth`. `api.me()`.
 - `button { display }` beats `[hidden]`: the editor has `.editor-page [hidden] { display: none }`. Harness `?external=deny` (seeding stays allow), `?unreadable=`.
@@ -115,22 +113,18 @@
 - Guard: `View.canLeave(leave)`, app.ts `leaving()` + onBackForward hold; editor `dirty()` needs `mount.isConnected` (old apps in tests keep window listeners). Font picker shows fixed "Font" (row width).
 - Retry 1: `Editor.hold()` bookmark for dialog inserts; editor keeps one `asking` dialog; `Host.go`, `onBackForward(hash, moved)` from `{page, at}` history state; Problems tab = live errors + save's others; CSS minified in web.mjs `minifiedStyles`. jsdom: `history.go` fires popstate; caret via DOM selection + `selectionchange`.
 - Merge with main (slice 11, 13): `cancelDialogs()` runs in 2 places only: `open()` in the Back/Forward handler (app.ts, when the route really changes) and the editor's `canLeave` before its question (so a held question stays one dialog). Harness `devPolicy` reads `settings.recipientsExternal`; `?external=deny` seeds that setting.
-
 ## Slice 11 (admin settings, D29, 2026-11-11)
 - shared/model/settings.ts: `SETTINGS` list, `settingsOf` (defaults at read, never written), `personalTemplatesOn`, `settingsProblem` (in `indexProblem`), `PERSONAL_OFF_TEXT`. `IndexDoc.settings` optional.
 - Off rule in `levelResolver` before the admin rule; dispatch `deniedError(index, targets)` picks the off text. `recipientPolicy(context)` reads the setting; the property reader is gone.
 - Tests: `setSetting(world, name, value)` in test/fakes/world.ts; D11 tests turn personal templates on in `beforeEach`. Enforcement table in test/unit/server/settings.test.ts. Harness `?personal=off`, `?access=none`.
-
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
 - Server code never nests the script lock; tests assert `lock.nestedAcquisitions === 0`.
 - Docs: guides in docs/guide (Prettier-ignored), runbook in docs/ops (Prettier-formatted); test/unit/docs/links.test.ts checks links; quote UI text from src.
-
 ## Open items handed forward
 - Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
-- Smoke step with a 4.9 MB import (spec 13.5) not written. Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check vs Apps Script reformatting.
-
+- Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check.
 ## Slice 13 (fix round, 2026-11-11)
 - `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
 - `recheckRecipients` (body.ts) inside every write commit; `problemsError` shared with `prepareBody`. `trash.purge` returns `templates`, `folders`.
@@ -142,8 +136,12 @@
 - `docs/design/wording.md` is the glossary (things, actions, words never on screen) and the table of 220 changed texts. Review FAIL on stale doc quotes: after any rename, sweep every quoted text in docs/guide and docs/ops/smoke.md against src (not only the renamed ones); errors say "My templates", address boxes are "To, Cc and Bcc" (never "field"), one text per state on all surfaces. New text: check the glossary first. Access = "Who has access", "Give access", "Can use/edit/manage"; field, field name, default text, sender; personal (never private); Delete vs Remove; entry (audit); insert (never apply).
 - Web: `exportFailedText(done, total, answer)` (adminTransfer.ts; null = no answer, NETWORK only); editor chip announcer `.sr-only.chip-status`; `JOB_WORDS` (adminConfig.ts). Server: `IMPORT_SETTING_CHANGED`, `recheckOrExplain` (transfer.ts). Harness `?exportPage=<n>`, `fail=NETWORK`.
 - Wording tooling that worked: one batch file (file, old, new, reason) applied by a script that also rewrites the same quotes in test/ and docs/, then a table generated from the rows. The guard blocks `git` chained after other commands and long python heredocs: script files via Write, `git` as its own call.
+## Slice 16 (in-app admins, D32, 2026-11-11)
+- shared/model/admins.ts `adminEntriesOf`, `appAdminsOf`, `ADMINS_MAX`; `isAdminEmail(..., appAdmins thunk)`; `subjectFor(email, snapshot, props, index thunk)`; dispatch recheck passes the in-lock index. Handler handlers/admins.ts: refusals = VALIDATION + `details.reason`.
+- Web views/adminAdmins.ts (form `novalidate`: jsdom and browsers block submit of a bad `type=email`). Harness `?admins=none`. Test lock races with `beforeNextLock` (wrap `world.lock.tryLock`).
 ## Slice 15 (one-click insert, D31, 2026-11-11)
 - render.ts `closeGaps(parts)` (null = gap, 4 rules, U+0020 only); typed answer beats a resolved variable. Tests test/unit/shared/gaps.test.ts.
 - flows.ts `applyNow(ports, id, extra)` = one template.apply + cached body; Flow A `insertFlow` (`rc` "t,c,b" vs list lengths, unknown draft field -> details card `counted=1`); Flow B `previewFlow` (compose followUp, side panel getBody + `panelDetailsCard`); Flow C `promptInsertFlow` (`counted=1` -> followUp; `mergedValues`).
 - cards/details.ts `detailsCard(DetailsState)`, `panelDetailsCard(view, entry)`; test fixture `details()` in test/unit/addon/fixtures.ts. prompts.ts `tooLong`, `shortenText`, `moreFieldsText`. `replacesSubject(draftHasSubject)`.
 - Worktree guard: python edits via a script file in the scratchpad, run alone; never chain `git` or `rm` with other commands.
+- Retry 1: `lockedSubject` (dispatch.ts) for every in-lock re-check; `adminLineText` + `ADMIN_DENIED_TEXT` for admin-only actions; Directory failures log `errorCode` "<reason>:<status>"; results carry `email`. The web client never retries.

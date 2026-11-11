@@ -2496,6 +2496,31 @@ code,
   margin: 0;
 }
 
+/* Admins (D32): the in-app list, two-line rows with Remove at the end, then the add form. */
+.admins {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.admins li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.admins .hint {
+  margin: 2px 0 0;
+}
+
+.admin-add {
+  max-width: 420px;
+  margin-top: 12px;
+}
+
 .backups {
   margin: 8px 0 0;
   padding: 0;

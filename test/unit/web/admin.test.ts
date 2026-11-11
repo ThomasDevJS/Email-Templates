@@ -535,6 +535,32 @@ describe("trash", () => {
     });
   });
 
+  it("shows the no-longer-admin text when Empty trash or Refresh groups is refused (slice 16 retry 1)", async () => {
+    const text16 =
+      "You are no longer an admin, so nothing was changed. Ask an admin if you need access.";
+    await boot("/?latency=0&fail=DENIED&failOp=trash.purge#/trash");
+    await until(() => {
+      expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
+    });
+    button("Empty trash now...").click();
+    button("Empty trash", dialog()).click();
+    await until(() => {
+      expect(status()).toContain(text16);
+    });
+    document.body.replaceChildren();
+    vi.resetModules();
+    await boot(
+      "/?latency=0&fail=DENIED&failOp=membership.refresh#/admin/memberships",
+    );
+    await until(() => {
+      expect(button("Refresh groups")).toBeTruthy();
+    });
+    button("Refresh groups").click();
+    await until(() => {
+      expect(status()).toContain(text16);
+    });
+  });
+
   it("empties the trash after a confirmation, Cancel first", async () => {
     await boot("/?latency=0#/trash");
     await until(() => {

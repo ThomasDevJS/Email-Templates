@@ -10,6 +10,7 @@ import {
   folderMap,
   inPrivateTree,
   levelResolver,
+  type Subject,
 } from "../../shared/permissions/effective";
 import {
   checkNeed,
@@ -189,9 +190,22 @@ function placement(index: IndexDoc, targets: readonly string[]): string {
 }
 
 /**
+ * The caller as the lock sees them: the snapshot read again and the in-app admin list of the in-lock index (D32),
+ * so an admin removed after the dispatch check is no admin for any write that re-checks in the lock.
+ */
+function lockedSubject(context: HandlerContext, index: IndexDoc): Subject {
+  const { services, caller } = context;
+  return subjectFor(
+    caller.email,
+    readSnapshot(services),
+    services.props,
+    () => index,
+  );
+}
+
+/**
  * Same check on the index read inside the lock (save step 4). A concurrent move changes the resolved targets:
- * CONFLICT, so the caller reloads. Unchanged targets with a lower level (grant removed): DENIED. Admin rows read
- * the membership snapshot again, so an admin removed meanwhile is refused.
+ * CONFLICT, so the caller reloads. Unchanged targets with a lower level (grant removed, admin removed): DENIED.
  */
 function recheck(
   row: PolicyRow,
@@ -201,16 +215,12 @@ function recheck(
   index: IndexDoc,
 ): void {
   const need = needOf(actionOf(row, request.args));
+  if (need.kind === "any") return;
+  const subject = lockedSubject(context, index);
   if (need.kind === "admin") {
-    const { services, caller } = context;
-    if (
-      !subjectFor(caller.email, readSnapshot(services), services.props).isAdmin
-    )
-      throw deniedError();
+    if (!subject.isAdmin) throw deniedError();
     return;
   }
-  if (need.kind !== "level") return;
-  const subject = context.subject();
   const fresh = row.targets?.(request.args, index) ?? [];
   if (placement(index, fresh) !== authorized) {
     throw new AppError(

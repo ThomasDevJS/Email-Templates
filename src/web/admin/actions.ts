@@ -39,6 +39,8 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
     "membership.status": "Groups viewed",
     "config.get": "Settings viewed",
     "config.set": "Setting changed",
+    "admin.add": "Admin added",
+    "admin.remove": "Admin removed",
     "audit.query": "Audit log viewed",
     "audit.dropped": "Audit entries lost",
     "usage.report": "Usage viewed",

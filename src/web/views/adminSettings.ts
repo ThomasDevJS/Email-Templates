@@ -11,7 +11,8 @@ import type { ConfigView } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { h, uid } from "../ui/dom";
 import { RpcError } from "../rpc/client";
-import { lineText } from "../ui/status";
+import { adminLineText } from "../ui/status";
+import { adminsSection } from "./adminAdmins";
 import type { AppContext } from "./context";
 
 /** The current entry a CONFLICT carries in `details` (ADR-0008 section 2), or null for any other error. */
@@ -102,7 +103,7 @@ function settingBlock(
       .catch((error: unknown) => {
         const newer = conflictEntry(error, name);
         if (newer === null) {
-          status.textContent = lineText(error, app.fail(error));
+          status.textContent = adminLineText(error, app.fail(error));
           return;
         }
         show(newer);
@@ -161,5 +162,6 @@ export function settingsSection(
     ...names.map((name) =>
       settingBlock(app, name, data.settings[name], data.domain),
     ),
+    adminsSection(app, data),
   );
 }

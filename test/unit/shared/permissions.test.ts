@@ -25,6 +25,7 @@ import {
   type MatrixAction,
 } from "../../../src/shared/permissions/matrix";
 import type { StoredSettings } from "../../../src/shared/model/settings";
+import { adminEntriesOf, appAdminsOf } from "../../../src/shared/model/admins";
 import {
   domainOf,
   isAdminEmail,
@@ -157,6 +158,81 @@ describe("principal set (ADR-0003 Part B)", () => {
       ),
     ).toBe(false);
     expect(isAdminEmail("ana@example.com", "", "", SNAPSHOT)).toBe(false);
+  });
+
+  it("finds in-app admins (D32), reading the list only when both properties say no", () => {
+    let reads = 0;
+    const list = () => {
+      reads++;
+      return appAdminsOf(
+        {
+          admins: [
+            { email: " Ana@Example.com", addedAt: "", addedBy: "" },
+            { email: "eve@other.org", addedAt: "", addedBy: "" },
+            { email: 7, addedAt: "", addedBy: "" },
+          ],
+        },
+        "example.com",
+      );
+    };
+    expect(
+      isAdminEmail(
+        "owner@example.com",
+        "owner@example.com",
+        "",
+        SNAPSHOT,
+        list,
+      ),
+    ).toBe(true);
+    expect(
+      isAdminEmail(
+        "boss@example.com",
+        "",
+        "admins@example.com",
+        SNAPSHOT,
+        list,
+      ),
+    ).toBe(true);
+    expect(reads).toBe(0);
+    expect(isAdminEmail(" ANA@example.com ", "", "", SNAPSHOT, list)).toBe(
+      true,
+    );
+    expect(isAdminEmail("eve@other.org", "", "", SNAPSHOT, list)).toBe(false);
+    expect(isAdminEmail("", "", "", SNAPSHOT, () => [""])).toBe(false);
+    expect(reads).toBe(2);
+  });
+});
+
+describe("adminEntriesOf (D32, spec 5.8)", () => {
+  const ok = {
+    email: "ana@example.com",
+    addedAt: "t",
+    addedBy: "o@example.com",
+  };
+
+  it("keeps well-formed entries, lower case, and drops the rest", () => {
+    expect(
+      adminEntriesOf(
+        [
+          { ...ok, email: " Ana@Example.COM " },
+          { ...ok, email: "ana@sub.example.com" },
+          { ...ok, email: "a..b@example.com" },
+          { ...ok, email: `${"a".repeat(250)}@example.com` },
+          { ...ok, addedAt: 1 },
+          { email: "bob@example.com" },
+          "bob@example.com",
+          null,
+        ],
+        "Example.com",
+      ),
+    ).toEqual([ok]);
+  });
+
+  it("reads anything but a list, or a blank domain, as no admins", () => {
+    for (const stored of [undefined, null, "ana@example.com", { 0: ok }, 3])
+      expect(adminEntriesOf(stored, "example.com")).toEqual([]);
+    expect(adminEntriesOf([ok], "")).toEqual([]);
+    expect(appAdminsOf({}, "example.com")).toEqual([]);
   });
 });
 
