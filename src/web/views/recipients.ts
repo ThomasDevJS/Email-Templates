@@ -192,7 +192,7 @@ export function recipientField(
   return {
     element: h(
       "div",
-      { class: "panel-row rcpt-row" },
+      { class: "panel-row" },
       h("label", { for: id }, name),
       h(
         "div",

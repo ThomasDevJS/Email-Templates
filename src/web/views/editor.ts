@@ -372,7 +372,6 @@ export function editorView(
     { class: "page-note read-only-note" },
     "You can use this template but not change it. To change it, ask a folder manager for edit access.",
   );
-  notice.hidden = true;
   const preview = h("div", { class: "preview-body" });
   const previewRecipients = h("div");
   const previewSubject = h("p", { class: "preview-subject" });
@@ -754,7 +753,6 @@ export function editorView(
     subjectInput.readOnly = readOnly;
     folderSelect.disabled = readOnly;
     saveButton.hidden = readOnly;
-    notice.hidden = !readOnly;
     const details = h(
       "div",
       { class: "details" },
@@ -789,7 +787,7 @@ export function editorView(
         h(
           "div",
           { class: "doc" },
-          readOnly ? null : toolbar.element,
+          readOnly ? notice : toolbar.element,
           h(
             "div",
             { class: "sheet editor-sheet" },
@@ -1096,7 +1094,6 @@ export function editorView(
         historyButton,
         saveButton,
       ),
-      notice,
       status,
       work,
     ),

@@ -80,4 +80,12 @@ describe("styles (slice 8b editor)", () => {
     );
     expect(narrow).toContain(".section-body.collapsed {\n    display: none;");
   });
+  it("gives detail fields the full panel width and aligns the read-only note with the sheet (retry 1)", () => {
+    expect(rule(".details .panel-row")).toContain(
+      "grid-template-columns: minmax(0, 1fr)",
+    );
+    const note = rule(".read-only-note");
+    expect(note).toContain("width: 680px");
+    expect(note).toContain("margin: 20px auto -8px");
+  });
 });

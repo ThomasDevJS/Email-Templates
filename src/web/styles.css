@@ -1260,9 +1260,15 @@ table {
   color: var(--ok);
 }
 
-.editor-page > .status,
-.editor-page > .page-note {
+.editor-page > .status {
   margin: 8px 28px 0;
+}
+
+/* The read-only note heads the sheet column, aligned with the sheet. */
+.read-only-note {
+  width: 680px;
+  max-width: calc(100% - 56px);
+  margin: 20px auto -8px;
 }
 
 .editor-page > .status:empty {
@@ -1606,17 +1612,18 @@ table {
   height: 30px;
 }
 
-/* Recipient fields take the full panel width, with the label above (wireframe 04). */
+/* Detail fields take the full panel width, with the label above (wireframe 04): a folder path fits its select. */
 .rcpt-group {
   margin-top: 12px;
 }
 
-.rcpt-row {
+.details .panel-row {
   grid-template-columns: minmax(0, 1fr);
   gap: 4px;
 }
 
-.rcpt-row > label {
+.details .panel-row > label,
+.details .panel-row > .row-label {
   padding-top: 0;
 }
 
@@ -1886,9 +1893,14 @@ table {
     display: none;
   }
 
-  .editor-page > .status,
-  .editor-page > .page-note {
+  .editor-page > .status {
     margin: 8px 16px 0;
+  }
+
+  .read-only-note {
+    width: auto;
+    max-width: none;
+    margin: 12px 12px 0;
   }
 
   .editor-work {
