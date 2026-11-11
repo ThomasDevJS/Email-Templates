@@ -408,6 +408,91 @@ describe("schema helpers and picker rules", () => {
   });
 });
 
+describe("held selection for dialog inserts (slice 8b retry 1)", () => {
+  const caret = (ed: Editor, pos: number) => {
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, pos),
+      ),
+    );
+  };
+
+  /** Fills the open dialog's input and confirms with Enter. */
+  async function answer(value: string): Promise<void> {
+    const input = document.querySelector<HTMLInputElement>(
+      '[role="dialog"] input',
+    ) as HTMLInputElement;
+    input.value = value;
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", cancelable: true }),
+    );
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+  }
+
+  it("inserts at the held caret after the selection moved and text was typed before it", () => {
+    const ed = open("<p>Hello world</p>");
+    caret(ed, 6);
+    const held = ed.hold();
+    caret(ed, 1);
+    ed.view.dispatch(ed.view.state.tr.insertText("Say "));
+    held.run(insertNode(schema.text("!")));
+    expect(ed.html()).toBe("<p>Say Hello! world</p>");
+    // A held link keeps the selected range.
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, 5, 10),
+      ),
+    );
+    const range = ed.hold();
+    caret(ed, 1);
+    range.run(setLink("https://example.com"));
+    expect(ed.html()).toBe(
+      '<p>Say <a href="https://example.com" rel="noopener noreferrer" target="_blank">Hello</a>! world</p>',
+    );
+  });
+
+  it("does nothing on a destroyed editor, and release leaves the document as it was", () => {
+    const ed = open("<p>Hello</p>");
+    const released = ed.hold();
+    released.release();
+    expect(ed.html()).toBe("<p>Hello</p>");
+    const held = ed.hold();
+    ed.destroy();
+    editor = null;
+    held.run(insertNode(schema.text("!")));
+    held.release();
+    expect(ed.view.isDestroyed).toBe(true);
+  });
+
+  it("inserts an asked field at the caret where the dialog opened", async () => {
+    const ed = open("<p>Hello world</p>");
+    caret(ed, 6);
+    pickerItems(ed)
+      .find((item) => item.label === "Ask the user...")
+      ?.run();
+    caret(ed, 1);
+    await answer("Load number");
+    expect(ed.html()).toBe("<p>Hello{{ask:Load number}} world</p>");
+  });
+
+  it("sets the fallback on the chip that was selected when the dialog opened", async () => {
+    const ed = open("<p>Hi {{sender.name}} and {{sender.title}}</p>");
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        NodeSelection.create(ed.view.state.doc, chipPos(ed)),
+      ),
+    );
+    pickerItems(ed)
+      .find((item) => item.label === "Add fallback...")
+      ?.run();
+    caret(ed, 1);
+    await answer("us");
+    expect(ed.html()).toBe("<p>Hi {{sender.name|us}} and {{sender.title}}</p>");
+  });
+});
+
 describe("toolbar", () => {
   it("is one tab stop with arrow keys and aria-pressed", () => {
     const ed = open("<p><strong>bold</strong></p>");

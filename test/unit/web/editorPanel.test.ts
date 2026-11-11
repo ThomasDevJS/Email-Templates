@@ -501,6 +501,88 @@ describe("image width (slice 8b fix)", () => {
   });
 });
 
+/** Puts the editor caret after `offset` characters of its first text, the way a click or the browser would. */
+function caretAt(offset: number): void {
+  const body = main().querySelector<HTMLElement>(".ProseMirror") as HTMLElement;
+  body.focus();
+  const text = document
+    .createTreeWalker(body, NodeFilter.SHOW_TEXT)
+    .nextNode() as Text;
+  document.getSelection()?.collapse(text, offset);
+  document.dispatchEvent(new Event("selectionchange"));
+}
+
+const bodyHtml = () =>
+  (main().querySelector(".ProseMirror") as HTMLElement).innerHTML.replace(
+    /<img class="ProseMirror-separator" alt="">|<br class="ProseMirror-trailingBreak">/g,
+    "",
+  );
+
+describe("dialog inserts land at the caret (slice 8b retry 1)", () => {
+  /** Image whose load the test finishes; meanwhile focus moves can reset the caret (review blocker 1). */
+  function slowImage(): { load: () => void } {
+    let finish: () => void = () => undefined;
+    vi.stubGlobal(
+      "Image",
+      class {
+        naturalWidth = 200;
+        private readonly listeners = new Map<string, () => void>();
+        addEventListener(type: string, listener: () => void) {
+          this.listeners.set(type, listener);
+        }
+        set src(_value: string) {
+          finish = () => this.listeners.get("load")?.();
+        }
+      },
+    );
+    return {
+      load: () => {
+        finish();
+      },
+    };
+  }
+
+  /** Opens the dialog from the toolbar button `name` and confirms `value` by Enter or by OK. */
+  async function confirm(name: string, value: string, by: "Enter" | "OK") {
+    button(name).click();
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    const input = dialog.querySelector("input") as HTMLInputElement;
+    input.value = value;
+    // The browser moves the caret to the start while the dialog has focus (seen in Chromium, review blocker 1).
+    caretAt(0);
+    if (by === "Enter") key(input, "Enter");
+    else button("OK", dialog).click();
+    await until(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+  }
+
+  for (const by of ["Enter", "OK"] as const) {
+    it(`inserts the image at the caret after its width is read, confirmed by ${by}`, async () => {
+      const image = slowImage();
+      await openEditor("/?latency=0#/edit/T-DISCOUNT");
+      caretAt(4);
+      await confirm("Image", "https://example.com/a.png", by);
+      caretAt(0);
+      image.load();
+      await until(() => {
+        expect(bodyHtml()).toMatch(
+          /^<p>Your<img src="https:\/\/example.com\/a.png" width="200"[^>]*> discount of/,
+        );
+      });
+    });
+
+    it(`inserts the link at the caret, confirmed by ${by}`, async () => {
+      await openEditor("/?latency=0#/edit/T-DISCOUNT");
+      caretAt(4);
+      await confirm("Link", "https://example.com/x", by);
+      expect(bodyHtml()).toMatch(
+        /^<p>Your<a href="https:\/\/example.com\/x"[^>]*>https:\/\/example.com\/x<\/a> discount of/,
+      );
+    });
+  }
+});
+
 describe("history recipients", () => {
   it("shows the recipients line of a version and the unreadable notice on restore", async () => {
     await boot("/?latency=0&unreadable=cc#/library");
