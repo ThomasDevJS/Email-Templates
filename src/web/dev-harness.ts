@@ -7,7 +7,7 @@
  * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
  * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only,
  * `?external=deny` turns outside recipients off, `?unreadable=cc,bcc` makes `version.restore` report those lists of the old
- * version as unreadable.
+ * version as unreadable, `?exportPage=<n>` serves exports in pages of n templates (default: one page).
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
@@ -527,7 +527,7 @@ function auditQuery(args: Record<string, unknown>) {
   };
 }
 
-/** `start: true` answers a run token; any other call answers the one page (the harness ignores the token). */
+/** `start: true` answers a run token; any other call answers one page (the harness ignores the token). */
 function exportOp(args: Record<string, unknown>, folderId: string) {
   const scope = folderId === "" ? "library" : "folder";
   const inScope = [...items.values()].filter(
@@ -537,6 +537,10 @@ function exportOp(args: Record<string, unknown>, folderId: string) {
   );
   if (args["start"] === true)
     return { token: "DEV-EXPORT-RUN", total: inScope.length };
+  const size = Number(
+    new URLSearchParams(window.location.search).get("exportPage") ?? "Infinity",
+  );
+  const offset = Number(args["offset"] ?? 0);
   return {
     header: {
       schemaVersion: 1,
@@ -550,7 +554,7 @@ function exportOp(args: Record<string, unknown>, folderId: string) {
       folders: [],
       grants: [],
     },
-    items: inScope.map((entry) => ({
+    items: inScope.slice(offset, offset + size).map((entry) => ({
       meta: {
         id: entry.id,
         folderId: entry.folderId,
@@ -561,7 +565,7 @@ function exportOp(args: Record<string, unknown>, folderId: string) {
       html: versions.get(entry.id)?.at(-1)?.html ?? "",
     })),
     total: inScope.length,
-    next: null,
+    next: offset + size < inScope.length ? offset + size : null,
   };
 }
 

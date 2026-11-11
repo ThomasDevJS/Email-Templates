@@ -9,8 +9,8 @@ import { pathBlock } from "./grid";
 const COLUMNS: readonly Column[] = [
   { label: "Template" },
   { label: "Folder" },
-  { label: "Applies 30 d", num: true },
-  { label: "Last used" },
+  { label: "Inserts, 30 days", num: true },
+  { label: "Last inserted" },
 ];
 
 export function usageTab(app: AppContext, panel: HTMLElement): View {
@@ -26,14 +26,14 @@ export function usageTab(app: AppContext, panel: HTMLElement): View {
     app.api.usage().then(
       (data) => {
         table.setAttribute("aria-busy", "false");
-        hint.textContent = `Applies counted from ${data.since} (UTC days). Apply events can arrive up to 5 min late.`;
+        hint.textContent = `Inserts counted since ${data.since}. A new insert can take up to 5 minutes to show.`;
         if (data.rows.length === 0) {
           replace(
             table,
             h(
               "p",
               { class: "empty" },
-              "No templates yet. Usage appears here once templates exist.",
+              "No templates yet. Insert counts show here once the library has templates.",
             ),
           );
           return;
@@ -62,7 +62,7 @@ export function usageTab(app: AppContext, panel: HTMLElement): View {
             h(
               "p",
               { class: "empty" },
-              "Usage could not be loaded. Use Retry in the message.",
+              "Usage could not be loaded. Press Retry in the message.",
             ),
         );
       },

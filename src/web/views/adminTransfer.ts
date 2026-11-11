@@ -5,8 +5,9 @@ import {
 import { exportFileName, importSummary, sharedFolders } from "../admin/model";
 import { folderPath } from "../library/model";
 import type { ExportPage, FolderRow, ImportReport } from "../rpc/api";
+import { ErrorCode } from "../../shared/errors/codes";
 import { RpcError } from "../rpc/client";
-import { lineText } from "../ui/status";
+import { lineText, toRpcError } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
 import type { AdminData } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
@@ -15,8 +16,25 @@ import type { AppContext, View } from "./context";
 /** Retries of an export start or page that failed with a retryable error, and the first wait (1x, 2x, 3x). */
 export const EXPORT_RETRIES = 3;
 export const EXPORT_RETRY_MS = 200;
-export const EXPORT_RETRY_TEXT =
-  "The export stopped: the server did not answer after 4 tries. Nothing was downloaded. Wait a few minutes, then export again.";
+
+/**
+ * Status text of an export that failed. It says how far the export got and that no file exists, so nobody takes a
+ * part of the library for the whole. `answer` is the server's own message, "" when a toast or page already shows
+ * it, and null when the server gave no answer after every retry.
+ */
+export function exportFailedText(
+  done: number,
+  total: number,
+  answer: string | null,
+): string {
+  const head =
+    total === 0
+      ? "The export did not start"
+      : `The export stopped after ${String(done)} of ${String(total)} templates`;
+  return answer === null
+    ? `${head}: the server did not answer after ${String(EXPORT_RETRIES + 1)} tries. No file was downloaded, so wait a few minutes and export again.`
+    : `${head} and no file was downloaded. ${answer}`.trim();
+}
 
 /**
  * Tab "Export and import" (wireframe 06). Export: whole library (admin) or one folder the caller manages. The start
@@ -33,12 +51,12 @@ const REPORT_COLUMNS: readonly Column[] = [
 ];
 const LINE_COLUMNS: readonly Column[] = [
   { label: "Name" },
-  { label: "Kind" },
+  { label: "Type" },
   { label: "Result" },
   { label: "Reason" },
 ];
 const EXPORT_NOTE =
-  "as one JSON file, without the trash, older versions, favorites, usage or the audit log.";
+  "as one file, without the trash, older versions, favorites, insert counts or the audit log.";
 
 function folderOptions(folders: readonly FolderRow[]): HTMLOptionElement[] {
   return folders
@@ -110,15 +128,20 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     }
   };
 
-  const pages = async (folderId: string) => {
+  const pages = async (
+    folderId: string,
+    progress: { done: number; total: number },
+  ) => {
     const { token, total } = await retrying(() =>
       app.api.exportStart(folderId),
     );
+    progress.total = total;
     const pageAt = (offset: number) =>
       retrying(() => app.api.exportPage(folderId, offset, token));
     let page: ExportPage = await pageAt(0);
     const items = [...page.items];
     while (page.next !== null) {
+      progress.done = items.length;
       status.textContent = `Exporting ${String(items.length)} of ${String(total)} templates...`;
       page = await pageAt(page.next);
       items.push(...page.items);
@@ -134,18 +157,22 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     }
     run.disabled = true;
     status.textContent = "Exporting...";
-    pages(folderId)
+    const progress = { done: 0, total: 0 };
+    pages(folderId, progress)
       .then(({ file, count }) => {
         const name = exportFileName(file.scope, new Date());
         download(name, JSON.stringify(file, null, 2));
         status.textContent = `Exported ${String(count)} templates to ${name}.`;
       })
       .catch((error: unknown) => {
-        // No file is offered: a page that failed leaves the export incomplete.
-        status.textContent =
-          error instanceof RpcError && error.retryable
-            ? EXPORT_RETRY_TEXT
-            : lineText(error, app.fail(error));
+        // No file is offered: a page that failed leaves the export incomplete. Only a NETWORK error means the
+        // server gave no answer; every other error carries the server's message (toast, banner or this line).
+        const noAnswer = toRpcError(error).code === ErrorCode.NETWORK;
+        status.textContent = exportFailedText(
+          progress.done,
+          progress.total,
+          noAnswer ? null : lineText(error, app.fail(error)),
+        );
       })
       .finally(() => {
         run.disabled = false;
@@ -156,7 +183,7 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     ? h(
         "fieldset",
         { class: "scope" },
-        h("legend", {}, "Export scope"),
+        h("legend", {}, "What to export"),
         h("label", {}, library, " Whole library (shared folders)"),
         h("label", {}, single, " One folder and its subfolders"),
       )
@@ -173,8 +200,8 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
       "p",
       { class: "hint" },
       data.isAdmin
-        ? `Downloads the live templates, folders and grants of the scope you choose ${EXPORT_NOTE} A whole-library export leaves out the private folders (each user's My templates).`
-        : `Downloads the live templates, folders and grants of a folder you manage and its subfolders ${EXPORT_NOTE}`,
+        ? `Downloads the templates, folders and access of the whole library or of one folder ${EXPORT_NOTE} A whole-library export leaves out personal folders (each user's My templates).`
+        : `Downloads the templates, folders and access of a folder you manage and its subfolders ${EXPORT_NOTE}`,
     ),
     scope,
     h("div", { class: "form-row" }, labelled("Folder", folder), run),
@@ -197,7 +224,7 @@ function reportTables(report: ImportReport): HTMLElement[] {
         ].map(String),
       ),
     ],
-    { caption: report.dryRun ? "Validate report" : "Import report" },
+    { caption: report.dryRun ? "Check result" : "Import result" },
   );
   counts.classList.add("compact");
   counts.tabIndex = -1;
@@ -215,7 +242,7 @@ function reportTables(report: ImportReport): HTMLElement[] {
         line.reason,
       ]),
     ),
-    { caption: "Skipped and failed records" },
+    { caption: "Skipped and failed templates and folders" },
   );
   lines.querySelector("caption")?.classList.remove("sr-only");
   return [counts, lines];
@@ -230,7 +257,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
   const result = h("div", { class: "import-report" });
   const input = h("input", { type: "file", accept: "application/json,.json" });
   const target = h("select", {}, ...folderOptions(sharedFolders(data.folders)));
-  const validate = h("button", { type: "button" }, "Validate");
+  const validate = h("button", { type: "button" }, "Check file");
   const run = h("button", { type: "button", class: "primary" }, "Import");
   let validated: { text: string; target: string } | null = null;
   const reset = () => {
@@ -249,7 +276,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
       return null;
     }
     if (file.size > IMPORT_MAX_BYTES) {
-      status.textContent = `The file is larger than ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB.`;
+      status.textContent = `The file is larger than ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB. Export smaller folders and import them one by one.`;
       return null;
     }
     return file.text();
@@ -258,7 +285,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
   const send = (text: string, dryRun: boolean) => {
     validate.disabled = true;
     run.disabled = true;
-    status.textContent = dryRun ? "Validating..." : "Importing...";
+    status.textContent = dryRun ? "Checking file..." : "Importing...";
     const folderId = target.value;
     app.api
       .importFile(folderId, text, dryRun)
@@ -297,13 +324,13 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
     h(
       "p",
       { class: "hint" },
-      `Adds the templates of an export file of up to ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB and ${String(IMPORT_ITEMS_MAX)} templates to a shared folder as new templates, without the file's grants and without templates whose title is already in their folder.`,
+      `Adds the templates of an export file (up to ${String(IMPORT_MAX_BYTES / 1024 / 1024)} MB, ${String(IMPORT_ITEMS_MAX)} templates) to a shared folder as new templates. Access from the file is not imported, and a template whose title is already in its folder is skipped.`,
     ),
     h(
       "div",
       { class: "form-row" },
       labelled("Export file", input),
-      labelled("Target folder", target),
+      labelled("Import into", target),
     ),
     h(
       "div",
@@ -313,7 +340,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
       h(
         "span",
         { class: "meta" },
-        "Validate writes nothing and shows what Import would do.",
+        "Check file changes nothing. It shows what Import would do.",
       ),
     ),
     status,

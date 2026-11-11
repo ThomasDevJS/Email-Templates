@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { EXPORT_RETRY_TEXT } from "../../../src/web/views/adminTransfer";
+import { exportFailedText } from "../../../src/web/views/adminTransfer";
 import { stubLayout } from "./domStubs";
 
 const INDEX = readFileSync(
@@ -110,24 +110,24 @@ describe("audit log tab", () => {
       expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(50);
     });
     expect(text()).toContain(
-      "Denied and apply events can arrive up to 5 min late.",
+      "Refused actions and inserts can take up to 5 minutes to show here. An export entry records the start of an export, not that the file was downloaded.",
     );
-    expect(status()).toContain("Page 1: events 1 to 50 of 60.");
+    expect(status()).toContain("Page 1: entries 1 to 50 of 60.");
     expect(labelled<HTMLSelectElement>("Month").value).toBe("2026-11");
     for (const label of [
       "Date from",
       "Date to",
-      "Actor",
+      "User",
       "Action",
       "Result",
-      "Target",
+      "Template or folder",
     ])
       expect(labelled(label)).toBeTruthy();
     button("Next page").focus();
     button("Next page").click();
     expect(main().querySelector('[aria-busy="true"]')).not.toBeNull();
     await until(() => {
-      expect(status()).toContain("Page 2: events 51 to 60 of 60.");
+      expect(status()).toContain("Page 2: entries 51 to 60 of 60.");
     });
     expect(button("Next page").disabled).toBe(true);
     // Focus lands on the first row of the new page, not on the body.
@@ -136,13 +136,13 @@ describe("audit log tab", () => {
     );
     button("Previous page").click();
     await until(() => {
-      expect(status()).toContain("Page 1: events 1 to 50 of 60.");
+      expect(status()).toContain("Page 1: entries 1 to 50 of 60.");
     });
     expect(document.activeElement).toBe(
       main().querySelector(".admin-table tbody tr"),
     );
     labelled<HTMLSelectElement>("Result").value = "denied";
-    button("Apply").click();
+    button("Filter").click();
     await until(() => {
       expect(status()).toContain("of 9.");
     });
@@ -198,7 +198,7 @@ describe("audit log tab", () => {
     );
     opener.focus();
     opener.click();
-    expect(status()).toContain("Loading event details...");
+    expect(status()).toContain("Loading entry details...");
     await until(() => {
       expect(dialog()?.classList.contains("drawer")).toBe(true);
     });
@@ -213,8 +213,9 @@ describe("audit log tab", () => {
         .filter((dt) => dt.textContent === term)
         .map((dt) => dt.nextElementSibling?.textContent);
     // The target in words; the raw value sits next to the raw operation name under "Technical details".
-    expect(fact("Target")).toEqual(["Sales / Quotes", "/Sales/Quotes"]);
-    expect(fact("Operation")).toEqual(["template.update"]);
+    expect(fact("Template or folder")).toEqual(["Sales / Quotes"]);
+    expect(fact("Internal ID")).toEqual(["/Sales/Quotes"]);
+    expect(fact("Internal name")).toEqual(["template.update"]);
     expect(drawer.querySelector(".facts-heading")?.textContent).toBe(
       "Technical details",
     );
@@ -240,17 +241,17 @@ describe("audit log tab", () => {
     await until(() => {
       expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(50);
     });
-    labelled<HTMLInputElement>("Actor").value = "nobody";
-    button("Apply").click();
+    labelled<HTMLInputElement>("User").value = "nobody";
+    button("Filter").click();
     await until(() => {
       expect(text()).toContain(
-        "No audit events in 2026-11 match these filters.",
+        "No audit entries in 2026-11 match these filters. Change the filters and press Filter.",
       );
     });
     const month = labelled<HTMLSelectElement>("Month");
     month.value = "2026-10";
     month.dispatchEvent(new Event("change"));
-    expect(status()).toContain("Loading audit events...");
+    expect(status()).toContain("Loading audit entries...");
   });
 
   it("shows the error state with the request ID", async () => {
@@ -288,7 +289,7 @@ describe("usage tab", () => {
     });
     expect(
       [...main().querySelectorAll(".admin-table th")].map((t) => t.textContent),
-    ).toEqual(["Template", "Folder", "Applies 30 d", "Last used"]);
+    ).toEqual(["Template", "Folder", "Inserts, 30 days", "Last inserted"]);
     expect(text()).toContain("never");
   });
 });
@@ -314,7 +315,7 @@ describe("export and import tab", () => {
     expect(labelled<HTMLSelectElement>("Folder").disabled).toBe(true);
     // export.library skips every private folder tree (server transfer.ts libraryFolders).
     expect(text()).toContain(
-      "A whole-library export leaves out the private folders (each user's My templates).",
+      "A whole-library export leaves out personal folders (each user's My templates).",
     );
     button("Export").click();
     expect(status()).toContain("Exporting...");
@@ -373,22 +374,60 @@ describe("export and import tab", () => {
     expect(clicks).toHaveLength(1);
   });
 
-  it("stops after the retries with a clear message and downloads nothing", async () => {
-    const { clicks, createUrl } = await exportWith("fail=BUSY&failSkip=1");
-    await waitStatus(EXPORT_RETRY_TEXT);
-    expect(EXPORT_RETRY_TEXT).toBe(
-      "The export stopped: the server did not answer after 4 tries. Nothing was downloaded. Wait a few minutes, then export again.",
+  it("stops after the retries without an answer, says so and downloads nothing", async () => {
+    const { clicks, createUrl } = await exportWith("fail=NETWORK&failSkip=1");
+    await waitStatus(
+      "The export stopped after 0 of 4 templates: the server did not answer after 4 tries. No file was downloaded, so wait a few minutes and export again.",
     );
+    expect(toasts()).toBe("");
     expect(clicks).toEqual([]);
     expect(createUrl).not.toHaveBeenCalled();
     expect(button("Export").disabled).toBe(false);
+  });
+
+  it("shows the server's own message when the server answered with an error after the retries", async () => {
+    const { clicks, createUrl } = await exportWith("fail=QUOTA&failSkip=1");
+    await waitStatus(
+      "The export stopped after 0 of 4 templates and no file was downloaded.",
+    );
+    expect(status()).not.toContain("did not answer");
+    expect(toasts()).toContain("Service is busy. Try again in a minute.");
+    expect(clicks).toEqual([]);
+    expect(createUrl).not.toHaveBeenCalled();
+  });
+
+  it("says how far an export got when it stops midway and offers no partial file", async () => {
+    // Pages of 1: the start and 2 pages pass, the third page gets no answer on any of its 4 tries.
+    const { clicks, createUrl } = await exportWith(
+      "exportPage=1&fail=NETWORK&failSkip=3",
+    );
+    await waitStatus(
+      "The export stopped after 2 of 4 templates: the server did not answer after 4 tries. No file was downloaded, so wait a few minutes and export again.",
+    );
+    expect(status()).not.toContain("Exported");
+    expect(clicks).toEqual([]);
+    expect(createUrl).not.toHaveBeenCalled();
+  });
+
+  it("words a failed export from its progress and the server's answer", () => {
+    expect(exportFailedText(0, 0, null)).toBe(
+      "The export did not start: the server did not answer after 4 tries. No file was downloaded, so wait a few minutes and export again.",
+    );
+    expect(exportFailedText(0, 0, "")).toBe(
+      "The export did not start and no file was downloaded.",
+    );
+    expect(exportFailedText(40, 100, "Ask a folder manager.")).toBe(
+      "The export stopped after 40 of 100 templates and no file was downloaded. Ask a folder manager.",
+    );
   });
 
   it("stops at once on a refused page (expired run) and downloads nothing", async () => {
     const { clicks, createUrl } = await exportWith(
       "fail=VALIDATION&failSkip=1&failTimes=1",
     );
-    await waitStatus("Simulated VALIDATION.");
+    await waitStatus(
+      "The export stopped after 0 of 4 templates and no file was downloaded. Simulated VALIDATION.",
+    );
     expect(clicks).toEqual([]);
     expect(createUrl).not.toHaveBeenCalled();
   });
@@ -396,7 +435,7 @@ describe("export and import tab", () => {
   it("validates a file before Import, then imports into the chosen folder", async () => {
     await boot("/?latency=0#/admin/transfer");
     await until(() => {
-      expect(button("Validate")).toBeTruthy();
+      expect(button("Check file")).toBeTruthy();
     });
     const run = button("Import");
     expect(run.disabled).toBe(true);
@@ -412,16 +451,16 @@ describe("export and import tab", () => {
       value: [new File([content], "export.json")],
     });
     expect(
-      [...labelled<HTMLSelectElement>("Target folder").options].map(
+      [...labelled<HTMLSelectElement>("Import into").options].map(
         (o) => o.text,
       ),
     ).not.toContain("My templates");
-    labelled<HTMLSelectElement>("Target folder").value = "F-QUOTES";
+    labelled<HTMLSelectElement>("Import into").value = "F-QUOTES";
     input.dispatchEvent(new Event("change"));
-    button("Validate").click();
+    button("Check file").click();
     await until(() => {
       expect(status()).toContain(
-        "Validated. Import would create 1 templates, 1 skipped, 0 failed.",
+        "Checked. Import would create 1 templates, 1 skipped, 0 failed.",
       );
     });
     expect(text()).toContain(
@@ -429,8 +468,8 @@ describe("export and import tab", () => {
     );
     const report = [...main().querySelectorAll(".import-report table")];
     expect(report.map((t) => t.querySelector("caption")?.textContent)).toEqual([
-      "Validate report",
-      "Skipped and failed records",
+      "Check result",
+      "Skipped and failed templates and folders",
     ]);
     expect(
       [...(report[0]?.querySelectorAll("tbody td") ?? [])].map(
@@ -455,16 +494,16 @@ describe("export and import tab", () => {
       main().querySelector(".import-report table"),
     );
     expect(document.activeElement?.querySelector("caption")?.textContent).toBe(
-      "Import report",
+      "Import result",
     );
   });
 
   it("asks for a file, and refuses a file over the limit before reading it", async () => {
     await boot("/?latency=0#/admin/transfer");
     await until(() => {
-      expect(button("Validate")).toBeTruthy();
+      expect(button("Check file")).toBeTruthy();
     });
-    button("Validate").click();
+    button("Check file").click();
     await until(() => {
       expect(status()).toContain("Choose an export file first.");
     });
@@ -472,9 +511,11 @@ describe("export and import tab", () => {
     const big = new File(["x"], "big.json");
     Object.defineProperty(big, "size", { value: 6 * 1024 * 1024 });
     Object.defineProperty(input, "files", { value: [big] });
-    button("Validate").click();
+    button("Check file").click();
     await until(() => {
-      expect(status()).toContain("The file is larger than 5 MB.");
+      expect(status()).toContain(
+        "The file is larger than 5 MB. Export smaller folders and import them one by one.",
+      );
     });
   });
 
@@ -484,7 +525,7 @@ describe("export and import tab", () => {
       expect(button("Export folder")).toBeTruthy();
     });
     expect(text()).not.toContain("Whole library");
-    expect(text()).not.toContain("Validate");
+    expect(text()).not.toContain("Check file");
     expect(
       [...labelled<HTMLSelectElement>("Folder").options].map((o) => o.text),
     ).not.toContain("Support");
@@ -509,7 +550,7 @@ describe("config tab", () => {
       "groupsapp_direct",
       "active_user",
       "INDEX_REV",
-      "850 KB (warning at 3.00 MB)",
+      "850 KB (the app warns at 3.00 MB)",
     ])
       expect(text()).toContain(value);
     await until(() => {
@@ -519,12 +560,22 @@ describe("config tab", () => {
         ),
       ).toEqual(["2026-11-09", "2026-11-08", "2026-11-07"]);
     });
-    expect(text()).toContain("3 daily copies (14 kept).");
+    expect(text()).toContain("3 nightly backups. The app keeps the last 14.");
+    // Job names read in words; the raw name the runbook uses follows in small type.
+    expect(
+      [...main().querySelectorAll(".admin-table tbody .row-title")].map(
+        (name) => name.parentElement?.textContent,
+      ),
+    ).toEqual([
+      "Save insert counts and refused actions tick",
+      "Refresh groups refreshMembers",
+      "Nightly backup and cleanup daily",
+    ]);
     // Settings, Jobs and Backups sit in one container that sets their shared width and first column.
     const config = main().querySelector(".config") as HTMLElement;
     expect(
       [...config.querySelectorAll("h2")].map((heading) => heading.textContent),
-    ).toEqual(["Settings", "Environment", "Jobs", "Backups"]);
+    ).toEqual(["Settings", "Technical details", "Background jobs", "Backups"]);
     expect(text()).not.toContain("RECIPIENTS_EXTERNAL");
   });
 
@@ -542,10 +593,10 @@ describe("config tab", () => {
     const confirm = dialog() as HTMLElement;
     expect(confirm.textContent).toContain("Restore the backup of 2026-11-08?");
     expect(confirm.textContent).toContain(
-      "Every change made after 2026-11-08 is lost",
+      "Changes made after that day are lost",
     );
     expect(confirm.textContent).toContain(
-      "Templates emptied from the trash after 2026-11-08 cannot come back",
+      "templates emptied from the trash after 2026-11-08 cannot come back",
     );
     expect(document.activeElement?.textContent).toBe("Cancel");
     button("Cancel", confirm).click();
@@ -603,7 +654,7 @@ describe("config tab", () => {
     save.click();
     const confirm = dialog() as HTMLElement;
     expect(confirm.textContent).toContain("Turn off personal templates?");
-    expect(confirm.textContent).toContain("Nothing is deleted.");
+    expect(confirm.textContent).toContain("Nothing is deleted:");
     expect(document.activeElement?.textContent).toBe("Cancel");
     button("Cancel", confirm).click();
     await until(() => {
@@ -736,7 +787,7 @@ describe("config tab", () => {
   it("shows the empty and error states of the config tab", async () => {
     await boot("/?latency=0&fail=INTERNAL&failOp=config.get#/admin/config");
     await until(() => {
-      expect(text()).toContain("The configuration could not be loaded.");
+      expect(text()).toContain("Settings could not be loaded.");
     });
     expect(toasts()).toContain("Request ID");
   });

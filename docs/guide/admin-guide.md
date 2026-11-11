@@ -52,7 +52,7 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 ## Grant a folder
 
 1. Admin, "Folders and grants". Select the folder in the tree.
-2. "Effective access" lists Principal, Level and Source ("this folder", or the parent path with "(inherited)"). An empty folder reads "Only admins can see this folder. Add a grant to share it."
+2. "Who has access" lists Principal, Level and Source ("this folder", or the parent path with "(inherited)"). An empty folder reads "Only admins can see this folder. Give access to share it."
 3. Under "Add grant", pick "Type", fill "Principal", pick "Level", click "Add grant".
 
 | Type | Principal | Who gets access |
@@ -60,7 +60,7 @@ Role matrix (ADR-0003 Part C). "yes on source and target" means the level is nee
 | "Group" | Group email, for example sales-team@migway.com | Direct members of the group (next section) |
 | "User" | One person's email | That person |
 | "Domain" | Domain, for example migway.com | Everyone in the domain |
-| "OU (inactive in v1)" | OU path, for example /Field | Nobody in v1 (see below) |
+| "Org unit (not active yet)" | OU path, for example /Field | Nobody in v1 (see below) |
 
 - A grant to a principal that already has one on the folder changes its level.
 - "Remove" on a row deletes the grant at once, with no confirmation.
@@ -80,7 +80,7 @@ The app reads group members through Apps Script GroupsApp (`groupsapp_direct`). 
 
 ## OU grants are inactive in v1 (D17)
 
-- An OU grant is stored and shown with "Inactive: OU resolution needs the Directory resolver". It gives nobody access.
+- An OU grant is stored and shown with "Not active yet. Org units do not give access in this version.". It gives nobody access.
 - To share with an OU now, create a Google Group with the same people and grant the group.
 
 ## Memberships tab
@@ -88,7 +88,7 @@ The app reads group members through Apps Script GroupsApp (`groupsapp_direct`). 
 - The summary reads "Resolver: groupsapp_direct (direct members only). Last refresh: <time>."
 - The table lists every group named in a grant or in `ADMIN_GROUP`: Group, Members, Child groups, Status.
 - The `refreshMembers` job refreshes the list every 15 minutes.
-- "Refresh now" shows "Refreshing memberships..." and then "Refreshed n groups."
+- "Refresh now" shows "Refreshing groups..." and then "Refreshed n groups."
 - The child-group warning row is not yet verified on dev.
 
 ## Audit log
