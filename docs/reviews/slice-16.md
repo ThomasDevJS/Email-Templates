@@ -2,7 +2,11 @@
 
 Date: 2026-11-11. Branch `slice/16-app-admins`, head 6bf8c86 (merge of main line 223f9bb into implementer head 9aae84e). Slice diff `f85db33..9aae84e`, 30 files, +1475 -32.
 
-## Verdict: FAIL
+## Final verdict: PASS (retry 1, head 64adc1c)
+
+First review FAIL on 6bf8c86 (2 client texts). Retry 1 fixes both must-fixes and minors 1 to 5; see "Retry 1" at the end.
+
+## First review verdict: FAIL
 
 The security core holds. No probe let a non-admin gain admin, let an admin lock everyone out, or let a change escape the audit. Two client texts of spec 7.3 are wrong or never shown, and a real user reaches both. Both fixes are small and web only.
 
@@ -60,3 +64,43 @@ Diff checks: `appsscript.json`, `package.json`, `package-lock.json`, `scripts/li
 - Whether `domain_public` returns suspended users and users hidden from the directory (hidden ones are refused, fail closed).
 - An alias with its primary in another Workspace domain.
 - Smoke steps 1 to 8 end to end, including the Gmail panel after removal.
+
+## Retry 1 (head 64adc1c = 009a43a plus clean merge of main line 9773b75)
+
+Verdict: PASS. No must-fix left. Retry diff `2224afd..009a43a` (first parent), 18 files, +377 -53.
+
+Must-fix 1, DENIED text. Chromium, dev harness, `?fail=DENIED&failOp=<op>`: Add admin, Remove admin, Settings Save (after the "Turn off" dialog), Refresh groups, Empty trash, whole-library Export each show "You are no longer an admin, so nothing was changed. Ask an admin if you need access." (Export prefixes its own "The export did not start..." sentence). No other DENIED text on the page. Folder export as a manage holder (`?admin=0`) keeps the folder text. `aria-invalid` stays off on DENIED for Add and Remove. Text recorded in `docs/design/wording.md`. The 8 new web tests (`adminReports.test.ts` 7, `admin.test.ts` 1) all fail on the 6bf8c86 web code.
+
+Must-fix 2, Directory failure. Server: INTERNAL, `details.reason` ADMIN_CHECK, retryable, list unchanged (3 error shapes). Chromium with `flaky@example.com`: the status line shows "The address could not be checked. Try again.", no toast, field not marked, focus on the status line.
+
+In-lock subject. `lockedSubject` (`dispatch.ts:196`) rebuilds the caller from the snapshot and the in-lock index for admin and level rows; `any` rows return first. Probe, in-app admin removed between dispatch check and lock: `grant.add`, `template.create`, `folder.create` (top level), `folder.rename`, `template.delete`, `admin.add`, `config.set`, `backup.restore`, `trash.purge` all DENIED, 0 writes, 1 denied row each. On 6bf8c86 the first 5 level ops succeeded (4 with a write). Break-glass, group and in-app admins pass `grant.add`, `folder.create`, `config.set` in the lock. A user whose `edit` grant is removed mid-flight: DENIED, 1 row; with the grant: ok. Cost per level write: Drive calls 3 as before; props 13 (was 10, snapshot reads in prod), Script Cache 12 (was 10). Full suite passes, read-count tests included.
+
+`editedList` with a null edit: CONFLICT "The admin list changed while you worked. Reload the page and try again."; `?? []` is gone; no reachable path writes an empty list in place of the real one.
+
+Directory warn line: `action` "directory.users.get", `errorCode` "ADMIN_NO_ACCOUNT:404", "ADMIN_CHECK:503", "ADMIN_CHECK:0" (no `details.code`); no address, no message text, also when the Directory message names the address.
+
+Results: `email` is the stored main address. Alias add returns the main address for add and repeat; the page shows "ana.moreno@example.com is already an admin." for the harness alias.
+
+Regression of first-review checks: `config.set` name `admins` VALIDATION; crafted backup with another admin restores with the live list (removed admin stays out); `import` with `admins` ignored; audit events in the commit; added admin is admin on the next request, removed admin DENIED on the next web op and loses the folder in add-on `folder.list`.
+
+Merges: `git show --remerge-diff 64adc1c` empty. 2224afd resolved 3 conflicts (implementer memory, reviewer memory, smoke.md) by keeping both sides. `src/addon/**`, `src/shared/placeholders/**`, `appsscript.json`, `package*.json`, `scripts/lib/html.mjs` equal 9773b75. Files that differ from 9773b75 are the slice files plus 2 memory files and the handoff.
+
+Commands, clean install on 64adc1c:
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | 0, 559 packages, audit 16 (14 moderate, 2 high) |
+| `npm run lint` | 0 problems |
+| `npm run typecheck` | clean |
+| `npm run test:coverage` | 68 files, 1882 tests passed; lines 97.95, statements 97.11, branches 90.87 |
+| `npm run build -- --env dev` | Code.js 364.7 KB of 800, index.html 379.2 KB of 400 |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 16 runs, all 100 |
+
+Secret scan of the retry diff: no keys, tokens or URLs; addresses are `example.com` test data.
+
+Minors (retry 1):
+1. The Directory warn line has `requestId` "" and `actor` "": it sits in the same execution as the `admin.add` line but carries no link to it. Pass the request ID when touched.
+2. Spec 7.3 still says "existing DENIED text of section 7" for the Admins section; the architect aligns it with `wording.md`.
+3. Open from the first review: smoke "Slice 16" not run on dev (criterion 16); real Directory statuses unverified.

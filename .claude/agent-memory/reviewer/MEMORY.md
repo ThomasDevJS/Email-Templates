@@ -95,6 +95,7 @@
   - Mechanism: index.json `admins` (shared/model/admins.ts adminEntriesOf, ADMINS_MAX 20), isAdminEmail 5th input lazy, subjectFor(email, snap, props, index thunk); dispatch admin-row recheck passes in-lock index. handlers/admins.ts change() = withLock + recheck + commitLocked.
   - Must fix: DENIED shows "...this template. Ask a folder manager." in Admins section (status.ts messageOf); Directory INTERNAL text never shown (generic toast).
   - Minors: level-row recheck uses pre-lock isAdmin (removed admin's in-flight grant.add lands); `?? []` latent wipe admins.ts:109; no auto-retry in web client (handoff wrong); smoke "record Directory text" impossible (raw message not logged).
+  - Retry 1 PASS (review on 64adc1c): ADMIN_DENIED_TEXT via adminLineText (status.ts) on 8 admin-only actions; ADMIN_CHECK shown in line; lockedSubject (dispatch.ts) for admin+level rechecks (9 ops DENIED in race, 5 passed on old code); editedList CONFLICT; Directory warn line errorCode reason:status. 68 files, 1882 tests, index.html 379.2 KB, Lighthouse 100x16.
 
 - Slice 15 one-click insert D31 (2026-11-11): PASS (on 581232a, merge of main 223f9bb into e9ef9d8). 67 files, 1818 tests, lines 97.82, Code.js 358.2 KB, index.html 376.1 KB, Lighthouse 100x15, 10 scopes + layoutProperties.secondaryColor.
   - Code: render.ts `closeGaps(parts)` (null = gap); flows.ts Flow A `insertFlow` (rc vs list lengths, unknown -> details card counted=1), Flow B `previewFlow`, Flow C `promptInsertFlow`; cards/details.ts `detailsCard`, `panelDetailsCard`.
@@ -142,6 +143,7 @@
 - Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.
 - Privilege lists: probe stored-variant matrix (case, plus, dots, homoglyph, display name, nested, proto) and a level-row race, not only admin rows.
 
+- Merges with memory conflicts: `git show --remerge-diff <merge>` shows how each conflict was resolved; check both sides kept.
 - Merge heads: compare `git diff <main> <merge>` with the slice's own diff per file; equal = nothing lost.
 - Renderer changes: fuzz head vs base copy in one vitest file importing both src trees.
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
