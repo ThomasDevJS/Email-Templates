@@ -79,7 +79,7 @@ Needs: the dev deployment after `npm run deploy -- dev` (reopen the sidebar), th
 5. Library: star "Smoke 3 quote" with the mouse, then another row with Tab to its star cell and Enter: "Added ... to favorites.", star filled. "★ Favorites" shows only starred rows; press it again to see all.
 6. Library search: `/`, type `quote for`: "Smoke 3 quote" (subject match). Type a word that is only in a body: it appears under "Matches in text" within 1 s. `folder:smoke tag:smoke` filters. DevTools, Performance, User Timing: `library.list` under 50 ms, `library.body` under 1 s.
 7. Gmail, compose, open the add-on (Open library cleared the cached view): "Favorites" lists the starred templates with their folder path; "Recent" lists templates inserted in steps 1 to 3 after the next `tick`. Type `quote` in "Search templates" and leave the field: results replace Home; clear the field: Home returns.
-8. Second account: compose, open the add-on: no "Favorites" or "Recent" entries from your templates; search `quote` shows "No templates match quote. Try folder: or tag:.".
+8. Second account: compose, open the add-on: no "Favorites" or "Recent" entries from your templates; search `quote` shows `No templates match "quote". Try fewer words, or remove folder: and tag: from the search.`.
 9. Editor, Executions: `search`, `favorite.set` and `search.body` lines carry `action`; a warm `sidebar.home`, `search` and `template.apply` show `"props":1` and `"drive":0`. No subject text, body text or query text in any line. Script Properties: `FAVORITES_REV` and `USAGE_REV` are set.
 
 ## Slice 5b
@@ -147,6 +147,18 @@ Needs: the dev deployment of this build (reopen the add-on). The web editor has 
 7. "Insert body only": new draft, Review, "Insert body only": body `Hello` only; Subject, To, Cc and Bcc stay empty.
 8. Regression: new draft, row "Smoke 9 plain" shows Insert and no "Adds" line. One tap inserts `Plain` at the cursor.
 9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `draft` with counts and `hasSubject` only. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
+
+## Slice 12
+
+Needs: the dev deployment of this build (reload Gmail), a user with at least 1 favorite, 1 recent template, 1 template with prompts and the Slice 9 template "Smoke 9 recipients". Take one screenshot of each card in steps 1 to 7 and attach it to the handoff. Compare each with the card sketches in docs/handoffs/2026-11-11-implementer-to-reviewer-slice-12.md.
+
+1. Draft toolbar, home: no card header (Gmail's bar alone says "Migway Templates"). "Search templates" with the hint "Tip: add folder:Sales or tag:pricing to narrow the search." below. "Favorites" rows have a star icon, "Recent" rows a clock icon, "Folders" rows a folder icon and "n templates". Each template row: title, then the folder path, then "1 field to fill" or "Adds Cc 1" only where it applies. Each row has one dark slate "Insert" (or "Review"). "Open library" sits in a fixed bar at the bottom, outlined.
+2. Same card with more than 5 folders or favorites: the section shows 5 rows and a "Show more" control (Gmail's wording) for the rest.
+3. Draft toolbar, open a folder: header is the folder path; subfolders first with folder icons, then template rows with a document icon; "Previous" and "Next" when there are over 20 templates; "Open library" at the bottom.
+4. Draft toolbar, search `zzqx`: `No templates match "zzqx". Try fewer words, or remove folder: and tag: from the search.`. Search a real word: "Results" rows with a document icon.
+5. Draft toolbar, tap a template title: header is the template title; "Insert" is the only filled button; "Insert with subject", "Insert body only" and "Edit in library" are outlined. A template with prompts, Insert: the prompt card footer has a filled "Insert" and a plain "Cancel".
+6. Side panel, no message open, then with a message open: the same home, folder, search and preview cards, with no Insert or Review on rows or the preview. Each card ends with "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar."
+7. State card: open a folder in the panel, delete one of its templates in the library in another tab, then tap that template's title in the panel: "This template was removed or moved. Press Refresh to update the list." with Refresh. No card header.
 
 ## Spike S7
 

@@ -9,7 +9,7 @@ Migway Templates adds a panel to the Gmail compose window. One click puts a save
 1. In Gmail, click Compose or Reply.
 2. Click into the message text where the template should go. Do this first: while the panel is open, you cannot type in the draft.
 3. Click the Migway Templates icon at the bottom of the compose window. In a narrow window it may sit under "More options".
-4. Find the template under "Favorites", "Recent", "Folders" or "Search templates".
+4. Find the template under "Favorites" (star icon), "Recent" (clock icon), "Folders" or "Search templates". Favorites and Recent show only when they hold a template.
 5. Click "Insert" next to it. The text goes in where your cursor was.
 
 Click a template's title to see a preview with the subject, the start of the text and "Fields to fill".
@@ -49,7 +49,7 @@ Some templates add fixed addresses to To, Cc or Bcc, for example safety in Cc. T
 
 ## Your own templates in "My templates"
 
-1. In the panel, click "Open library".
+1. In the panel, click "Open library" at the bottom.
 2. Select "My templates" in the folder list on the left.
 3. Click "+ New template", fill "Title" and the text. "Subject" and "Tags" are optional.
 4. Click "Save" or press Ctrl+S. The status reads "Saved as version 1" and the time.
@@ -75,5 +75,5 @@ Some templates add fixed addresses to To, Cc or Bcc, for example safety in Cc. T
 - "You don't have access to this template. Ask a folder manager.": ask the folder's manager or the Migway Templates admin.
 - No Migway Templates icon: ask the Migway Templates admin.
 - "Cannot identify your Migway account.": you are signed in to several Google accounts. Use a separate Chrome profile for Migway.
-- "Busy, try again." or "Service is busy. Try again in a minute.": wait, then click "Retry".
+- "Busy right now. Press Retry in a few seconds." or "Service is busy. Try again in a minute.": wait, then click "Retry".
 - "Something went wrong." with a Request ID: send the Request ID to the admin.
