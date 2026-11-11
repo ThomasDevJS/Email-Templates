@@ -56,3 +56,13 @@ docs/ops/smoke.md, docs/ops/test-round-1.md (new), test/unit/docs/links.test.ts,
 ## Commands
 
 `npm ci`, `npm run test`, `npm run format:check`, `python3 <scratchpad>/s17/quotes.py <worktree> <doc>`.
+
+## Retry 1 (review docs/reviews/slice-17.md, base 2321180)
+
+- Must fix 1: D11 and I11 count only rows with today's date after a start time the tester writes down, and name each expected row; I11 names the denied `config.set` row of I9.
+- Must fix 2: D13 exports only `R&D <b>` (1 template, exact texts); D14 deletes the copy, the subfolder and "Import test" and states the end state (only empty folders can be deleted).
+- Must fix 3: rule 2 and the part G intro keep the drafts of G1 and G2 until G4, then discard; G7 deletes the S7 drafts.
+- Must fix 4: C4 adds the phone when the directory has one.
+- Minors 1 to 10: T2, T5, T7 setup written with `{{...}}` and the menu rule; F3, E1 (Open library for a fresh list), D6, H4 and smoke Slice 9 step 9 (`draft` shape), every step has "Expect:", smoke Slice 15 step 3, part I actor, "your name" defined once; part G addresses kept.
+- Walk of A, E, F, G, H, beyond the review: C8 and F8 first name optional; E3 falls back to search when T4 is not in Recent; F and I state their start and end state; H1 gained an "Expect:"; H4, H5, H6, H11 read only the lines of this run.
+- Checks: `npm run test` 68 files, 1883 tests passed; `npm run format:check` clean. Quote check: smoke.md 484 quotes, 343 found, 141 by hand; test-round-1.md 560 quotes, 384 found, 176 by hand (new ones: test data, `importSummary`, `exportFileName` slug `r-d-b`, `Deleted folder "..."`).
