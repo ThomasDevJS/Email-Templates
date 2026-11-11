@@ -138,12 +138,12 @@
 
 ## Open items handed forward
 - Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
-- Smoke step with a 4.9 MB import (spec 13.5) not written. Smoke "Slice 9" Needs line still names `RECIPIENTS_EXTERNAL`.
+- Smoke step with a 4.9 MB import (spec 13.5) not written.
 - Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check vs Apps Script reformatting.
 
 ## Slice 13 (fix round, 2026-11-11)
 - `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
 - `recheckRecipients` (body.ts) inside every write commit; `problemsError` shared with `prepareBody`. `trash.purge` returns `templates`, `folders`.
-- Buffer kind `change` (export events, first page); full buffer: applies and changes take a denied slot. `RequestStats.target` feeds the log `targetId` when args lack `id`/`folderId`.
+- Retry 1: export event on every page, page refused BUSY when not stored; buffer ranks denied < apply < change; busy-lock drops in `evt:lost`. `joinExportPages` (audit/query.ts) joins chained pages into one row. Web export retries BUSY 3 times; harness `&failTimes=n`. Old `from` args: reload hint. `RequestStats.target` feeds the log `targetId` when args lack `id`/`folderId`.
 - `prof:<sha256>` keys; `FakeCache.keys()`. `cancelDialogs()` on Back/Forward; backdrop `preventDefault`. Library folder choice for New template (`lastNewFolder`); harness `?access=use`.
 - Search: `SearchFields.addresses` + `Query.words`, web only. Worktree guard: `cd X && python3 - <<EOF` refused; run `python3 - <<'EOF'` alone, cat-heredoc appends refused (use Edit).

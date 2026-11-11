@@ -85,3 +85,56 @@ Secret scan of added lines (AIza, ya29., GOCSPX, client_secret, refresh_token, P
 ## Files touched
 
 src/server: audit/buffer.ts, directory/profile.ts, dispatch/dispatch.ts, dispatch/handle.ts, handlers/admin.ts, body.ts, config.ts, history.ts, templates.ts, transfer.ts, jobs/daily.ts, jobs/tick.ts, metrics.ts. src/shared: body/prepare.ts, search/match.ts. src/web: admin/actions.ts, app.ts, dev-harness.ts, library/model.ts, rpc/api.ts, ui/dialog.ts, views/adminSettings.ts, library.ts, trash.ts. src/addon/cards/home.ts. Tests: 16 files (listed in `git diff --stat`). Docs: docs/ops/smoke.md, docs/design/screens/13/ (6 PNG), this handoff.
+
+## Retry 1 (after review acf07ee, FAIL)
+
+Commits: 7c060f4, 5250545, 45833aa, 7edc9a7 and the handoff commit. Not merged, not pushed. The run was cut by a machine restart after 7c060f4; the uncommitted work was read, kept, fixed (one misplaced doc comment in data.ts, the audit grouping replaced) and committed.
+
+### Done
+
+| # | Fix | Where | Test |
+|---|---|---|---|
+| M1, M2 | Every export page writes its own event, whatever `offset`: actor, scope, `targetId`, `targetPath`, `after { scope, offset, templates, total }`; no title, subject, body or address. The event goes into the buffer before any body is read; not stored (lock busy, buffer full of change events) answers BUSY (retryable) with no data | server/handlers/transfer.ts `recordExport` | adminReports.test.ts: offsets 1 and 21 each write an event; lock busy refuses and the answer holds no content; full buffer of changes refuses, full of applies makes room |
+| 6 (minor) | Buffer ranks denied < apply < change. A new event of higher rank takes the slot of a lower one; a refused change event throws to its caller | server/audit/buffer.ts | jobs.test.ts |
+| 2 | Web export retries a BUSY page 3 times after 200, 400, 600 ms, then stops: "The export stopped: the server was too busy to record it in the audit log. Nothing was downloaded. Try again in a minute." No blob, no download on any failure | web/views/adminTransfer.ts; harness `&failTimes=<n>` | web adminReports.test.ts: 2 BUSY then success downloads 1 file; BUSY always gives the message, 0 clicks, 0 `createObjectURL` |
+| 3 | Audit log joins the pages of one export into one row: oldest first, a page joins the open row of the same actor, action and target when its `offset` equals where that row ended and `total` matches. The row carries `exportPage { offset, templates, total }` and reads "Library exported, all 25 templates" or "Folder exported, all 3 templates". A page that continues nothing keeps its own row with its range ("templates 2 to 25 of 25" for an offset-1 export), so a skipped page shows. Rows and `total` count after joining; the drawer opens the first page's event | server/audit/query.ts `joinExportPages`; web admin/actions.ts `rowActionWords` | adminReports.test.ts (pure join, 9 events, 7 rows; audit.query joins 2 pages); adminActions.test.ts |
+| 5 (minor 3) | `config.set` with a `from` arg answers VALIDATION "This page is out of date. Reload it and save again."; nothing is written | server/handlers/config.ts `setRequest` | settings.test.ts (2 cases; index settings stay undefined) |
+| 6 (minor 5) | Apply and denied events lost to a busy lock count in `evt:lost` (no lock needed); `tick` adds the rise to `audit.dropped` | server/audit/buffer.ts | jobs.test.ts |
+| 7 (minor 7) | smoke.md Slice 9 Needs paragraph: the one sentence now reads "Admin, Config, Settings, Outside recipients: allowed." Nothing else in the paragraph changed | docs/ops/smoke.md | prettier |
+
+Old-code check: `git checkout acf07ee -- src`, 5 test files: 10 failed (all the new tests above), 359 passed; `src` restored from HEAD.
+
+### Changed user-facing texts
+
+- Export, BUSY after 3 retries: "The export stopped: the server was too busy to record it in the audit log. Nothing was downloaded. Try again in a minute."
+- Server BUSY text of a refused page: "The export could not be recorded in the audit log. Try again in a moment."
+- Audit log export row: "Library exported" became "Library exported, all 25 templates" (or a range for a page that continues nothing).
+- `config.set` old args: "This page is out of date. Reload it and save again."
+
+### Left for later
+
+- Minor 4: the in-lock recipient re-check refuses the whole import where the normal path drops the address; same safety, different text.
+- Minor 6: covered by the rank rule (change above apply); no further change planned.
+- First-pass items now done: smoke.md:139 sentence and the busy-lock export loss.
+- Spec and ADR passages for the architect, in addition to the list above: ADR-0002 line 128 (export events go through the buffer with refusal on failure), ADR-0003 lines 185, 187 (rank rule, `evt:lost`), spec 11.1 line 575.
+
+### Risks
+
+- An export of n pages now writes n events (25 templates: 2). The buffer holds 200; a library of 4,000 templates fills it in one export, after which applies and denied events lose their slots until `tick` runs (1 minute) and later pages answer BUSY; the web retries for 1.2 s only.
+- Joining runs per filtered month page: a time filter that cuts an export in two shows two rows.
+
+### Checks (clean install: `rm -rf node_modules && npm ci`, exit 0)
+
+| Command | Result |
+|---|---|
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 64 files, 1706 tests passed. All files 95.89 statements, 89.99 branches, 96.78 lines (addon 100, server 99.31, shared 100, web 92.2) |
+| `npm run build -- --env dev` | Code.js 358.3 KB of 800 KB, index.html 361.7 KB of 400 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 14 of 14 views at 100 |
+
+Not touched in retry 1: src/web/views/editor.ts, src/web/editor/, history.ts, preview.ts, problems.ts, tags.ts, ui/dialog.ts, styles.css, appsscript.json, package files, scripts/. Secret scan of added lines: 0 hits, no URLs. Addresses added: example.com fixtures only.
+
+Files touched in retry 1: src/server/audit/buffer.ts, audit/query.ts, handlers/config.ts, handlers/transfer.ts; src/shared/model/data.ts; src/web/admin/actions.ts, dev-harness.ts, rpc/api.ts, views/adminAudit.ts, views/adminTransfer.ts; tests adminReports (server, web), jobs, settings, adminActions; docs/ops/smoke.md; this handoff.
