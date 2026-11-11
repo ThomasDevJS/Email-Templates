@@ -250,7 +250,7 @@ Gmail web, dev build of slice 18, browser agent, about 25 minutes. Run it in Gma
 8. Same message. Row "Reply" on "T6 recipients". Expect: To is only the sender; `test-to@<your domain>` is not added; Cc both test addresses; Bcc `test-bcc@<your domain>`; Subject "Re: ...".
 9. Same message. Click the name "T6 recipients". Expect: the line "A reply goes to the sender, so the template's To is not added. New email adds it."; "Reply" and "Reply all" at the bottom; a "New email" button above them. Click "Reply all". Expect: the reply keeps every Cc the message had and adds the 2 template Cc; Bcc `test-bcc@<your domain>`.
 10. Same message. Double-click the row "Reply" on "T1 plain". Expect: 1 or 2 reply drafts in the conversation, no error. Record: how many reply drafts opened (1 or 2). Discard all.
-11. Library in a new tab: "New template" in "Smoke 6a", title "T9 temp", text `T9`, Save. In Gmail, close the message. In the panel click "Open library", close the library window, then open the folder "Smoke 6a" in the panel. Expect: "T9 temp" is listed. In the library tab delete "T9 temp". Panel: row "New email" on "T9 temp". Expect: "This template was deleted or moved. Open the panel again to update the list." and no new email. T9 stays in the trash.
+11. Library in a new tab: "New template" in "Smoke 6a", title "T9 temp", text `T9`, Save. In Gmail, close the message. In the panel click "Open library", close the library window, then open the folder "Smoke 6a" in the panel. Expect: "T9 temp" is listed. In the library tab delete "T9 temp". Panel: row "New email" on "T9 temp". Expect: no new email. Record: what Gmail shows (the sentence "This template was deleted or moved. Open the panel again to update the list.", a red error bar with the sentence, or nothing). T9 stays in the trash.
 12. Regression, compose toolbar: Compose, click into the text, open Migway Templates from the draft's toolbar, row "Insert" on "T1 plain". Expect: text and subject inserted as in part B.
 
 Decisions taken by this part: step 5 or 6 "n" makes the details card drop its boxes and switch (Q68); no window or an error at step 2 or 5 moves that button into a button row (Q74); an error naming a scope at step 7 or 9 goes to the owner; 2 drafts at step 10 is accepted (Q69). The owner's checks by hand for this part (fresh consent, callback times, log lines) are in docs/ops/smoke.md, section "Slice 18".
@@ -263,4 +263,5 @@ Decisions taken by this part: step 5 or 6 "n" makes the details card drop its bo
 | 6    | switch followed (y/n)                           |        |
 | 7    | signature there, above or below; quoted (y/n)   |        |
 | 10   | reply drafts opened (1 or 2)                    |        |
+| 11   | what Gmail shows: sentence, error bar, nothing  |        |
 | 1-12 | pass, fail or blocked per step, with what shows |        |
