@@ -26,6 +26,7 @@ const PAIRS: readonly (readonly [string, string, number, string])[] = [
   ["ink-2", "canvas", TEXT, "kbd, history preview label"],
   ["ink-2", "select", TEXT, "tags, counts on selected rows"],
   ["ink-2", "hover", TEXT, "counts and owner on hovered rows"],
+  ["ink-2", "blank-bg", TEXT, "the 'or' of a blank with a fallback"],
   ["ink-3", "paper", TEXT, "column heads, counts, subject lines"],
   ["ink-3", "canvas", TEXT, "sidebar headings, subject on hovered rows"],
   ["on-slate", "slate", TEXT, "primary button, avatar"],

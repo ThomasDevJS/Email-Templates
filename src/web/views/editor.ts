@@ -330,7 +330,11 @@ export function editorView(
   let tags: TagEditor = tagEditor(TAGS_MAX, TAG_MAX);
   let fields: Readonly<Record<RecipientField, ChipField>> | null = null;
   const crumbs = h("ol", { class: "crumbs" });
-  const heading = h("h1", { class: "crumb-title" }, "New template");
+  const heading = h(
+    "h1",
+    { class: "crumb-title editor-title" },
+    "New template",
+  );
   const savedState = h("p", {
     class: "saved-state",
     role: "status",
@@ -739,6 +743,7 @@ export function editorView(
     lastSaved =
       loaded.id === "" ? "" : savedText(loaded.version, loaded.updatedAt);
     recipientsChanged();
+    showSaved();
   };
 
   /** The caller's level on the template; a template the library does not list is left to the server. */

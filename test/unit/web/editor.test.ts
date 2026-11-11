@@ -4,6 +4,7 @@ import { NodeSelection, TextSelection } from "prosemirror-state";
 import { toggleMark } from "prosemirror-commands";
 import { DOMParser as PMDOMParser } from "prosemirror-model";
 import {
+  imageWidth,
   insertPlaceholder,
   markActive,
   newTable,
@@ -35,7 +36,7 @@ import {
   serializeDoc,
 } from "../../../src/web/editor/serialize";
 import { createEditor, type Editor } from "../../../src/web/editor/setup";
-import { createToolbar } from "../../../src/web/editor/toolbar";
+import { createToolbar, tooltip } from "../../../src/web/editor/toolbar";
 import { stubLayout } from "./domStubs";
 
 let editor: Editor | null = null;
@@ -75,8 +76,29 @@ describe("placeholder atom in the editor", () => {
     const chip = ed.view.dom.querySelector(".ph");
     expect(chip?.getAttribute("data-ph")).toBe("{{sender.name}}");
     expect(chip?.getAttribute("contenteditable")).toBe("false");
-    expect(chip?.getAttribute("aria-label")).toBe("Placeholder: sender name");
+    expect(chip?.getAttribute("aria-label")).toBe("Field: Sender name");
     expect(chip?.textContent).toBe("Sender name");
+    expect(chip?.className).toBe("ph");
+  });
+
+  it("draws prompts with the ask look and a fallback as name or fallback", () => {
+    const ed = open(
+      "<p>{{ask:Load number}} {{recipient.first_name|there}}</p>",
+    );
+    const [prompt, value] = [...ed.view.dom.querySelectorAll(".ph")];
+    expect(prompt?.className).toBe("ph ask");
+    expect(prompt?.textContent).toBe("Load number");
+    expect(prompt?.getAttribute("aria-label")).toBe(
+      "Field: Load number, asked at insert",
+    );
+    expect(value?.textContent).toBe("Recipient first name or there");
+    expect(value?.querySelector(".ph-or")?.textContent).toBe(" or ");
+    expect(value?.getAttribute("aria-label")).toBe(
+      "Field: Recipient first name, fallback there",
+    );
+    expect(ed.html()).toBe(
+      "<p>{{ask:Load number}} {{recipient.first_name|there}}</p>",
+    );
   });
 
   it("bold across a token yields <strong>{{sender.name}}</strong>", () => {
@@ -341,9 +363,16 @@ describe("schema helpers and picker rules", () => {
     expect(chipText({ name: "foo.bar", label: "", fallback: null })).toBe(
       "foo.bar",
     );
-    expect(chipLabel({ name: "", label: "Date", fallback: null })).toBe(
-      "Placeholder: ask: date",
+    expect(chipText({ name: "", label: "Date", fallback: null })).toBe("Date");
+    expect(chipText({ name: "sender.phone", label: "", fallback: "n/a" })).toBe(
+      "Sender phone or n/a",
     );
+    expect(chipLabel({ name: "", label: "Date", fallback: null })).toBe(
+      "Field: Date, asked at insert",
+    );
+    expect(
+      chipLabel({ name: "sender.phone", label: "", fallback: "n/a" }),
+    ).toBe("Field: Sender phone, fallback n/a");
   });
 
   it("checks labels and fallbacks", () => {
@@ -400,6 +429,10 @@ describe("toolbar", () => {
     );
     document.body.append(toolbar.element);
     const buttons = [...toolbar.element.querySelectorAll("button")];
+    const named = (name: string) =>
+      buttons.find(
+        (button) => button.getAttribute("aria-label") === name,
+      ) as HTMLButtonElement;
     expect(toolbar.element.getAttribute("role")).toBe("toolbar");
     expect(buttons.filter((button) => button.tabIndex === 0)).toHaveLength(1);
     buttons[0]?.focus();
@@ -407,6 +440,7 @@ describe("toolbar", () => {
       new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
     );
     expect(document.activeElement).toBe(buttons.at(-1));
+    expect(buttons.at(-1)?.textContent).toBe("Insert field");
     buttons
       .at(-1)
       ?.dispatchEvent(
@@ -417,20 +451,107 @@ describe("toolbar", () => {
       ed.view.state.tr.setSelection(TextSelection.create(ed.view.state.doc, 2)),
     );
     toolbar.update(ed.view.state);
-    expect(buttons[0]?.getAttribute("aria-pressed")).toBe("true");
-    expect(buttons[1]?.getAttribute("aria-pressed")).toBe("false");
-    buttons[1]?.click();
+    expect(named("Bold").getAttribute("aria-pressed")).toBe("true");
+    expect(named("Italic").getAttribute("aria-pressed")).toBe("false");
+    named("Italic").click();
     expect(ed.view.state.storedMarks?.map((mark) => mark.type.name)).toContain(
       "em",
     );
-    const color = buttons.find((button) => button.textContent === "Color");
-    color?.click();
+    const color = named("Text color");
+    color.click();
     const menu = document.querySelector('[role="menu"]');
     expect(menu?.getAttribute("aria-label")).toBe("Text color");
-    expect(color?.getAttribute("aria-expanded")).toBe("true");
+    expect(color.getAttribute("aria-expanded")).toBe("true");
     menu?.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
     expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("groups icon buttons with dividers, names every button and puts the shortcut in the tooltip", () => {
+    const ed = open("<p>one</p>");
+    const toolbar = createToolbar(
+      {
+        state: () => ed.view.state,
+        run: (command) => {
+          ed.run(command);
+        },
+        focus: () => undefined,
+        insertLink: () => undefined,
+        insertImage: () => undefined,
+        insertTable: () => undefined,
+        insertRule: () => undefined,
+        openPicker: () => undefined,
+      },
+      "ed",
+    );
+    toolbar.update(ed.view.state);
+    const element = toolbar.element;
+    const names = [...element.querySelectorAll("button")].map(
+      (button) => button.getAttribute("aria-label") ?? button.textContent,
+    );
+    expect(names).toEqual([
+      "Undo",
+      "Redo",
+      "Block style: Paragraph",
+      "Text size: Normal",
+      "Bold",
+      "Italic",
+      "Underline",
+      "Strikethrough",
+      "Text color",
+      "Highlight color",
+      "Align text",
+      "Bulleted list",
+      "Numbered list",
+      "Quote",
+      "Link",
+      "Image",
+      "Table",
+      "Horizontal line",
+      "Insert field",
+    ]);
+    expect(element.querySelectorAll('[role="separator"]')).toHaveLength(4);
+    const bold = element.querySelector('[aria-label="Bold"]');
+    expect(bold?.textContent).toBe("B");
+    expect(bold?.getAttribute("title")).toBe("Bold (Ctrl+B)");
+    expect(
+      element.querySelector('[aria-label="Undo"]')?.getAttribute("title"),
+    ).toBe("Undo (Ctrl+Z)");
+    expect(toolbar.placeholder.getAttribute("title")).toBe(
+      "Insert field (type {{)",
+    );
+    expect(tooltip("Quote")).toBe("Quote");
+    const picker = element.querySelector(".picker") as HTMLButtonElement;
+    expect(picker.textContent).toBe("Paragraph");
+    ed.run(setTextStyle(2));
+    toolbar.update(ed.view.state);
+    expect(picker.getAttribute("aria-label")).toBe("Block style: Heading 2");
+    expect(picker.textContent).toBe("Heading 2");
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        TextSelection.create(ed.view.state.doc, 1, 4),
+      ),
+    );
+    ed.run(setMark(schema.marks["font_size"], { size: "18px" }));
+    toolbar.update(ed.view.state);
+    expect(
+      element.querySelectorAll(".picker")[1]?.getAttribute("aria-label"),
+    ).toBe("Text size: Large");
+    (element.querySelector('[aria-label="Undo"]') as HTMLButtonElement).click();
+    expect(ed.html()).toBe("<h2>one</h2>");
+    (element.querySelector('[aria-label="Redo"]') as HTMLButtonElement).click();
+    expect(ed.html()).toBe('<h2><span style="font-size: 18px">one</span></h2>');
+  });
+});
+
+describe("images (slice 8b fix)", () => {
+  it("keeps the image's own width up to 600 px and never stretches it", () => {
+    expect(imageWidth(240)).toBe("240");
+    expect(imageWidth(600)).toBe("600");
+    expect(imageWidth(1800)).toBe("600");
+    expect(imageWidth(320.4)).toBe("320");
+    expect(imageWidth(0)).toBeNull();
+    expect(imageWidth(Number.NaN)).toBeNull();
   });
 });

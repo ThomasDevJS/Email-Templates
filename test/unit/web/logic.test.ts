@@ -36,7 +36,10 @@ import {
 } from "../../../src/web/ui/status";
 import {
   previewAsMe,
+  promptUses,
+  recipientLines,
   senderValues,
+  usedText,
   withChips,
 } from "../../../src/web/views/preview";
 
@@ -483,14 +486,42 @@ describe("previews", () => {
 
   it("gives prompts the ask look in history", () => {
     expect(withChips("<p>{{ask:Load number}}</p>")).toBe(
-      '<p><span class="ph ask" role="img" aria-label="Placeholder: ask: load number">Ask: Load number</span></p>',
+      '<p><span class="ph ask" role="img" aria-label="Field: Load number, asked at insert">Load number</span></p>',
     );
   });
 
-  it("shows tokens as chips in history", () => {
+  it("shows tokens as blanks in history, a fallback as name or fallback", () => {
     expect(withChips("<p>a {{sender.name}} \\{{ {{x.y}}</p>")).toBe(
-      '<p>a <span class="ph" role="img" aria-label="Placeholder: sender name">Sender name</span> {{ <span class="ph" role="img" aria-label="Placeholder: x.y">x.y</span></p>',
+      '<p>a <span class="ph" role="img" aria-label="Field: Sender name">Sender name</span> {{ <span class="ph" role="img" aria-label="Field: x.y">x.y</span></p>',
     );
+    expect(withChips("<p>{{recipient.first_name|a &amp; b}}</p>")).toBe(
+      '<p><span class="ph" role="img" aria-label="Field: Recipient first name, fallback a &amp; b">Recipient first name<span class="ph-or"> or </span>a &amp; b</span></p>',
+    );
+  });
+
+  it("lists each prompt of subject and body once, with how often it is used", () => {
+    expect(
+      promptUses(
+        "<p>{{ask:Load  number}} {{ask:Date}} {{sender.name}}</p><p>{{ask:load number}}</p>",
+        "Load {{ask:Load number}}",
+      ),
+    ).toEqual([
+      { label: "Load number", count: 3 },
+      { label: "Date", count: 1 },
+    ]);
+    expect(promptUses("<p>\\{{ask:X}}</p>", "")).toEqual([]);
+    expect(usedText(1)).toBe("used once");
+    expect(usedText(2)).toBe("used 2 times");
+  });
+
+  it("lists recipients per field with addresses", () => {
+    expect(
+      recipientLines({ to: ["a@x.com", "b@x.com"], cc: [], bcc: ["c@y.com"] }),
+    ).toEqual([
+      { field: "To", addresses: "a@x.com, b@x.com" },
+      { field: "Bcc", addresses: "c@y.com" },
+    ]);
+    expect(recipientLines({ to: [], cc: [], bcc: [] })).toEqual([]);
   });
 });
 
