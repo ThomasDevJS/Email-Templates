@@ -367,6 +367,21 @@ input[aria-invalid="true"] {
   font-size: 10px;
 }
 
+/* The audit log shows the full address under the name part. */
+.who.stacked .who-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.who-address {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* Shell */
 
 .skip {
@@ -1035,8 +1050,17 @@ table {
   list-style: none;
 }
 
+/* Focus ring rule: the ring goes on the active item of a list, never around the whole list. */
 .versions:focus-visible {
-  outline-offset: 4px;
+  outline: none;
+}
+
+.versions:focus-visible .version[aria-selected="true"],
+.tree-item:focus-visible,
+.grid td:focus-visible,
+.admin-table tr:focus-visible {
+  outline: 2px solid var(--slate);
+  outline-offset: -2px;
 }
 
 .versions .version {
@@ -1729,7 +1753,8 @@ code,
   font-size: 12px;
 }
 
-.json-block h3 {
+.json-block h3,
+.facts-heading {
   margin: 20px 0 6px;
   color: var(--ink-2);
   font-size: 13px;
@@ -1749,8 +1774,27 @@ code,
   overflow-wrap: anywhere;
 }
 
+/* Config: Settings, Jobs and Backups share one width and a 200 px first column. */
+.config {
+  max-width: 760px;
+}
+
+.config .facts {
+  grid-template-columns: 200px minmax(0, 1fr);
+}
+
+.config .admin-table th:first-child {
+  box-sizing: border-box;
+  width: 200px;
+}
+
+/* Schedule and time stay on one line; the status column takes the rest. */
+.config .admin-table td:nth-child(2),
+.config .admin-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
 .backups {
-  max-width: 520px;
   margin: 8px 0 0;
   padding: 0;
   border-top: 1px solid var(--line-strong);
@@ -1989,8 +2033,10 @@ code,
     text-align: left;
   }
 
+  /* The column head is already read with each cell, so the visible label gets empty alternative text. */
   .admin-table td[data-label]::before {
     content: attr(data-label);
+    content: attr(data-label) / "";
     flex: 0 0 96px;
     color: var(--ink-3);
     font-size: 12px;
@@ -2050,7 +2096,15 @@ code,
     display: none;
   }
 
-  .facts {
+  /* Folder actions wrap as one 2 by 2 group, never one button alone on a row. */
+  .folder-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .facts,
+  .config .facts {
     grid-template-columns: minmax(0, 1fr);
   }
 

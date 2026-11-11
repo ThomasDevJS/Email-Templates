@@ -23,7 +23,7 @@ import {
   showToast,
   toRpcError,
 } from "./ui/status";
-import { trapTab } from "./ui/dialog";
+import { setInert, trapTab } from "./ui/dialog";
 import { h } from "./ui/dom";
 import { icon, iconSprite } from "./ui/icons";
 import { initials, shortName } from "./ui/person";
@@ -82,10 +82,7 @@ export function startApp(host: Host): AppContext {
   const setPanel = (open: boolean, focusButton = false) => {
     side.classList.toggle("open", open);
     menuButton.setAttribute("aria-expanded", String(open));
-    main.toggleAttribute("inert", open);
-    // `aria-hidden` for browsers without `inert`.
-    if (open) main.setAttribute("aria-hidden", "true");
-    else main.removeAttribute("aria-hidden");
+    setInert(main, open);
     if (open) document.addEventListener("mousedown", outside, true);
     else document.removeEventListener("mousedown", outside, true);
     if (focusButton) menuButton.focus();

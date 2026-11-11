@@ -426,9 +426,8 @@ describe("error presentation (spec section 7)", () => {
     expect(of(ErrorCode.BUSY)).toBe("Busy, try again.");
     expect(of(ErrorCode.QUOTA)).toBe("Service is busy. Try again in a minute.");
     expect(of(ErrorCode.INTERNAL)).toBe("Something went wrong. Retry.");
-    expect(of(ErrorCode.NOT_IMPLEMENTED)).toBe(
-      "This action arrives in a later release.",
-    );
+    // The server never sends NOT_IMPLEMENTED (only the dev harness does), so it gets the generic toast text.
+    expect(of(ErrorCode.NOT_IMPLEMENTED)).toBe("Something went wrong. Retry.");
     vi.stubEnv("TZ", "America/New_York");
     vi.useFakeTimers({
       now: Date.parse("2026-11-10T12:00:00Z"),

@@ -60,14 +60,25 @@ function json(label: string, value: unknown): HTMLElement {
   );
 }
 
+function factList(facts: readonly [string, Node | string][]): HTMLElement {
+  return h(
+    "dl",
+    { class: "facts" },
+    ...facts.flatMap(([term, value]) => [
+      h("dt", {}, term),
+      h("dd", {}, value),
+    ]),
+  );
+}
+
 function details(event: AuditEvent, returnFocus: HTMLElement): void {
   const { word, tone } = resultTag(event.result);
+  const rawTarget = event.targetPath || event.targetId || event.targetType;
   const facts: [string, Node | string][] = [
     ["Time", formatTime(event.ts)],
     ["Actor", `${event.actor} (${event.actorRoles || "no level"})`],
     ["Action", actionWords(event.action)],
-    ["Operation", h("code", {}, event.action)],
-    ["Target", event.targetPath || event.targetId || event.targetType],
+    ["Target", displayPath(event.targetPath) || rawTarget],
     [
       "Result",
       h(
@@ -88,14 +99,12 @@ function details(event: AuditEvent, returnFocus: HTMLElement): void {
     body: h(
       "div",
       {},
-      h(
-        "dl",
-        { class: "facts" },
-        ...facts.flatMap(([term, value]) => [
-          h("dt", {}, term),
-          h("dd", {}, value),
-        ]),
-      ),
+      factList(facts),
+      h("h3", { class: "facts-heading" }, "Technical details"),
+      factList([
+        ["Operation", h("code", {}, event.action)],
+        ["Target", h("code", {}, rawTarget)],
+      ]),
       json("Before", event.before),
       json("After", event.after),
     ),
@@ -123,7 +132,12 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
   });
   const table = h(
     "div",
-    { class: "list", "aria-busy": "true", "aria-label": "Audit events" },
+    {
+      class: "list",
+      "aria-busy": "true",
+      "aria-label": "Audit events",
+      tabindex: "-1",
+    },
     ...skeletonRows(),
   );
   const pager = h("div", { class: "list-actions" });
@@ -171,16 +185,20 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
       );
     });
     const { word, tone } = resultTag(entry.result);
-    return tableRow(COLUMNS, [
-      formatTime(entry.ts),
-      person(entry.actor),
-      h("span", { class: "action", title: entry.action }, words),
-      entry.targetPath === ""
-        ? entry.targetId || entry.targetType
-        : pathBlock(displayPath(entry.targetPath)),
-      toneTag(word, tone),
-      open,
-    ]);
+    return tableRow(
+      COLUMNS,
+      [
+        formatTime(entry.ts),
+        person(entry.actor, true),
+        h("span", { class: "action", title: entry.action }, words),
+        entry.targetPath === ""
+          ? entry.targetId || entry.targetType
+          : pathBlock(displayPath(entry.targetPath)),
+        toneTag(word, tone),
+        open,
+      ],
+      { tabindex: "-1" },
+    );
   };
 
   const pageButton = (label: string, to: number, enabled: boolean) => {
@@ -188,9 +206,14 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     button.disabled = !enabled;
     button.addEventListener("click", () => {
       page = to;
-      load();
+      load(true);
     });
     return button;
+  };
+
+  /** After "Next page" or "Previous page": the first row of the new page, else the list. */
+  const focusPage = () => {
+    (table.querySelector<HTMLElement>("tbody tr") ?? table).focus();
   };
 
   const draw = (data: AuditPage) => {
@@ -208,7 +231,7 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     status.textContent =
       data.total === 0
         ? ""
-        : `Events ${String(first + 1)} to ${String(first + data.rows.length)} of ${String(data.total)}.`;
+        : `Page ${String(data.page + 1)}: events ${String(first + 1)} to ${String(first + data.rows.length)} of ${String(data.total)}.`;
     replace(
       pager,
       pageButton("Previous page", data.page - 1, data.page > 0),
@@ -237,13 +260,15 @@ export function auditTab(app: AppContext, panel: HTMLElement): View {
     );
   };
 
-  const load = () => {
+  const load = (focus = false) => {
     const mine = ++ticket;
     table.setAttribute("aria-busy", "true");
     status.textContent = "Loading audit events...";
     app.api.audit(filter()).then(
       (data) => {
-        if (mine === ticket) draw(data);
+        if (mine !== ticket) return;
+        draw(data);
+        if (focus) focusPage();
       },
       (error: unknown) => {
         if (mine !== ticket) return;

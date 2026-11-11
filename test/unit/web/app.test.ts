@@ -1068,3 +1068,55 @@ describe("states (spec section 7, wireframe 07)", () => {
     });
   });
 });
+
+describe("slice 8d minors", () => {
+  async function library(): Promise<void> {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelectorAll('tbody [role="row"]')).toHaveLength(4);
+    });
+  }
+
+  it("makes the page behind a dialog inert and hidden, and returns focus on close", async () => {
+    await library();
+    const cell = main().querySelector<HTMLElement>(
+      'tbody [role="row"] [role="gridcell"]:nth-child(2)',
+    ) as HTMLElement;
+    cell.focus();
+    key(cell, "F10", { shiftKey: true });
+    (
+      [...document.querySelectorAll('[role="menuitem"]')].at(-1) as HTMLElement
+    ).click();
+    const shell = document.querySelector(".shell") as HTMLElement;
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(shell.hasAttribute("inert")).toBe(true);
+    expect(shell.getAttribute("aria-hidden")).toBe("true");
+    // The toasts stay live, so an error during the dialog is still announced.
+    expect(document.getElementById("toasts")?.hasAttribute("inert")).toBe(
+      false,
+    );
+    key(document.querySelector('[role="dialog"]') as Element, "Escape");
+    expect(shell.hasAttribute("inert")).toBe(false);
+    expect(shell.hasAttribute("aria-hidden")).toBe(false);
+    expect(document.activeElement).toBe(cell);
+  });
+
+  it("gives screen readers the full address in the library By column, next to the tooltip", async () => {
+    await library();
+    const who = main().querySelector("tbody .who") as HTMLElement;
+    const address = who.getAttribute("title") ?? "";
+    expect(address).toMatch(/@example\.com$/);
+    expect(who.querySelector(".sr-only")?.textContent).toBe(` (${address})`);
+  });
+
+  it("gives screen readers the full address in the history version rows", async () => {
+    await boot("/?latency=0#/history/T-QUOTE");
+    await until(() => {
+      expect(main().querySelectorAll('[role="option"]')).toHaveLength(2);
+    });
+    expect(
+      main().querySelector('[role="option"] .version-meta .sr-only')
+        ?.textContent,
+    ).toBe(" (ben@example.com)");
+  });
+});

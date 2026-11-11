@@ -91,7 +91,7 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     let page = await app.api.exportPage(folderId, 0);
     const items = [...page.items];
     while (page.next !== null) {
-      status.textContent = `Exporting... ${String(items.length)} of ${String(page.total)} templates.`;
+      status.textContent = `Exporting ${String(items.length)} of ${String(page.total)} templates...`;
       page = await app.api.exportPage(folderId, page.next);
       items.push(...page.items);
     }
@@ -141,7 +141,7 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
       "p",
       { class: "hint" },
       data.isAdmin
-        ? `Downloads the live templates, folders and grants of the scope you choose ${EXPORT_NOTE}`
+        ? `Downloads the live templates, folders and grants of the scope you choose ${EXPORT_NOTE} A whole-library export leaves out the private folders (each user's My templates).`
         : `Downloads the live templates, folders and grants of a folder you manage and its subfolders ${EXPORT_NOTE}`,
     ),
     scope,
@@ -168,6 +168,7 @@ function reportTables(report: ImportReport): HTMLElement[] {
     { caption: report.dryRun ? "Validate report" : "Import report" },
   );
   counts.classList.add("compact");
+  counts.tabIndex = -1;
   if (report.lines.length === 0) return [counts];
   const lines = adminTable(
     LINE_COLUMNS,
@@ -233,7 +234,10 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
         status.textContent = importSummary(report);
         replace(result, ...reportTables(report));
         validated = dryRun ? { text, target: folderId } : null;
-        if (!dryRun) void app.reload();
+        if (dryRun) return;
+        // The Import button turns disabled, so focus goes to the report it produced.
+        result.querySelector<HTMLElement>("table")?.focus();
+        void app.reload();
       })
       .catch((error: unknown) => {
         status.textContent = lineText(error, app.fail(error));

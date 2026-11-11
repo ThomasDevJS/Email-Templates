@@ -419,7 +419,7 @@ export function foldersTab(
     const isPrivate = folder.kind === "private";
     return h(
       "div",
-      { class: "list-actions" },
+      { class: "list-actions folder-actions" },
       isPrivate
         ? null
         : actionButton(

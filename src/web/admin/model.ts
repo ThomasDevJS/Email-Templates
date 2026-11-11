@@ -172,7 +172,7 @@ export interface ImportCounts {
 
 /** Report sentence of Validate ("would create") and Import (wireframe 06: "40 ok, 2 skipped, 1 failed"). */
 export function importSummary(report: ImportCounts): string {
-  const head = report.dryRun ? "Validate: would create" : "Imported:";
+  const head = report.dryRun ? "Validated. Import would create" : "Imported";
   const flattened =
     report.subjectsFlattened === 0
       ? ""

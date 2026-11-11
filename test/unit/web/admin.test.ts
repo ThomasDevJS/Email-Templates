@@ -409,6 +409,12 @@ describe("folders and grants", () => {
   it("moves a folder after the dialog", async () => {
     await boot("/?latency=0#/admin");
     await openQuotes();
+    // One group the narrow layout lays out as 2 by 2 (styles.test.ts), so no button sits alone on a row.
+    expect(
+      [...main().querySelectorAll(".folder-actions button")].map((b) =>
+        b.textContent.trim(),
+      ),
+    ).toEqual(["New subfolder", "Rename...", "Move...", "Delete..."]);
     button("Move...").click();
     const select = dialog().querySelector("select") as HTMLSelectElement;
     expect([...select.options].map((option) => option.textContent)).toContain(
@@ -538,9 +544,32 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     expect(status()).toContain("Emptying the trash...");
     await until(() => {
-      expect(status()).toContain("Removed 1 template for good.");
+      expect(status()).toContain(
+        "Emptied the trash: 1 template removed for good.",
+      );
     });
     expect(text()).toContain("Trash is empty.");
+  });
+
+  it("says the trash was emptied without a count when the list cannot be reloaded", async () => {
+    await boot("/?latency=0#/trash");
+    await until(() => {
+      expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
+    });
+    // Only the reload after the purge fails: the old list would give "0 templates".
+    window.history.replaceState(
+      null,
+      "",
+      "/?latency=0&fail=INTERNAL&failOp=template.list#/trash",
+    );
+    button("Empty trash now...").click();
+    button("Empty trash", dialog()).click();
+    await until(() => {
+      expect(status()).toContain(
+        "Emptied the trash. The list could not be refreshed.",
+      );
+    });
+    expect(status()).not.toContain("0 templates");
   });
 
   it("counts templates in both the dialog and the result when deleted folders go too", async () => {
@@ -553,12 +582,12 @@ describe("trash", () => {
     });
     button("Empty trash now...").click();
     expect(dialog().textContent).toContain(
-      "Remove all 1 templates in the trash for good? Deleted folders go too.",
+      "Empty the trash? All 1 templates in it are removed for good, and deleted folders go too.",
     );
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Removed 1 template and 1 deleted folder for good.",
+        "Emptied the trash: 1 template and 1 deleted folder removed for good.",
       );
     });
   });
@@ -572,7 +601,7 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Removed 1 template for good. The nightly job deletes the stored versions of 2 of them.",
+        "Emptied the trash: 1 template removed for good. The nightly job deletes the stored versions of 2 of them.",
       );
     });
   });

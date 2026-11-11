@@ -75,7 +75,7 @@ describe("audit log tab", () => {
     expect(text()).toContain(
       "Denied and apply events can arrive up to 5 min late.",
     );
-    expect(status()).toContain("Events 1 to 50 of 60.");
+    expect(status()).toContain("Page 1: events 1 to 50 of 60.");
     expect(labelled<HTMLSelectElement>("Month").value).toBe("2026-11");
     for (const label of [
       "Date from",
@@ -86,12 +86,24 @@ describe("audit log tab", () => {
       "Target",
     ])
       expect(labelled(label)).toBeTruthy();
+    button("Next page").focus();
     button("Next page").click();
     expect(main().querySelector('[aria-busy="true"]')).not.toBeNull();
     await until(() => {
-      expect(status()).toContain("Events 51 to 60 of 60.");
+      expect(status()).toContain("Page 2: events 51 to 60 of 60.");
     });
     expect(button("Next page").disabled).toBe(true);
+    // Focus lands on the first row of the new page, not on the body.
+    expect(document.activeElement).toBe(
+      main().querySelector(".admin-table tbody tr"),
+    );
+    button("Previous page").click();
+    await until(() => {
+      expect(status()).toContain("Page 1: events 1 to 50 of 60.");
+    });
+    expect(document.activeElement).toBe(
+      main().querySelector(".admin-table tbody tr"),
+    );
     labelled<HTMLSelectElement>("Result").value = "denied";
     button("Apply").click();
     await until(() => {
@@ -108,7 +120,7 @@ describe("audit log tab", () => {
     ).toBe("tag bad");
   });
 
-  it("shows actions in words, the actor as an avatar with the full address as tooltip", async () => {
+  it("shows actions in words, the actor as an avatar with the full address under the name", async () => {
     await boot("/?latency=0#/admin/audit");
     await until(() => {
       expect(main().querySelectorAll(".admin-table tbody tr")).toHaveLength(50);
@@ -117,10 +129,13 @@ describe("audit log tab", () => {
     expect(first.querySelector("td:nth-child(3)")?.textContent).toBe(
       "Template updated",
     );
-    expect(first.querySelector(".who")?.getAttribute("title")).toBe(
+    // Visible text, so keyboard and touch users reach it without a tooltip.
+    expect(first.querySelector(".who .who-address")?.textContent).toBe(
       "dev.user@example.com",
     );
-    expect(first.querySelector(".who")?.textContent).toBe("DUDev U.");
+    expect(first.querySelector(".who")?.textContent).toBe(
+      "DUDev U.dev.user@example.com",
+    );
     expect(first.querySelector("td:nth-child(5)")?.textContent).toBe("OK");
     expect(first.querySelector("td:nth-child(5) .tag")?.className).toBe(
       "tag ok",
@@ -156,10 +171,20 @@ describe("audit log tab", () => {
     expect(drawer.textContent).toContain("Request ID");
     expect(drawer.textContent).toContain("App version");
     expect(drawer.textContent).toContain("ms");
-    // The drawer keeps the raw operation name next to the words.
-    expect(drawer.querySelector("dd code")?.textContent).toBe(
-      "template.update",
+    const fact = (term: string) =>
+      [...drawer.querySelectorAll("dt")]
+        .filter((dt) => dt.textContent === term)
+        .map((dt) => dt.nextElementSibling?.textContent);
+    // The target in words; the raw value sits next to the raw operation name under "Technical details".
+    expect(fact("Target")).toEqual(["Sales / Quotes", "/Sales/Quotes"]);
+    expect(fact("Operation")).toEqual(["template.update"]);
+    expect(drawer.querySelector(".facts-heading")?.textContent).toBe(
+      "Technical details",
     );
+    // The page behind the drawer is inert and hidden from assistive technology.
+    const shell = document.querySelector(".shell") as HTMLElement;
+    expect(shell.hasAttribute("inert")).toBe(true);
+    expect(shell.getAttribute("aria-hidden")).toBe("true");
     expect(drawer.querySelector("pre.json")?.getAttribute("tabindex")).toBe(
       "0",
     );
@@ -168,6 +193,8 @@ describe("audit log tab", () => {
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
     expect(dialog()).toBeNull();
+    expect(shell.hasAttribute("inert")).toBe(false);
+    expect(shell.hasAttribute("aria-hidden")).toBe(false);
     expect(document.activeElement).toBe(opener);
   });
 
@@ -248,6 +275,10 @@ describe("export and import tab", () => {
       expect(button("Export")).toBeTruthy();
     });
     expect(labelled<HTMLSelectElement>("Folder").disabled).toBe(true);
+    // export.library skips every private folder tree (server transfer.ts libraryFolders).
+    expect(text()).toContain(
+      "A whole-library export leaves out the private folders (each user's My templates).",
+    );
     button("Export").click();
     expect(status()).toContain("Exporting...");
     await until(() => {
@@ -294,7 +325,7 @@ describe("export and import tab", () => {
     button("Validate").click();
     await until(() => {
       expect(status()).toContain(
-        "Validate: would create 1 templates, 1 skipped, 0 failed.",
+        "Validated. Import would create 1 templates, 1 skipped, 0 failed.",
       );
     });
     expect(text()).toContain(
@@ -320,9 +351,16 @@ describe("export and import tab", () => {
     run.click();
     expect(status()).toContain("Importing...");
     await until(() => {
-      expect(status()).toContain("Imported: 1 templates");
+      expect(status()).toContain("Imported 1 templates");
     });
     expect(run.disabled).toBe(true);
+    // The Import button is disabled now, so focus moves to the report it produced.
+    expect(document.activeElement).toBe(
+      main().querySelector(".import-report table"),
+    );
+    expect(document.activeElement?.querySelector("caption")?.textContent).toBe(
+      "Import report",
+    );
   });
 
   it("asks for a file, and refuses a file over the limit before reading it", async () => {
@@ -361,13 +399,14 @@ describe("config tab", () => {
   it("shows the settings, the jobs table with a late job and its error, and backups", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelector("tr.late .tag.warn")?.textContent).toBe(
-        "Late",
-      );
+      expect(main().querySelector("tr .tag.warn")?.textContent).toBe("Late");
     });
-    expect(main().querySelector("tr.late .status-cell")?.textContent).toBe(
-      "Late2026-11-09T10:15:00.000Z Error: GroupsApp unavailable",
-    );
+    // No class marks the late row; the "Late" tag carries it (review 8c minor 9).
+    expect(main().querySelector("tr.late")).toBeNull();
+    expect(
+      main().querySelector("tr .tag.warn")?.closest(".status-cell")
+        ?.textContent,
+    ).toBe("Late2026-11-09T10:15:00.000Z Error: GroupsApp unavailable");
     expect(text()).not.toContain("Outside recipients");
     for (const value of [
       "example.com",
@@ -386,6 +425,11 @@ describe("config tab", () => {
       ).toEqual(["2026-11-09", "2026-11-08", "2026-11-07"]);
     });
     expect(text()).toContain("3 daily copies (14 kept).");
+    // Settings, Jobs and Backups sit in one container that sets their shared width and first column.
+    const config = main().querySelector(".config") as HTMLElement;
+    expect(
+      [...config.querySelectorAll("h2")].map((heading) => heading.textContent),
+    ).toEqual(["Settings", "Jobs", "Backups"]);
   });
 
   it("restores a backup after a confirmation that names the date, Cancel first", async () => {

@@ -72,6 +72,7 @@ export function historyView(
       "span",
       { class: "version-meta", title: entry.savedBy },
       `${formatTime(entry.savedAt)}, ${shortName(entry.savedBy)}`,
+      h("span", { class: "sr-only" }, ` (${entry.savedBy})`),
     ),
   ];
 

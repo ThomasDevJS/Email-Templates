@@ -46,8 +46,6 @@ export function messageOf(error: RpcError): string {
       return "Busy, try again.";
     case ErrorCode.QUOTA:
       return "Service is busy. Try again in a minute.";
-    case ErrorCode.NOT_IMPLEMENTED:
-      return "This action arrives in a later release.";
     case ErrorCode.CONFLICT:
       return conflictText(error);
     default:

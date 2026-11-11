@@ -67,16 +67,12 @@ function jobsTable(data: ConfigView): HTMLElement {
     adminTable(
       JOB_COLUMNS,
       data.jobs.map((job) =>
-        tableRow(
-          JOB_COLUMNS,
-          [
-            h("span", { class: "row-title" }, job.name),
-            job.schedule,
-            formatTime(job.lastOk) || "never",
-            jobStatus(job),
-          ],
-          job.status === "ok" ? {} : { class: "late" },
-        ),
+        tableRow(JOB_COLUMNS, [
+          h("span", { class: "row-title" }, job.name),
+          job.schedule,
+          formatTime(job.lastOk) || "never",
+          jobStatus(job),
+        ]),
       ),
       { labelledBy: "jobs-heading" },
     ),
@@ -246,7 +242,7 @@ export function configTab(app: AppContext, panel: HTMLElement): View {
       },
     );
   };
-  replace(panel, body, backupsSection(app));
+  replace(panel, h("div", { class: "config" }, body, backupsSection(app)));
   load();
   return { dispose: () => undefined };
 }

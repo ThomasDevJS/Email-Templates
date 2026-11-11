@@ -84,6 +84,6 @@ export function purgeText(
   const plural = (n: number, word: string) =>
     `${String(n)} ${word}${n === 1 ? "" : "s"}`;
   return folders === 0
-    ? `Removed ${plural(templates, "template")} for good.`
-    : `Removed ${plural(templates, "template")} and ${plural(folders, "deleted folder")} for good.`;
+    ? `Emptied the trash: ${plural(templates, "template")} removed for good.`
+    : `Emptied the trash: ${plural(templates, "template")} and ${plural(folders, "deleted folder")} removed for good.`;
 }
