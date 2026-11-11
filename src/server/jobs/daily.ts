@@ -1,8 +1,10 @@
 import type { AuditEvent, IndexDoc } from "../../shared/model/data";
+import { toErrorBody } from "../../shared/errors/codes";
 import { TRASH_DAYS } from "../../shared/model/validate";
 import { auditEvent, type EventSource } from "../audit/events";
 import { rollAudit } from "../audit/roll";
 import { loadIndex } from "../cache/indexCache";
+import { JobError } from "./health";
 import { nowIso, type Services } from "../services";
 import { mutateIndex, type Mutation } from "../storage/writer";
 
@@ -237,13 +239,11 @@ export function runDaily(services: Services): DailyResult {
     try {
       result[name] = step(services);
     } catch (error: unknown) {
-      failed.push(
-        `${name} (${error instanceof Error ? error.message : "error"})`,
-      );
+      failed.push(`${name} (${toErrorBody(error).code})`);
       result[name] = 0;
     }
   }
   if (failed.length > 0)
-    throw new Error(`daily steps failed: ${failed.join(", ")}`);
+    throw new JobError(`daily steps failed: ${failed.join(", ")}`);
   return result;
 }

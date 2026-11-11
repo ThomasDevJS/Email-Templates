@@ -86,6 +86,7 @@ function count(
 
 const DRIVE_READS: ReadonlySet<string> = new Set([
   "readText",
+  "readRawText",
   "getMeta",
   "list",
 ]);
@@ -151,6 +152,7 @@ export function meterDrive(
       createFile: true,
       updateFile: true,
       readText: true,
+      readRawText: true,
       getMeta: true,
       list: true,
       copy: true,

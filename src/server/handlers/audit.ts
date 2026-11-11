@@ -85,7 +85,7 @@ function monthText(
   const rev = `${file.id}.${String(file.size)}`;
   const cached = getChunked(services.cache, prefix, rev);
   if (cached !== null) return cached;
-  const text = services.store().readText(file.id);
+  const text = services.store().readRawText(file.id);
   try {
     putChunked(services.cache, prefix, rev, text, services.nowMs());
   } catch {

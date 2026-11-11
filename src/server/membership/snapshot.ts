@@ -1,3 +1,4 @@
+import { errorSummary } from "../../shared/errors/codes";
 import {
   emptyMembers,
   type GroupSnapshot,
@@ -92,7 +93,7 @@ function readGroup(
         : "";
     return { snapshot, warning };
   } catch (error: unknown) {
-    const reason = error instanceof Error ? error.message : "unknown error";
+    const reason = errorSummary(error);
     return {
       snapshot: {
         members: previous?.members ?? [],

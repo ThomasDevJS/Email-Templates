@@ -294,6 +294,6 @@ describe("refresh job and admin determination", () => {
     const snapshot = refreshSnapshot(world.services, loadIndex(world.services));
     expect(snapshot.resolver).toBe("directory");
     expect(snapshot.groups["admins@example.com"]?.status).toBe("error");
-    expect(snapshot.warnings[0]).toContain("not configured");
+    expect(snapshot.warnings[0]).toContain("(NOT_CONFIGURED AppError)");
   });
 });

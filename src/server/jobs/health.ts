@@ -1,4 +1,4 @@
-import { toErrorBody } from "../../shared/errors/codes";
+import { errorSummary, toErrorBody } from "../../shared/errors/codes";
 import { nowIso, type Services } from "../services";
 
 /** Job health in Script Properties (spec section 16): `job:<name>:lastOk` and `job:<name>:lastError`. */
@@ -12,13 +12,19 @@ export function lastErrorKey(name: string): string {
   return `job:${name}:lastError`;
 }
 
-function describe(error: unknown): string {
-  const name = error instanceof Error ? error.name : "Error";
-  const message = error instanceof Error ? error.message : String(error);
-  return `${name}: ${message}`.slice(0, ERROR_TEXT_MAX);
+/** A job error whose message the job built from step names and codes only: safe to store, show and rethrow. */
+export class JobError extends Error {
+  override name = "JobError";
 }
 
-/** Writes `job:<name>:lastError` as "<time> <error name>: <message>", cut to 500 characters. */
+/** The message of a `JobError`, else "<code> <error name>"; never a platform message. */
+export function jobErrorText(error: unknown): string {
+  return (
+    error instanceof JobError ? error.message : errorSummary(error)
+  ).slice(0, ERROR_TEXT_MAX);
+}
+
+/** Writes `job:<name>:lastError` as "<time> <jobErrorText>", cut to 500 characters. */
 export function recordJobError(
   services: Pick<Services, "props" | "nowMs">,
   name: string,
@@ -26,13 +32,13 @@ export function recordJobError(
 ): void {
   services.props.setProperty(
     lastErrorKey(name),
-    `${nowIso(services)} ${describe(error)}`,
+    `${nowIso(services)} ${jobErrorText(error)}`,
   );
 }
 
 /**
- * Runs one job and writes one log line. A failure records `lastError` and rethrows, so Apps Script also
- * sends its trigger failure email to the owner.
+ * Runs one job and writes one log line. A success clears `lastError`. A failure records `lastError` and rethrows a
+ * `JobError` with the same safe text, so Executions, Cloud Logging and the trigger failure email carry no file text.
  */
 export function runJob<T>(services: Services, name: string, work: () => T): T {
   const started = services.nowMs();
@@ -40,6 +46,7 @@ export function runJob<T>(services: Services, name: string, work: () => T): T {
   try {
     const result = work();
     services.props.setProperty(lastOkKey(name), nowIso(services));
+    services.props.deleteProperty(lastErrorKey(name));
     services.logger.info({
       ...base,
       result: "ok",
@@ -57,6 +64,6 @@ export function runJob<T>(services: Services, name: string, work: () => T): T {
       cache: services.stats.cache,
       error,
     });
-    throw error;
+    throw error instanceof JobError ? error : new JobError(jobErrorText(error));
   }
 }

@@ -32,8 +32,6 @@
   - Minors: import failure says only "Internal error"; dup folder IDs; shared folders inside private tree; buffer flood drops applies; restore dialog silent on post-backup versions and purged bodies; side writes after index commit; no 5 MB smoke step; export offset paging.
   - Architect: export.library drops privates, import drops grants, 200 cap: ADR-0002 owner-change path does not hold.
 - Slice 7 docs (2026-11-10): FAIL (039392e), retry 1 PASS (d74ad53, quick start 844 words, 1244 tests). Open minors: temp password delivery after admin reset; quick start "asks" ignores fallback; recipient address as prof: cache key 6 h.
-  - Must fix: runbook.md:21 password and 2SV handover person to person (fix: Workspace admin resets, new holder enrolls). Quick start D18 omits insert log lines (actor + targetId) and usage.json recent per email.
-  - Minors: Recent "about 5 min" is up to 15 (tick + 10 min view cache); forward subject unverified; grid "By" column; QUOTA Retry not disabled (notice); image width fixed 600; quick start 1,087 words.
 - Slice 9 task 1, spike S6 harness (2026-11-10): PASS (ba36778). 54 files, 1263 tests, lines 96.7 (addon 99.57, entry.ts:138), Code.js 324.9 KB, 10 scopes.
   - Harness: src/addon/spikeS6.ts, callbacks onS6Card/onS6Apply (param b), Reply kind s6, env gate in the flow after respond prelude. Removal list in the handoff.
   - UpdateDraftActionResponse has no navigation or notification: harness results show in the draft only.
@@ -99,6 +97,10 @@
   - Code: addon/panel.ts composeFlow/promptComposeFlow, begin() order (as, messageId, 500 chars, token, header read, apply, rc|version+rh, rendered, one createDraft*). Ports.gmail GmailPort; test/fakes/gmail.ts createRecordingGmail(headers|null, failMethod). event.ts addressesOf (regex), internalAddress, tokenOf.
   - Follow-up 1 PASS (9cbbd87, 1912 tests): panelAnswer throws one sentence (notifications from compose actions not shown in Gmail, part J step 11); caught text dropped; 36 planted-secret runs clean. Minors: NOT_CONFIGURED/AUTH throw joined state lines.
   - Minors: multi-address Reply-To uses last only; message-entry "Adds n" counts To; failed createDraft counts a use (spec ok); part J step 10 no Expect.
+- Slice 19 audit read fix (2026-11-11): FAIL (review on ad343af). Read fix correct; privacy fails. 68 files, 1924 tests, lines 97.96, Code.js 367.5 KB, 10 scopes.
+  - Mechanism: DriveClient.readRawText = restMediaReader (UrlFetch, ScriptApp token) under both clients; monthText, appendAudit, readBackup use it. Strict fake: Advanced alt=media parses JSON, throws "HttpResponseException: Response Code: 200. Message: <text>" otherwise. Revert probe: 19 fail (8 old + 11 new).
+  - Must fix: health.ts describe + daily.ts:241 store raw messages in job:<name>:lastError (Admin page shows when Late); damaged live index.json text with addresses lands there on the fixed build. Runbook: owner deletes job:daily:lastError (and tick) on dev.
+  - Retry 1 PASS (ce47afd, 1928 tests): JobError + errorSummary (code + name), success deletes lastError, fileUrl ID rule ^[\w-]+$, 429 QUOTA, documentText fallback (Advanced fail -> one REST read). Leak probe 6 damaged files x 3 jobs + 6 ops: 0 hits (base: hits).
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -143,4 +145,5 @@
 - Merge heads: compare `git diff <main> <merge>` with the slice's own diff per file; equal = nothing lost.
 - Renderer changes: fuzz head vs base copy in one vitest file importing both src trees.
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
+- Error texts: trace every caught message to properties (job lastError), Admin screens, Cloud Logging (exceptionLogging STACKDRIVER, rethrows), failure emails; probe with a damaged file holding an address.
 - Gmail-action slices: count createDraft* per failure probe with a recording fake; forge action params (values, extra keys) and CR LF; read the message ID source at press time.

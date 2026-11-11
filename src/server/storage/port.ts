@@ -69,6 +69,7 @@ export interface StorePort {
   /** Appends events to `audit/<month>.jsonl`, skipping IDs already in the file. Returns the number appended. */
   appendAudit(month: string, events: readonly AuditEvent[]): number;
   listAuditFiles(): SizedRef[];
-  readText(fileId: string): string;
+  /** A file's text exactly as stored (audit month files are JSON Lines). */
+  readRawText(fileId: string): string;
   trash(fileId: string): void;
 }

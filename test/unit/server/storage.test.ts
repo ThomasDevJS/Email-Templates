@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AuditEvent, BodyFile } from "../../../src/shared/model/data";
-import { advancedDriveClient } from "../../../src/server/storage/advancedDrive";
+import {
+  advancedDriveClient,
+  type AdvancedFiles,
+} from "../../../src/server/storage/advancedDrive";
 import {
   appPropertyQuery,
   childQuery,
@@ -9,7 +12,12 @@ import {
   type DriveClient,
 } from "../../../src/server/storage/driveClient";
 import { bodyName, driveStore } from "../../../src/server/storage/driveStore";
-import { restDriveClient } from "../../../src/server/storage/restDrive";
+import {
+  DRIVE_API,
+  fileUrl,
+  restDriveClient,
+  restMediaReader,
+} from "../../../src/server/storage/restDrive";
 import {
   DATA_FOLDER_NAME,
   ensureStore,
@@ -29,9 +37,26 @@ import { createUrlFetchApp } from "../../fakes/urlFetch";
 
 const NOW = "2026-11-09T12:00:00.000Z";
 
+/** Advanced client as runtime.ts builds it: raw media through Drive REST on the fake UrlFetchApp. */
+function advanced(
+  drive: FakeDrive,
+  files: AdvancedFiles = drive.Files,
+): DriveClient {
+  const fetchApp = createUrlFetchApp();
+  fetchApp.respondWith(driveRestResponder(drive));
+  return advancedDriveClient(
+    files,
+    createUtilities(),
+    restMediaReader(
+      (url, options) => fetchApp.fetch(url, options),
+      () => "token",
+    ),
+  );
+}
+
 function clients(drive: FakeDrive): [string, () => DriveClient][] {
   return [
-    ["advanced", () => advancedDriveClient(drive.Files, createUtilities())],
+    ["advanced", () => advanced(drive)],
     [
       "rest",
       () => {
@@ -83,12 +108,12 @@ describe.each(["advanced", "rest"] as const)(
       const id = client.createFile({
         name: "b.json",
         parentId: "p",
-        text: "1",
+        text: '{"n":1}',
         appProperties: { a: "1", b: "1" },
       });
-      client.updateFile(id, "2", { b: "2" });
-      client.updateFile(id, "3");
-      expect(client.readText(id)).toBe("3");
+      client.updateFile(id, '{"n":2}', { b: "2" });
+      client.updateFile(id, '{"n":3}');
+      expect(client.readText(id)).toBe('{"n":3}');
       expect(client.getMeta(id).appProperties).toEqual({ a: "1", b: "2" });
     });
 
@@ -117,12 +142,39 @@ describe.each(["advanced", "rest"] as const)(
       const id = client.createFile({
         name: "c.json",
         parentId: "p",
-        text: "copy me",
+        text: '{"copy":"me"}',
       });
       const copy = client.copy(id, "c.json", "backup");
       expect(copy).not.toBe(id);
-      expect(client.readText(copy)).toBe("copy me");
+      expect(client.readText(copy)).toBe('{"copy":"me"}');
       expect(drive.files.get(copy)?.parents).toEqual(["backup"]);
+    });
+
+    it("reads JSON Lines exactly through readRawText; readText fails on 2 lines only with the Advanced service", () => {
+      const one = '{"id":"a"}\n';
+      const two = '{"id":"a"}\n\n{broken\n{"id":"b"}\n';
+      const oneId = client.createFile({
+        name: "1.jsonl",
+        parentId: "p",
+        text: one,
+      });
+      const twoId = client.createFile({
+        name: "2.jsonl",
+        parentId: "p",
+        text: two,
+      });
+      expect([client.readRawText(oneId), client.readRawText(twoId)]).toEqual([
+        one,
+        two,
+      ]);
+      expect(client.readText(oneId)).toBe(
+        kind === "advanced" ? '{"id":"a"}' : one,
+      );
+      if (kind === "advanced")
+        expect(() => client.readText(twoId)).toThrow(
+          "HttpResponseException: Response Code: 200.",
+        );
+      else expect(client.readText(twoId)).toBe(two);
     });
   },
 );
@@ -132,25 +184,25 @@ describe("Drive client details", () => {
     const drive = createDrive();
     for (let n = 0; n < 1001; n++)
       drive.add({ name: `f${String(n)}`, parents: ["p"] }, "");
-    const client = advancedDriveClient(drive.Files, createUtilities());
+    const client = advanced(drive);
     expect(client.list(childQuery("p"))).toHaveLength(1001);
     expect(drive.calls.filter((call) => call === "list")).toHaveLength(2);
   });
 
   it("advanced client reads media returned as bytes or as a blob", () => {
     const bytes = [...Buffer.from("héllo", "utf8")];
-    const asBytes = advancedDriveClient(
-      { ...createDrive().Files, get: () => bytes },
-      createUtilities(),
-    );
-    const asBlob = advancedDriveClient(
-      { ...createDrive().Files, get: () => fakeBlob("blob text") },
-      createUtilities(),
-    );
-    const asNumber = advancedDriveClient(
-      { ...createDrive().Files, get: () => 42 },
-      createUtilities(),
-    );
+    const asBytes = advanced(createDrive(), {
+      ...createDrive().Files,
+      get: () => bytes,
+    });
+    const asBlob = advanced(createDrive(), {
+      ...createDrive().Files,
+      get: () => fakeBlob("blob text"),
+    });
+    const asNumber = advanced(createDrive(), {
+      ...createDrive().Files,
+      get: () => 42,
+    });
     expect(asBytes.readText("x")).toBe("héllo");
     expect(asBlob.readText("x")).toBe("blob text");
     expect(() => asNumber.readText("x")).toThrow("Unreadable Drive media");
@@ -174,6 +226,35 @@ describe("Drive client details", () => {
     );
   });
 
+  it("rest client refuses file IDs that could change the URL path, before any request", () => {
+    const fetchApp = createUrlFetchApp();
+    fetchApp.respondWith(() => ({ status: 200, body: "{}" }));
+    const read = restMediaReader(
+      (url, options) => fetchApp.fetch(url, options),
+      () => "tok",
+    );
+    for (const id of ["a/b", "x?y", "z#w", "..", "%2e%2e", "."])
+      expect(() => read(id)).toThrow("Drive REST refused a malformed file ID");
+    expect(fetchApp.requests).toHaveLength(0);
+    expect(read("1AbC_-9")).toBe("{}");
+    expect(fileUrl(DRIVE_API, "1AbC_-9")).toBe(`${DRIVE_API}/1AbC_-9`);
+  });
+
+  it("rest client answers QUOTA with the busy text on HTTP 429", () => {
+    const fetchApp = createUrlFetchApp();
+    fetchApp.respondWith(() => ({ status: 429, body: "" }));
+    const read = restMediaReader(
+      (url, options) => fetchApp.fetch(url, options),
+      () => "tok",
+    );
+    expect(() => read("x")).toThrow(
+      expect.objectContaining({
+        code: "QUOTA",
+        message: "Service is busy. Try again in a minute.",
+      }),
+    );
+  });
+
   it("quotes query literals and normalizes resources", () => {
     expect(quote("it's a\\b")).toBe("'it\\'s a\\\\b'");
     expect(toDriveFile(null)).toEqual({
@@ -194,7 +275,7 @@ describe("setup of the data folder (ADR-0002 Layout)", () => {
   it("creates the folder, 3 subfolders and 4 files with index schemaVersion 1, rev 1, then nothing on rerun", () => {
     const drive = createDrive();
     const props = new FakeProperties();
-    const client = advancedDriveClient(drive.Files, createUtilities());
+    const client = advanced(drive);
     const first = ensureStore(client, props, NOW, "groupsapp_direct");
     expect(first.created).toBe(8);
     const ids = requireStoreIds(props);
@@ -232,7 +313,7 @@ describe("setup of the data folder (ADR-0002 Layout)", () => {
   it("continues after a crash halfway without duplicating what exists", () => {
     const drive = createDrive();
     const props = new FakeProperties();
-    const client = advancedDriveClient(drive.Files, createUtilities());
+    const client = advanced(drive);
     let calls = 0;
     const flaky: DriveClient = {
       ...client,
@@ -289,7 +370,7 @@ describe("Drive store port", () => {
   beforeEach(() => {
     drive = createDrive(() => Date.parse(NOW));
     props = new FakeProperties();
-    const client = advancedDriveClient(drive.Files, createUtilities());
+    const client = advanced(drive);
     ensureStore(client, props, NOW, "groupsapp_direct");
     store = driveStore(client, requireStoreIds(props));
   });

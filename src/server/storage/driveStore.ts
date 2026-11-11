@@ -113,16 +113,23 @@ function readChecked(
 export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
   const findChild = (parentId: string, name: string): DriveFile | undefined =>
     drive.list(childQuery(parentId, `name = ${quote(name)}`))[0];
+  // The Advanced service throws its own error (quoting the text) on a file that is not JSON; the raw read lets
+  // the caller answer "<name> is not valid JSON". Only failures that are not AppError take the second read.
+  const documentText = (fileId: string): string => {
+    try {
+      return drive.readText(fileId);
+    } catch (error: unknown) {
+      if (error instanceof AppError) throw error;
+      return drive.readRawText(fileId);
+    }
+  };
   const backupFolder = (dateKey: string): string =>
     findChild(ids.backupsId, dateKey)?.id ??
     drive.createFolder(dateKey, ids.backupsId);
   return {
     readIndex: () =>
       readIndexDoc(
-        readChecked(
-          drive.readText(ids.indexId),
-          FILE_NAMES.index,
-        ) as StoredIndex,
+        readChecked(documentText(ids.indexId), FILE_NAMES.index) as StoredIndex,
       ),
     readIndexRev: () =>
       Number(drive.getMeta(ids.indexId).appProperties["rev"] ?? "0"),
@@ -133,7 +140,7 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
     },
     readSide: <K extends SideName>(name: K) =>
       readChecked(
-        drive.readText(sideId(ids, name)),
+        documentText(sideId(ids, name)),
         FILE_NAMES[name],
       ) as SideDocs[K],
     writeSide: (name, doc) => {
@@ -153,7 +160,7 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
       }),
     readBody: (fileId) =>
       withSubject<BodyFile>(
-        parseJson(drive.readText(fileId), "body") as Unmigrated<BodyFile>,
+        parseJson(documentText(fileId), "body") as Unmigrated<BodyFile>,
       ),
     listBodies: (itemId) =>
       drive
@@ -180,7 +187,8 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
     appendAudit: (month, events) => {
       const name = `${month}.jsonl`;
       const existing = findChild(ids.auditId, name);
-      const before = existing === undefined ? "" : drive.readText(existing.id);
+      const before =
+        existing === undefined ? "" : drive.readRawText(existing.id);
       const { text, added } = appendUnique(before, events);
       if (added === 0) return 0;
       if (existing === undefined)
@@ -203,7 +211,7 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
             `This backup cannot be read: ${name} is missing`,
           );
         try {
-          return readChecked(drive.readText(id), name, ErrorCode.VALIDATION);
+          return readChecked(drive.readRawText(id), name, ErrorCode.VALIDATION);
         } catch (error: unknown) {
           if (!(error instanceof AppError)) throw error;
           throw new AppError(
@@ -220,7 +228,7 @@ export function driveStore(drive: DriveClient, ids: StoreIds): StorePort {
       } as BackupDocs;
     },
     listAuditFiles: () => drive.list(childQuery(ids.auditId)).map(sized),
-    readText: (fileId) => drive.readText(fileId),
+    readRawText: (fileId) => drive.readRawText(fileId),
     trash: (fileId) => {
       drive.trash(fileId);
     },
