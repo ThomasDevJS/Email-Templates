@@ -12,6 +12,7 @@ This plan tests the dev build of Migway Templates: the web editor, the Gmail car
 6. Report each step as pass, fail or blocked, with what you saw. Quote screen text exactly. For a "Record:" line, write the value into the result table of the part.
 7. Do not open the Apps Script editor or the browser console. Part H holds those checks.
 8. After "Insert" or any button on a Gmail card, wait up to 10 seconds for the card or the draft to change before you read the result.
+9. In Gmail, click by element, not by screen position. In the message list click only the one message a step names. Open only automated notification messages, never a personal conversation. If a click changes anything else (a label, the trash, read state, a dialog), undo it at once and report it.
 
 ## Before you start
 
