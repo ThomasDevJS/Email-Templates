@@ -20,6 +20,17 @@ import {
 export const PAGE_SIZE = 20;
 /** Rows shown while a long list section is collapsed. */
 export const VISIBLE_ROWS = 5;
+/**
+ * Rows a list shows at most (Gmail: 100 widgets per card). With an email open a template row is 2 widgets. Worst
+ * home card: search 1 + Favorites 21 + Recent 11 + Folders 41 + hint 1 = 75; worst folder card: Folders 41 + page 40
+ * + pager 2 + hint 1 = 84; search 1 + 41 + 1 = 43. Favorites, Recent and search match the server's own caps.
+ */
+export const LIST_MAX = {
+  favorites: 10,
+  recent: 5,
+  folders: 40,
+  results: 20,
+} as const;
 
 export function fieldsLabel(count: number): string {
   return `${String(count)} field${count === 1 ? "" : "s"} to fill`;
@@ -135,6 +146,25 @@ export function listSection(
   ];
 }
 
+/** The last row of a cut list: how many show, and where the rest is. */
+function moreLine(shown: number, total: number, noun: string): Widget {
+  return {
+    kind: "text",
+    text: `Showing ${String(shown)} of ${String(total)} ${noun}. Use Search or Open library for the rest.`,
+  };
+}
+
+/** At most `max` whole rows (a row is never split from its buttons), then `moreLine` when rows were cut. */
+export function capped(
+  rows: readonly (readonly Widget[])[],
+  max: number,
+  noun: string,
+): (readonly Widget[])[] {
+  return rows.length <= max
+    ? [...rows]
+    : [...rows.slice(0, max), [moreLine(max, rows.length, noun)]];
+}
+
 /** "Sales / Quotes": names from the top visible folder down. */
 export function folderPath(view: SidebarHome, folderId: string): string {
   const all = [...view.folders, ...view.subfolders];
@@ -221,7 +251,10 @@ export function folderCard(
     name: `folder-${folderId}`,
     title: path,
     sections: [
-      ...listSection("Folders", children.map(folderItem)),
+      ...listSection(
+        "Folders",
+        capped(children.map(folderItem), LIST_MAX.folders, "folders"),
+      ),
       ...list,
       ...sidePanelHint(entry),
     ],

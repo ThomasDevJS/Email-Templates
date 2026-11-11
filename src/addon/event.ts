@@ -189,3 +189,16 @@ const ADDRESS = /[^\s<>,;"]+@[^\s<>,;"]+/g;
 export function addressesOf(header: string): string[] {
   return (header.match(ADDRESS) ?? []).map((address) => address.toLowerCase());
 }
+
+/** One piece per mailbox: commas inside a quoted display name do not split. */
+const MAILBOX = /(?:"[^"]*"|[^,"])+/g;
+
+/**
+ * One address per mailbox of a header, in header order: the last address of each piece, so a display name that
+ * looks like an address ("bob@x" <bob@y>) never wins.
+ */
+export function mailboxesOf(header: string): string[] {
+  return (header.match(MAILBOX) ?? []).flatMap(
+    (piece) => addressesOf(piece).at(-1) ?? [],
+  );
+}

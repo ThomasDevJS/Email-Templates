@@ -1,7 +1,7 @@
 import { escapeText, escapeValue, mapTextRuns, textRuns } from "../html/escape";
 import { collapse, parseText, promptKey, type Segment } from "./grammar";
 import { placeholderInfo } from "./registry";
-import { oneLine } from "./subject";
+import { capSubject, oneLine } from "./subject";
 
 /**
  * Apply semantics (ADR-0004 and its Amendment 2026-11-11): tokens in sanitized HTML become escaped values. Value
@@ -145,13 +145,13 @@ export function renderBody(html: string, input: RenderInput): Rendered {
 
 /**
  * Subject for the draft (spec 5.6): values as plain text, never HTML-escaped; gaps closed as in the body; every
- * control character becomes one space, runs of spaces collapse, the result is trimmed. The string goes to Card
- * Service as plain text.
+ * control character becomes one space, runs of spaces collapse, the result is trimmed and cut to `SUBJECT_MAX`.
+ * The string goes to Card Service and Gmail as plain text.
  */
 export function renderSubject(
   subject: string,
   input: RenderInput,
 ): { text: string } {
   const raw = closeGaps(runParts(subject, input, PLAIN_FORMAT));
-  return { text: oneLine(raw) };
+  return { text: capSubject(oneLine(raw)) };
 }

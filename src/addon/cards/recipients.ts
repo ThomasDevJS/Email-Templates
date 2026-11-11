@@ -120,9 +120,11 @@ export function rowHint(rc: readonly number[] | undefined): string {
   return parts.length === 0 ? "" : `Adds ${parts.join(", ")}`;
 }
 
-export function addsLine(plan: RecipientPlan): string {
-  const n = recipientCount(plan.added);
-  return `Adds ${String(n)} recipient${n === 1 ? "" : "s"}.`;
+/** `reply`: the card's main press is a reply, which never adds the template To (ADR-0007 A4). */
+export function addsLine(plan: RecipientPlan, reply = false): string {
+  const n = recipientCount(plan.added) - (reply ? plan.added.to.length : 0);
+  const count = `${String(n)} recipient${n === 1 ? "" : "s"}.`;
+  return reply ? `A reply adds ${count}` : `Adds ${count}`;
 }
 
 function markers(address: string, field: RecipientField, domain: string) {

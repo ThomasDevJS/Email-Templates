@@ -655,6 +655,19 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
     expect(card.footer?.primary.action.params).not.toHaveProperty("counted");
   });
 
+  it("the Add recipients count follows the press: a reply leaves out the template To, New email adds it", () => {
+    const adds = (card: CardSpec) =>
+      widgets(card).flatMap((w) =>
+        w.kind === "item" && w.text === "Add recipients" ? [w.bottomLabel] : [],
+      );
+    expect(adds(panelDetailsCard(state, "message"))).toEqual([
+      "A reply adds 1 recipient.",
+    ]);
+    expect(adds(panelDetailsCard(state, "inbox"))).toEqual([
+      "Adds 2 recipients.",
+    ]);
+  });
+
   it("inbox: no hint under the first name, no To line, footer New email and Edit in library, no button section", () => {
     const card = panelDetailsCard(state, "inbox");
     expect(

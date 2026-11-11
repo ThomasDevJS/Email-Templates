@@ -9,6 +9,7 @@ import { stateCard } from "./cards/states";
 import type { Failure } from "./client/serverClient";
 import {
   addressesOf,
+  mailboxesOf,
   formValue,
   internalAddress,
   messageIdOf,
@@ -70,7 +71,7 @@ export type PanelReply = Extract<Reply, { kind: "compose" | "notify" }>;
 
 const notify = (text: string): PanelReply => ({ kind: "notify", text });
 
-/** Text lines of the state card, for the codes whose card has no Retry worth showing in a notification. */
+/** Text lines of the account state card, which has no button. */
 function stateLines(failure: Failure): string {
   return stateCard(failure, {
     retry: action("onRefresh"),
@@ -99,6 +100,8 @@ export function failureText(failure: Failure): string {
     case ErrorCode.NOT_FOUND:
       return PANEL_NOT_FOUND;
     case ErrorCode.NOT_CONFIGURED:
+      // The state card's "then press Retry" names a button an error bar does not have.
+      return "Migway Templates is not set up yet. Ask your admin to finish setup.";
     case ErrorCode.AUTH_NO_USER:
     case ErrorCode.AUTH_DOMAIN:
       return stateLines(failure);
@@ -127,8 +130,8 @@ interface Started {
 const EMPTY: Recipients = { to: [], cc: [], bcc: [] };
 
 /**
- * Reply: reply-to when not blank, else From. Reply all: also every To and Cc address. Any throw or a null message
- * gives null. Header strings carry display names; the last address of a single-address header is the address.
+ * Reply: every reply-to address when not blank, else From; the first one is `replyTo`, as mail clients answer it.
+ * Reply all: also every To and Cc address. Any throw or a null message gives null.
  */
 function readMessage(
   gmail: GmailPort,
@@ -138,15 +141,17 @@ function readMessage(
   try {
     const message = gmail.getMessageById(id) as GmailMessage | null;
     if (message === null) return null;
-    const replyTo =
-      addressesOf(message.getReplyTo()).at(-1) ??
-      addressesOf(message.getFrom()).at(-1) ??
-      "";
+    const replyTos = mailboxesOf(message.getReplyTo());
+    const answered =
+      replyTos.length > 0 ? replyTos : mailboxesOf(message.getFrom());
     const others = all
       ? [...addressesOf(message.getTo()), ...addressesOf(message.getCc())]
       : [];
-    const to = [replyTo, ...others].filter((address) => address !== "");
-    return { message, replyTo, draft: { to, cc: [], bcc: [] } };
+    return {
+      message,
+      replyTo: answered[0] ?? "",
+      draft: { to: [...answered, ...others], cc: [], bcc: [] },
+    };
   } catch {
     return null;
   }

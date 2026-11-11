@@ -84,7 +84,6 @@
 - Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
 - Screens: Playwright `servePage(localPage(webPage({harness:true})))`, `colorScheme`, `timezoneId: "UTC"`. Scratchpad is shared: unique file names.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
-
 ## Slice 9 (recipients, D26, 2026-11-10; S6 harness removed, record docs/spikes/slice-09-s6.md)
 - shared/model/recipients.ts: `validateRecipients`, `importRecipients`, `splitBlocked`, `recipientsOf` (absent = []), `RECIPIENTS_EXTERNAL_KEY`. `to/cc/bcc` OPTIONAL on Item/BodyFile so src/web builds unchanged.
 - `prepareBody(raw, opts, subject, {lists, policy})`; server `prepareFor(props, html, subject, lists)`, `recipientPolicy(props)` (body.ts). `template.update` keeps lists left out of args (`keptStringArray`).
@@ -100,7 +99,6 @@
 - Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.
 - `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
 - `sidePanelHint(entry)` in cards/sidePanel.ts holds `TOOLBAR_HINT` (last section of panel cards).
-
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
@@ -137,8 +135,7 @@
 - Wording tooling that worked: one batch file (file, old, new, reason) applied by a script that also rewrites the same quotes in test/ and docs/, then a table generated from the rows. The guard blocks `git` chained after other commands and long python heredocs: script files via Write, `git` as its own call.
 ## Slice 16 (in-app admins, D32, 2026-11-11)
 - shared/model/admins.ts `adminEntriesOf`, `appAdminsOf`, `ADMINS_MAX`; `isAdminEmail(..., appAdmins thunk)`; `subjectFor(email, snapshot, props, index thunk)`; dispatch recheck passes the in-lock index. Handler handlers/admins.ts: refusals = VALIDATION + `details.reason`.
-- Web views/adminAdmins.ts (form `novalidate`: jsdom and browsers block submit of a bad `type=email`). Harness `?admins=none`. Test lock races with `beforeNextLock` (wrap `world.lock.tryLock`).
-- Retry 1: `lockedSubject` (dispatch.ts) for every in-lock re-check; `adminLineText` + `ADMIN_DENIED_TEXT` for admin-only actions; Directory failures log `errorCode` "<reason>:<status>"; results carry `email`. The web client never retries.
+- Web views/adminAdmins.ts (form `novalidate`). Harness `?admins=none`. Lock races: `beforeNextLock`. Retry 1: `lockedSubject` for every in-lock re-check; `ADMIN_DENIED_TEXT`; Directory failures log `errorCode` "<reason>:<status>".
 ## Slice 15 (one-click insert, D31, 2026-11-11)
 - render.ts `closeGaps(parts)` (null = gap, 4 rules, U+0020 only); typed answer beats a resolved variable. Tests test/unit/shared/gaps.test.ts.
 - flows.ts `applyNow(ports, id, extra)` = one template.apply + cached body; Flow A `insertFlow` (`rc` "t,c,b" vs list lengths, unknown draft field -> details card `counted=1`); Flow B `previewFlow` (compose followUp, side panel getBody + `panelDetailsCard`); Flow C `promptInsertFlow` (`counted=1` -> followUp; `mergedValues`).
@@ -147,3 +144,5 @@
 ## Slice 19 (audit read fix, 2026-11-11)
 - Advanced `Drive.Files.get` alt=media parses media as JSON: 2+ line JSON Lines throw "Response Code: 200". `DriveClient.readRawText` = Drive REST media (`restMediaReader`) under both clients; used by audit.query, `appendAudit`, `readBackup`. Fake Files.get now parses/throws like the platform; `World.urlFetch` and `installGlobals` answer Drive REST.
 - Worktree guard: python edits via a script file in the scratchpad, run alone; never chain `git` or `rm` with other commands. `job:<name>:lastError` stores raw exception messages (can hold content).
+## Slice 20b (add-on fix round, 2026-11-11)
+- cards/folder.ts `LIST_MAX` (favorites 10, recent 5, folders 40, results 20) + `capped(rows, max, noun)` ends a cut list with "Showing ... Use Search or Open library for the rest."; test/unit/addon/cardLimit.test.ts counts widgets (< 100) for 3 entries. event.ts `mailboxesOf` (first Reply-To answers). `addsLine(plan, reply)`. subject.ts `capSubject` in `renderSubject`. vitest hides console output here: probe via assertions, not logs.
