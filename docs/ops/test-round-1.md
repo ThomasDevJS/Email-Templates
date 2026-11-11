@@ -273,15 +273,15 @@ Decisions taken by this part: step 5 or 6 "n" makes the details card drop its bo
 Gmail web, dev build of slice 21, browser agent, about 10 minutes. Needs "T1 plain" and "T2 fields" of "Templates to create once". Discard every draft when its step ends. Spinner: Gmail's round progress mark on the card while an action runs.
 
 1. New draft, cursor in the text, open Migway Templates from the draft's toolbar. Open the folder "Smoke 6a", then row "Insert" on "T1 plain". Expect: the text is inserted. Record: a spinner showed after each click (y/n).
-2. Same popup, before you discard: Record the color of the bar at the top of the add-on (dark slate blue-grey or grey) and of the filled buttons ("Insert", "Open library"): dark slate blue-grey (y/n).
+2. The card closed after step 1. Open the add-on again from the same draft's toolbar. Type `plain` in "Search templates" and click outside the box. Expect: "Results" with "T1 plain". Record: a spinner showed during the search (y/n). Tap the name "T1 plain". Record the color of the bar at the top of the add-on (dark slate blue-grey or grey) and of the filled "Insert" on the details card: dark slate blue-grey (y/n).
 3. Inbox, no message open, open the add-on in the side panel. Row "New email" on "T1 plain". Expect: a new email window. Record: a spinner showed after the click (y/n); the top bar color (slate or grey).
 4. New draft, open the add-on from its toolbar, click the name "T2 fields". Type 501 characters in "Driver name", click "Insert". Expect: "(!) Shorten to 500 characters: Driver name" above the boxes, in red, the draft unchanged. Record: the red line is readable (y/n).
-5. Gmail, Settings (gear), "Themes", choose "Dark", save. Repeat step 4. Record: the red line is readable (y/n); the filled "Insert" is readable (y/n). Then choose the theme that was set before, save.
+5. Gmail, Settings (gear), "Themes", choose "Dark", save. Repeat step 4. Record: the card background (white or dark); the red line is readable (y/n); the filled "Insert" is readable (y/n). Then choose the theme that was set before, save.
 
-| Step | Record                                         | Result |
-| ---- | ---------------------------------------------- | ------ |
-| 1    | spinner in the popup (y/n)                     |        |
-| 2    | top bar color; filled buttons slate (y/n)      |        |
-| 3    | spinner in the side panel (y/n); top bar color |        |
-| 4    | red line readable, light theme (y/n)           |        |
-| 5    | red line and Insert readable, dark theme (y/n) |        |
+| Step | Record                                                              | Result |
+| ---- | ------------------------------------------------------------------- | ------ |
+| 1    | spinner in the popup (y/n)                                          |        |
+| 2    | spinner on search (y/n); top bar color; filled "Insert" slate (y/n) |        |
+| 3    | spinner in the side panel (y/n); top bar color                      |        |
+| 4    | red line readable, light theme (y/n)                                |        |
+| 5    | card background; red line and Insert readable, dark theme (y/n)     |        |
