@@ -34,20 +34,20 @@ describe("renderSubject", () => {
     );
     expect(rendered).toEqual({
       text: "Quote for Line one line <two> from Ana <Lima> & Co there {{x}}",
-      missing: [],
     });
   });
 
-  it("reports missing prompts and unresolved values without fallback", () => {
+  it("removes prompts and unresolved values without fallback", () => {
     const rendered = renderSubject("{{ask:Product}} {{recipient.first_name}}", {
       values: {},
       answers: {},
     });
     expect(rendered.text).toBe("");
-    expect(rendered.missing.map((field) => field.key)).toEqual([
-      "product",
-      "{var}recipient.first_name",
-    ]);
+    expect(
+      promptsFor("", {}, "{{ask:Product}} {{recipient.first_name}}").map(
+        (field) => field.key,
+      ),
+    ).toEqual(["product", "{var}recipient.first_name"]);
   });
 });
 

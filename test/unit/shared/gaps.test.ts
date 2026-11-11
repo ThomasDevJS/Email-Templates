@@ -121,12 +121,8 @@ describe("value order (AC 3): value, fallback, else empty text", () => {
     ).toBe("<p>Hi Bob</p>");
   });
 
-  it("reports removed fields in missing", () => {
-    expect(
-      renderBody("<p>{{ask:A}} {{sender.phone}}</p>", none).missing.map(
-        (field) => field.label,
-      ),
-    ).toEqual(["A", "Your phone"]);
+  it("removes an explicit field and an unresolved variable alike", () => {
+    expect(body("<p>{{ask:A}} {{sender.phone}} x</p>")).toBe("<p>x</p>");
   });
 });
 
