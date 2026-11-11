@@ -87,6 +87,23 @@ describe("page loader (D37)", () => {
     expect(announced()).toBe("");
   });
 
+  it("keeps blocking for a call that started late in an earlier call's 20 s (slice 24 retry 1)", async () => {
+    const busy = createBusy([main]);
+    void busy.track(new Promise(() => undefined));
+    await vi.advanceTimersByTimeAsync(BUSY_MAX_MS - 1000);
+    let finish: () => void = () => undefined;
+    void busy.track(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(main.hasAttribute("data-blocked")).toBe(true);
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(main.hasAttribute("data-blocked")).toBe(false);
+  });
+
   it("ends the block when the call throws", async () => {
     const busy = createBusy([main]);
     await expect(busy.track(Promise.reject(new Error("x")))).rejects.toThrow(

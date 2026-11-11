@@ -739,6 +739,53 @@ describe("editor (screen 4, flow 4.2)", () => {
     expect(main().querySelectorAll(".tag")).toHaveLength(2);
   });
 
+  it("keeps what is typed during a save and then says Unsaved changes; clicks stay blocked (slice 24 retry 1)", async () => {
+    await boot("/?latency=300#/edit/T-QUOTE");
+    await until(() => {
+      expect(main().querySelector(".ph")).not.toBeNull();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    const title = document.getElementById("title") as HTMLInputElement;
+    const body = main().querySelector(".ProseMirror") as HTMLElement;
+    title.value = "Price quote 2027";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+    key(document.body, "s", { ctrlKey: true });
+    expect(main().hasAttribute("data-blocked")).toBe(true);
+    // Typing goes through: keys, Backspace and paste in the title and the text.
+    const passes = (target: Element, event: Event) =>
+      target.dispatchEvent(event);
+    const typed = (name: string) =>
+      new KeyboardEvent("keydown", {
+        key: name,
+        bubbles: true,
+        cancelable: true,
+      });
+    expect(passes(title, typed("x"))).toBe(true);
+    expect(passes(title, typed("Backspace"))).toBe(true);
+    expect(passes(body, typed("y"))).toBe(true);
+    expect(
+      passes(body, new Event("paste", { bubbles: true, cancelable: true })),
+    ).toBe(true);
+    title.value = "Price quote 2027 abc";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+    // A click on the sidebar does not go through.
+    const trash = document.querySelector("[data-nav=trash]") as HTMLElement;
+    expect(
+      passes(
+        trash,
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      ),
+    ).toBe(false);
+    await until(() => {
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    expect(title.value).toBe("Price quote 2027 abc");
+    expect(main().querySelector(".saved-state")?.textContent).toBe(
+      "Unsaved changes",
+    );
+    expect(window.location.hash).toBe("#/edit/T-QUOTE");
+  });
+
   it("edits the subject: counter, placeholder menu at the caret, preview and save", async () => {
     await boot("/?latency=0#/edit/T-QUOTE");
     await until(() => {
@@ -938,6 +985,48 @@ describe("editor (screen 4, flow 4.2)", () => {
 });
 
 describe("history (screen 5)", () => {
+  it("starts no second restore from a toast's Retry while one runs (slice 24 retry 1)", async () => {
+    await boot(
+      "/?latency=50&fail=INTERNAL&failOp=version.restore&failTimes=2#/history/T-QUOTE",
+    );
+    await until(() => {
+      expect(main().querySelectorAll('[role="option"]')).toHaveLength(2);
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    const list = main().querySelector('[role="listbox"]') as HTMLElement;
+    key(list, "ArrowDown");
+    const restoreFails = async (count: number) => {
+      await until(() => {
+        expect(main().hasAttribute("data-blocked")).toBe(false);
+      });
+      key(list, "r");
+      button(
+        "Restore",
+        document.querySelector('[role="dialog"]') as HTMLElement,
+      ).click();
+      await until(() => {
+        expect(document.querySelectorAll(".toast")).toHaveLength(count);
+      });
+    };
+    await restoreFails(1);
+    await restoreFails(2);
+    const [first, second] = [
+      ...document.querySelectorAll<HTMLElement>(".toast"),
+    ];
+    button("Retry", first).click();
+    button(
+      "Restore",
+      document.querySelector('[role="dialog"]') as HTMLElement,
+    ).click();
+    await Promise.resolve();
+    button("Retry", second).click();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await until(() => {
+      expect(main().hasAttribute("data-blocked")).toBe(false);
+    });
+    expect(calls("version.restore")).toBe(3);
+  });
+
   it("lists versions, previews with chips and restores with confirmation", async () => {
     await boot("/?latency=0#/history/T-QUOTE");
     await until(() => {

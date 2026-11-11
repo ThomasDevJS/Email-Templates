@@ -330,6 +330,7 @@ describe("export and import tab", () => {
     await boot("/?latency=0#/admin/transfer");
     await until(() => {
       expect(button("Export")).toBeTruthy();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     expect(labelled<HTMLSelectElement>("Folder").disabled).toBe(true);
     // export.library skips every private folder tree (server transfer.ts libraryFolders).
@@ -368,6 +369,7 @@ describe("export and import tab", () => {
     await boot(`/?latency=0&failOp=export.library&${query}#/admin/transfer`);
     await until(() => {
       expect(button("Export")).toBeTruthy();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     button("Export").click();
     return { clicks, createUrl };
@@ -416,6 +418,7 @@ describe("export and import tab", () => {
     script.run = wrap(script.run);
     await until(() => {
       expect(button("Export")).toBeTruthy();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     button("Export").click();
     await waitStatus(/Exported 4 templates to /);
@@ -501,6 +504,7 @@ describe("export and import tab", () => {
     script.run = wrap(script.run);
     await until(() => {
       expect(button("Export")).toBeTruthy();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     button("Export").click();
     await waitStatus(/^The export stopped after 2 of 5 templates/);
@@ -1127,6 +1131,7 @@ describe("admin-only actions refused because the caller is no longer an admin (s
     await boot("/?latency=0&fail=DENIED&failOp=export.library#/admin/transfer");
     await until(() => {
       expect(button("Export")).toBeTruthy();
+      expect(main().hasAttribute("data-blocked")).toBe(false);
     });
     button("Export").click();
     await until(() => {

@@ -169,8 +169,12 @@ export function historyView(
     await showVersion();
   };
 
+  /** One restore at a time: a toast's Retry during a restore starts none (slice 24 retry 1). */
+  let restoring = false;
   /** Runs after the confirm dialog closed: busy state at once, then the server call. */
   const runRestore = async (version: number, base: number) => {
+    if (restoring) return;
+    restoring = true;
     restoreButton.disabled = true;
     list.setAttribute("aria-busy", "true");
     status.textContent = `Restoring version ${String(version)}...`;
@@ -194,12 +198,15 @@ export function historyView(
           : "Not restored.";
       if (rpc.code === "CONFLICT") await load();
       else app.fail(rpc, restore);
+    } finally {
+      restoring = false;
     }
   };
 
   const restore = () => {
     const entry = data?.versions[selected];
-    if (data === null || entry === undefined || entry.current) return;
+    if (restoring || data === null || entry === undefined || entry.current)
+      return;
     const base = data.currentVersion;
     openDialog({
       title: "Restore version",
