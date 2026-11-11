@@ -75,7 +75,6 @@
 - Slice 8b editor (2026-11-11): FAIL (671c7a7), retry 1 PASS (5bd5ec6, 1498 tests, lines 97.35, index.html 367.7 KB after CSS minify, Lighthouse 100x13). Retry: Editor.hold() bookmark mapped through every tr (image, link, ask); one leave dialog (`asking`); googleHost writes {page, at} state, held Back/Forward travels back via Host.go and ignores the return event; live Problems with field buttons; scripts/web.mjs minifiedStyles (esbuild transform, throws on //, /*, <?, </style).
   - Open minors: no smoke step for Host.go (smoke.md:157); first entry has null state, Back to it still pushes (host.ts:75, app.ts:318); chip texts in visible status line shift toolbar 27 px (editor.ts:743), recommend .sr-only status; caret before node after insert at doc start (base too); Back+Discard extra entry; `me` failure blocks editor.
   - Probes in scratchpad/8b-r1/p: insert.cjs (72 runs), nav.cjs, worst.cjs (history.go no-op/no-state/silent), engine4.cjs (needs 60 ms per key or link selection varies on both builds).
-
 - Slice 8b merge with main fe33d50 (2026-11-11): PASS (a5d4527 on 0a59b34). 65 files, 1774 tests, lines 97.77, Code.js 358.6 KB, index.html 374.3 KB, Lighthouse 100x15, 10 scopes. Server/addon/shared diff vs main empty.
   - Merge method: `git show --remerge-diff <merge>`; symbol union check (git grep declarations per commit, trace absentees to merge base); test lines removed vs one parent must be removed by the other from base; computed-style diff per element vs the parent owning each view (0 diffs).
   - cancelDialogs: app.ts open() (route change) and editor canLeave (before the question). Minor: implementer MEMORY:126 describes it wrong.
@@ -88,7 +87,6 @@
   - Must fix: DENIED shows "...this template. Ask a folder manager." in Admins section (status.ts messageOf); Directory INTERNAL text never shown (generic toast).
   - Minors: level-row recheck uses pre-lock isAdmin (removed admin's in-flight grant.add lands); `?? []` latent wipe admins.ts:109; no auto-retry in web client (handoff wrong); smoke "record Directory text" impossible (raw message not logged).
   - Retry 1 PASS (review on 64adc1c): ADMIN_DENIED_TEXT via adminLineText (status.ts) on 8 admin-only actions; ADMIN_CHECK shown in line; lockedSubject (dispatch.ts) for admin+level rechecks (9 ops DENIED in race, 5 passed on old code); editedList CONFLICT; Directory warn line errorCode reason:status. 68 files, 1882 tests, index.html 379.2 KB, Lighthouse 100x16.
-
 - Slice 15 one-click insert D31 (2026-11-11): PASS (on 581232a, merge of main 223f9bb into e9ef9d8). 67 files, 1818 tests, lines 97.82, Code.js 358.2 KB, index.html 376.1 KB, Lighthouse 100x15, 10 scopes + layoutProperties.secondaryColor.
   - Code: render.ts `closeGaps(parts)` (null = gap); flows.ts Flow A `insertFlow` (rc vs list lengths, unknown -> details card counted=1), Flow B `previewFlow`, Flow C `promptInsertFlow`; cards/details.ts `detailsCard`, `panelDetailsCard`.
   - Probes: 10,000 fuzz renders without a gap byte-identical to base, sanitize idempotent on outputs; apply events per path via readBuffer(world.cache).
@@ -97,6 +95,9 @@
   - Must fix: D11/I11 audit counts for "this month" ignore earlier smoke rows; D14 leaves "Import test" (uniqueSiblingName blocks rerun); G4 needs drafts rule 2 discards; C4 omits the phone after T2 text.
   - Retry 1 FAIL (ce534ba): D14 "Import into" list is the AdminData from Admin open; foldersTab refresh replaces only its local copy, so a folder made in the same visit is missing (dev harness probe). Missed in round 1.
   - Test plans for a browser agent: check counts against data from earlier runs, rerun of each part, rule conflicts between global rules and steps, cache TTLs (view 600 s).
+- Slice 18 side panel D27 (2026-11-11): PASS (on 504b0ee). 67 files, 1911 tests, lines 97.12, Code.js 367.1 KB, index.html 379.2 KB, 10 scopes. 0 must-fix, 7 minors.
+  - Code: addon/panel.ts composeFlow/promptComposeFlow, begin() order (as, messageId, 500 chars, token, header read, apply, rc|version+rh, rendered, one createDraft*). Ports.gmail GmailPort; test/fakes/gmail.ts createRecordingGmail(headers|null, failMethod). event.ts addressesOf (regex), internalAddress, tokenOf.
+  - Minors: multi-address Reply-To uses last only; message-entry "Adds n" counts To; failed createDraft counts a use (spec ok); part J step 10 no Expect.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -105,8 +106,7 @@
 - Read the Accepted ADR before calling an admin right a defect (ADR-0003 C: admin = manage everywhere, private included).
 - Handler-level DENIED (list ops) bypasses dispatch recordDenied; check the audit row for every DENIED path.
 - Check length bounds on every stored client string (principal keys had none for 4 slices).
-- Probe files: never use Python splitlines() on files with U+2028; it splits there. Use split("
-").
+- Probe files: never use Python splitlines() on files with U+2028; split on the newline character.
 - Side files under a rev property: check missing-property behaviour on old data and the writer order (file, then property).
 - Server props are a per-request snapshot since 4b (runtime.ts snapshotProps, triggers live). Any read-check-write across executions under a lock must read live.
 - Log fields from clients (requestId, op, timing): check format and length on the server, both surfaces.
@@ -138,8 +138,8 @@
 - Paged ops: probe audit events at offset > 0 with a busy or full buffer; count the Script Cache puts the same op makes (1,000 items, FIFO); world.clock +7 h for a cold cache.
 - Settings or policy read from the request's index: probe a race where the setting flips between authorize and lock, for every write that uses it.
 - Privilege lists: probe stored-variant matrix (case, plus, dots, homoglyph, display name, nested, proto) and a level-row race, not only admin rows.
-
 - Merges with memory conflicts: `git show --remerge-diff <merge>` shows how each conflict was resolved; check both sides kept.
 - Merge heads: compare `git diff <main> <merge>` with the slice's own diff per file; equal = nothing lost.
 - Renderer changes: fuzz head vs base copy in one vitest file importing both src trees.
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
+- Gmail-action slices: count createDraft* per failure probe with a recording fake; forge action params (values, extra keys) and CR LF; read the message ID source at press time.
