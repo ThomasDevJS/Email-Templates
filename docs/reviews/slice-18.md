@@ -2,7 +2,7 @@
 
 Date: 2026-11-11. Branch `slice/18-side-panel`, head 504b0ee (implementer 6afcc97 plus main 699b02d). Slice diff `702df60..6afcc97`.
 
-## Verdict: PASS
+## Verdict: PASS (first review); Follow-up 1: PASS (see "Follow-up 1" at the end)
 
 No path creates a draft before `template.apply` succeeds. No path sends mail. A reply never gets a To. No message data reaches a log, a cache or a lasting action parameter. 0 must-fix, 7 minors.
 
@@ -80,3 +80,45 @@ Secrets: no key, token or secret pattern in added lines. Addresses: example.com,
 - A7: `getReplyTo`, `getTo`, `getCc` under `gmail.addons.current.message.metadata` (steps 7, 9). A throw makes every Reply say "This email can no longer be read".
 - Q69: double press, 1 or 2 drafts (step 10). Q55: fresh consent (smoke Slice 18 check 1).
 - Signature place and quoted text in replies (step 7); callback durations (check 2).
+
+## Follow-up 1 (head 9cbbd87)
+
+Verdict: PASS. 0 must-fix, 3 minors.
+
+Change: `panelAnswer` (src/addon/panel.ts) throws `new Error(<sentence>)` for every refusal; a throw before a draft gives "Something went wrong. Try again.", a throw while rendering after the draft gives the Drafts sentence; the caught error text is dropped. Src diff `f0db075..9cbbd87`: src/addon/panel.ts and src/addon/entry.ts (`panelRespond` only). flows.ts identical (same blob hash). Protected paths and appsscript.json: empty diff. Secret patterns in added lines: 0.
+
+### Commands (clean install on 9cbbd87)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0 |
+| `npm run lint`, `npm run typecheck` | exit 0, no output |
+| `npm run test:coverage` | 67 files, 1912 tests passed; all files 97.12 statements, 90.86 branches |
+| `npm run build -- --env dev` | "Built dev 9cbbd87", Code.js 366.7 KB, index.html 379.2 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+
+### Probes (scratch copy, deleted after)
+
+An address and a `ya29.`-style token planted in the event token, the message ID, every header, the template title, subject and body, the sender name, typed boxes, the `as` and `rh` parameters, the server error message and request ID, every Gmail fake error, the server port throw and the render throw. 36 runs:
+
+- 34 failure runs threw. 0 thrown messages hold the address, the token, "planted", a request ID, "Details" or a stack path.
+- 31 of 34 messages are sentences of wording.md: NOT_FOUND (real server x3, fake), DENIED (real, fake), QUOTA, BUSY, INTERNAL, NETWORK, VALIDATION, TIMEOUT, null message, throws at the token, `getMessageById`, `getReplyTo`, `getTo`, `getCc`, server port, `hash` (render problem before the draft), no message ID, bad `as`, `rc`, 500 characters, version, `rh`.
+- 3 of 34 are state-card lines joined (spec 7.2): NOT_CONFIGURED "Migway Templates is not set up yet. Ask your admin to finish setup, then press Retry.", AUTH_NO_USER and AUTH_DOMAIN (3 sentences). Each line is a wording text; the joined string is not one sentence.
+- `createDraft*` calls: 0 on every refusal; 1 on the 3 failed `createDraft*` runs (the failed call itself) and on the render throw after the draft (Drafts sentence).
+- Logs: 21 lines, 0 planted strings. A NOT_FOUND refusal logs one warn line `template.apply` with `errorCode` NOT_FOUND, actor, targetId, timing and the server stack frames (code paths only). Refusals before the server (no message, unreadable, 500 characters, bad `as`) log no server line; the run fails in Executions with the sentence and add-on stack frames only.
+- Non-compose paths, 3 probes: `previewFlow` of a deleted template (panel) and `insertFlow` of a deleted template (compose) return the state card "This template was deleted or moved. Press Refresh to update the list." with Refresh; `homeFlow` on QUOTA returns the retry card with Request ID and Retry. Unchanged; their tests pass.
+
+### "Details for your admin" left in src/addon
+
+One place: src/addon/cards/states.ts:59, on state cards for NETWORK only. NETWORK failures come from src/addon/client/serverClient.ts only, with fixed texts ("Server returned HTTP n", "Server reply is not JSON", "Server reply has an unknown shape", "Server unreachable", the execUrl line). No src/server file emits NETWORK. The add-on callbacks outside the panel have no catch (`respond`, entry.ts:70), so a platform error goes to Gmail as a failed run and never onto a card. No file or message content can reach a card. Not a must-fix.
+
+### Docs
+
+Part J step 10 now has "Expect:"; step 11 records "sentence, red error bar, or nothing" plus a table row. docs/spikes/slice-10-s7.md "Part J run, 2026-11-11" holds the facts (Q74 and Q68 settled, header reads ran, 1 draft on double press, step 11 defect and fix). Smoke "Slice 15" step 12 and part H steps 2 and 3 carry the replacement texts of this review.
+
+### Minors
+
+1. NOT_CONFIGURED and AUTH_* throw 2 or 3 sentences; NOT_CONFIGURED ends "then press Retry." with no Retry in an error bar. Fix: one sentence per code, e.g. "Migway Templates is not set up yet. Ask your admin." as a new wording row.
+2. The dropped Gmail error text (a `createDraft*` refusal) now reaches no screen and no log; an admin cannot tell a Gmail quota from a scope error. Fix later: log the error name only (no message) in the add-on run.
+3. Unverified in Gmail: how a compose-action throw shows on a `DecoratedText` row (banner, "Exception:" prefix, or nothing again). Part J step 11 rerun decides.

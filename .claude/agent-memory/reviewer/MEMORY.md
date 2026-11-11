@@ -97,6 +97,7 @@
   - Test plans for a browser agent: check counts against data from earlier runs, rerun of each part, rule conflicts between global rules and steps, cache TTLs (view 600 s).
 - Slice 18 side panel D27 (2026-11-11): PASS (on 504b0ee). 67 files, 1911 tests, lines 97.12, Code.js 367.1 KB, index.html 379.2 KB, 10 scopes. 0 must-fix, 7 minors.
   - Code: addon/panel.ts composeFlow/promptComposeFlow, begin() order (as, messageId, 500 chars, token, header read, apply, rc|version+rh, rendered, one createDraft*). Ports.gmail GmailPort; test/fakes/gmail.ts createRecordingGmail(headers|null, failMethod). event.ts addressesOf (regex), internalAddress, tokenOf.
+  - Follow-up 1 PASS (9cbbd87, 1912 tests): panelAnswer throws one sentence (notifications from compose actions not shown in Gmail, part J step 11); caught text dropped; 36 planted-secret runs clean. Minors: NOT_CONFIGURED/AUTH throw joined state lines.
   - Minors: multi-address Reply-To uses last only; message-entry "Adds n" counts To; failed createDraft counts a use (spec ok); part J step 10 no Expect.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
