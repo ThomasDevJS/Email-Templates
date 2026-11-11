@@ -219,6 +219,8 @@ export interface Api {
   /** `itemsPending`: purged templates whose stored versions the daily job removes. */
   purgeTrash(): Promise<{
     purged: number;
+    templates: number;
+    folders: number;
     filesTrashed: number;
     itemsPending: number;
   }>;

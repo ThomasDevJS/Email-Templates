@@ -1,5 +1,5 @@
 import { TRASH_DAYS } from "../../shared/model/validate";
-import { purgeText } from "../admin/actions";
+import { emptyTrashQuestion, purgeText } from "../admin/actions";
 import { daysLeft, displayPath } from "../admin/model";
 import { editableFolders, folderPath } from "../library/model";
 import type { TrashRow } from "../rpc/api";
@@ -119,14 +119,9 @@ export function trashView(
   };
 
   const purge = () => {
-    const before = rows.length;
     openDialog({
       title: "Empty trash",
-      body: h(
-        "p",
-        {},
-        `Empty the trash? All ${String(before)} templates in it are removed for good, and deleted folders go too. This cannot be undone.`,
-      ),
+      body: h("p", {}, emptyTrashQuestion(rows.length)),
       actions: [
         {
           label: "Empty trash",
@@ -135,11 +130,10 @@ export function trashView(
             status.textContent = "Emptying the trash...";
             app.api
               .purgeTrash()
-              .then(async ({ purged, itemsPending }) => {
-                // The split into templates and folders comes from the list, so it needs the reloaded one.
-                const result = (await load())
-                  ? purgeText(before, rows.length, purged)
-                  : "Emptied the trash. The list could not be refreshed.";
+              .then(async ({ templates, folders, itemsPending }) => {
+                const result = `${purgeText(templates, folders)}${
+                  (await load()) ? "" : " The list could not be refreshed."
+                }`;
                 status.textContent = `${result}${
                   itemsPending > 0
                     ? ` The nightly job deletes the stored versions of ${String(itemsPending)} of them.`

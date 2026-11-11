@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   actionWords,
+  emptyTrashQuestion,
   purgeText,
   resultTag,
 } from "../../../src/web/admin/actions";
@@ -40,26 +41,37 @@ describe("resultTag", () => {
 
 describe("purgeText", () => {
   it("counts templates like the dialog and names deleted folders apart", () => {
-    expect(purgeText(4, 0, 4)).toBe(
+    expect(purgeText(4, 0)).toBe(
       "Emptied the trash: 4 templates removed for good.",
     );
-    expect(purgeText(1, 0, 1)).toBe(
+    expect(purgeText(1, 0)).toBe(
       "Emptied the trash: 1 template removed for good.",
     );
-    expect(purgeText(4, 0, 5)).toBe(
+    expect(purgeText(4, 1)).toBe(
       "Emptied the trash: 4 templates and 1 deleted folder removed for good.",
     );
-    expect(purgeText(0, 0, 2)).toBe(
+    expect(purgeText(0, 2)).toBe(
       "Emptied the trash: 0 templates and 2 deleted folders removed for good.",
     );
   });
 
-  it("never counts more templates than the server removed", () => {
-    expect(purgeText(3, 0, 2)).toBe(
+  it("takes the server's counts, whatever the list showed", () => {
+    expect(purgeText(2, 0)).toBe(
       "Emptied the trash: 2 templates removed for good.",
     );
-    expect(purgeText(1, 2, 0)).toBe(
+    expect(purgeText(0, 0)).toBe(
       "Emptied the trash: 0 templates removed for good.",
+    );
+  });
+});
+
+describe("emptyTrashQuestion", () => {
+  it("uses the singular for one template and the plural otherwise", () => {
+    expect(emptyTrashQuestion(1)).toBe(
+      "Empty the trash? The 1 template in it is removed for good, and deleted folders go too. This cannot be undone.",
+    );
+    expect(emptyTrashQuestion(3)).toBe(
+      "Empty the trash? All 3 templates in it are removed for good, and deleted folders go too. This cannot be undone.",
     );
   });
 });

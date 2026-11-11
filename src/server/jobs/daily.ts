@@ -63,6 +63,7 @@ function purgeEvents(
 export interface Purged {
   readonly count: number;
   readonly goneItems: readonly string[];
+  readonly folders: number;
 }
 
 /** Body files one purge trashes after its commit; the daily orphan cleanup trashes the rest (no item owns them). */
@@ -71,6 +72,9 @@ export const PURGE_FILES_MAX = 50;
 export interface PurgeReport {
   /** Templates and folders removed from the index. */
   readonly count: number;
+  /** The split of `count`, from the index read inside the lock. */
+  readonly templates: number;
+  readonly folders: number;
   readonly filesTrashed: number;
   /** Purged templates whose body files are left to the daily orphan cleanup. */
   readonly itemsPending: number;
@@ -79,7 +83,7 @@ export interface PurgeReport {
 function trashBodies(
   services: Services,
   itemIds: readonly string[],
-): Omit<PurgeReport, "count"> {
+): Pick<PurgeReport, "filesTrashed" | "itemsPending"> {
   const store = services.store();
   let filesTrashed = 0;
   let itemsPending = 0;
@@ -112,7 +116,13 @@ export function purgeDeleted(
   write: PurgeWrite = (mutation) => mutateIndex(services, mutation),
 ): PurgeReport {
   if (purgeEvents(source, loadIndex(services), cutoffMs).length === 0)
-    return { count: 0, filesTrashed: 0, itemsPending: 0 };
+    return {
+      count: 0,
+      templates: 0,
+      folders: 0,
+      filesTrashed: 0,
+      itemsPending: 0,
+    };
   const purged = write((current) => {
     const events = purgeEvents(source, current, cutoffMs);
     const goneFolders = new Set(
@@ -131,9 +141,19 @@ export function purgeDeleted(
         (grant) => !goneFolders.has(grant.folderId),
       ),
     };
-    return { doc, events, result: { count: events.length, goneItems } };
+    const result = {
+      count: events.length,
+      goneItems,
+      folders: goneFolders.size,
+    };
+    return { doc, events, result };
   });
-  return { count: purged.count, ...trashBodies(services, purged.goneItems) };
+  return {
+    count: purged.count,
+    templates: purged.goneItems.length,
+    folders: purged.folders,
+    ...trashBodies(services, purged.goneItems),
+  };
 }
 
 /** Daily step: everything soft-deleted over 30 days ago. */

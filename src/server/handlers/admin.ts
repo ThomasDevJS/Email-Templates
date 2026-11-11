@@ -100,6 +100,8 @@ export function membershipRefresh(context: HandlerContext): MembershipView {
  */
 export function trashPurge(context: HandlerContext): {
   purged: number;
+  templates: number;
+  folders: number;
   filesTrashed: number;
   itemsPending: number;
 } {
@@ -112,6 +114,8 @@ export function trashPurge(context: HandlerContext): {
   );
   return {
     purged: report.count,
+    templates: report.templates,
+    folders: report.folders,
     filesTrashed: report.filesTrashed,
     itemsPending: report.itemsPending,
   };

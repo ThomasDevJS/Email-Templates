@@ -707,6 +707,21 @@ describe("trash", () => {
     expect(world.ok<{ purged: number }>(OWNER, "trash.purge").purged).toBe(0);
   });
 
+  it("answers how many templates and how many folders the purge removed", () => {
+    const sales = folder("Sales");
+    const old = folder("Old");
+    const inOld = template(old.id, "In old");
+    const gone = template(sales.id, "Gone");
+    world.ok(OWNER, "template.delete", { id: gone.id });
+    world.ok(OWNER, "template.delete", { id: inOld.id });
+    world.ok(OWNER, "folder.delete", { folderId: old.id });
+    expect(world.ok(OWNER, "trash.purge")).toMatchObject({
+      purged: 3,
+      templates: 2,
+      folders: 1,
+    });
+  });
+
   it(`trashes at most ${String(PURGE_FILES_MAX)} body files per purge and leaves the rest to the daily orphan cleanup`, () => {
     const sales = folder("Sales");
     const items = Array.from({ length: PURGE_FILES_MAX + 3 }, (_, n) =>
@@ -720,6 +735,8 @@ describe("trash", () => {
       ).length;
     expect(world.ok(OWNER, "trash.purge")).toEqual({
       purged: PURGE_FILES_MAX + 3,
+      templates: PURGE_FILES_MAX + 3,
+      folders: 0,
       filesTrashed: PURGE_FILES_MAX,
       itemsPending: 3,
     });

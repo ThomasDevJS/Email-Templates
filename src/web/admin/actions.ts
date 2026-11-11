@@ -71,19 +71,22 @@ export function resultTag(result: string): { word: string; tone: Tone } {
   }
 }
 
-/**
- * "Empty trash" result in the unit of its dialog: templates, then the deleted folders that went with them.
- * `purged` counts both (server `trash.purge`); `before` and `after` are the trash rows around the purge.
- */
-export function purgeText(
-  before: number,
-  after: number,
-  purged: number,
-): string {
-  const templates = Math.min(purged, Math.max(0, before - after));
-  const folders = purged - templates;
-  const plural = (n: number, word: string) =>
-    `${String(n)} ${word}${n === 1 ? "" : "s"}`;
+/** "1 template", "2 templates". */
+export function plural(n: number, word: string): string {
+  return `${String(n)} ${word}${n === 1 ? "" : "s"}`;
+}
+
+/** The "Empty trash" confirmation for the `count` templates in the list. */
+export function emptyTrashQuestion(count: number): string {
+  const what =
+    count === 1
+      ? "The 1 template in it is"
+      : `All ${plural(count, "template")} in it are`;
+  return `Empty the trash? ${what} removed for good, and deleted folders go too. This cannot be undone.`;
+}
+
+/** "Empty trash" result from the server's counts (`trash.purge` `templates`, `folders`). */
+export function purgeText(templates: number, folders: number): string {
   return folders === 0
     ? `Emptied the trash: ${plural(templates, "template")} removed for good.`
     : `Emptied the trash: ${plural(templates, "template")} and ${plural(folders, "deleted folder")} removed for good.`;

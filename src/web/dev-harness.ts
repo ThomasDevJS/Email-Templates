@@ -988,6 +988,8 @@ const OPS: Readonly<Record<string, Op>> = {
     );
     return {
       purged: gone.length + goneFolders.length,
+      templates: gone.length,
+      folders: goneFolders.length,
       filesTrashed: gone.length,
       itemsPending: pending,
     };

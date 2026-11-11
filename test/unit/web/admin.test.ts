@@ -551,12 +551,12 @@ describe("trash", () => {
     expect(text()).toContain("Trash is empty.");
   });
 
-  it("says the trash was emptied without a count when the list cannot be reloaded", async () => {
+  it("counts from the server's answer when the list cannot be reloaded", async () => {
     await boot("/?latency=0#/trash");
     await until(() => {
       expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
     });
-    // Only the reload after the purge fails: the old list would give "0 templates".
+    // Only the reload after the purge fails: the counts come from the trash.purge answer.
     window.history.replaceState(
       null,
       "",
@@ -566,10 +566,9 @@ describe("trash", () => {
     button("Empty trash", dialog()).click();
     await until(() => {
       expect(status()).toContain(
-        "Emptied the trash. The list could not be refreshed.",
+        "Emptied the trash: 1 template removed for good. The list could not be refreshed.",
       );
     });
-    expect(status()).not.toContain("0 templates");
   });
 
   it("counts templates in both the dialog and the result when deleted folders go too", async () => {
@@ -582,7 +581,7 @@ describe("trash", () => {
     });
     button("Empty trash now...").click();
     expect(dialog().textContent).toContain(
-      "Empty the trash? All 1 templates in it are removed for good, and deleted folders go too.",
+      "Empty the trash? The 1 template in it is removed for good, and deleted folders go too.",
     );
     button("Empty trash", dialog()).click();
     await until(() => {
