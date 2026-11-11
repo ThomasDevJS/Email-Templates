@@ -95,6 +95,7 @@
   - Follow-up 1 PASS (04af35b, 1825 tests): `cardFields` always lists first name (blank box + hint); Flow C carries `mergedValues` into re-renders; Rendered.missing gone. Probe 3 templates x 6 drafts x 3 paths, 18/18 same. Open: rule 2 ASCII only; subject uncapped; smoke step 11 non-admin; spec 7.4 signatures.
 - Slice 17 docs, smoke rewrite + test-round-1.md (2026-11-11): FAIL (review on b942e94). 68 files, 1883 tests, format clean, Code.js 364.7 KB. 79 steps checked.
   - Must fix: D11/I11 audit counts for "this month" ignore earlier smoke rows; D14 leaves "Import test" (uniqueSiblingName blocks rerun); G4 needs drafts rule 2 discards; C4 omits the phone after T2 text.
+  - Retry 1 FAIL (ce534ba): D14 "Import into" list is the AdminData from Admin open; foldersTab refresh replaces only its local copy, so a folder made in the same visit is missing (dev harness probe). Missed in round 1.
   - Test plans for a browser agent: check counts against data from earlier runs, rerun of each part, rule conflicts between global rules and steps, cache TTLs (view 600 s).
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.

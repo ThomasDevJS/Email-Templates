@@ -2,7 +2,7 @@
 
 Date: 2026-11-11. Branch `slice/17-test-round`, head b942e94, diff `a803637..b942e94`.
 
-## Verdict: FAIL
+## Verdict: FAIL (first review); Retry 1: FAIL, 1 must-fix (D14, see "Retry 1" at the end)
 
 4 steps of `docs/ops/test-round-1.md` make a tester report a false failure or block. Everything else checked holds: scope, safety rules, secrets, commands.
 
@@ -66,3 +66,31 @@ Verified rules:
 ## Secrets and personal data
 
 Added lines: no key, token or secret (AIza, ya29., GOCSPX, client_secret, refresh_token, private key, ghp_, AKIA, xox, eyJ: 0 hits). Addresses: placeholders of `<your domain>`, `example.com`, `name@company.com` and the harness constants above. No real person. The second tester is `<second account>`. No dashes, no hours of service examples.
+
+## Retry 1
+
+Head ce534ba, diff `2321180..ce534ba`. Verdict: FAIL, 1 must-fix.
+
+Commands: `npm run test` passed 1883 tests in 68 files. `npm run format:check` is clean. Changed files: `docs/ops/test-round-1.md`, `docs/ops/smoke.md`, the handoff. Steps per part are unchanged (A 13, B 12, C 13, D 15, E 11, F 10, G 7, H 11, I 11).
+
+### Must fix
+
+1. test-round-1.md D14: the step makes "Import test" in "Folders and access", then picks it in "Export and import", "Import into". That list never shows the new folder. Cause: `adminView` loads `AdminData` once (admin.ts `load`), and `foldersTab` replaces only its own copy (adminFolders.ts `refresh`, `data = await app.api.adminFolders()`). The transfer tab builds its selects from the first copy (adminTransfer.ts:265). Dev harness probe: after "Created folder "Import test".", the "Import into" options were HR, Sales, Sales / Onboarding, Sales / Quotes, Support. The browser agent reports a failure or blocks. This was in the first version too and the first review missed it. Fix: after creating the folder, reload the page and open Admin, "Export and import" again. Next: one line in D14. A code fix is a separate slice.
+
+### First review items
+
+- Must 1 (D11, I11 counts): taken. Both parts note a start time; only rows after it count. The "User" column shows the address (adminAudit.ts:197 `person(entry.actor, true)`), so "your address in User" is right. The I9 denied row note is right (dispatch.ts:274, buffered until the tick).
+- Must 2 (D14 cleanup): taken, apart from must-fix 1 above. The T8 copy goes to the trash first, then "R&D <b>", then "Import test". `checkEmpty` (folders.ts:266) ignores trashed templates, so both folders can be deleted. The texts "Delete...", "Delete" and "Deleted folder "Import test"." are exact (adminFolders.ts:204-214). `uniqueSiblingName` skips deleted folders (validate.ts:57), so a second run can create "Import test" again.
+- Must 3 (G keeps drafts): taken in rule 2, the part G intro, G1, G2 and G4.
+- Must 4 (C4 phone): taken.
+- Minors 1 to 9: taken. The T2 text now has a space before the phone. F3 allows personal templates. E1 starts with "Open library". D6 says "Last change". H4 and smoke Slice 9 step 9 name `fields`. Expect lines were added to A10, B12, E3, E7, G1 to G7, H2, H3 and H7. Smoke Slice 15 step 3 has both labels. Part I says the owner gives the address. "Your name" is defined. Minor 10 needed no change.
+
+### New D13 and D14
+
+- D13: the "Folder" option reads "Smoke 6a / R&D <b>" (adminTransfer.ts `folderOptions`, " / " join). Expected text: "Exported 1 templates to migway-templates-r-d-b-<date>.json." `slug("R&D <b>")` gives `r-d-b` (admin/model.ts:108).
+- D14: "Checked. Import would create 1 templates, 0 skipped, 0 failed." and "Imported 1 templates, 0 skipped, 0 failed." are exact prefixes of `importSummary`; " Folders: 1 new, 0 existing." follows. The library reloads after Import (adminTransfer.ts `app.reload()`).
+- File picker blocked: the agent has already made "Import test" and stops. A second run then cannot make the folder (sibling names must be unique). Minor: tell the agent to delete "Import test" when it cannot pick the file.
+
+### Other steps changed by the retry
+
+C8, F8 (first name when the directory has one), E3 (`copies` search finds T3 and T4), E7, F intro, G1 to G7, H1 to H7, H11, I intro, I6 and I8 to I11 were read against the code and hold. Smoke Slice 9 step 9 matches `draftInfo` (event.ts). Smoke Slice 15 step 3 matches folder.ts `templateSections`.
