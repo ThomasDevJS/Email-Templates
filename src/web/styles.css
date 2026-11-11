@@ -1832,6 +1832,16 @@ table {
   color: var(--warn);
 }
 
+/* A problem with a field is a button that moves focus there; it keeps the problem's color. */
+.problems button.problem-link {
+  display: inline;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+}
+
 .skeleton-bar {
   height: 41px;
 }

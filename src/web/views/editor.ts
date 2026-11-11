@@ -409,13 +409,72 @@ export function editorView(
       editor?.html() ?? "",
     ]);
 
+  /** Problems of the last save; the ones the live check also finds go when they are fixed. */
+  let saveListed: readonly ListedProblem[] = [];
+  let recipientErrors: readonly RecipientProblem[] = [];
+  let shownProblems = "";
+
+  /** Moves focus to the field a problem is in; a collapsed panel section (narrow screen) opens first. */
+  const focusField = (field: string) => {
+    const target =
+      field === "body"
+        ? editor?.view.dom
+        : field === "subject"
+          ? subjectInput
+          : document.getElementById(`rcpt-${field}`);
+    const section = target?.closest(".panel-section");
+    if (section?.querySelector(".section-body.collapsed"))
+      section.querySelector<HTMLElement>(".section-toggle")?.click();
+    target?.focus();
+  };
+
+  /** Every problem the save would refuse now: backslashes and placeholders in body and subject, recipients. */
+  const liveProblems = (): ListedProblem[] => {
+    if (readOnly || editor === null) return [];
+    const error = (message: string, field: string): ListedProblem => ({
+      kind: "error",
+      message,
+      field,
+    });
+    return [
+      ...backslashProblems(editor.view.state.doc).map((problem) =>
+        error(problem.message, "body"),
+      ),
+      ...scanBody(editor.html(), [], subjectInput.value.trim()).problems.map(
+        (problem) => error(fieldMessage(problem), problem.field ?? "body"),
+      ),
+      ...recipientErrors.map((problem) =>
+        error(problem.message, problem.field),
+      ),
+    ];
+  };
+
+  /** The Problems tab: live problems, then the last save's others. Redrawn only on a change (it is an alert). */
+  const drawProblems = (): readonly ListedProblem[] => {
+    const live = liveProblems();
+    const list = [
+      ...live,
+      ...saveListed.filter(
+        (problem) => !live.some((shown) => shown.message === problem.message),
+      ),
+    ];
+    const key = JSON.stringify(list);
+    if (key !== shownProblems) {
+      shownProblems = key;
+      replace(problems, ...problemList(list, focusField));
+      tabs.count.textContent = String(list.length);
+    }
+    return list;
+  };
+
   const showProblems = (list: readonly ListedProblem[]) => {
-    replace(problems, ...problemList(list));
-    tabs.count.textContent = String(list.length);
-    if (list.some((problem) => problem.kind === "error")) tabs.select(1);
+    saveListed = list;
+    if (drawProblems().some((problem) => problem.kind === "error"))
+      tabs.select(1);
   };
 
   const showRecipientProblems = (found: readonly RecipientProblem[]) => {
+    recipientErrors = found;
     for (const field of RECIPIENT_FIELDS)
       fields?.[field].show(found.filter((problem) => problem.field === field));
   };
@@ -472,6 +531,7 @@ export function editorView(
         preview.innerHTML = previewAsMe(editor.html(), app.profile());
       showAsks();
       showSaved();
+      drawProblems();
     }, 250);
   };
 

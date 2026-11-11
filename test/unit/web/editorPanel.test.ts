@@ -228,6 +228,45 @@ describe("editor layout (slice 8b)", () => {
     );
   });
 
+  it("counts every problem the save would refuse while typing, and each one leads to its field", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    const tab = () =>
+      main().querySelectorAll<HTMLElement>('[role="tab"]')[1]?.textContent;
+    const links = () => [
+      ...main().querySelectorAll<HTMLButtonElement>(".problems .problem-link"),
+    ];
+    type(byId("rcpt-cc"), "not-an-address");
+    const subject = byId("subject");
+    subject.value = "Hi {{sender.nmae}}";
+    subject.dispatchEvent(new Event("input"));
+    await until(() => {
+      expect(tab()).toBe("Problems 2");
+    });
+    // Typing does not switch tabs; only a refused save does.
+    expect(
+      main().querySelectorAll('[role="tab"]')[0]?.getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(links().map((link) => link.textContent)).toEqual([
+      expect.stringMatching(
+        /^Error: Subject: Unknown placeholder sender\.nmae/,
+      ),
+      expect.stringMatching(/^Error: Cc, address 1/),
+    ]);
+    // A collapsed Details section (narrow screen) opens first.
+    button("Details").click();
+    expect(button("Details").getAttribute("aria-expanded")).toBe("false");
+    links()[1]?.click();
+    expect(button("Details").getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(byId("rcpt-cc"));
+    links()[0]?.click();
+    expect(document.activeElement).toBe(subject);
+    // A fixed problem leaves the count.
+    button("Remove not-an-address from Cc").click();
+    await until(() => {
+      expect(tab()).toBe("Problems 1");
+    });
+  });
+
   it("shows the subject with blanks under the field while it holds a placeholder", async () => {
     await openEditor("/?latency=0#/edit/T-QUOTE");
     const reads = main().querySelector(".reads-as") as HTMLElement;
