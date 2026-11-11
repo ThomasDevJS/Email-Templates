@@ -34,7 +34,6 @@
   - Must fix: 390 px panel (`.side.open .side-panel` absolute) lets Tab reach search/grid under it; no outside-click close (app.ts:74-86). `--star` #c58a00 2.99 on paper, 2.74 on canvas; star-off 2.80 on `--select` (button hover).
 - Slice 10 S7 harness (2026-11-10): PASS (f7f05a7). 58 files, 1332 tests, lines 96.48, Code.js 335.7 KB, 10 scopes, manifest adds contextualTriggers unconditional onMessageOpen.
   - `entryOf` (event.ts): draftMetadata -> compose, else gmail.messageId or messageMetadata.messageId -> message, else inbox. Compose clicks carry top-level draftMetadata (runbook.md:125 fields).
-  - Interim fix: Insert only when entry compose (templateItem, preview insertButtons); TOOLBAR_HINT on home card only.
 - Slice 8c UI admin (2026-11-10): PASS (75ebb53). 56 files, 1295 tests, lines 96.45, index.html 352.9 KB (+12.3, css +7.2), Lighthouse 100x12 (incl. admin audit dark), 10 scopes. No server/shared/addon/editor change.
   - New: src/web/admin/actions.ts (actionWords Map, resultTag, purgeText), views/adminTable.ts (data-label stacking <860 px, Chromium keeps table roles), tint tokens --ok-bg/--warn-bg/--red-bg.
   - Minors: trash.ts:140 purgeText infers templates from the list (wrong when reload fails); server has goneItems, ask for it. Audit actor short name only (title). Export sentence omits private folders. Config widths uneven.
@@ -58,10 +57,8 @@
   - Retry 2 mechanism: export `start: true` commits one export.* event via `commit` into pendingAudit, then token `exp:<newId>` (actor, kind, folderId, 600 s sliding) in Script Cache; pages refuse VALIDATION EXPORT_RESTART without it; pages read bodies with keep=false. Buffer holds apply+denied only; evt:lost "<lost> <seen>"; full buffer reuses evicted slot first.
   - Open minors: retry text "did not answer" for BUSY; NETWORK retry of a landed start writes 2 events; audit "started" gives no partial-download hint; token from Math.random (bound to actor, harmless); in-lock import recheck refuses whole import; spec/ADR export passages for architect.
   - config.set base = updatedAt+updatedBy; recheckRecipients in lock (body.ts); prof:<sha256>; stats.target for log targetId; cancelDialogs on Back/Forward.
-  - Dev harness: no export audit row, no recipients in the sample; `failSkip`/`failTimes`/`failOp` simulate failures. Harness CONFLICT patch: page.route on minified names (change per build).
 - Slice 8b editor (2026-11-11): FAIL (671c7a7), retry 1 PASS (5bd5ec6, 1498 tests, lines 97.35, index.html 367.7 KB after CSS minify, Lighthouse 100x13). Retry: Editor.hold() bookmark mapped through every tr (image, link, ask); one leave dialog (`asking`); googleHost writes {page, at} state, held Back/Forward travels back via Host.go and ignores the return event; live Problems with field buttons; scripts/web.mjs minifiedStyles (esbuild transform, throws on //, /*, <?, </style).
   - Open minors: no smoke step for Host.go (smoke.md:157); first entry has null state, Back to it still pushes (host.ts:75, app.ts:318); chip texts in visible status line shift toolbar 27 px (editor.ts:743), recommend .sr-only status; caret before node after insert at doc start (base too); Back+Discard extra entry; `me` failure blocks editor.
-  - Probes in scratchpad/8b-r1/p: insert.cjs (72 runs), nav.cjs, worst.cjs (history.go no-op/no-state/silent), engine4.cjs (needs 60 ms per key or link selection varies on both builds).
 - Slice 8b merge with main fe33d50 (2026-11-11): PASS (a5d4527 on 0a59b34). 65 files, 1774 tests, lines 97.77, Code.js 358.6 KB, index.html 374.3 KB, Lighthouse 100x15, 10 scopes. Server/addon/shared diff vs main empty.
   - Merge method: `git show --remerge-diff <merge>`; symbol union check (git grep declarations per commit, trace absentees to merge base); test lines removed vs one parent must be removed by the other from base; computed-style diff per element vs the parent owning each view (0 diffs).
   - cancelDialogs: app.ts open() (route change) and editor canLeave (before the question). Minor: implementer MEMORY:126 describes it wrong.
@@ -100,6 +97,9 @@
 - Slice 21 card feedback D35 (2026-11-11): FAIL (review on 9e338cb). Code clean; part K step 2 "Same popup" after a row Insert that closes the card. 71 files, 1958 tests, Code.js 370.4 KB, 10 scopes.
   - Code: render.ts toAction sole Action builder, INSTANT {onBack, onOpenLink} = NONE else SPINNER; Widget text tone "error" -> <font color="#b32025"> around escaped text (details (!) line, state card first line). primaryColor slate. cardLook snapshot (5de6f7f) passes on base.
   - #b32025: 6.67 on white, 2.41 on #202124. No red passes 4.5 on both; part K must record dark card background.
+- Slice 22 hints + Search button D36 (2026-11-11): PASS (review on 8b91e3d). 71 files, 1982 tests, Code.js 372.5 KB, 10 scopes. 4 minors.
+  - Code: spec.ts hint() tone "hint" -> DecoratedText info icon + <font color="#5f6368">; 5 hint lines; Search TextButton (onSearch, icon via typeof-guarded setMaterialIcon, throw not caught). Worst cards 76/84/44. Grey 6.05 white, 2.66 #202124.
+  - Recording Card Service is one shared Proxy chain: to fake a missing/throwing method wrap newX() in a Proxy that returns itself.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
