@@ -244,11 +244,11 @@ export interface Api {
     dryRun: boolean,
   ): Promise<ImportReport>;
   config(): Promise<ConfigView>;
-  /** `config.set`: CONFLICT with the current entry in `details` when `from` is stale. */
+  /** `config.set`: CONFLICT with the current entry in `details` when `base` is not the last change. */
   setSetting(
     name: SettingName,
     value: SettingValue,
-    from: SettingValue,
+    base: SettingEntry,
   ): Promise<SettingEntry & { changed: boolean }>;
   backups(): Promise<{ dates: string[] }>;
   restoreBackup(date: string): Promise<{ date: string; rev: number }>;
@@ -315,8 +315,13 @@ export function createApi(client: RpcClient): Api {
     importFile: (folderId, file, dryRun) =>
       call("import", { folderId, file, dryRun }),
     config: () => call("config.get"),
-    setSetting: (name, value, from) =>
-      call("config.set", { name, value, from }),
+    setSetting: (name, value, base) =>
+      call("config.set", {
+        name,
+        value,
+        baseAt: base.updatedAt,
+        baseBy: base.updatedBy,
+      }),
     backups: () => call("backup.list"),
     restoreBackup: (date) => call("backup.restore", { date }),
   };

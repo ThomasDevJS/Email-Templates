@@ -590,7 +590,8 @@ describe("config tab", () => {
     await otherTab("config.set", {
       name: "recipientsExternal",
       value: "deny",
-      from: "allow",
+      baseAt: "",
+      baseBy: "",
     });
     radio(outside, "example.com only").click();
     button("Save", outside).click();
@@ -612,6 +613,64 @@ describe("config tab", () => {
         "Saved. Outside recipients are allowed.",
       );
     });
+  });
+
+  it("shows the current value from a CONFLICT after an A, B, A change and keeps focus off the body", async () => {
+    await boot("/?latency=0#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const outside = main().querySelectorAll(
+      "fieldset.setting",
+    )[1] as HTMLElement;
+    await otherTab("config.set", {
+      name: "recipientsExternal",
+      value: "deny",
+      baseAt: "",
+      baseBy: "",
+    });
+    await otherTab("config.set", {
+      name: "recipientsExternal",
+      value: "allow",
+      baseAt: "2026-11-09T14:03:00.000Z",
+      baseBy: "dev.user@example.com",
+    });
+    radio(outside, "example.com only").click();
+    const save = button("Save", outside);
+    save.focus();
+    save.click();
+    button("Allow only example.com", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(outside.textContent).toMatch(
+        /dev\.user changed this setting on Nov 9, .*\. The page now shows the current value\./,
+      );
+    });
+    expect(checkedLabel(outside)).toBe("Allowed");
+    expect(outside.textContent).toContain("Last change: dev.user on Nov 9");
+    expect(save.disabled).toBe(true);
+    expect(document.activeElement).toBe(
+      outside.querySelector('[role="status"]'),
+    );
+  });
+
+  it("moves focus to the status line after a Save without a dialog", async () => {
+    await boot("/?latency=0&personal=off#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const personal = main().querySelector("fieldset.setting") as HTMLElement;
+    radio(personal, "On").click();
+    const save = button("Save", personal);
+    save.focus();
+    save.click();
+    expect(document.activeElement).toBe(save);
+    expect(save.getAttribute("aria-disabled")).toBe("true");
+    await until(() => {
+      expect(personal.textContent).toContain("Saved.");
+    });
+    expect(document.activeElement).toBe(
+      personal.querySelector('[role="status"]'),
+    );
   });
 
   it("shows the empty and error states of the config tab", async () => {

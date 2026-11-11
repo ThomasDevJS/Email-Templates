@@ -443,14 +443,14 @@ const settings: Record<SettingName, SettingEntry> = {
   recipientsExternal: { value: "allow", updatedAt: "", updatedBy: "" },
 };
 
-/** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale `from`, no-op on the same value. */
+/** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale base, no-op on the same value. */
 function configSet(args: Record<string, unknown>) {
   const name = args["name"];
   if (!isSettingName(name))
     throw new AppError(ErrorCode.VALIDATION, "Setting does not exist.");
   const entry = settings[name];
   if (entry.value === args["value"]) return { name, ...entry, changed: false };
-  if (entry.value !== args["from"])
+  if (entry.updatedAt !== args["baseAt"] || entry.updatedBy !== args["baseBy"])
     throw new AppError(
       ErrorCode.CONFLICT,
       "Another admin changed this setting.",

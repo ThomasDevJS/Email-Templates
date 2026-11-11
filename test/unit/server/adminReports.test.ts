@@ -157,7 +157,7 @@ const OPS: Readonly<Record<string, Case>> = {
   "config.get": () => ["config.get", {}],
   "config.set": () => [
     "config.set",
-    { name: "personalTemplates", value: "on", from: "off" },
+    { name: "personalTemplates", value: "on", baseAt: "", baseBy: "" },
   ],
   "backup.list": () => ["backup.list", {}],
   "backup.restore": () => [
@@ -218,7 +218,8 @@ describe("role matrix of the slice 6b ops", () => {
       codeOf(OWNER, "config.set", {
         name: "personalTemplates",
         value: "on",
-        from: "off",
+        baseAt: "",
+        baseBy: "",
       }),
     ).toBe("DENIED");
     expect(fileIndex().settings).toBeUndefined();
