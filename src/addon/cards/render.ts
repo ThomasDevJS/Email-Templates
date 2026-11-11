@@ -5,6 +5,7 @@ import {
   type ActionSpec,
   type ButtonSpec,
   type CardSpec,
+  type IconName,
   type Reply,
   type SectionSpec,
   type Widget,
@@ -18,6 +19,9 @@ type Card = GoogleAppsScript.Card_Service.Card;
 type ActionResponse = GoogleAppsScript.Card_Service.ActionResponse;
 type DraftResponse = GoogleAppsScript.Card_Service.UpdateDraftActionResponse;
 type ComposeResponse = GoogleAppsScript.Card_Service.ComposeActionResponse;
+
+/** Brand slate of docs/design/design-system.md: the fill of the one main button. */
+export const SLATE = "#2a3c49";
 
 function markup(text: string): string {
   return escapeText(text).replace(/\n/g, "<br>");
@@ -41,15 +45,26 @@ function toButton(spec: ButtonSpec): GoogleAppsScript.Card_Service.TextButton {
         );
   if (spec.alt !== undefined) button = button.setAltText(spec.alt);
   if (spec.disabled === true) button = button.setDisabled(true);
-  if (spec.filled === true)
-    button = button.setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+  if (spec.style === "filled")
+    button = button
+      .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+      .setBackgroundColor(SLATE);
+  if (spec.style === "outlined")
+    button = button.setTextButtonStyle(CardService.TextButtonStyle.OUTLINED);
   return button;
+}
+
+function toIcon(name: IconName): GoogleAppsScript.Card_Service.IconImage {
+  return CardService.newIconImage().setMaterialIcon(
+    CardService.newMaterialIcon().setName(name),
+  );
 }
 
 function toItem(spec: Extract<Widget, { kind: "item" }>) {
   let item = CardService.newDecoratedText()
     .setText(markup(spec.text))
     .setWrapText(true);
+  if (spec.icon !== undefined) item = item.setStartIcon(toIcon(spec.icon));
   if (spec.topLabel !== undefined)
     item = item.setTopLabel(markup(spec.topLabel));
   if (spec.bottomLabel !== undefined)
@@ -100,13 +115,15 @@ function toSection(spec: SectionSpec) {
   const section = CardService.newCardSection();
   if (spec.header !== undefined) section.setHeader(markup(spec.header));
   for (const widget of spec.widgets) section.addWidget(toWidget(widget));
+  if (spec.collapseAfter !== undefined)
+    section.setCollapsible(true).setNumUncollapsibleWidgets(spec.collapseAfter);
   return section;
 }
 
 export function renderCard(spec: CardSpec): Card {
-  const card = CardService.newCardBuilder()
-    .setName(spec.name)
-    .setHeader(CardService.newCardHeader().setTitle(spec.title));
+  const card = CardService.newCardBuilder().setName(spec.name);
+  if (spec.title !== undefined)
+    card.setHeader(CardService.newCardHeader().setTitle(spec.title));
   for (const section of spec.sections) card.addSection(toSection(section));
   if (spec.footer !== undefined) {
     const footer = CardService.newFixedFooter().setPrimaryButton(

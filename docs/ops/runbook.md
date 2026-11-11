@@ -92,7 +92,7 @@ The server runs as the owner, so all server work counts against the owner accoun
 | Trigger runtime         | about 27 min per day against 6 h                 |
 | GroupsApp reads         | up to 2,880 per day against 10,000               |
 
-A QUOTA error means Apps Script answered "too many simultaneous invocations" or "service invoked too many times". The user sees "Service is busy. Try again in a minute." In the web app, Retry stays disabled 60 s. In the Gmail panel, Retry can be clicked; within 60 s it answers "Service is busy. Try again in N s." with the seconds left. Single cases need no action. Repeated cases: check the Executions view for long or looping runs, and the daily quota of the owner account.
+A QUOTA error means Apps Script answered "too many simultaneous invocations" or "service invoked too many times". The user sees "Service is busy. Try again in a minute." In the web app, Retry stays disabled 60 s. In the Gmail panel, Retry can be clicked; within 60 s it answers "Service is busy. Try again in N seconds." with the seconds left. Single cases need no action. Repeated cases: check the Executions view for long or looping runs, and the daily quota of the owner account.
 
 ## Logs
 
@@ -193,7 +193,7 @@ Unverified: that Upload new version keeps the file ID and its app properties. Ch
 | Config tab: a job "late"                                                            | Trigger failing or missing                                    | Editor, Triggers; the last error         | Fix the error, redeploy or roll back; run `setup()` to reinstall triggers |
 | "Trigger reinstall failed: ..."                                                     | Trigger create failed after a deploy                          | Error text                               | Run `setup()` as the owner                                                |
 | "Service is busy. Try again in a minute." often                                     | Quota or simultaneous runs                                    | Executions, run count and length         | Wait; look for a looping run                                              |
-| "Busy, try again." often                                                            | Script lock held over 10 s by long writes                     | Executions, `lockMs`                     | Wait; check large imports or restores                                     |
+| "Busy right now. Press Retry in a few seconds." often                               | Script lock held over 10 s by long writes                     | Executions, `lockMs`                     | Wait; check large imports or restores                                     |
 | A group grant gives no access                                                       | Person is in a child group, or the owner cannot see the group | Memberships tab warning                  | Add the person directly; make the group's members visible                 |
 | New template missing in the Gmail panel                                             | Panel copy up to 10 min old                                   | Library shows it                         | "Open library" in the panel, or wait 10 min                               |
 | Web app page blank after a deploy                                                   | Bundle cut or blocked by a new page policy                    | Browser console in the app frame         | Roll back; see ADR-0005 amendment "web bundle inlining"                   |

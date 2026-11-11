@@ -77,7 +77,7 @@ function respond(
     wait > 0
       ? {
           kind: "notify",
-          text: `Service is busy. Try again in ${String(wait)} s.`,
+          text: `Service is busy. Try again in ${String(wait)} seconds.`,
         }
       : run(context, params),
   );
