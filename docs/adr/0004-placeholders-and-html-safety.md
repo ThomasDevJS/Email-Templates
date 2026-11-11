@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Proposed, see ADR-0006)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Proposed, see ADR-0006); one-click insert D31 (Proposed 2026-11-11, see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)")
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -85,8 +85,8 @@ Saved items store the parsed `placeholders` (names) and `prompts` (normalized la
 
 1. Prompt identity: label trimmed, inner whitespace collapsed, compared case-insensitively. The first spelling is shown. One input per identity fills every occurrence.
 2. Variable values. Sender values come from the caller's profile (below). `recipient.first_name` resolves only when the draft has exactly one To recipient and that address is in the Migway domain; it is then the Directory `name.givenName`. Zero or several To recipients, or an external address, leave it unresolved. External addresses never leave the add-on and are never logged.
-3. Unresolved variable with a fallback: the fallback is used. Unresolved variable without a fallback becomes an implicit prompt ("Your phone", "Recipient first name"). No placeholder ever renders as empty text by accident.
-4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified). [Not tried in slice 4; optional, no slice owns it.]
+3. Unresolved variable with a fallback: the fallback is used. Unresolved variable without a fallback becomes an implicit prompt ("Your phone", "Recipient first name"). No placeholder ever renders as empty text by accident. [D31, 2026-11-11, Proposed: an implicit prompt left blank renders as the marker `[Your phone]`; the rule stays "never empty by accident".]
+4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified). [Not tried in slice 4; optional, no slice owns it.] [D31, 2026-11-11, Proposed: on the compose card a blank field no longer blocks; it inserts as its marker. See Amendment 2026-11-11.]
 5. Values: plain text, max 500 characters, HTML-escaped (`& < > " '`), newline becomes `<br>`. Fallbacks and Directory values get the same escaping. Rendering never creates markup from values.
 6. Escape: `\{{` renders as the literal `{{`.
 7. Insert: `UpdateDraftBodyAction` with `MUTABLE_HTML` and `UpdateDraftBodyType.IN_PLACE_INSERT` [R4 S4, S5b]. The rendered HTML is the sanitized stored body with tokens replaced. Subject is not touched in v1. [Changed by D21: see Amendment 2026-11-10, subject.]
@@ -268,6 +268,32 @@ Status: Proposed until the owner approves. Mechanism, options and platform facts
 - "Insert body only" (D24) now means body only: no subject action and no recipient action.
 - `recipient.first_name` (Apply semantics 2) still reads the draft's To before the insert; template To addresses do not feed it.
 
+## Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)
+
+Status: Proposed until the owner approves. Owner request 2026-11-11: "insert template in 1 click (or help pre-fill if they want to (or they do it themselves in the gmail, we just insert template and remove placeholders))". Card layout and the details card: ADR-0009. Recipients: ADR-0006 Amendment 2026-11-11.
+
+Context. Today a template with a field the sender fills (`{{ask:Label}}`, or a variable with no value and no fallback) opens the prompt card, and Insert stays blocked until every field holds a value (Apply semantics 4). D31 asks for Insert in one click for every template. The grammar gives `{{ask:Label}}` no fallback; only variables carry `|fallback`. So on one click every explicit field, and every implicit field, has no value.
+
+Options for a field without a value at insert:
+1. Marker. The field renders as the plain text `[Label]`, for example "Hi [Driver name],". The sender sees it in the draft and types over it. Cost: one string. Risk: a sender who does not read the draft sends "[Driver name]"; the brackets make the slip visible to the reader.
+2. Removal. The field renders as "". The owner's words ("remove placeholders"). Risk: "Hi ," or "Your load  arrives on ." reads as a normal sentence with a hole; nothing in the draft shows that a value is missing, so it is easy to send.
+3. Highlighted marker. `[Label]` inside `<span style="background-color:...">`. Rejected: rendering would create markup (Apply semantics 5 says rendering never creates markup from values), and the highlight is sent with the mail when the sender forgets it.
+4. Keep the blocking prompt card for templates with fields. Rejected by D31.
+
+Decision: option 1, as one constant. Mechanism:
+- One constant in src/shared/placeholders/render.ts, `UNFILLED = "marker"` (alternative value `"remove"`). One function `unfilledText(field)` returns `"[" + field.label + "]"` for `"marker"` and `""` for `"remove"`. Owner question Q56, default "marker".
+- `renderBody` and `renderSubject` use `unfilledText(field)` where they return "" for a missing answer today. They still report the field in `missing`, so callers and tests can count markers.
+- Label: `PromptField.label`, the text the details card shows as the input title: the first spelling of an explicit label ("Driver name"), the registry `promptLabel` of an implicit one ("Your phone", "Recipient first name"). One identity gives one marker text everywhere, subject and body.
+- Escaping: the marker goes through `formatValue` like any value (`& < > " '` escaped). Labels cannot hold `<`, `>`, `{`, `}`, `|` or `\` (grammar), so a marker never forms markup or a token. The sanitizer and the allowlist do not change.
+- Subject: the same rule; the marker is plain text and `oneLine` runs after it. With `"remove"`, double spaces collapse and the result is trimmed (existing rule).
+- Variables that resolve keep their rules: value, else fallback, else the marker. `recipient.first_name` still reads the draft's single internal To at the Insert tap (Apply semantics 2).
+- Values typed on the details card (ADR-0009): a non-blank value wins; a blank one inserts the marker; a value over 500 characters still blocks Insert with "Shorten to 500 characters: <labels>". Blank no longer blocks.
+- Side panel (ADR-0007, after spike S7): the same rule, so the blank-field notification and the "Check" fallback of ADR-0007 section 3 are no longer needed.
+
+Rule of Apply semantics 3 kept: no placeholder renders as empty text by accident. With `"marker"` it never does; with `"remove"` it does on purpose, by the owner's choice.
+
+Consequences: the prompt card no longer guards against an unfilled field; the draft does. The quick start gets one line: "Fields you did not fill show as [Label] in the draft. Type over them before you send." Nothing changes on the server: `PH_TOO_MANY` (20 per template) stays; one-click needs no field cap. No log line carries a marker or a count of markers (the server writes the apply line before the add-on renders).
+
 ## Consequences
 
 - Easier: one grammar, one regex, one registry; unresolved values become prompts, so nothing ships empty. Server-side sanitizing keeps the stored body safe for every client.
@@ -278,6 +304,7 @@ Status: Proposed until the owner approves. Mechanism, options and platform facts
 ## Open questions
 
 - Q20, Q21 (spec section 15): closed 2026-11-10. Q20 by spike S5 (one response, no new scope); Q21 by D24.
+- Q56 (spec section 15, D31): marker or removal for a field without a value. Default marker.
 - Q25 (spec section 15): prompts used only in the subject are asked while "Replace the subject" is off. Recommendation: accept in v1.
 
 - Q9. Does `domain_public` return `organizations` and `phones`? Recommendation: test in slice 2; fallback `searchDirectoryPeople` with `directory.readonly` (one consent line, replaces `admin.directory.user.readonly`).
@@ -293,3 +320,4 @@ Status: Proposed until the owner approves. Mechanism, options and platform facts
 - [A14] https://developers.google.com/workspace/add-ons/gmail/extending-compose-ui (`UpdateDraftActionResponse`, subject example, one action per example, no per-action scope, no mobile note), read 2026-11-10.
 - [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder and https://developers.google.com/apps-script/reference/card-service/update-draft-subject-action, read 2026-11-10.
 - [A16] https://developers.google.com/workspace/gmail/api/auth/scopes (`gmail.addons.current.action.compose`, non-sensitive), read 2026-11-10.
+- [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder, re-read 2026-11-11: 6 methods (body, subject, To, Cc, Bcc, build); no notification and no navigation.

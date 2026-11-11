@@ -1,6 +1,6 @@
 # ADR-0006: Template recipients (To, Cc, Bcc)
 
-Status: Accepted 2026-11-11 (spike S6 passed on Gmail web from the compose toolbar, dev-ec0ccb2; built in slice 9, review PASS on 08955ca; editor fields in slice 8b). Was Proposed 2026-11-10. Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting, built in slice 11.
+Status: Accepted 2026-11-11 (spike S6 passed on Gmail web from the compose toolbar, dev-ec0ccb2; built in slice 9, review PASS on 08955ca; editor fields in slice 8b). Was Proposed 2026-11-10. Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting, built in slice 11. Amendment 2026-11-11 (D31, Proposed): one-click insert also for templates with recipients; the disclosure moves from a card before the insert to the row hint before it and the draft's own fields after it.
 Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
@@ -120,7 +120,7 @@ Options for one-click Insert from a list row:
 2. One click stays for templates with no recipients. A template with any recipient opens the preview card (or the prompt card, when it has prompts); its Insert is the confirmation.
 3. One click unless Bcc or an outside address is set.
 
-Decision: option 2. One extra click on recipient templates only. A Bcc or outside address never reaches a draft without a card that showed it. Mechanism:
+Decision: option 2. [D31, 2026-11-11, Proposed: replaced by option 1 with a count check; see Amendment 2026-11-11.] One extra click on recipient templates only. A Bcc or outside address never reaches a draft without a card that showed it. Mechanism:
 - List rows (Home, Folder, Search, Favorites, Recent) of a template with recipients show the bottom label "Adds To 1, Cc 1, Bcc 1" (only fields with addresses) and the row button reads "Review". The sidebar list carries counts only: item field `rc: [to, cc, bcc]`, no addresses.
 - Preview and prompt cards list every address on its own line with its field. An outside address carries "outside migway.com" (the caller's domain, from the caller's address). A Bcc line carries "hidden from other recipients". Not-added addresses (already in the draft, To rule, `blocked`) are listed with the reason.
 - `template.apply` returns `to`, `cc`, `bcc`, `blocked` on every call, filtered by the current switch, outside the `knownVersion` rule (the lists are small and the switch can change without a new version). The add-on never caches them.
@@ -167,6 +167,36 @@ Spike S6 record: docs/spikes/slice-09-s6.md. Owner run on dev-ec0ccb2 from the c
 - `template.list` always carries the lists (slice 13); the web library matches a query word against the local part or the full address (`SearchFields.addresses`), weight 1; the sidebar `search` op passes no addresses.
 - Editor (slice 8b): chips in the Details panel; Backspace in the empty input removes the last chip; announcements "Added <addresses> to Cc", "Removed <address> from Cc".
 
+## Amendment 2026-11-11: one-click insert with recipients (D31)
+
+Status: Proposed until the owner approves. Owner decision D31 (2026-11-11): Insert on every row inserts in one click, templates with recipients included. This replaces the decision of section 5 (option 2) with option 1 plus a count check. Fields the sender fills: ADR-0004 Amendment 2026-11-11. Cards: ADR-0009.
+
+Platform facts (read 2026-11-11):
+- `UpdateDraftActionResponseBuilder` has 6 methods: body, subject, To, Cc, Bcc actions and `build` [A15]. `ActionResponseBuilder` has navigation, notification, open link, state changed and `build`, and no draft action [A44]. A callback returns one of the two. So an insert response cannot carry a notification: the "result line after insert" of the D31 reading is not possible.
+- Spike S6 step 0 (dev-ec0ccb2): the compose card closed after the insert tap. Step 1: Gmail web opened the Bcc line by itself when the action added a Bcc. Google's compose guide does not say whether the card closes [A14]; slice 15 smoke re-checks it.
+
+Options for the disclosure on one click:
+1. Row hint before, Gmail's draft fields after. The row label names the fields and counts ("Adds Cc 1, Bcc 1"); after the insert the draft shows every added address as a chip in To, Cc or Bcc (S6 steps 1 to 3). Cost: none on the server.
+2. Row hint with the addresses. The sidebar view (`sidebar.home`, cached 10 min in the User Cache) would carry each address. Cost: a server change and addresses in the add-on cache (section 5 kept them out); 2 addresses of 20 to 30 characters each do not fit on one label line of a 300 px card next to the folder path; whether Gmail wraps or cuts a long label is unverified (slice 15 smoke).
+3. One click, then a notification naming every added address. Not possible (facts above).
+4. Keep a card for templates with a Bcc or an outside address. Safer for the two risky cases; breaks D31 for exactly the company templates that carry routing (the "driver leaving" use case of D26).
+
+Decision: option 1, with a count check in place of `rh` on rows. Mechanism:
+- The row hint stays counts per field (`rc`, `deny` already applied by the server), placed first on the label line so a cut label keeps it (ADR-0009). Owner question Q57: addresses on the row, default counts.
+- Bcc gets no extra step. Reasons: the template's Bcc is set by an `edit` holder of the folder, not by the sender; Gmail web opens the Bcc line on insert (S6 step 1), so the address is visible in the draft before Send; nothing is sent by the add-on (`setSendStatus` never). Outside addresses get no extra step either; admins who want none set `recipientsExternal` to `deny` (ADR-0008). Owner question Q58, default one click for all.
+- Count check, replaces `rh` on rows (Q54 related). The row Insert carries `rc` as it showed it, as the parameter `rc` = "<to>,<cc>,<bcc>" (absent when the row showed no hint, read as "0,0,0"). The Insert callback compares it with the lengths of `to`, `cc`, `bcc` returned by `template.apply`. Different: no draft change; the details card is pushed with "The recipients of this template changed. Check them and press Insert again." Equal: insert. Reason: a hash over addresses the row never showed checks nothing the user saw; the counts are what the row showed. Limit: an address swapped for another inside the 10 min view cache passes with equal counts; the new address is then visible in the draft. A view cached before slice 9 has no `rc` and reads "0,0,0", so a template that gained recipients shows the details card first, as today.
+- Unknown draft field: when a template address falls in a draft field the event does not give as a list (`draftRecipients` null), the one-click Insert pushes the details card in place of inserting; the card says "Add by hand". The case was never seen in the owner's Gmail runs; it costs one condition.
+- Not added in silence on one click: the template To when the draft has a To (section 4 rule), addresses already in the draft, and `blocked` addresses (`rc` excludes them). The details card still lists each with its reason.
+- Details card (ADR-0009) keeps `rh` and the switch "Add recipients": it shows every address, so the hash checks what it showed.
+- Rules unchanged: add, never remove; To only into an empty To; each action carries the draft list plus the new addresses (S6); one response; never `setSendStatus`.
+
+Risks accepted with this amendment:
+- An address added without the sender reading it first. The row shows how many and in which field; the draft shows which. Mail leaves only on Send.
+- Text being typed in a recipient field (not yet a chip) is lost when Insert replaces that field (S6 limit). Today the card says "Finish typing addresses in the draft first"; on one click no card shows it. Mitigation: the quick start line stays, and the details card keeps the line. A sender usually opens the add-on with the cursor in the body (spec 13.4), after the addresses.
+- A Bcc to an outside address can reach a draft without an "outside" marker on screen. Gmail's own outside-recipient warning is not relied on (section 5). Mitigation: `deny`.
+
+Consequences: no server change; `template.apply` still returns the lists on every call. Logs unchanged (section 7). The quick start sentence "Users see every address before it is added" (editor help in spec 7.1) changes to "The row shows how many addresses Insert adds. The draft shows them after the insert."
+
 ## Consequences
 
 - Easier: company templates carry their routing; users cannot change it without `edit`.
@@ -177,7 +207,7 @@ Spike S6 record: docs/spikes/slice-09-s6.md. Owner run on dev-ec0ccb2 from the c
 
 ## Open questions
 
-Spec section 15, Q32 to Q39.
+Spec section 15, Q32 to Q39; D31: Q57, Q58.
 
 ## Sources
 
@@ -187,3 +217,5 @@ Spec section 15, Q32 to Q39.
 - [A26] https://developers.google.com/apps-script/reference/card-service/update-draft-cc-recipients-action, read 2026-11-10.
 - [A27] https://developers.google.com/apps-script/reference/card-service/update-draft-bcc-recipients-action, read 2026-11-10.
 - [A28] https://developers.google.com/apps-script/reference/add-ons-response-service/update-draft-action-response-builder (same setters plus `setSendStatus`), read 2026-11-10.
+- [A15] re-read 2026-11-11: 6 methods, no notification, no navigation.
+- [A44] https://developers.google.com/apps-script/reference/card-service/action-response-builder (navigation, notification, open link, state changed; no draft action), read 2026-11-11.

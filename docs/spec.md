@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Proposed until the owner approves.
 Date: 2026-11-09, amended 2026-11-10 and 2026-11-11
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D29), docs/research/*.md, ADR-0001 to ADR-0008.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D31), docs/research/*.md, ADR-0001 to ADR-0009.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -71,7 +71,7 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 | # | Screen | Wireframe | Slice |
 |---|---|---|---|
 | 1 | Sidebar home | docs/wireframes/01-sidebar-home.txt | 4 (search, favorites, recent in 5) |
-| 2 | Sidebar preview and prompt cards | docs/wireframes/02-sidebar-prompt.txt | 4 (subject in 5) |
+| 2 | Sidebar preview and prompt cards; details card from slice 15 (D31) | docs/wireframes/02-sidebar-prompt.txt | 4 (subject in 5); 15 |
 | 3 | Web app library | docs/wireframes/03-web-library.txt | 3 (search, favorites in 5) |
 | 4 | Web app editor | docs/wireframes/04-web-editor.txt | 3 (subject field in 5) |
 | 5 | Web app history | docs/wireframes/05-web-history.txt | 3 (subject line in 5) |
@@ -83,6 +83,7 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 1. User opens compose, opens the add-on. Compose trigger reads the add-on User Cache `view:*`; on miss it calls server op `sidebar.home`.
 2. Server returns Favorites (max 10), Recent (max 5, from `usage`), top-level folders the caller can `use`, and the caller's filtered list for caching.
 3. User taps Insert on a template. The callback calls server op `template.apply` with `{ id, knownVersion, recipientEmailIfInternal }`. The server re-checks `use`, returns body and subject (if version changed), `to`, `cc`, `bcc` and `blocked` (every call, section 5.7), sender profile, internal recipient first name, and buffers the apply event.
+[D31, slice 15, Proposed: steps 4 to 7 are replaced by section 7.4. Every row inserts in one click; fields without a value insert as `[Label]`; a row tap opens the details card. The text below is as built until slice 15.]
 4. A template with any To, Cc or Bcc address never inserts in one click from a list: the row button reads "Review" and opens the preview card, or the prompt card when the template has prompts (section 5.7, D26). Its Insert is the confirmation.
 5. No prompts, no unresolved values and no recipients: the add-on renders and returns one `UpdateDraftActionResponse` with `UpdateDraftBodyAction` (`IN_PLACE_INSERT`, `MUTABLE_HTML`) and, when the subject rule of section 5.6 (D24) says so, `UpdateDraftSubjectAction`. One click. Verified on Gmail web: spike S5 on dev-32a446c, smoke "Slice 5c" on dev-848206f. Recipient actions join the same response: one per field with new addresses, each carrying the draft's list plus the new addresses, because a recipient action replaces the field (spike S6, slice 9, section 5.7).
 6. Otherwise the add-on pushes the prompt card. Its Insert calls `template.apply` again with `followUp: true`. The server re-checks `use` on that call and buffers no second apply event, so one Insert tap counts once. A grant removed while the card is open gives DENIED and leaves the draft unchanged. Then the callback validates every field, renders body and subject, inserts. Blank fields keep the card with an error. Recipient lists that changed since the card showed them keep the card with an error (section 5.7).
@@ -90,7 +91,7 @@ Wireframes: docs/wireframes/01 to 07. Screen list from docs/research/ux-notes.md
 
 ### 4.1a Flow: apply from the side panel (D27, added 2026-11-10)
 
-Mechanism and options in ADR-0007. Proposed until the owner approves. Every step after 4 depends on spike S7 (section 14.2).
+Mechanism and options in ADR-0007. Proposed until the owner approves. Every step after 4 depends on spike S7 (section 14.2). D31 (2026-11-11): after S7 the panel follows the one-click rules of section 7.4 through compose actions (ADR-0009 section 6); steps 3 and 7 then change: no "Review", no blank-field notification.
 
 Built so far (slice 10, layout in slice 12): steps 1 and 2; the manifest entry `contextualTriggers` `unconditional` with `onMessageOpen`; in `inbox` and `message` the cards show no Insert, "Insert with subject" or "Insert body only" and end with the footer hint of section 7.2 (`sidePanelHint`, src/addon/cards/sidePanel.ts); the S7 harness, dev build only. Not built: steps 3 to 8, the panel row and preview buttons, the line under the header (the home card has no header since slice 12).
 
@@ -248,6 +249,15 @@ Mechanism and options in ADR-0004, Amendment 2026-11-10 (subject).
   | Preview "Insert body only" (shown when the draft subject is empty; D26: also when Insert adds an address, and it adds none, section 5.7) | keeps it | keeps it |
   | Prompt card switch "Replace the subject" | starts on, user decides | starts off, user decides |
 
+  [D31, slice 15, Proposed] After slice 15 the table reads:
+
+  | Insert path | Draft subject empty | Draft subject filled |
+  |---|---|---|
+  | Row Insert (one click) | sets it | keeps it |
+  | Details card switch "Replace the subject" | starts on, user decides | starts off, user decides |
+
+  "Insert with subject" = details card with the switch on. "Insert body only" = details card with both switches off. Fields without a value render as `[Label]` in the subject too (section 7.4).
+
   An empty rendered subject sends no subject action, so the draft subject is never cleared. Verified in smoke "Slice 5c" on dev-848206f, 4 of 4 (wireframe 02).
 - History: each version file stores its subject. Restore of version K copies subject and body of K into version N+1. History shows the subject line of each version.
 - Search: subject weight 2 (section 4.4).
@@ -287,8 +297,10 @@ Mechanism and options in ADR-0006. Proposed until the owner approves.
   | Preview "Insert body only" (shown when plain Insert would set the subject or add an address) | none; no subject either |
   | Prompt card switch "Add recipients" (id `rcpt`) | starts on; off adds none |
 
+  [D31, slice 15, Proposed] After slice 15: row Insert adds by the table above in one click, after the `rc` count check; details card switch "Add recipients" starts on, off adds none; a template address in an unknown draft field opens the details card in place of the insert (section 7.4, ADR-0006 Amendment 2026-11-11).
+
   A field with nothing new sends no action, so it is never rewritten. Recipient actions go in the same `UpdateDraftActionResponse` as body and subject. A recipient action replaces the field (spike S6 step 2), so each action carries the draft's list from the tap's event as received, then the new addresses. Never `setSendStatus`.
-- Disclosure. Every address is shown on a card before it reaches the draft. The preview card section "Recipients" and the prompt card (below its switch) show the same lines (`recipientWidgets`): each added address on its own line with its field; outside addresses carry "outside <caller domain>"; Bcc lines carry "hidden from other recipients"; markers join with " · ". Not-added addresses carry their reason; unknown fields name the addresses to add by hand; the finish-typing line shows whenever Insert adds an address (texts in section 7.1). The card carries `rh`, the first 16 hex characters of a SHA-256 over the template lists and `blocked` it showed; at Insert, a different hash of the `template.apply` lists leaves the draft unchanged and re-renders the card with the change message. `rh` does not cover the draft's known or unknown state: the plan is rebuilt from the tap's event (Q54). An Insert without `rh` whose lists are not empty shows the preview card in place of the insert. Gmail's own outside-recipient warning is not relied on.
+- Disclosure. [D31, slice 15, Proposed: one-click rows disclose by the row hint before and the draft's fields after; the row carries `rc` in place of a hash; the details card keeps the lines and `rh` below. ADR-0006 Amendment 2026-11-11.] Every address is shown on a card before it reaches the draft. The preview card section "Recipients" and the prompt card (below its switch) show the same lines (`recipientWidgets`): each added address on its own line with its field; outside addresses carry "outside <caller domain>"; Bcc lines carry "hidden from other recipients"; markers join with " · ". Not-added addresses carry their reason; unknown fields name the addresses to add by hand; the finish-typing line shows whenever Insert adds an address (texts in section 7.1). The card carries `rh`, the first 16 hex characters of a SHA-256 over the template lists and `blocked` it showed; at Insert, a different hash of the `template.apply` lists leaves the draft unchanged and re-renders the card with the change message. `rh` does not cover the draft's known or unknown state: the plan is rebuilt from the tap's event (Q54). An Insert without `rh` whose lists are not empty shows the preview card in place of the insert. Gmail's own outside-recipient warning is not relied on.
 - Limit: an address still being typed in a draft field (not yet a chip) is not in the event, and a replace drops it. The cards and the quick start say so.
 - Sidebar lists carry counts only: item field `rc: [to, cc, bcc]`. Row label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only), on one line after the folder path and the fields hint, joined by " · " (slice 12).
 - History: each version shows a recipients line. Restore copies and validates. Duplicate copies and validates. Export `meta` carries them. A version file whose list fails the shape rule (`isStoredList`) reads as `[]` with no write; `version.restore` then succeeds and returns `recipientsUnreadable: ["cc", ...]`, and the web app says "Restored as version N. The Cc addresses of version K could not be read and were left empty. Add them again in the editor."
@@ -392,7 +404,7 @@ Error codes and UI (wireframe 07). Guard order: blank caller gives AUTH_NO_USER 
 | BUSY | lock not acquired in 10 s | "Busy right now. Press Retry in a few seconds." + request ID + Retry | "Busy, try again." Toast + Retry | yes |
 | QUOTA | Apps Script quota or simultaneous executions | "Service is busy. Try again in a minute." + Retry; a Retry inside the 60 s gives the notification "Service is busy. Try again in <n> seconds." | "Service is busy. Try again in a minute." Toast | yes, after 60 s |
 | VALIDATION | placeholder, subject, recipient, size or request ID errors | n/a | Inline list under editor with positions | after fix |
-| PROMPTS_MISSING | blank prompt at apply | Prompt card with fields marked | n/a | after fill |
+| PROMPTS_MISSING | blank prompt at apply | Prompt card with fields marked. [D31, slice 15: no longer raised; a blank field inserts as `[Label]`; over 500 characters re-renders the details card, section 7.4] | n/a | after fill |
 | TIMEOUT, SERVER | network or unhandled | "Something went wrong. Press Retry." + request ID + Retry | "Something went wrong. Retry." Banner + request ID | yes |
 
 Sidebar texts as built in slice 12; state cards have no header. Slice 14 (wording pass, in build) may change texts of both columns; this table then follows the code.
@@ -410,18 +422,18 @@ Save errors (editor field error and Problems list; `field` and `position` from t
 | `RCPT_EXTERNAL` | "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save." |
 
 Sidebar (wireframe 02):
-- List row of a template with recipients: label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only), on the row's one label line after the path and fields hint, joined by " · "; button "Review", screen reader text "Review <title>".
+- List row of a template with recipients: label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only), on the row's one label line after the path and fields hint, joined by " · "; button "Review", screen reader text "Review <title>". [D31, slice 15: button "Insert", screen reader "Insert <title>"; the hint moves first on the label line (section 7.4).]
 - Preview card, section "Recipients", and the prompt card below its switch: one item per address, top label the field ("To", "Cc", "Bcc"), text the address, bottom label the markers joined by " · ": "outside migway.com", "hidden from other recipients" (Bcc).
 - Not added: "Not added: <address>. The draft already has a To recipient." / "Not added: <address>. It is already in the draft." / "Not added: <address>. Outside migway.com, turned off by your admin."
 - Unknown draft field: "The draft's Cc recipients could not be read and were not changed. Add by hand: <addresses>."
 - Finish typing (when Insert adds an address): "Finish typing addresses in the draft first: an address still being typed is lost."
-- Preview card line above the buttons: "Adds 2 recipients." (count of addresses Insert adds; "1 recipient" singular).
+- Preview card line above the buttons: "Adds 2 recipients." (count of addresses Insert adds; "1 recipient" singular). [D31, slice 15: the details card has no such line; the switch label carries it.]
 - Prompt card switch: label "Add recipients", bottom label "Adds 2 recipients." (only when Insert adds one), then the recipient lines above.
 - Changed lists at Insert: "The recipients of this template changed. Check them and press Insert again."
 
 Editor (wireframe 04, Details panel, slice 8b):
 - Labels "To", "Cc", "Bcc" above each field. Enter, comma, semicolon, space, a pasted list and leaving the field turn the typed text into chips (trim, lower case, repeats dropped). Backspace in the empty input removes the last chip. Each chip has a button "Remove <address> from Cc". The status line announces "Added <addresses> to Cc" and "Removed <address> from Cc".
-- Help under the three fields: "Added to the draft when someone inserts this template. Users see every address before it is added."
+- Help under the three fields: "Added to the draft when someone inserts this template. Users see every address before it is added." [D31, slice 15: "Added to the draft when someone inserts this template. The row in Gmail shows how many; the draft shows them after the insert."]
 - Marker under a valid outside address: "outside migway.com". Under `deny` the chip has the error style and the `RCPT_EXTERNAL` text.
 - Bcc help: "Hidden from the other recipients of the email."
 - `use` holders see the lists read only, chips without a remove button; an empty field reads "None".
@@ -441,7 +453,7 @@ Wireframe 01, side-panel variant. Entries from `entryOf` (section 4.1a).
 | Prompt card footer | "Create email" | "Create reply" (or "Create email" when opened from "New email") |
 | Footer hint (both; built in slice 10, text of slice 12) | "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." Last section of home, folder, search and preview cards | same |
 
-As built until the panel pass (slices 10 and 12): rows and preview cards in `inbox` and `message` carry no Insert or panel button; a tap on a title opens the preview; the hint ends each card. The dev build adds the "Spike S7 (temporary)" section after the hint.
+D31 (slice 15): panel cards change only where they share code with compose: Recent without favorites, label order, no search hint, the details card in place of the preview card (no inputs, no Insert while the panel inserts nothing). As built until the panel pass (slices 10 and 12): rows and preview cards in `inbox` and `message` carry no Insert or panel button; a tap on a title opens the preview; the hint ends each card. The dev build adds the "Spike S7 (temporary)" section after the hint.
 
 Preview card lines, side panel only:
 - Signature: "Your Gmail signature is not added. Use the signature button in the draft." (dropped if S7 shows Gmail adds it.)
@@ -487,6 +499,73 @@ Config tab, section "Settings" (wireframe 06). Admins only.
 The server CONFLICT message is "<name part> changed this setting. The page now shows the current value."; the client adds the local time. Save stays enabled while saving with `aria-disabled`; when Save ends disabled after it had focus, focus moves to the status line (slice 13).
 
 The domain in the texts is Script Property `DOMAIN`.
+
+### 7.4 Compose card: one-click insert and details card (D31, added 2026-11-11)
+
+Proposed until the owner approves. Mechanism and options: ADR-0009 (cards), ADR-0004 Amendment 2026-11-11 (fields), ADR-0006 Amendment 2026-11-11 (recipients). Built in slice 15 (section 13.9). Compose entry only; the side panel keeps its built cards until spike S7 (section 7.2, ADR-0009 section 6). No server change.
+
+Rule for a field without a value (explicit `{{ask:Label}}`, or a variable with no value and no fallback): it renders as `unfilledText(field)`, one constant `UNFILLED` in src/shared/placeholders/render.ts. `"marker"` (default, Q56): the plain text `[<label>]`, label = `PromptField.label` ("Driver name", "Your phone"). `"remove"`: "". Body: escaped by `formatValue`. Subject: plain text, then `oneLine`. Variables with a value or a fallback keep them.
+
+Home card (wireframe 01):
+- Sections in order: search input (title "Search templates", no hint), Favorites (max 10), Recent without any template in Favorites (server max 5, hidden when empty), Folders. Collapse after 5 rows as built.
+- Row: start icon of its section, title as text, one bottom label: recipient hint, fields hint, folder path, joined by " · " ("Adds Cc 1, Bcc 1 · 2 fields to fill · Sales / Quotes"). Folder cards drop the path. Empty parts drop out.
+- Row button (compose only): "Insert", `FILLED` slate, screen reader "Insert <title>", action `onInsert` with `id`, plus `rc` = "<to>,<cc>,<bcc>" when the row shows a recipient hint.
+- Row tap (`onClick`): `onPreview`, opens the details card.
+- Footer: "Open library", `FILLED` with background #2a3c49 (FixedFooter requires a filled primary [A40]). Manifest `addOns.common.layoutProperties.secondaryColor` "#2a3c49" for outlined buttons ([A42]; Gmail web support unverified, smoke step 10).
+- Folder and search cards: same rows and footer. Search results: each template once.
+
+Flow A, row Insert (`onInsert`):
+1. `template.apply` `{ id, knownVersion, recipientEmailIfInternal }`: server re-checks `use`, buffers one apply event.
+2. Failure: the section 7 state card is pushed; the draft does not change.
+3. Count check: `rc` (absent = "0,0,0") against the lengths of `to`, `cc`, `bcc` of the reply. Different: push the details card with the change line; no insert.
+4. Any template address in a draft field that `draftRecipients` reports unknown: push the details card (its "Add by hand" line); no insert.
+5. Else render body and subject with no answers (fields become markers), subject per D24 (`replacesSubject(undefined, draftHasSubject)`), recipients by `recipientActions(lists, draft, true)`. One `UpdateDraftActionResponse`. The card closes (spike S6 step 0).
+
+Flow B, details card (`onPreview`, compose):
+1. `template.apply` `{ id, knownVersion, followUp: true }`: same `use` check, no apply event, `recipientFirstName` "" (Q24). Body cached as today.
+2. Card, top to bottom: header = title; change line when pushed by Flow A step 3 or a re-render; section "Fields" when the template has fields that would be markers: line, inputs `p-1` to `p-20`, the more-than-20 line; "Replace the subject" switch (`subj`) with the subject preview as bottom label, only when the template has a subject, default per D24; section "Recipients" when the template has addresses: "Add recipients" switch (`rcpt`, on) when Insert adds one, then the `recipientWidgets` lines (markers, Not added, Add by hand, finish typing); the text preview (600 characters, tokens as `[Label]`).
+3. Footer: primary "Insert" (`FILLED`, slate); secondary "Edit in library" (`OUTLINED`) when the caller holds `edit`. Gmail's back arrow returns to the list.
+4. Insert parameters: `id`, `title`, `version`, `values` (JSON of the variable values of step 1), `rh` (always), `counted=1` only on a re-rendered card.
+
+Flow C, details Insert (`onPromptInsert`):
+1. `template.apply` without `followUp` (one apply event, recipient first name resolved); with `counted=1`, `followUp: true`.
+2. New version: re-render with the version line, `counted=1`, switches at their defaults. Other lists (`rh`): re-render with the change line, `counted=1`. A value over 500 characters: re-render with the shorten line and those fields first, `counted=1`.
+3. Else: values = card `values`, then each non-blank value of step 1. Answers by field key from the inputs. A typed value wins; a blank field takes a resolved value, else its marker. Subject only while `subj` is on; recipients only while `rcpt` is on. One `UpdateDraftActionResponse`.
+
+States: section 7 codes unchanged on all three flows. PROMPTS_MISSING is no longer raised by the compose card.
+
+Texts (new or changed; sentence case, no colon before a button):
+
+| Place | Text |
+|---|---|
+| Marker in the draft | `[Driver name]` (the field label in brackets) |
+| Details card, fields line | "Fill in now, or leave blank and type in the draft." |
+| Details card, input title | the label, no asterisk |
+| Details card, input hint of the implicit recipient first name | "Leave blank to use the To recipient's first name, when known." |
+| Details card, more than 20 fields | "This template has 23 fields. The first 20 are here. The rest go into the draft as [Label]." (`"remove"`: "The rest are left out.") |
+| Details card, values over 500 characters | "Shorten to 500 characters: Driver name" |
+| Details card, version changed | "The template changed. Check the fields and press Insert again." |
+| Details card, lists changed (also from a row) | "The recipients of this template changed. Check them and press Insert again." |
+| Row button | "Insert" |
+| Footer of home, folder and search cards | "Open library" |
+
+Removed texts: "Review" and "Review <title>", "Fill these fields to insert", "Fields to fill: ...", "Sets the draft subject.", "The draft already has a subject. It is kept.", "Adds 2 recipients." above buttons (kept as the switch label), "Insert with subject", "Insert body only", the too-many-fields card, the search hint.
+
+Quick start lines (slice 15, docs/guide/quick-start.md): "Insert puts the template into the draft at once. Fields you did not fill show as [Label]: type over them before you send." "Tap a template's name to see it first and fill in its fields." "Templates that add recipients say so on the row, for example Adds Cc 1. The draft shows the addresses after the insert. Finish typing addresses before you insert."
+
+Smoke "Slice 15" (Gmail web, compose toolbar, dev build; the implementer copies these steps into docs/ops/smoke.md). Templates: T1 no fields, subject "T1 subject"; T2 subject `Load {{ask:Load number}}`, body `Hi {{ask:Driver name}}, load {{ask:Load number}}. {{sender.phone}}`; T3 Cc `smoke-cc@` and Bcc `smoke-bcc@` (domain test addresses), no fields; T4 T2 plus T3's lists. Nothing is sent; discard every draft.
+1. New draft, cursor in the body. Row Insert on T1: body at the cursor, subject "T1 subject". Record: the card closed (y/n).
+2. Row Insert on T2 in a new draft: subject "Load [Load number]", body "Hi [Driver name], load [Load number]." and the phone or "[Your phone]". No card.
+3. Row label of T4 reads "Adds Cc 1, Bcc 1 · 2 fields to fill · <path>" (the hint counts `{{ask:}}` fields). Record: label on one line, wrapped, or cut.
+4. Row Insert on T3 in a new empty draft: Cc and Bcc chips added, Bcc line visible. Record: the card closed (y/n).
+5. Reply to a received message, row Insert on T4: To and "Re:" subject kept, Cc and Bcc added, markers in the body.
+6. Open the add-on (view cached). In the library add a second Cc to T3. Row Insert on T3 within 10 min: details card with "The recipients of this template changed...", draft unchanged. Insert there: 2 Cc added.
+7. Row tap on T2: details card shows 2 or 3 inputs, the subject switch on, the preview. Fill Driver name only, Insert: "Hi <name>, load [Load number]."
+8. Details card of T2: 501 characters in Driver name, Insert: shorten line, draft unchanged. Fix, Insert. Admin, Usage after the next 5-minute tick: the apply count of T2 rose by 1, not 2.
+9. Details card of T4 in a draft with a subject: subject switch off. Turn "Add recipients" off, Insert: body only, subject and recipients unchanged.
+10. Home: a template that is a favorite and recently used shows only under Favorites; no hint under the search input; "Open library" is slate; record the color of "Edit in library" on a details card (slate or blue).
+11. Remove your grant on T1's folder in the library, row Insert on T1 (view cached): the DENIED card, draft unchanged.
+12. Side panel (no draft): rows show no Insert; a row tap opens the details card with no inputs and no Insert; the hint ends the card.
 
 ## 8. Accessibility
 
@@ -683,6 +762,7 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | 7, 7.2 add-on card layout and texts: no header on home, icons, one-line row labels, collapsed sections, fixed footer "Open library" | 12, done |
 | Last fix round: `config.set` base and CONFLICT, in-lock recipient re-check, export start event and run token, buffer slots, log `targetId`, `prof:` hash, `trash.purge` counts, New template folder choice, library address search, settings focus | 13, done |
 | Wording pass on web and add-on texts with open review minors | 14, in build; sections 7 to 7.3 follow its result |
+| 7.4 One-click insert, details card, home card order (D31) | 15, after 14 merges (section 13.9) |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -717,6 +797,7 @@ Done 2026-11-10. 6a: review PASS on bb53d6c (docs/reviews/slice-06a.md), merged,
 - History loads the preview of a version on Enter. Arrow keys move the selection only.
 - The compose card is modal on Gmail web. The user places the cursor in the draft body before opening the add-on; Insert (`IN_PLACE_INSERT`) then lands at the cursor.
 - "Edit in library" (OVERLAY window close and sidebar reload) is unverified on Gmail web. It is an owner hand check (PLAN Next action).
+- The compose card closes after an insert (spike S6 step 0, dev-ec0ccb2); Google's guide does not state it [A14]. An insert response carries no notification [A15], [A44]: the draft is the result (D31, section 7.4).
 
 Added 2026-11-10 (slices 6a, 6b; accepted for v1, each with a v1.1 fix in section 13.5):
 
@@ -791,6 +872,30 @@ After slices 8c (admin redesign) and 9 (recipients) are merged: 11 reuses the 8c
 7. Guides: admin guide (what each setting does, the default, the confirm, who sees it); quick start (one paragraph: personal templates may be off; what a user still can do); editor guide (no change unless the off text needs a line).
 8. Smoke "Slice 11" on dev: the deploy reads as `off` and `allow`; owner turns personal templates on and off with a second admin tab open (conflict); a pilot user with a private folder inserts while off and cannot save; a new user gets no private folder while off and gets one after on; `deny` then `allow` with an outside address; the audit tab shows each change.
 
+### 13.9 Slice 15: one-click insert (D31, added 2026-11-11)
+
+After slice 14 merges (both touch src/addon/cards and the add-on texts). Spec 7.4, wireframes 01 and 02, ADR-0009, ADR-0004 and ADR-0006 Amendments 2026-11-11. No spike, no new scope, no server change.
+
+Work: `UNFILLED` and `unfilledText` in src/shared/placeholders/render.ts; Flow A in `insertFlow` (count check, unknown-field push, markers); details card replacing `previewCard` and `promptCard` in compose; Flow C in `promptInsertFlow`; home order and labels; footer style; manifest `layoutProperties.secondaryColor`; quick start lines and editor help text of section 7.4 and 7.1; smoke "Slice 15" into docs/ops/smoke.md.
+
+Acceptance criteria (each checked by a unit test, a build check or the named smoke step):
+1. Compose rows on Home, folder and search cards carry one button "Insert", screen reader "Insert <title>", action `onInsert` with `id`, plus `rc` when the row shows a recipient hint. No code path yields "Review" (test over templates with fields, with recipients, with both).
+2. Row Insert on a template with `{{ask:A}}` in subject and body returns one insert reply with `[A]` in both, and no card.
+3. `renderBody` and `renderSubject`: a value renders the value, a fallback the fallback, neither the marker of `promptLabel` (`[Your phone]`). Body and subject tests.
+4. The tests of criterion 3 pass with `UNFILLED` set to `"marker"` and to `"remove"` (empty text; subject trimmed, no double space).
+5. A label holding `&` renders `[a&amp;b]` in the body and `[a&b]` in the subject.
+6. Row Insert with recipients: equal `rc` gives one insert reply whose recipient actions equal `recipientActions(lists, draft, true)`; a different or absent `rc` with non-empty lists pushes the details card with the change line and returns no insert.
+7. A template address in a draft field reported unknown pushes the details card and returns no insert.
+8. Call log: the details card opens with `template.apply` `followUp: true` and no `template.getBody` call (compose entry); its Insert calls `template.apply` once without `followUp`; the Insert of a re-rendered card (`counted=1`) sends `followUp: true`. One user path, at most one apply event.
+9. Details card structure: inputs only for fields that would be markers, at most 20 plus the more-than-20 line, no asterisk; subject switch default from `replacesSubject`; recipient switch and `recipientWidgets` lines; text preview; footer primary "Insert" filled slate; secondary "Edit in library" only at `edit` or `manage`.
+10. Details Insert: a typed value wins; a blank field takes a resolved value of the Insert call, else its marker; a value over 500 characters re-renders with "Shorten to 500 characters: <labels>" and no insert; version and `rh` changes re-render as section 7.4 Flow C.
+11. Details Insert with both switches off returns the body action only: no subject action, no recipient action.
+12. Home card: Recent holds no ID that Favorites holds and is absent when that leaves it empty; the search input has no hint.
+13. Row label order: recipient hint, fields hint, path, joined by " · "; folder cards show no path.
+14. Home, folder and search footers: primary "Open library" `FILLED` with background #2a3c49. Manifest has `addOns.common.layoutProperties.secondaryColor` "#2a3c49" and the same 10 scopes (build check).
+15. Removed from src/addon: "Review", `insertButtons`, `withSubjectButton`, `bodyOnlyButton`, `tooManyFieldsCard`, `needsReview`, `SEARCH_HINT`. `git diff --stat` shows no file under src/server.
+16. Side panel entries (`inbox`, `message`): no Insert on rows or on the details card, no inputs on the details card, hint last (unit test per entry). Smoke "Slice 15" steps 1 to 12 run on dev; the handoff records steps 1, 3, 4 and 10.
+
 ## 14. Spikes
 
 | ID | Slice | Question | Pass condition |
@@ -845,6 +950,7 @@ Setup: dev build with a harness on the panel home card and the contextual trigge
 | 6 | Inbox | "Notify" | notification shown and no draft (y/n); or an error |
 | 7 | A compose window already open with typed text | "New email", then "Reply" | second window opens (y/n); typed text in the first window unchanged |
 | 8 | Close the new compose window without sending | none | draft left in Drafts (y/n) |
+| 9 | Panel card with one text input and a compose-action button (added 2026-11-11, D31) | Type a value, press the button | the callback event holds the value in its form inputs (y/n). No: the panel details card shows no inputs and blank fields insert as markers |
 
 Decision table:
 
@@ -919,6 +1025,13 @@ Decision table:
 | Q55 (S6) | Spike S6 step 7: a fresh consent run with recipient actions | Owner runs it by hand before prod (about 5 min, "Remove access" then Insert of a template with recipients). A prompt naming a scope outside the 10 stops D26 until the owner approves |
 | Q51 (D29) | "Off" hides existing personal templates entirely (option 1) instead of read and insert (option 2) | Option 2. The owner's words name creation; hiding loses users their own texts and breaks favorites and Recent silently. Flip is one value in the rule (`none` for `use`) if the owner wants it |
 | Q52 (D29) | Users are told that admins can turn personal templates off | Yes, one sentence in the quick start next to the D18 disclosure |
+| Q56 (D31) | A field the sender has not filled, on one-click insert: visible marker `[Label]` or removal | Marker. "Hi ," reads as a finished sentence and is easy to send; "Hi [Driver name]," is not. One constant `UNFILLED` switches to removal |
+| Q57 (D31) | Row hint: counts per field ("Adds Cc 1, Bcc 1") or the addresses | Counts. Addresses need a server change and put addresses in the add-on cache, and 2 addresses do not fit one label line. The draft shows the addresses after the insert |
+| Q58 (D31) | One click also for a template with a Bcc or an outside address | Yes. Editors set them on purpose, Gmail opens the Bcc line on insert, nothing is sent until Send. Admins who want no outside address set "Outside recipients" to migway.com only |
+| Q59 (D31) | Footer "Open library" on the compose card | Keep it, slate filled (API rule) plus the manifest button color; the add-on menu also has "Open library" |
+| Q60 (D31) | Search hint under the input | Drop it. The no-match text and the quick start name `folder:` and `tag:` |
+| Q61 (D31) | Row label order | Recipient hint first, then fields, then folder path, so a cut label keeps the disclosure. Slice 12 order (path first) if the smoke shows labels wrap |
+| Q62 (D31) | Opening the details card no longer counts a use; only Insert counts (changes Q14 for the card) | Accept. Usage then counts inserts, which is what Recent and the Usage tab mean |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance
@@ -999,4 +1112,5 @@ Triggers belong to the account that created them (`getProjectTriggers()` returns
 - [A15] https://developers.google.com/apps-script/reference/card-service/update-draft-action-response-builder (setters for body, subject, To, Cc, Bcc on one builder, each returns the builder for chaining; no statement on combining; no scope listed) and https://developers.google.com/apps-script/reference/card-service/update-draft-subject-action (`addUpdateSubject(subject)`: "Updates the subject line of an email draft"), read 2026-11-10.
 - [A25] https://developers.google.com/apps-script/reference/card-service/update-draft-to-recipients-action, [A26] .../update-draft-cc-recipients-action, [A27] .../update-draft-bcc-recipients-action (`addUpdate<Field>Recipients(String[])`, "the ... recipients to insert to the email draft"; add or replace, scope and limits not stated), [A28] https://developers.google.com/apps-script/reference/add-ons-response-service/update-draft-action-response-builder (same setters plus `setSendStatus`), read 2026-11-10. Details in ADR-0006.
 - [A29] to [A39] (side panel, D27): compose actions guide, ComposeActionResponseBuilder, ComposedEmailType, GmailApp, GmailMessage, workspace scopes, message UI guide, homepages, Gmail manifest, sendAs.get, Card Service class list; URLs and findings in ADR-0007, read 2026-11-10.
+- [A40] to [A44] (D31): FixedFooter, TextButtonStyle, add-on manifest `layoutProperties`, DecoratedText, ActionResponseBuilder; URLs and findings in ADR-0009, read 2026-11-11.
 - [A16] https://developers.google.com/workspace/gmail/api/auth/scopes (`gmail.addons.current.action.compose` "Manage drafts and send emails when you interact with the Google Workspace add-on", non-sensitive), read 2026-11-10.

@@ -152,6 +152,10 @@ Decision: option 1. Restricted scopes break least privilege for a line the user 
 
 Out of scope (D22): the side panel and compose actions on Gmail Android and iOS are untested and unsupported; the panel cards render whatever Gmail mobile shows.
 
+## Note 2026-11-11: one-click insert (D31), decision unchanged
+
+D31 makes the compose toolbar insert in one click (ADR-0009, ADR-0004 and ADR-0006 Amendments 2026-11-11). Panel rows keep their built behavior until spike S7. After S7 the panel follows the same rules through compose actions: the row button ("New email", "Reply") renders blank fields as markers and checks `rc`; the row tap opens the details card, whose footer button carries the compose action and reads the inputs from the event (S7 records whether a compose-action callback gets form inputs). Section 3's blank-field notification and "Check" fallback are then not needed.
+
 ## Decision summary
 
 - Side panel: "New email" (`STANDALONE_DRAFT`, `GmailApp.createDraft`) always; "Reply" and "Reply all" (`REPLY_AS_DRAFT`, `createDraftReply`, `createDraftReplyAll`) when a message is open, through a new `unconditional` contextual trigger; hint line to the compose toolbar.
