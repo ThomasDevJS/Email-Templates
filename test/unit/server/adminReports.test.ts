@@ -422,6 +422,36 @@ describe("export", () => {
     setSetting(world, "personalTemplates", "on");
   });
 
+  it("writes one audit event per export with who, scope and count, and no content", () => {
+    const sales = folder("Sales");
+    for (let n = 0; n < EXPORT_PAGE + 1; n++)
+      template(sales.id, `T${String(n)}`, "Secret subject", "<p>Secret</p>");
+    exportAll(OWNER, "export.folder", { folderId: sales.id });
+    exportAll(OWNER, "export.library");
+    runTick(world.services);
+    const events = fileIndex().pendingAudit.filter((event) =>
+      event.action.startsWith("export."),
+    );
+    expect(events).toEqual([
+      expect.objectContaining({
+        action: "export.folder",
+        actor: OWNER,
+        targetType: "folder",
+        targetId: sales.id,
+        targetPath: "/Sales",
+        after: { scope: "folder", templates: EXPORT_PAGE + 1 },
+        result: "ok",
+      }),
+      expect.objectContaining({
+        action: "export.library",
+        targetType: "library",
+        targetId: "",
+        after: { scope: "library", templates: EXPORT_PAGE + 1 },
+      }),
+    ]);
+    expect(JSON.stringify(events)).not.toContain("Secret");
+  });
+
   it("exports the folder subtree with subjects and only the grants inside it", () => {
     const sales = folder("Sales");
     const quotes = folder("Quotes", sales.id);

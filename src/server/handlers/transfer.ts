@@ -9,6 +9,7 @@ import {
 import { tagList, templateTitle } from "../../shared/model/validate";
 import { inPrivateTree } from "../../shared/permissions/effective";
 import { controlIndex, oneLine } from "../../shared/placeholders/subject";
+import { bufferEvent } from "../audit/buffer";
 import { auditEvent, type EventSource } from "../audit/events";
 import { optBool, optInt, optString, reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
@@ -125,6 +126,7 @@ function exportPage(
     },
     html: readStoredBody(context.services, item),
   }));
+  if (offset === 0) recordExport(context, scope, items.length);
   const end = offset + page.length;
   return {
     header: {
@@ -139,6 +141,31 @@ function exportPage(
     total: items.length,
     next: end < items.length ? end : null,
   };
+}
+
+/**
+ * One audit event per export (ADR-0002 security events), written with its first page: who, the scope and how many
+ * templates, no content. An export changes no file, so the event goes through the `evt:*` buffer as a change event
+ * that `tick` moves into `pendingAudit`.
+ */
+function recordExport(
+  context: HandlerContext,
+  scope: ExportScope,
+  templates: number,
+): void {
+  const { index } = context.access();
+  const folder = scope.kind === "folder";
+  const event = auditEvent(eventSource(context, scope.folderId), {
+    action: folder ? "export.folder" : "export.library",
+    targetType: folder ? "folder" : "library",
+    targetId: scope.folderId,
+    targetPath: folder ? folderPath(index, scope.folderId) : "",
+    after: { scope: scope.kind, templates },
+  });
+  bufferEvent(context.services.cache, context.services.lock, {
+    kind: "change",
+    event,
+  });
 }
 
 /** `export.folder` (manage on the folder): the folder and its subtree. */

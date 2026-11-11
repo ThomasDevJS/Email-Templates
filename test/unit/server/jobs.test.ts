@@ -557,6 +557,65 @@ describe("event buffer cap", () => {
     expect(readBuffer(world.cache).dropped).toBe(0);
     expect(runTick(world.services)).toMatchObject({ denied: 0, dropped: 0 });
   });
+
+  it("drops denied events first: a change and an apply event take the slots of denied ones in a full buffer", () => {
+    for (let n = 0; n < BUFFER_MAX; n++)
+      bufferEvent(world.cache, world.lock, {
+        kind: "denied",
+        event: denied(`d${String(n)}`),
+      });
+    const change = { ...denied("export"), action: "export.library" };
+    expect(
+      bufferEvent(world.cache, world.lock, { kind: "change", event: change }),
+    ).toBe(true);
+    expect(
+      bufferEvent(world.cache, world.lock, {
+        kind: "apply",
+        itemId: "I1",
+        actor: "a@example.com",
+        ts: "2026-11-09T12:00:00.000Z",
+      }),
+    ).toBe(true);
+    expect(
+      bufferEvent(world.cache, world.lock, {
+        kind: "denied",
+        event: denied("late"),
+      }),
+    ).toBe(false);
+    const buffered = readBuffer(world.cache);
+    expect(buffered.events).toHaveLength(BUFFER_MAX);
+    expect(buffered.dropped).toBe(3);
+    expect(runTick(world.services)).toMatchObject({
+      applies: 1,
+      changes: 1,
+      denied: BUFFER_MAX - 2,
+      dropped: 3,
+    });
+    const pending = fileIndex().pendingAudit;
+    expect(pending.some((event) => event.id === change.id)).toBe(true);
+    expect(pending.at(-1)).toMatchObject({
+      action: "audit.dropped",
+      after: { dropped: 3 },
+    });
+    expect(world.services.store().readSide("usage").items["I1"]).toBeDefined();
+  });
+
+  it("drops an apply event when the full buffer holds no denied event, and counts it", () => {
+    for (let n = 0; n < BUFFER_MAX; n++)
+      bufferEvent(world.cache, world.lock, {
+        kind: "change",
+        event: denied(`c${String(n)}`),
+      });
+    expect(
+      bufferEvent(world.cache, world.lock, {
+        kind: "apply",
+        itemId: "I1",
+        actor: "a@example.com",
+        ts: "2026-11-09T12:00:00.000Z",
+      }),
+    ).toBe(false);
+    expect(readBuffer(world.cache).dropped).toBe(1);
+  });
 });
 
 describe("usage days", () => {

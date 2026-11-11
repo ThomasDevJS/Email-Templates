@@ -13,6 +13,7 @@ describe("actionWords", () => {
     expect(actionWords("template.update")).toBe("Template updated");
     expect(actionWords("grant.add")).toBe("Grant added");
     expect(actionWords("backup.restore")).toBe("Backup restored");
+    expect(actionWords("export.library")).toBe("Library exported");
     expect(actionWords("future.op")).toBe("future.op");
     expect(actionWords("toString")).toBe("toString");
     expect(actionWords("")).toBe("");
