@@ -12,7 +12,7 @@ a row onClick, a start icon, a top and a bottom label [A43].
 | FAVORITES                            |  only with rows; max 10; 5 shown, rest collapsed
 |  * Welcome email          [Insert]   |  DecoratedText + TextButton (FILLED, slate)
 |    Sales / Onboarding                |  label: recipient hint, fields hint, path, " · "
-|  * Price quote 2026       [Insert]   |  one click: [Product name] goes into the draft
+|  * Price quote 2026       [Insert]   |  one click: unfilled fields are left out (D31)
 |    2 fields to fill · Sales / Quotes |
 |--------------------------------------|
 | RECENT                               |  last used by me, minus every Favorite; hidden when empty
@@ -60,7 +60,8 @@ Tap on a row (not the button) pushes the details card: docs/wireframes/02-sideba
 
 Behavior (compose, slice 15)
 - Insert on any row: one template.apply call, then one UpdateDraftActionResponse. The card closes (spike S6 step 0).
-- Fields without a value: fallback when the variable has one, else the marker [Label] in body and subject (Q56).
+- Fields without a value: fallback when the variable has one, else removed, with the 4 space rules of
+  ADR-0004 Amendment 2026-11-11, in body and subject. "Hi {{ask:Name}}, thanks" -> "Hi, thanks".
 - Subject: D24, set only into an empty draft subject.
 - Recipients: added by spec 5.7 (add, never remove; To only into an empty To). rc on the button must equal the
   counts template.apply returns; else the details card opens with the change line and nothing is inserted.
@@ -148,7 +149,7 @@ Preview card, side panel, message open:
 
 Behavior (side panel)
 - Every button creates a draft that Gmail opens in a compose window; nothing changes a draft already open.
-- One click for every template after S7 (D31): fields without a value become [Label]; the row tap opens the details card.
-- Details card footer: [Create email] or [Create reply]; blank fields become [Label] (no notification).
+- One click for every template after S7 (D31): fields without a value are removed; the row tap opens the details card.
+- Details card footer: [Create email] or [Create reply]; blank fields are removed (no notification).
 - Errors: notification with the spec 7 text, no draft.
 - If spike S7 fails: no action buttons; the hint moves to the top of the card.

@@ -1,135 +1,73 @@
-Screen 2: Sidebar preview card and prompt card
-Slice 4. Subject added in slice 5 (D21); rule D24 in slice 5c (spec 5.6, ADR-0004 Amendments 2026-11-10).
-One TextInput per distinct prompt (same label filled once, across subject and body),
-plus implicit prompts for unresolved values without fallback (ADR-0004). Max 20.
+Screen 2: Sidebar details card (preview and pre-fill in one card)
+Target of slice 15 (D31, spec 7.4, ADR-0009; Proposed 2026-11-11). Replaces the preview card and the prompt card
+of slices 4, 5 and 9. As built until slice 15: git show 2f6eae3:docs/wireframes/02-sidebar-prompt.txt.
+Opened by a tap on a row (not on its Insert button) in Home, Folder or Search. Pre-fill is optional: the row's
+Insert already inserts in one click; a field left blank is removed from the draft (owner decision 2026-11-11).
 
-Preview card (tap on a title in Home, Folder or Search):
+Details card, new draft (To and subject empty), template with fields and recipients:
 +--------------------------------------+
-| < Price quote 2026                   |  CardHeader
+| < Driver leaving                     |  CardHeader: title; Gmail's back arrow returns to the list
 |--------------------------------------|
-| Subject                              |  DecoratedText, top label
-| Quote for [Product name]             |  shown only when the subject is not empty
+| Fields                               |  section only when a field has no value
+| Fill in now, or leave blank and type |  TextParagraph
+| in the draft.                        |
+| Driver name                          |  TextInput p-1, no asterisk: optional
+| [ ____________________________ ]     |
+| Last day                             |  TextInput p-2; one input per field identity,
+| [ ____________________________ ]     |  subject and body share it
+| Recipient first name                 |  implicit field (no value yet, no fallback)
+| [ ____________________________ ]     |
+| Leave blank to use the To            |  input hint, only on the implicit recipient first name
+| recipient's first name, when known.  |
 |--------------------------------------|
-| Plain-text preview, max 600 chars,   |  TextParagraph, 8 allowed tags
-| placeholders shown as [Sender name]  |
+| Replace the subject          [on ]   |  SwitchControl id subj, only when the template has a subject.
+| Driver leaving: [Driver name]        |  bottom label: subject preview. Default on (draft subject empty), off (filled), D24
 |--------------------------------------|
-| Fields to fill: Product name,        |
-|   Meeting date                       |
-| Sets the draft subject.              |  template subject not empty, draft subject empty
-| [Insert]  [Insert body only]         |  second button only when the template subject is not empty [D26: also when Insert adds an address; then it skips recipients too]
-| [Edit in library]                    |  only if level >= edit
-+--------------------------------------+
-
-Preview card, draft subject already filled (typed, reply, forward):
-| The draft already has a subject.     |
-| It is kept.                          |
-| [Insert]  [Insert with subject]      |  Insert keeps the draft subject; "Insert with subject" replaces it
-
-Prompt card (Insert on a template with prompts or unresolved values):
-+--------------------------------------+
-| < Price quote 2026                   |  CardHeader
-|--------------------------------------|
-| Fill these fields to insert          |
-|                                      |
-| Meeting date *                       |  TextInput id p-1
-| [ 12 November_________________ ]     |
-|                                      |
-| Product name *                       |  TextInput id p-2
-| [ ____________________________ ]     |  used in subject and body, asked once
-|                                      |
-| Recipient first name *               |  implicit: 2 To recipients,
-| [ ____________________________ ]     |  no fallback in template
-|                                      |
-| Replace the subject          [on ]   |  DecoratedText + SwitchControl, id subj. Default: on when the draft subject is empty, off when filled
-| Quote for [Product name]             |  bottom label; row shown only when the subject is not empty
-|                                      |
-| (!) Fill 1 field: Product name       |  shown after a blocked Insert
-|--------------------------------------|
-| [Insert]            [Cancel]         |  FixedFooter
-+--------------------------------------+
-
-Rules
-- Insert calls template.apply with followUp: true. The server re-checks use; no second apply event.
-- Insert validates every field in the callback. Any blank field: no draft change, card re-rendered with the error line and the field first in order.
-- Values: plain text, max 500 chars. Body: HTML-escaped, newline -> <br>. Subject: not escaped, line breaks and control characters -> one space, trimmed.
-- One UpdateDraftActionResponse: body action always; subject action only when the rendered subject is not empty and the rule below says so.
-- Rule D24: the add-on reads the draft subject from the compose event. Template subject set only when the draft subject is empty or whitespace.
-    Insert path                   draft subject empty   draft subject filled
-    One-click Insert, preview     sets it               keeps it
-    "Insert with subject"         sets it               replaces it
-    "Insert body only"            keeps it              keeps it
-    Prompt card switch            starts on             starts off; user decides
-- "Insert with subject" opens the prompt card (if any) with the switch on. "Insert body only" shows no switch.
-- A template changed under the open prompt card resets the switch to its default.
-- Cancel pops back to the previous card. Values are not stored.
-
-Recipients (D26, slice 9; spec 5.7, 7.1; ADR-0006, Accepted 2026-11-11). As built at 6374b7b (slices 9 and 12).
-
-List row (Home, Folder, Search, Favorites, Recent) of a template with recipients:
-| = Driver leaving          [Review]   |  DecoratedText, document icon
-|   HR · Adds Cc 1, Bcc 1              |  one plain-text label line: path, hints, " · "; "Review" opens the preview
-                                          card (or the prompt card when the template has prompts). No one-click insert.
-
-Preview card, template with recipients (new draft, To empty, subject empty):
-+--------------------------------------+
-| < Driver leaving                     |
-|--------------------------------------|
-| Subject                              |
-| Driver leaving: [Driver name]        |
-|--------------------------------------|
-| Recipients                           |  section header
-| To   payroll@migway.com              |  one DecoratedText per address, top label = field
-| Cc   safety@migway.com               |
+| Recipients                           |  section only when the template has addresses
+| Add recipients               [on ]   |  SwitchControl id rcpt, only when Insert adds one; off = no recipient action
+| Adds 3 recipients.                   |  bottom label
+| To   payroll@migway.com              |  recipientWidgets lines as built in slice 9:
+| Cc   safety@migway.com               |  field top label, markers, Not added, Add by hand
 | Bcc  records@partner.com             |
-|      outside migway.com · hidden     |  bottom label: markers joined by " · "; outside = domain
-|      from other recipients           |  differs from the caller's; hidden = every Bcc line
-| Finish typing addresses in the draft |  last line of the section, whenever Insert adds an address
+|      outside migway.com · hidden     |
+|      from other recipients           |
+| Finish typing addresses in the draft |
 | first: an address still being typed  |
 | is lost.                             |
 |--------------------------------------|
-| Plain-text preview ...               |
+| Plain-text preview, max 600 chars,   |  TextParagraph, tokens shown as [Label]
+| Hi [Driver name], ...                |
 |--------------------------------------|
-| Sets the draft subject.              |
-| Adds 3 recipients.                   |
-| [Insert]  [Insert body only]         |  "Insert body only": no subject, no recipients
-| [Edit in library]                    |
-+--------------------------------------+
+| [Insert]          (Edit in library)  |  FixedFooter: primary FILLED #2a3c49; secondary OUTLINED,
++--------------------------------------+  only at edit or manage level
 
-Same template in a reply (To and subject filled), with the setting Outside recipients = migway.com only (deny):
-| Recipients                           |
-| Cc   safety@migway.com               |
-| Not added: payroll@migway.com.       |
-|   The draft already has a To         |
-|   recipient.                         |
-| Not added: records@partner.com.      |
-|   Outside migway.com, turned off by  |  server returned it in `blocked`
-|   your admin.                        |
-|--------------------------------------|
-| The draft already has a subject.     |
-| It is kept.                          |
-| Adds 1 recipient.                    |
-| [Insert] [Insert with subject]       |
-| [Insert body only]                   |  shown because Insert would add an address
+More than 20 fields: 20 inputs, then "This template has 23 fields. The first 20 are here. The rest are left
+out of the draft."
+No fields: no Fields section. No subject: no subject switch. No recipients: no Recipients section.
 
-Prompt card, template with recipients:
-| Replace the subject          [on ]   |  unchanged (D24)
-| Add recipients               [on ]   |  SwitchControl id rcpt, starts on; off = no recipient action
-| Adds 2 recipients.                   |  bottom label, only when Insert adds one
-| Cc   safety@migway.com               |  then the preview card's lines (recipientWidgets):
-| Bcc  records@partner.com             |  markers, Not added, unknown fields, finish typing
-|      outside migway.com · hidden ... |
-
-Draft field that the event does not carry as a list of strings (unknown):
-| The draft's Cc recipients could not  |  no action for that field; an unknown To counts as filled
-| be read and were not changed. Add by |
-| hand: safety@migway.com.             |
+Error and change lines (first line of the card, after a blocked Insert; the draft does not change):
+| (!) Shorten to 500 characters:       |  those fields move first
+|     Driver name                      |
+| (!) The template changed. Check the  |  new version; switches back to their defaults
+|     fields and press Insert again.   |
+| (!) The recipients of this template  |  rh differs, or pushed by a row Insert whose rc differed
+|     changed. Check them and press    |
+|     Insert again.                    |
 
 Rules
-- The Insert callback calls template.apply; it returns to, cc, bcc and blocked on every call. Addresses are
-  never in card parameters or the User Cache. The card carries rh (16 hex of SHA-256 over the shown lists).
-  A different hash at Insert: no draft change, card re-rendered with
-  "The recipients of this template changed. Check them and press Insert again."
-- Per field: skip addresses already in any draft field; To only when the draft's To is empty; Cc and Bcc
-  always; a field with nothing new sends no action. Each action carries the draft's list from the tap's event,
-  then the new addresses: spike S6 showed that an action replaces the field.
-- One UpdateDraftActionResponse: body, subject (D24), then To, Cc, Bcc actions. Never setSendStatus.
+- Opening: template.apply with followUp: true (use re-checked, no apply event, no first-name lookup).
+- Insert: template.apply once without followUp (one apply event); a re-rendered card carries counted=1 and
+  sends followUp: true, so one card counts once.
+- Values: a typed value wins; a blank field takes the value the Insert call resolves (recipient first name),
+  else it is removed with the 4 space rules (ADR-0004 Amendment 2026-11-11). Over 500 characters blocks.
+- Subject only while "Replace the subject" is on; recipients only while "Add recipients" is on. Both off =
+  the old "Insert body only". Switch on with a filled draft subject = the old "Insert with subject".
+- One UpdateDraftActionResponse: body, subject (switch), To, Cc, Bcc (spec 5.7). Never setSendStatus.
+  The card closes after the insert (spike S6 step 0); no notification is possible.
+- Removed against the slice 9 cards: "Fill these fields to insert", "Fields to fill: ...", "Sets the draft
+  subject.", "The draft already has a subject. It is kept.", [Insert with subject], [Insert body only], [Cancel],
+  the too-many-fields card, the "Review" row button.
+
+Side panel (entries inbox and message, until spike S7): the same card with no Fields section, no switches and
+no [Insert]; the recipient lines read as for an empty draft; the footer hint of spec 7.2 is the last section.
+After S7 the footer primary is the compose action ([Create email] or [Create reply]), ADR-0009 section 6.

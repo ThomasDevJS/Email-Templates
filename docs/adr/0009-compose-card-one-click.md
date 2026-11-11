@@ -42,11 +42,11 @@ Options:
 2. Keep both cards: preview card with a "Fill in" button that pushes the prompt card. Two cards and two Insert paths stay; 2 taps to pre-fill.
 
 Decision: option 1. Mechanism:
-- Opened by the row tap (`onPreview`, name kept). Data: `template.apply` with `followUp: true`, which returns body, subject, lists, sender values and buffers no apply event (spec 4.1 step 3; src/server/handlers/sidebar.ts). So the card knows which variables resolve and shows inputs only for fields that would be markers. Opening the card does not count a use. `template.getBody` stays for the side panel until S7.
-- Content, top to bottom: change line (when any); "Fields" section only when the template has fields: line "Fill in now, or leave blank and type in the draft.", one input per field (title = label, no asterisk), at most 20 (`MAX_FIELDS`); with more, the line "This template has <n> fields. The first 20 are here; the rest go into the draft as [Label]."; switch "Replace the subject" with the subject preview (only when the template has a subject; default by D24); "Recipients" section when the template has any: switch "Add recipients" (only when Insert would add one) and the lines of `recipientWidgets`; then the text preview (600 characters, `[Label]` tokens).
+- Opened by the row tap (`onPreview`, name kept). Data: `template.apply` with `followUp: true`, which returns body, subject, lists, sender values and buffers no apply event (spec 4.1 step 3; src/server/handlers/sidebar.ts). So the card knows which variables resolve and shows inputs only for fields without a value. Opening the card does not count a use. `template.getBody` stays for the side panel until S7.
+- Content, top to bottom: change line (when any); "Fields" section only when the template has fields: line "Fill in now, or leave blank and type in the draft.", one input per field (title = label, no asterisk), at most 20 (`MAX_FIELDS`); with more, the line "This template has <n> fields. The first 20 are here; the rest are left out of the draft."; switch "Replace the subject" with the subject preview (only when the template has a subject; default by D24); "Recipients" section when the template has any: switch "Add recipients" (only when Insert would add one) and the lines of `recipientWidgets`; then the text preview (600 characters, `[Label]` tokens).
 - Footer: primary "Insert" (`FILLED`, slate), secondary "Edit in library" (`OUTLINED`) when the caller holds `edit`; else no secondary. Gmail's back arrow returns to the list; no Cancel.
 - "Insert with subject" and "Insert body only" go away: the two switches cover them (subject on, or both off). D24 truth table: spec 5.6.
-- Insert (`onPromptInsert`, name kept): `template.apply` without `followUp` (one event), unless the card carries `counted=1` (set on a card re-rendered after a blocked Insert, so a second press does not count twice). Values: the card's values, then each non-blank value of the Insert call (recipient first name resolves here). Answers by field key. A typed value wins; a blank field takes the Insert call's value when it resolves, else the marker. Over 500 characters: re-render with "Shorten to 500 characters: <labels>". New template version: re-render with "The template changed. Check the fields and press Insert again." Other lists: `rh` check as today.
+- Insert (`onPromptInsert`, name kept): `template.apply` without `followUp` (one event), unless the card carries `counted=1` (set on a card re-rendered after a blocked Insert, so a second press does not count twice). Values: the card's values, then each non-blank value of the Insert call (recipient first name resolves here). Answers by field key. A typed value wins; a blank field takes the Insert call's value when it resolves, else it is removed (ADR-0004 Amendment 2026-11-11). Over 500 characters: re-render with "Shorten to 500 characters: <labels>". New template version: re-render with "The template changed. Check the fields and press Insert again." Other lists: `rh` check as today.
 - `tooManyFieldsCard` goes away: one-click needs no cap, and the details card shows 20 inputs.
 
 ## 3. Home card
@@ -60,7 +60,7 @@ Decision: option 1. Recent drops any ID in Favorites in the add-on (`byIds` filt
 
 Row content: start icon of the section (star, clock, document), title as text, one bottom label. Label order: recipient hint, fields hint, folder path, joined by " · " ("Adds Cc 1 · 2 fields to fill · Sales / Quotes"). Reason: the recipient hint is the disclosure of ADR-0006 Amendment 2026-11-11 and must survive if Gmail cuts a long label; the title stays first for scanning. Folder cards show no path (the header has it).
 
-Search hint options: (1) drop it; (2) "Try folder:Sales or tag:pricing" (32 characters). Decision: drop it. The input title "Search templates" says what it does; the no-match text and the quick start teach `folder:` and `tag:`. Owner question Q60.
+Search hint options: (1) drop it; (2) "Try folder:Sales or tag:pricing" (32 characters). Decision: drop it. The input title "Search templates" says what it does; the no-match text and the quick start teach `folder:` and `tag:`. Owner question Q59.
 
 ## 4. Footer "Open library"
 
@@ -69,7 +69,7 @@ Options:
 2. Manifest `layoutProperties.secondaryColor: "#2a3c49"`. Changes the default color of every button without its own color, outlined ones included ("Edit in library", Previous, Next). Unverified that Gmail web honors it.
 3. Drop the footer on the compose card. "Open library" stays in the add-on's menu (universal action, built) and on the empty card. Gains one row of height; editors lose a visible way into the library.
 
-Decision: options 1 and 2 together. Option 1 makes the footer slate by a documented rule. Option 2 colors the outlined buttons, at the cost of one manifest key and no scope. A smoke step checks both; if Gmail ignores option 2, outlined buttons stay blue and nothing breaks. Owner question Q59 (default: footer kept, slate).
+Decision: options 1 and 2 together. Option 1 makes the footer slate by a documented rule. Option 2 colors the outlined buttons, at the cost of one manifest key and no scope. A smoke step checks both; if Gmail ignores option 2, outlined buttons stay blue and nothing breaks. Owner question Q58 (default: footer kept, slate).
 
 ## 5. After the insert
 
@@ -77,18 +77,18 @@ The card closes (S6 step 0). The draft is the result: body at the cursor, subjec
 
 ## 6. Side panel (ADR-0007, decision unchanged)
 
-Until spike S7: panel rows and the details card show no Insert, as built. After S7: the row button ("New email", "Reply") is a compose action with the same one-click rules (markers, row `rc` check, `recipientActions` on the computed draft); the row tap opens the details card whose footer button is the compose action and reads its inputs from the event's form inputs (S7 records that a compose-action callback receives them). The blank-field notification and the "Check" fallback of ADR-0007 section 3 drop, since a blank field inserts its marker.
+Until spike S7: panel rows and the details card show no Insert, as built. After S7: the row button ("New email", "Reply") is a compose action with the same one-click rules (removal of blank fields, row `rc` check, `recipientActions` on the computed draft); the row tap opens the details card whose footer button is the compose action and reads its inputs from the event's form inputs (S7 records that a compose-action callback receives them). The blank-field notification and the "Check" fallback of ADR-0007 section 3 drop, since a blank field is removed.
 
 ## Consequences
 
 - Easier: every template in one tap; one card instead of two; 3 buttons fewer on the card; one Insert path for pre-fill.
-- Harder: an unfilled field or an added address is caught in the draft, not on a card (ADR-0004 and ADR-0006 Amendments 2026-11-11). Usage counts inserts only: a details card closed without Insert no longer counts (it did as a prompt card, Q14).
+- Harder: an unfilled field (removed, so a sentence may have a hole) or an added address is caught in the draft, not on a card (ADR-0004 and ADR-0006 Amendments 2026-11-11). Usage counts inserts only: a details card closed without Insert no longer counts (it did as a prompt card, Q14).
 - Code: `rowButton`, `insertButtons`, `withSubjectButton`, `bodyOnlyButton`, `tooManyFieldsCard`, `needsReview` and the "Review" text go away; `insertOrAsk` becomes insert or details card (count check, unknown field). No server change.
 - Revisit after the slice 15 smoke (label cut, card close, manifest color) and after S7.
 
 ## Open questions
 
-Spec section 15: Q56 to Q62.
+Spec section 15: Q56 to Q61.
 
 ## Sources
 

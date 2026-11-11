@@ -182,8 +182,8 @@ Options for the disclosure on one click:
 4. Keep a card for templates with a Bcc or an outside address. Safer for the two risky cases; breaks D31 for exactly the company templates that carry routing (the "driver leaving" use case of D26).
 
 Decision: option 1, with a count check in place of `rh` on rows. Mechanism:
-- The row hint stays counts per field (`rc`, `deny` already applied by the server), placed first on the label line so a cut label keeps it (ADR-0009). Owner question Q57: addresses on the row, default counts.
-- Bcc gets no extra step. Reasons: the template's Bcc is set by an `edit` holder of the folder, not by the sender; Gmail web opens the Bcc line on insert (S6 step 1), so the address is visible in the draft before Send; nothing is sent by the add-on (`setSendStatus` never). Outside addresses get no extra step either; admins who want none set `recipientsExternal` to `deny` (ADR-0008). Owner question Q58, default one click for all.
+- The row hint stays counts per field (`rc`, `deny` already applied by the server), placed first on the label line so a cut label keeps it (ADR-0009). Owner question Q56: addresses on the row, default counts.
+- Bcc gets no extra step. Reasons: the template's Bcc is set by an `edit` holder of the folder, not by the sender; Gmail web opens the Bcc line on insert (S6 step 1), so the address is visible in the draft before Send; nothing is sent by the add-on (`setSendStatus` never). Outside addresses get no extra step either; admins who want none set `recipientsExternal` to `deny` (ADR-0008). Owner question Q57, default one click for all.
 - Count check, replaces `rh` on rows (Q54 related). The row Insert carries `rc` as it showed it, as the parameter `rc` = "<to>,<cc>,<bcc>" (absent when the row showed no hint, read as "0,0,0"). The Insert callback compares it with the lengths of `to`, `cc`, `bcc` returned by `template.apply`. Different: no draft change; the details card is pushed with "The recipients of this template changed. Check them and press Insert again." Equal: insert. Reason: a hash over addresses the row never showed checks nothing the user saw; the counts are what the row showed. Limit: an address swapped for another inside the 10 min view cache passes with equal counts; the new address is then visible in the draft. A view cached before slice 9 has no `rc` and reads "0,0,0", so a template that gained recipients shows the details card first, as today.
 - Unknown draft field: when a template address falls in a draft field the event does not give as a list (`draftRecipients` null), the one-click Insert pushes the details card in place of inserting; the card says "Add by hand". The case was never seen in the owner's Gmail runs; it costs one condition.
 - Not added in silence on one click: the template To when the draft has a To (section 4 rule), addresses already in the draft, and `blocked` addresses (`rc` excludes them). The details card still lists each with its reason.
@@ -207,7 +207,7 @@ Consequences: no server change; `template.apply` still returns the lists on ever
 
 ## Open questions
 
-Spec section 15, Q32 to Q39; D31: Q57, Q58.
+Spec section 15, Q32 to Q39; D31: Q56, Q57.
 
 ## Sources
 

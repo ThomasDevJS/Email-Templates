@@ -298,7 +298,7 @@ Decision: option 1. Mechanism:
   | `{{ask:Greeting}} team,` | `team,` |
   | `Thanks {{ask:Name}}` | `Thanks` |
   | `Hi {{ask:A}} {{ask:B}}, ok` | `Hi, ok` |
-  | `Call {{sender.phone|the office}} today` | `Call the office today` (fallback, no gap) |
+  | `Call {{sender.phone\|the office}} today` | `Call the office today` (fallback, no gap) |
   | Subject `Quote {{ask:Product}} for {{ask:Client}}` | `Quote for`; subject `{{ask:Topic}}` gives "" and no subject action |
 
 - Left alone on purpose: spaces across inline tags (`Hi <b>{{ask:Name}}</b>, thanks` keeps `Hi <b></b>, thanks`); non-breaking spaces, tabs and line breaks; double spaces the template already holds away from a gap; other punctuation (`)`, quotes, dashes); a paragraph, list item or table cell left empty (no block is removed: removing blocks means rewriting the sanitized structure, and an empty `<p>` may show as a blank line, slice 15 smoke step 13 records it); words that read wrong without the value ("Call me at."). The rules touch only the characters next to a gap.
