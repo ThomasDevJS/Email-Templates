@@ -266,6 +266,22 @@ function rowOf(ports: Ports, result: ApplyResult, body: CachedBody) {
   );
 }
 
+/**
+ * Fields of a details card. The recipient first name counts as a field whatever a call resolved, because a
+ * `followUp` call never resolves it: the card's inputs stay the same on every render, and a blank box takes the
+ * name the values carry.
+ */
+function cardFields(
+  body: CachedBody,
+  values: Readonly<Record<string, string>>,
+) {
+  return promptsFor(
+    body.html,
+    { ...values, "recipient.first_name": "" },
+    body.subject,
+  );
+}
+
 /** What a details card needs beyond the apply result; the defaults are the state of a freshly opened card. */
 interface DetailsInput {
   readonly template: SidebarTemplate;
@@ -286,7 +302,7 @@ function detailsOf(
 ): CardSpec {
   const { body, result } = input.applied;
   const lists = listsOf(result);
-  const fields = promptsFor(body.html, input.values, body.subject);
+  const fields = cardFields(body, input.values);
   const state: DetailsState = {
     template: input.template,
     text: previewText(body.html),
@@ -428,7 +444,10 @@ function parseValues(raw: string): Record<string, string> {
   }
 }
 
-/** Card values, then each non-blank value of the Insert call (the recipient first name resolves there). */
+/**
+ * Card values, then each non-blank value of this call. The first counting call resolves the recipient first name;
+ * the card carries it from then on, so a `followUp` call (blank name) renders the same as a direct Insert.
+ */
 function mergedValues(
   card: Readonly<Record<string, string>>,
   result: ApplyResult,
@@ -469,14 +488,16 @@ export function promptInsertFlow(
   const replaceSubject = formValue(event, SUBJECT_SWITCH) === SWITCH_ON;
   const addRecipients = formValue(event, RECIPIENT_SWITCH) === SWITCH_ON;
   const lists = listsOf(result);
-  const fields = promptsFor(body.html, cardValues, body.subject);
+  const values = mergedValues(cardValues, result);
+  // The inputs on screen came from the card values.
+  const fields = cardFields(body, cardValues);
   const entered = fields.map((_, n) => formValue(event, inputName(n)));
   const long = tooLong(entered);
   const changed = result.version !== version;
   const listsChanged = params["rh"] !== rhOf(ports, lists);
   if (!changed && !listsChanged && long.length === 0) {
     const input = {
-      values: mergedValues(cardValues, result),
+      values,
       answers: answersByKey(fields, entered),
     };
     return insertReply(
@@ -488,7 +509,7 @@ export function promptInsertFlow(
   const card = detailsOf(ports, event, {
     template: rowOf(ports, result, body),
     applied: applied.data,
-    values: cardValues,
+    values,
     problem: changed
       ? VERSION_CHANGED
       : listsChanged

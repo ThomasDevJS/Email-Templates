@@ -139,3 +139,53 @@ The new test/unit/shared/gaps.test.ts run against b2d6b2d: 21 of 28 tests fail, 
 - Empty `<p>` shown as a blank line (step 13); empty `<a>` and `<b>` left in the draft.
 - First name resolution on a live draft; the usage count rising by 1 (step 8).
 - Smoke "Slice 15" steps 1 to 13 not run: no Gmail here.
+
+## Follow-up 1 (head 04af35b on main c259b5c)
+
+Verdict: PASS. No must-fix. Minors 1, 2 and 5 are closed. Diff `c259b5c..04af35b`: src/addon/flows.ts and src/shared/placeholders/render.ts only, plus tests and the handoff. No change under src/server or src/web.
+
+Commands, clean `npm ci` on 04af35b:
+
+| Command | Result |
+|---|---|
+| `npm ci` | exit 0 |
+| `npm run lint` | exit 0, 0 problems |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 67 files, 1825 tests passed; all files lines 97.82, branches 90.84; addon lines 100 |
+| `npm run build -- --env dev` | Code.js 358.0 KB of 800, index.html 376.0 KB of 400 |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+
+The new test "one result on every insert path" fails on c259b5c (1 of 45 in flows.test.ts) and passes on 04af35b.
+
+### 1. Three paths give one result
+
+Own probe: 3 templates x 6 drafts x 3 paths (row Insert, first details Insert, details Insert after a shorten re-render). 18 of 18 combinations give the same body and subject on all 3 paths.
+
+| Template | Internal known (Bob) | Internal not in directory | Outside address | No To | Two To | To unreadable |
+|---|---|---|---|---|---|---|
+| `Hi {{recipient.first_name}}, {{ask:N}} 7`, subject `Load {{ask:N}} for {{recipient.first_name}}` | `Hi Bob, 7` / `Load for Bob` | `Hi, 7` / `Load for` | same as left | same | same | same |
+| `{{recipient.first_name\|there}}` | `Hi Bob, 7` / `S Bob` | `Hi there, 7` / `S there` | same | same | same | same |
+| no first-name token | `Hi 7 Ana Lima` / `Load` | same | same | same | same | same |
+
+When the first-name box appears: only when the template holds `{{recipient.first_name}}` without a fallback, on every details card (opened, pushed by a row Insert, re-rendered). It is always empty and carries the hint "Leave blank to use the To recipient's first name, when known." A template with a fallback or without the token shows no box. An outside recipient never fills it (the server resolves only `DOMAIN` addresses). A typed name wins: "Robert" gives `Hi Robert,`. The box never shows a wrong or outside name. A user may wonder why the box is empty when the name is known; the hint answers that (opinion: acceptable).
+
+### 2. Values in action parameters
+
+- `values` holds the 5 keys of `variableValues`: sender name, title, phone, department and the resolved recipient first name. About 111 bytes for the test profile. Typed answers travel as form inputs and never as parameters.
+- After the first counting call the card carries the given name (`"recipient.first_name":"Bob"`). The card pushed by a row Insert carried it before this follow-up too. No address travels.
+- Logs: `world.lines` holds no name, no draft address and no outside address over all 54 runs.
+- Size: only 5 keys can be present, so 10 long values cannot occur. A tampered `values` with 10 extra keys of 2,000 characters (20,081 bytes) is accepted, and the extra keys never reach the draft. Card Service publishes no limit on action parameters. What Gmail does above a limit is unverified.
+- Tampered values render through the same `formatValue`. `<script>alert(1)</script>` becomes `&lt;script&gt;...`. `"><img src=x onerror=1>` is escaped. `{{ask:x}}` and `\{{ask:y}}` stay literal text, so the renderer does not parse them again. A fresh non-blank server value overrides a carried one.
+
+### 3. Use counting
+
+Every re-rendered Insert adds 0 apply events (`againApplies+0` in 18 of 18 combinations). AC 8 test unchanged and passing.
+
+### 4. `missing` removed
+
+`grep -rn "\.missing\b" src test`: 0 hits. 7 assertions on `missing` in gaps, placeholders and subject tests were rewritten. 6 now assert the rendered output, and 1 asserts the field list through `promptsFor`. None was dropped without a successor. removed.test.ts checks 18 texts, and src/addon holds none of them.
+
+### Open minors
+
+Minors 3, 4, 6, 7, 8 and 9 above remain open.
