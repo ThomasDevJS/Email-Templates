@@ -71,3 +71,9 @@ npm run lighthouse
 npm run dev:web   # then open #/admin, #/admin/transfer, #/edit/T-QUOTE with ?latency=0
 git diff 6374b7b -- src/web/editor/schema.ts src/web/editor/serialize.ts src/shared/sanitize/sanitize.ts
 ```
+
+## Retry 1 (review FAIL on docs, `docs/reviews/slice-14.md`; 3 commits after e750645)
+- Docs: the 13 quotes the review named are fixed. Sweep: 742 double-quoted texts in `docs/guide/*.md` and `docs/ops/smoke.md` and 12 backticked screen texts checked against `src/` (comments stripped; value slots such as `<date>`, `n`, numbers split off). 43 fixed in total (13 named, 30 more, among them "+ New template", "★ Favorites", "+ Top-level folder", "Replaces the draft subject.", "Restore from backup", status words "ok" and "late", the audit drawer names). 154 quotes have no verbatim match and were checked by hand: sample names ("Smoke 3"), texts built from parts ("Adds To 1, Cc 1"), Google's own labels, the S7 card. No test added: those 154 would be false alarms.
+- Minors taken, texts only: audit drawer shows "Can manage" and the like (`roleWords`, `src/web/admin/actions.ts`, 1 new test); busy text "The library is busy. Try again in a few seconds." on web and Gmail cards; errors say 'The folder "My templates" ...' (rule in `wording.md`, "personal folder" stays on admin screens only); address messages name To, Cc and Bcc, never "field"; 6 comments. Not taken: review minors 6, 7 (now in the exceptions list), 8, 10; minor 1 accepted as is.
+- `wording.md`: 220 changed texts, 3 new rules (My templates, To Cc Bcc, one text per state). Lines touched in `src/`: 1 in `addon`, 6 in `server`, 2 in `shared`, `roleWords` and 1 call in `web`, comments.
+- Checks from a clean install at b1226c7: 559 packages; lint, typecheck, format pass; 65 files, 1780 tests, lines 97.82%; Code.js 360.5 KB, index.html 375.7 KB; 10 scopes; Lighthouse 100 on 15 runs.
