@@ -5,7 +5,7 @@ import type {
   SidebarHome,
 } from "../../../src/shared/model/sidebar";
 import { readBuffer } from "../../../src/server/audit/buffer";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -18,6 +18,8 @@ let hr: Folder;
 
 beforeEach(() => {
   world = setupWorld();
+  // D11 rules: personal templates on (D29 default is off).
+  setSetting(world, "personalTemplates", "on");
   sales = world.ok<Folder>(OWNER, "folder.create", { name: "Sales" });
   quotes = world.ok<Folder>(OWNER, "folder.create", {
     name: "Quotes",

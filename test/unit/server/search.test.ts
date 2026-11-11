@@ -8,7 +8,7 @@ import { SIDE_CACHE } from "../../../src/server/cache/sideCache";
 import { TEXT_MISS_BUDGET } from "../../../src/server/handlers/body";
 import { runTick } from "../../../src/server/jobs/tick";
 import { applyUsage } from "../../../src/server/audit/usage";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 /** Slice 5 ops: `search`, `search.body`, `favorite.set`, `favorite.unset`, and Favorites and Recent in the lists. */
 const ANA = "ana@example.com";
@@ -20,6 +20,8 @@ let hr: Folder;
 
 beforeEach(() => {
   world = setupWorld();
+  // D11 rules: personal templates on (D29 default is off).
+  setSetting(world, "personalTemplates", "on");
   sales = world.ok<Folder>(OWNER, "folder.create", { name: "Sales" });
   hr = world.ok<Folder>(OWNER, "folder.create", { name: "HR" });
 });

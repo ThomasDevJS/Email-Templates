@@ -34,7 +34,7 @@ import {
 } from "../../../src/shared/model/validate";
 import type { Surface } from "../../../src/shared/log/logger";
 import { requireStoreIds } from "../../../src/server/storage/setupStore";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -402,6 +402,11 @@ function exportAll(
 }
 
 describe("export", () => {
+  beforeEach(() => {
+    // D11 rules: personal templates on (D29 default is off).
+    setSetting(world, "personalTemplates", "on");
+  });
+
   it("exports the folder subtree with subjects and only the grants inside it", () => {
     const sales = folder("Sales");
     const quotes = folder("Quotes", sales.id);
@@ -473,6 +478,11 @@ function importFile(file: object): string {
 }
 
 describe("import", () => {
+  beforeEach(() => {
+    // D11 rules: personal templates on (D29 default is off).
+    setSetting(world, "personalTemplates", "on");
+  });
+
   it("re-imports an exported folder into a new folder with its subject, then skips it the second time", () => {
     const sales = folder("Sales");
     const sub = folder("Sub", sales.id);

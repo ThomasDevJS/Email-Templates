@@ -20,7 +20,7 @@ import { WRITE_LOCK_MS } from "../../../src/server/lock";
 import { ADMIN_EMAILS_KEY } from "../../../src/server/membership/snapshot";
 import type { Surface } from "../../../src/shared/log/logger";
 import type { RpcResponse } from "../../../src/shared/model/protocol";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -28,6 +28,8 @@ let world: World;
 
 beforeEach(() => {
   world = setupWorld();
+  // D11 rules: personal templates on (D29 default is off).
+  setSetting(world, "personalTemplates", "on");
 });
 
 afterEach(() => {
