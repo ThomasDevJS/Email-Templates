@@ -124,17 +124,14 @@
 - shared/model/settings.ts: `SETTINGS` list, `settingsOf` (defaults at read, never written), `personalTemplatesOn`, `settingsProblem` (in `indexProblem`), `PERSONAL_OFF_TEXT`. `IndexDoc.settings` optional.
 - Off rule in `levelResolver` before the admin rule; dispatch `deniedError(index, targets)` picks the off text. `recipientPolicy(context)` reads the setting; the property reader is gone.
 - Tests: `setSetting(world, name, value)` in test/fakes/world.ts; D11 tests turn personal templates on in `beforeEach`. Enforcement table in test/unit/server/settings.test.ts. Harness `?personal=off`, `?access=none`.
-
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
 - Arg names: templates `id`, `baseVersion`, `folderId`, `title`, `tags`, `html`; folders `folderId`, `parentId`, `name`; grants `folderId`, `principalType`, `principalKey`, `level`, `grantId`.
 - Server code never nests the script lock; tests assert `lock.nestedAcquisitions === 0`.
 - Docs: guides in docs/guide (Prettier-ignored), runbook in docs/ops (Prettier-formatted); test/unit/docs/links.test.ts checks links; quote UI text from src.
-
 ## Open items handed forward
 - Spec 7 sidebar texts (NOT_CONFIGURED, AUTH_NO_USER, SERVER) differ from code; `NOT_IMPLEMENTED` sent only by the harness (web text removed in 8d); `membership.refresh` does not clear `prof:*`.
 - Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check.
-
 ## Slice 13 (fix round, 2026-11-11)
 - `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
 - `recheckRecipients` (body.ts) inside every write commit; `problemsError` shared with `prepareBody`. `trash.purge` returns `templates`, `folders`.
@@ -149,4 +146,3 @@
 ## Slice 16 (in-app admins, D32, 2026-11-11)
 - shared/model/admins.ts `adminEntriesOf`, `appAdminsOf`, `ADMINS_MAX`; `isAdminEmail(..., appAdmins thunk)`; `subjectFor(email, snapshot, props, index thunk)`; dispatch recheck passes the in-lock index. Handler handlers/admins.ts: refusals = VALIDATION + `details.reason`.
 - Web views/adminAdmins.ts (form `novalidate`: jsdom and browsers block submit of a bad `type=email`). Harness `?admins=none`. Test lock races with `beforeNextLock` (wrap `world.lock.tryLock`).
-- Guard blocks python heredocs that touch several files: write s16edit.py via Write, run it, delete it.
