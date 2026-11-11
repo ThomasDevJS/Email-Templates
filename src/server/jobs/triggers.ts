@@ -1,5 +1,5 @@
 import type { TriggerJob } from "../../shared/entryPoints";
-import { recordJobError } from "./health";
+import { lastErrorKey, recordJobError } from "./health";
 import type {
   PropertyStore,
   Services,
@@ -74,6 +74,8 @@ export function installAndRecord(
     throw error;
   }
   services.props.setProperty(TRIGGERS_VERSION_KEY, TRIGGERS_VERSION);
+  // A success clears the error of an earlier failed reinstall, as `runJob` does for the other jobs (19 minor 2).
+  services.props.deleteProperty(lastErrorKey(TRIGGERS_JOB));
 }
 
 /**

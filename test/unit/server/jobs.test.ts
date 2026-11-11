@@ -505,6 +505,8 @@ describe("trigger reinstall", () => {
     expect(world.props.getProperty(TRIGGERS_VERSION_KEY)).toBe(
       TRIGGERS_VERSION,
     );
+    // The successful reinstall clears the earlier error (slice 19 minor 2).
+    expect(world.props.getProperty(lastErrorKey("triggers"))).toBeNull();
   });
 
   it("keeps the create error when removing the new triggers also fails", () => {
