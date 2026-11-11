@@ -85,8 +85,8 @@ Saved items store the parsed `placeholders` (names) and `prompts` (normalized la
 
 1. Prompt identity: label trimmed, inner whitespace collapsed, compared case-insensitively. The first spelling is shown. One input per identity fills every occurrence.
 2. Variable values. Sender values come from the caller's profile (below). `recipient.first_name` resolves only when the draft has exactly one To recipient and that address is in the Migway domain; it is then the Directory `name.givenName`. Zero or several To recipients, or an external address, leave it unresolved. External addresses never leave the add-on and are never logged.
-3. Unresolved variable with a fallback: the fallback is used. Unresolved variable without a fallback becomes an implicit prompt ("Your phone", "Recipient first name"). No placeholder ever renders as empty text by accident. [D31, 2026-11-11, Proposed: an implicit prompt left blank renders as the marker `[Your phone]`; the rule stays "never empty by accident".]
-4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified). [Not tried in slice 4; optional, no slice owns it.] [D31, 2026-11-11, Proposed: on the compose card a blank field no longer blocks; it inserts as its marker. See Amendment 2026-11-11.]
+3. Unresolved variable with a fallback: the fallback is used. Unresolved variable without a fallback becomes an implicit prompt ("Your phone", "Recipient first name"). No placeholder ever renders as empty text by accident. [D31, 2026-11-11, Proposed: on the compose card an implicit prompt left blank renders as empty text on purpose, with the cleanup rules of Amendment 2026-11-11.]
+4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified). [Not tried in slice 4; optional, no slice owns it.] [D31, 2026-11-11, Proposed: on the compose card a blank field no longer blocks; it is removed with the cleanup rules. See Amendment 2026-11-11.]
 5. Values: plain text, max 500 characters, HTML-escaped (`& < > " '`), newline becomes `<br>`. Fallbacks and Directory values get the same escaping. Rendering never creates markup from values.
 6. Escape: `\{{` renders as the literal `{{`.
 7. Insert: `UpdateDraftBodyAction` with `MUTABLE_HTML` and `UpdateDraftBodyType.IN_PLACE_INSERT` [R4 S4, S5b]. The rendered HTML is the sanitized stored body with tokens replaced. Subject is not touched in v1. [Changed by D21: see Amendment 2026-11-10, subject.]
@@ -270,29 +270,45 @@ Status: Proposed until the owner approves. Mechanism, options and platform facts
 
 ## Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)
 
-Status: Proposed until the owner approves. Owner request 2026-11-11: "insert template in 1 click (or help pre-fill if they want to (or they do it themselves in the gmail, we just insert template and remove placeholders))". Card layout and the details card: ADR-0009. Recipients: ADR-0006 Amendment 2026-11-11.
+Status: Proposed until the owner approves this text. The rule itself is the owner's decision of 2026-11-11 (D31 point 2, relayed by the orchestrator): an unfilled field is removed, no marker. Owner request: "insert template in 1 click (or help pre-fill if they want to (or they do it themselves in the gmail, we just insert template and remove placeholders))". Card layout and the details card: ADR-0009. Recipients: ADR-0006 Amendment 2026-11-11.
 
 Context. Today a template with a field the sender fills (`{{ask:Label}}`, or a variable with no value and no fallback) opens the prompt card, and Insert stays blocked until every field holds a value (Apply semantics 4). D31 asks for Insert in one click for every template. The grammar gives `{{ask:Label}}` no fallback; only variables carry `|fallback`. So on one click every explicit field, and every implicit field, has no value.
 
 Options for a field without a value at insert:
-1. Marker. The field renders as the plain text `[Label]`, for example "Hi [Driver name],". The sender sees it in the draft and types over it. Cost: one string. Risk: a sender who does not read the draft sends "[Driver name]"; the brackets make the slip visible to the reader.
-2. Removal. The field renders as "". The owner's words ("remove placeholders"). Risk: "Hi ," or "Your load  arrives on ." reads as a normal sentence with a hole; nothing in the draft shows that a value is missing, so it is easy to send.
-3. Highlighted marker. `[Label]` inside `<span style="background-color:...">`. Rejected: rendering would create markup (Apply semantics 5 says rendering never creates markup from values), and the highlight is sent with the mail when the sender forgets it.
-4. Keep the blocking prompt card for templates with fields. Rejected by D31.
+1. Removal with a small cleanup. The token renders as "" and the spaces around it are tidied by 4 local rules. The owner's choice.
+2. Marker `[Label]` to type over. Visible in the draft, but the owner does not want placeholders left in the draft. Rejected by the owner.
+3. Highlighted marker (a styled span). Rejected: rendering would create markup (Apply semantics 5), and the style is sent if forgotten.
+4. Keep the blocking prompt card. Rejected by D31.
 
-Decision: option 1, as one constant. Mechanism:
-- One constant in src/shared/placeholders/render.ts, `UNFILLED = "marker"` (alternative value `"remove"`). One function `unfilledText(field)` returns `"[" + field.label + "]"` for `"marker"` and `""` for `"remove"`. Owner question Q56, default "marker".
-- `renderBody` and `renderSubject` use `unfilledText(field)` where they return "" for a missing answer today. They still report the field in `missing`, so callers and tests can count markers.
-- Label: `PromptField.label`, the text the details card shows as the input title: the first spelling of an explicit label ("Driver name"), the registry `promptLabel` of an implicit one ("Your phone", "Recipient first name"). One identity gives one marker text everywhere, subject and body.
-- Escaping: the marker goes through `formatValue` like any value (`& < > " '` escaped). Labels cannot hold `<`, `>`, `{`, `}`, `|` or `\` (grammar), so a marker never forms markup or a token. The sanitizer and the allowlist do not change.
-- Subject: the same rule; the marker is plain text and `oneLine` runs after it. With `"remove"`, double spaces collapse and the result is trimmed (existing rule).
-- Variables that resolve keep their rules: value, else fallback, else the marker. `recipient.first_name` still reads the draft's single internal To at the Insert tap (Apply semantics 2).
-- Values typed on the details card (ADR-0009): a non-blank value wins; a blank one inserts the marker; a value over 500 characters still blocks Insert with "Shorten to 500 characters: <labels>". Blank no longer blocks.
+Decision: option 1. Mechanism:
+- Value order unchanged: a typed answer, else the variable's value, else its fallback, else "". `renderBody` already returns "" for a missing answer and lists the field in `missing`; the change is that no caller blocks on `missing` any more, and the cleanup below runs.
+- Cleanup, one function in src/shared/placeholders/render.ts, applied per text run (`mapTextRuns`) and to the subject. A gap is the place of a token that rendered as empty text (an unfilled field, or a fallback written as `|`). Gaps are handled left to right on the text built so far. "Space" means U+0020 only. Rules:
+  1. Space on both sides of the gap: drop the space after it.
+  2. Space before the gap and one of `, . ; : ! ?` right after it: drop the space before it.
+  3. Gap at the start of the run with a space after it: drop that space.
+  4. Gap at the end of the run with a space before it: drop that space.
+- Subject: the same 4 rules, then `oneLine` as today (control characters to a space, runs of spaces collapse, trim). An empty result sends no subject action (spec 5.6), so the draft subject stays as it was.
+- Test pairs (input, then output; no field has a value; the phone is unknown):
+
+  | Input | Output |
+  |---|---|
+  | `Hi {{ask:Name}}, thanks` | `Hi, thanks` |
+  | `Load {{ask:Load number}} is ready` | `Load is ready` |
+  | `Your load {{ask:Load}}.` | `Your load.` |
+  | `{{ask:Greeting}} team,` | `team,` |
+  | `Thanks {{ask:Name}}` | `Thanks` |
+  | `Hi {{ask:A}} {{ask:B}}, ok` | `Hi, ok` |
+  | `Call {{sender.phone|the office}} today` | `Call the office today` (fallback, no gap) |
+  | Subject `Quote {{ask:Product}} for {{ask:Client}}` | `Quote for`; subject `{{ask:Topic}}` gives "" and no subject action |
+
+- Left alone on purpose: spaces across inline tags (`Hi <b>{{ask:Name}}</b>, thanks` keeps `Hi <b></b>, thanks`); non-breaking spaces, tabs and line breaks; double spaces the template already holds away from a gap; other punctuation (`)`, quotes, dashes); a paragraph, list item or table cell left empty (no block is removed: removing blocks means rewriting the sanitized structure, and an empty `<p>` may show as a blank line, slice 15 smoke step 13 records it); words that read wrong without the value ("Call me at."). The rules touch only the characters next to a gap.
+- Escaping and the sanitizer are unchanged: removal adds no text and no markup.
+- Values typed on the details card (ADR-0009): a non-blank value wins; a blank one is removed by the same rules; a value over 500 characters still blocks Insert with "Shorten to 500 characters: <labels>". Blank no longer blocks.
 - Side panel (ADR-0007, after spike S7): the same rule, so the blank-field notification and the "Check" fallback of ADR-0007 section 3 are no longer needed.
 
-Rule of Apply semantics 3 kept: no placeholder renders as empty text by accident. With `"marker"` it never does; with `"remove"` it does on purpose, by the owner's choice.
+Risk accepted by the owner: a sentence with a hole ("Your load is ready" without the number, "Call me at.") reads as finished text and can be sent. Apply semantics 3 ("no placeholder renders as empty text by accident") becomes "renders as empty text on purpose" on the compose card. Mitigations that stay: the row hint "2 fields to fill" before the click; the details card (tap on the row) to fill in first; the quick start line "Fields you did not fill are left out. Read the draft before you send, or tap the template's name to fill them in first."
 
-Consequences: the prompt card no longer guards against an unfilled field; the draft does. The quick start gets one line: "Fields you did not fill show as [Label] in the draft. Type over them before you send." Nothing changes on the server: `PH_TOO_MANY` (20 per template) stays; one-click needs no field cap. No log line carries a marker or a count of markers (the server writes the apply line before the add-on renders).
+Consequences: nothing changes on the server: `PH_TOO_MANY` (20 per template) stays; one-click needs no field cap. No log line carries a removed field or a count of them (the server writes the apply line before the add-on renders).
 
 ## Consequences
 
@@ -304,7 +320,6 @@ Consequences: the prompt card no longer guards against an unfilled field; the dr
 ## Open questions
 
 - Q20, Q21 (spec section 15): closed 2026-11-10. Q20 by spike S5 (one response, no new scope); Q21 by D24.
-- Q56 (spec section 15, D31): marker or removal for a field without a value. Default marker.
 - Q25 (spec section 15): prompts used only in the subject are asked while "Replace the subject" is off. Recommendation: accept in v1.
 
 - Q9. Does `domain_public` return `organizations` and `phones`? Recommendation: test in slice 2; fallback `searchDirectoryPeople` with `directory.readonly` (one consent line, replaces `admin.directory.user.readonly`).

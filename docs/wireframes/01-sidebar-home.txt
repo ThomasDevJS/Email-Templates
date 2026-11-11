@@ -1,23 +1,23 @@
 Screen 1: Sidebar home (Gmail compose, Card Service)
-Slice 4 (Favorites, Recent, search in 5). Layout and texts as built in slice 12 (verified at 6374b7b).
-Width about 300 px. Widgets per card under 100 [R4 S9]. [Insert] is a filled slate button,
-(Open library) an outlined button in the fixed footer. Icons: * star, @ clock, = document, # folder.
+Target of slice 15 (D31, spec 7.4, ADR-0009; Proposed 2026-11-11). As built until slice 15: slice 12 layout,
+see git show 2f6eae3:docs/wireframes/01-sidebar-home.txt.
+Width about 300 px. Widgets per card under 100 [R4 S9]. [Insert] is a filled slate button on every row.
+Icons: * star, @ clock, = document, # folder. Card Service limits per row (DecoratedText): one button,
+a row onClick, a start icon, a top and a bottom label [A43].
 
 +--------------------------------------+
 | Search templates                     |  no CardHeader: Gmail's bar names the add-on
-| [ quote_______________________ ]     |  TextInput, onChangeAction -> search
-| Tip: add folder:Sales or tag:pricing |  hint line
-| to narrow the search.                |
+| [ quote_______________________ ]     |  TextInput, onChangeAction -> search; no hint (D31)
 |--------------------------------------|
 | FAVORITES                            |  only with rows; max 10; 5 shown, rest collapsed
-|  * Welcome email          [Insert]   |  DecoratedText + TextButton
-|    Sales / Onboarding                |  one plain-text label line: path, then hints, " · "
-|  * Price quote 2026       [Insert]   |
-|    Sales / Quotes · 2 fields to fill |
+|  * Welcome email          [Insert]   |  DecoratedText + TextButton (FILLED, slate)
+|    Sales / Onboarding                |  label: recipient hint, fields hint, path, " · "
+|  * Price quote 2026       [Insert]   |  one click: [Product name] goes into the draft
+|    2 fields to fill · Sales / Quotes |
 |--------------------------------------|
-| RECENT                               |  only with rows; max 5, last used by me
-|  @ Driver leaving         [Review]   |  template with recipients: no one-click insert (D26)
-|    HR · Adds Cc 1, Bcc 1             |
+| RECENT                               |  last used by me, minus every Favorite; hidden when empty
+|  @ Driver leaving         [Insert]   |  one click adds Cc and Bcc (D31); Insert carries rc=0,1,1
+|    Adds Cc 1, Bcc 1 · HR             |  recipient hint first: survives a cut label
 |  @ Out of office reply    [Insert]   |
 |--------------------------------------|
 | FOLDERS                              |  5 shown, rest collapsed
@@ -28,8 +28,8 @@ Width about 300 px. Widgets per card under 100 [R4 S9]. [Insert] is a filled sla
 |  # My templates                      |  private folder (D11); while personal templates are off (D29) only if it already exists
 |    3 templates                       |
 |--------------------------------------|
-| (Open library)                       |  fixed footer; OpenLink OVERLAY, RELOAD_ADD_ON
-+--------------------------------------+
+| [Open library]                       |  fixed footer, primary FILLED #2a3c49 (API: primary must be FILLED);
++--------------------------------------+  OpenLink OVERLAY, RELOAD_ADD_ON
 
 Empty home (no visible templates; wireframe 07 A): "No templates shared with you yet." "Your private folder is
 ready: open the library to create one." [Open library]; no footer. Personal templates off (A2): "No templates
@@ -43,25 +43,30 @@ Folder card (pushed on tap):
 |    3 templates                       |
 |  = Price quote 2026       [Insert]   |
 |    2 fields to fill                  |  hints only (the header shows the path); no label when none
-|  = Discount approval      [Insert]   |
+|  = Driver leaving         [Insert]   |
+|    Adds Cc 1, Bcc 1                  |
 |  ... 20 per page                     |
 |--------------------------------------|
 | [Previous]   Page 1 of 3   [Next]    |
 |--------------------------------------|
-| (Open library)                       |
+| [Open library]                       |
 +--------------------------------------+
 
-Search card: the input with the query, RESULTS with = rows, or
+Search card: the input with the query, RESULTS with = rows (each template once), or
 'No templates match "zzz". Try fewer words, or remove folder: and tag: from the search.'
-(query cut at 60 characters, then "..."). Footer (Open library).
+(query cut at 60 characters, then "..."). Footer [Open library].
 
-Tap on a title (not the button) pushes the preview card. Layout with the
-template subject (D21, slice 5): docs/wireframes/02-sidebar-prompt.txt.
+Tap on a row (not the button) pushes the details card: docs/wireframes/02-sidebar-prompt.txt.
 
-Behavior
-- Insert on a template with no prompts and all values resolved: apply in one click. Sets the body, and the subject when the template has one (D21).
-- Insert on a template with prompts: push screen 2.
-- Edit in library: clears add-on cache, opens /exec?view=editor&id=... in OVERLAY, sidebar reloads on close.
+Behavior (compose, slice 15)
+- Insert on any row: one template.apply call, then one UpdateDraftActionResponse. The card closes (spike S6 step 0).
+- Fields without a value: fallback when the variable has one, else the marker [Label] in body and subject (Q56).
+- Subject: D24, set only into an empty draft subject.
+- Recipients: added by spec 5.7 (add, never remove; To only into an empty To). rc on the button must equal the
+  counts template.apply returns; else the details card opens with the change line and nothing is inserted.
+- A template address in a draft field the event does not give as a list: details card, nothing inserted.
+- No notification after the insert: an insert response cannot carry one [A15, A44]. The draft is the result.
+- Edit in library (details card): clears add-on cache, opens /exec?view=editor&id=... in OVERLAY, card reloads on close.
 
 Side-panel variant as built (slices 10 and 12, interim until spike S7):
 Opened from Gmail's right side panel. Same cards as above, with no [Insert] or [Review]
@@ -90,8 +95,8 @@ No message open (entry inbox, homepage trigger):
 |    Sales / Onboarding                |
 |  Price quote 2026      [New email]   |  prompts: opens the prompt card
 |    Sales / Quotes · 2 fields to fill |
-|  Driver leaving           [Review]   |  recipients: preview card first (D26)
-|    HR · Adds Cc 1                    |
+|  Driver leaving        [New email]   |  D31: one click after S7 too (ADR-0009 section 6)
+|    Adds Cc 1 · HR                    |
 |--------------------------------------|
 | RECENT / FOLDERS                     |  same as compose
 |--------------------------------------|
@@ -111,8 +116,8 @@ Message open (entry message, contextual trigger unconditional):
 | FAVORITES                            |
 |  Welcome email             [Reply]   |  compose action, REPLY_AS_DRAFT
 |    Sales / Onboarding                |
-|  Driver leaving           [Review]   |
-|    HR · Adds Cc 1                    |
+|  Driver leaving            [Reply]   |
+|    Adds Cc 1 · HR                    |
 |  ...                                 |
 |--------------------------------------|
 | (footer hint, Open library)          |
@@ -143,7 +148,7 @@ Preview card, side panel, message open:
 
 Behavior (side panel)
 - Every button creates a draft that Gmail opens in a compose window; nothing changes a draft already open.
-- One click when the template has no prompts and no recipients; otherwise the preview or prompt card first.
-- Prompt card footer: [Create email] or [Create reply]; a blank field shows "Fill 1 field: <label>" and creates nothing.
+- One click for every template after S7 (D31): fields without a value become [Label]; the row tap opens the details card.
+- Details card footer: [Create email] or [Create reply]; blank fields become [Label] (no notification).
 - Errors: notification with the spec 7 text, no draft.
 - If spike S7 fails: no action buttons; the hint moves to the top of the card.
