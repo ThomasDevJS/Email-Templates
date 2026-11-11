@@ -161,3 +161,53 @@ A file input is not a text field, so it stays blocked. Selects and buttons stay 
 ## Only the owner can check
 
 - IME composition and macOS paste during a save; real save times on dev.
+
+# Re-review: retry 2
+
+Verdict: PASS. 0 must-fix, 1 new minor. The retry 1 must-fix is closed.
+
+Retry diff `78172c8..ae2ff12`: `src/web/editor/setup.ts` (`pageBusy`, `bracesRule`, `link`) and 2 tests. Reviewed 2026-11-11.
+
+## Commands (worktree ae2ff12, after `rm -rf node_modules`)
+
+| Command | Result |
+|---|---|
+| `npm ci`, `npm run lint`, `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 72 files, 2008 tests passed; lines 98.12 |
+| `npm run build -- --env dev` | Code.js 373.5 KB of 800 KB, index.html 383.7 KB of 400 KB |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 16 of 16 runs at 100 |
+
+Both new editor.test cases fail on a copy of 78172c8: "while the page is busy, {{ stays as text and opens no picker" and "while the page is busy, Ctrl+K opens nothing and Ctrl+B still bolds".
+
+## Item 1, shortcuts during a call (`template.update` delayed 4 s)
+
+- Ctrl+K on a selection: no dialog. Typed ` {{`: no menu; the braces stay in the text.
+- Typing, Backspace, Delete, paste, Ctrl+B, Ctrl+I and Ctrl+U all apply; the result is the same as with no call running.
+- Ctrl+Z removes the last typing; Ctrl+Y brings it back.
+- After the call: no dialog or menu opens late, the `{{` typed during the call is still in the text, and there is 1 `template.update`. Ctrl+K then opens "Insert link", and a new `{{` opens "Insert field".
+
+## Item 2, keymap and input rules
+
+`setup.ts:71-83` keymap: Mod-z, Mod-y, Shift-Mod-z, Mod-b, Mod-i, Mod-u, Mod-Shift-x, Mod-k, Enter, Mod-], Mod-[. Plus `baseKeymap` (`setup.ts:98`). Only Mod-k opens UI, and it is now guarded. The only input rule in `src/web` is `bracesRule` (`setup.ts:96`), now guarded. `{{` in Subject opens no picker (retry 1 probe). The other keydown handlers edit their own box (tags, recipient chips) or sit on blocked controls.
+
+## Item 3, earlier passes
+
+| Probe | Result |
+|---|---|
+| Typing during a 3 s save | 6 characters in the text and 3 in the title kept; "Unsaved changes"; 1 `template.update` holding the text at Ctrl+S |
+| Restore Retry on two toasts | 1 `version.restore` |
+| Editor save Retry on two toasts | 1 `template.update` |
+| Ways around the block | the 13 still do nothing, except typing and paste in search, as intended |
+| Block end | error, never answers (free at 20.6 s), overlap and Back during a call all free the page |
+
+## Minor (new)
+
+- A. Ctrl+S in the editor during a call that is not a save still starts a save; `saving` only stops a second save. Example: the reload after saving into a folder this page did not know (`app.ts` `itemSaved`). The base is the same; the window is one list read.
+
+Open from earlier rounds: minor 1 (no error text for a call that never answers), 3 (grant NOT_FOUND text), 4, 5, and retry 1 minor A (Tab moves focus).
+
+## Only the owner can check
+
+- IME composition and macOS paste during a save; part M on dev.
