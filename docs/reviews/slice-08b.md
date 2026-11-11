@@ -135,7 +135,7 @@ Chromium, head harness, body "Hello world" + "Second para". 72 runs: image (fast
 
 - Every node lands at the saved caret in 72 of 72 runs. The selection is replaced by image, table, blank and asked field. The DOM edit case gives "ZZHello[node] world": the bookmark follows the change.
 - Width: fast and slow image store `width="200"`. The failing image stores no width.
-- d8de28d, same script: 15 image runs with Enter put the image at the document start (the blocker). Head: 0.
+- d8de28d, same script: 13 image runs put the image at the document start (12 by Enter, 1 by OK after the DOM edit). Head: 0.
 - No leak: open Image, cancel by Esc and by Cancel, move the caret to the end, insert. Then open Link at "He|llo", Esc, insert an image at the end. Stored `<p>Hello world more<img ... width="200"><img ...></p>`: both at the current caret. Focus after a cancel is the editor body.
 - A second user action cannot type into the editor while a dialog is open: the dialog makes the page inert.
 
