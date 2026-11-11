@@ -88,7 +88,7 @@ Gmail, owner, the add-on in a draft's toolbar. About 25 minutes. Discard every d
 3. New draft, row Insert on "T3 copies". Expect: Cc `test-cc@<your domain>` and Bcc `test-bcc@<your domain>` added, the Bcc line visible. Record: the card closed (y/n).
 4. Open a received message, "Reply", click into the text, row Insert on "T4 fields and copies". Expect: To and the "Re:" subject kept, Cc and Bcc added, the fields left out of the text.
 5. New empty draft, folder "Smoke 6a". Expect: the row "T6 recipients" says "Adds To 1, Cc 2, Bcc 1". Row Insert. Expect: text "Hello", Subject "T6 subject", all 4 addresses in their boxes, the Bcc line open.
-6. New draft. In To type `test-a@<your domain>`, in Cc `test-b@<your domain>`, each followed by Enter so it is a chip. Click into the text, row Insert on "T6 recipients". Expect: To holds only `test-a@`; Cc holds `test-b@`, `test-cc@`, `test-out@`; Bcc holds `test-bcc@`. No address lost.
+6. New draft. In To type `test-a@<your domain>`, in Cc `test-b@<your domain>`, each followed by Enter so it is a chip. Click into the text, row Insert on "T6 recipients". Expect: To holds only `test-a@`; Cc holds `test-b@`, `test-cc@`, `test-out@`; Bcc holds `test-bcc@`. No address lost. Record: anything on screen said that `test-to@` was not added (y/n). The owner judges whether a notice is needed.
 7. New draft, Cc `test-cc@<your domain>` as a chip. Row Insert on "T6 recipients". Expect: one `test-cc@` chip, not two.
 8. Open a received message, "Forward", row Insert on "T6 recipients". Expect: To gets `test-to@<your domain>`; the "Fwd:" subject is kept.
 9. New draft, type `old` in Subject, row Insert on "T1 plain". Expect: the text changes, Subject stays `old`.
@@ -96,11 +96,12 @@ Gmail, owner, the add-on in a draft's toolbar. About 25 minutes. Discard every d
 11. New draft, To: the second account's address as a chip. Row Insert on "T7 first name". Expect: "Hello" followed by that person's first name, when the directory has one.
 12. New draft, row Insert on "T5 paragraphs". Record: the empty middle paragraph shows as a blank line (y/n). Yes is accepted for v1.
 
-| Step | Record                              | Result |
-| ---- | ----------------------------------- | ------ |
-| 1    | card closed (y/n)                   |        |
-| 3    | card closed (y/n)                   |        |
-| 12   | empty paragraph as blank line (y/n) |        |
+| Step | Record                                     | Result |
+| ---- | ------------------------------------------ | ------ |
+| 1    | card closed (y/n)                          |        |
+| 3    | card closed (y/n)                          |        |
+| 6    | notice that `test-to@` was not added (y/n) |        |
+| 12   | empty paragraph as blank line (y/n)        |        |
 
 ## Part C: details card and edge cases
 
@@ -136,7 +137,7 @@ Web app, owner; Gmail for steps 9 and 12. About 30 minutes. This part turns pers
 6. First tab: "Off", "Save". Expect: the dialog "Turn off personal templates?" with "Cancel" focused. "Cancel": the setting stays On. "Off", "Save", "Turn off". Expect: "Saved. Personal templates are off for every user from their next action."
 7. "Outside recipients": "<your domain> only", "Save". Expect: the dialog "Allow only <your domain> recipients?". Click "Allow only <your domain>". Expect: "Saved. Only <your domain> recipients are allowed."
 8. Library, open "T6 recipients", type a word in the text, "Save". Expect: "Not saved. Fix the problems in the Problems tab." and in "Problems": "Cc, address 2 is outside <your domain>. Your admin allows only <your domain> addresses. Remove it to save." Click "All templates", "Discard changes".
-9. Gmail, new empty draft, open the add-on, tap the name "T6 recipients". Expect: "Not added: test-out@example.com. Outside <your domain>, turned off by your admin." and "Adds 3 recipients.". "Insert": 3 addresses, no `test-out@`. Discard the draft.
+9. Gmail, new empty draft, open the add-on, "Open library", close it, open "Smoke 6a". Expect: the row "T6 recipients" says "Adds To 1, Cc 1, Bcc 1". Row Insert. Expect: 3 addresses, no `test-out@`. Record: anything on screen said that `test-out@` was left out (y/n). The owner judges whether a notice is needed. Discard the draft. New empty draft, tap the name "T6 recipients". Expect: "Not added: test-out@example.com. Outside <your domain>, turned off by your admin." and "Adds 3 recipients.". "Insert": 3 addresses, no `test-out@`. Discard the draft.
 10. Admin, "Settings and backups", "Outside recipients": "Allowed", "Save". Expect: no dialog; "Saved. Outside recipients are allowed."
 11. "Audit log", this month, "Action" "Setting changed", "Filter". Expect: 4 rows (steps 4, 6, 7, 10) with your name; step 5 wrote none. "Details" on one row. Expect: the drawer "Entry details" with "Before", "After", "Duration", "Request ID" and "App version". Esc closes it and the focus is back on "Details".
 12. Wait 5 minutes after part B. "Usage". Expect: "T1 plain" with "Inserts, 30 days" 1 or more and a "Last inserted" time.
@@ -144,9 +145,10 @@ Web app, owner; Gmail for steps 9 and 12. About 30 minutes. This part turns pers
 14. Admin, "Folders and access", "New top-level folder", name `Import test`. "Export and import": "Export file" the file of step 13, "Import into" "Import test", "Check file". Expect: "Checked. Import would create " with the count and "0 skipped, 0 failed". "Import". Expect: "Imported " with the same count and "0 skipped, 0 failed". The library shows "Import test" with "Smoke 6a" inside. Blocked is fine when the agent cannot pick a file; the owner then does this step by hand.
 15. "Settings and backups", "Backups". Expect: at least one date, or "No backups yet. The app makes one each night and keeps the last 14." Do not press "Restore" (part H step 10).
 
-| Step | Record                | Result |
-| ---- | --------------------- | ------ |
-| 13   | file downloaded (y/n) |        |
+| Step | Record                                     | Result |
+| ---- | ------------------------------------------ | ------ |
+| 9    | notice that `test-out@` was left out (y/n) |        |
+| 13   | file downloaded (y/n)                      |        |
 
 ## Part E: look of the Gmail cards
 
@@ -213,7 +215,7 @@ The section "Spike S7 (temporary)" sits at the end of the side panel home card. 
 
 ## Part H: checks by hand
 
-For the owner, not for the browser agent. Steps 1 and 2 need the Google Account security page; steps 3 to 7 need the Apps Script editor; steps 8 and 9 need the browser itself. About 40 minutes.
+For the owner, not for the browser agent. Steps 1 and 2 need the Google Account security page; steps 3 to 7 and 11 need the Apps Script editor; steps 8 and 9 need the browser itself. About 45 minutes.
 
 1. Fresh consent with recipients (Q55). Google Account, "Security", third party access, "Remove access" for Migway Templates. Gmail, new draft, open the add-on and accept the consent page. Row Insert on "T6 recipients". Record: any further consent prompt, the scopes it names, and any error text naming `https://mail.google.com/`. A prompt for a scope outside the approved 10 stops template recipients until the owner approves it. Discard the draft.
 2. Fresh consent for spike S7. "Remove access" again. Side panel, inbox, no message open: open the add-on, "Open S7 harness", "New email". Record the same three things.
@@ -225,13 +227,27 @@ For the owner, not for the browser agent. Steps 1 and 2 need the Google Account 
 8. Back and Forward in the editor (browser console). Web app: library, "T2 fields", "History", then the browser Back button to the editor. Console: note `history.length`. Type a word, press browser Forward. Expect: "Leave without saving?" and the address stays on the editor. "Keep editing". Note `history.length` again: the same number. Press browser Back once: the question shows again. "Discard changes": the library opens, not "History".
 9. Window and reload checks. Open "T2 fields", type a word, reload the page. Record: the browser asks before leaving (y/n). Then make the window about 390 pixels wide (or use the browser's device mode). Expect: no sideways scroll; the toolbar scrolls inside its row; the panel sits below the sheet with "Details", "The sender fills in" and "Preview" as headings that open and close.
 10. Backup restore (optional, dev data only, after every other part). Admin, "Settings and backups", "Backups", "Restore" next to the newest date. Expect: a dialog that names the date with "Cancel" focused. Confirm. Expect: "Restored the backup of " and the date. This puts back the library of that night: the setup templates and everything made after the backup leave the library. "Audit log": a row for the restore with your name.
+11. Admins in the log (part I). "Executions", the runs of part I steps 3 and 4. Expect: one warn line `directory.users.get` each, with `errorCode` like `ADMIN_NO_ACCOUNT:404` and no address. A line `ADMIN_CHECK:` with a status means the Directory answer was not read as "not found": record the status. The `admin.add` and `admin.remove` lines carry `targetId` "" and no address.
 
 | Step | Record                            | Result |
 | ---- | --------------------------------- | ------ |
 | 1    | prompt, scopes, error text        |        |
 | 2    | prompt, scopes, error text        |        |
 | 9    | browser asks before leaving (y/n) |        |
+| 11   | `errorCode` of each warn line     |        |
 
 ## Part I: in-app admins
 
-Added when slice 16 is on dev.
+Web app, owner as the browser agent; two steps for the second tester, marked "Second tester". About 20 minutes. `<second account>` stands for the second tester's address; the owner types it, it is never written into this plan. Part F must not be running at the same time.
+
+1. Admin, "Settings and backups", under "Settings" the section "Admins". Expect: "Admins manage every shared folder, grants, settings, imports and backups. Add people by their <your domain> address."; "Set by the owner: " with your address and "These cannot be removed here."; "Members of " and the group when an admin group is set; "No admins added here yet." when nobody was added.
+2. In "Email address" type `someone@example.com`, "Add admin". Expect: "Only <your domain> addresses can be admins." Nothing is added.
+3. Type `nobody-test-123@<your domain>` (an address nobody has), "Add admin". Expect: "No <your domain> account has this address. A group goes in the admin group the owner sets."
+4. Type a group address of your domain (the owner gives it), "Add admin". Expect: the same text as step 3.
+5. Type `<second account>`, "Add admin". Expect: "Adding...", then `<second account>` followed by " is now an admin."; a row with that address, "Added by " with your name and the time, and a "Remove" button.
+6. Type `<second account>` again, "Add admin". Expect: `<second account>` followed by " is already an admin." and still one row.
+7. Second tester: reload the web app. Expect: "Admin" in the left menu. Open it, "Settings and backups". Expect: the "Admins" section lists your own address with no "Remove" button. Leave this page open and change nothing yet.
+8. Owner: "Remove" on the `<second account>` row. Expect: the dialog "Remove <second account> as admin?" with "They lose admin access at their next action. Their templates and folders stay." and "Cancel" focused. "Cancel": the row stays. "Remove" again, "Remove admin". Expect: "Removing...", then `<second account>` followed by " is no longer an admin."; the row is gone.
+9. Second tester, in the page still open from step 7: under "Personal templates" pick the other choice and press "Save". Expect: "You are no longer an admin, so nothing was changed. Ask an admin if you need access." Reload: no "Admin" in the left menu.
+10. Owner: "Settings and backups". Expect: "Personal templates" still shows the value from before step 9.
+11. "Audit log", this month, "Action" "Admin added", "Filter". Expect: one row with your name for step 5. "Action" "Admin removed", "Filter". Expect: one row with your name for step 8. No rows for the refused tries of steps 2 to 4.

@@ -26,21 +26,21 @@ Date: 2026-11-11. Branch `slice/17-test-round`, base `claude/gracious-franklin-3
 | Slice 9   | 1    | 8         | 0       | "Review" gone                                            |
 | Slice 11  | 9    | 1         | 0       | "Review" gone                                            |
 | Slice 12  | 5    | 3         | 0       | hint, label order, footer color, details card            |
+| Slice 16  | 7    | 1         | 0       | step 6: the home card has no Refresh; Open library       |
 | Slice 15  | 12   | 1         | 0       | step 11: an admin cannot lose folder access              |
 | Spike S7  | 8    | 0         | 0       |                                                          |
 
 ## Test plan parts
 
-A web editor 13, B one click insert 12, C details card 13, D admin settings 15, E card look 11, F second account 10, G spike S7 7 (old step 1 moved to H), H by hand 10, I placeholder.
+A web editor 13, B one click insert 12, C details card 13, D admin settings 15, E card look 11, F second account 10, G spike S7 7 (old step 1 moved to H), H by hand 11, I in-app admins 11 (2 of them for the second tester). B step 6 and D step 9 record the two silent drops below for the owner's judgment (D, not B or C, because the outside limit is set in D).
 
 ## Verified and how
 
-- Quote check: a script extracts every double-quoted text and searches `src/` (TS escapes undone, spaces collapsed). smoke.md: 460 quotes, 325 found, 135 not found literally. test-round-1.md: 468 quotes, 311 found, 157 not found literally. Every not-found quote was read by hand: user data (titles, folders, addresses, rendered text), texts built from parts (`rowHint`, `addsLine`, `REASONS`, `(!) ` + problem, `shortenText`, `settingTexts`, `importSummary`, `exportFileName`, `addressProblem`, `Version` + `APP_VERSION`), or Gmail and Google texts ("Discard draft", "Re:", "Fwd:", "Show more", "Executions").
-- `npm ci`: clean. `npm run test`: 67 files, 1826 tests passed. `npm run format:check`: clean.
+- Quote check: a script extracts every double-quoted text and searches `src/` (TS escapes undone, spaces collapsed). After the merge of a803637 (slice 16): smoke.md 477 quotes, 337 found, 140 not found literally. test-round-1.md 522 quotes, 357 found, 165 not found literally. Every not-found quote was read by hand: user data (titles, folders, addresses, rendered text), texts built from parts (`rowHint`, `addsLine`, `REASONS`, `(!) ` + problem, `shortenText`, `settingTexts`, `importSummary`, `exportFileName`, `addressProblem`, `Version` + `APP_VERSION`), or Gmail and Google texts ("Discard draft", "Re:", "Fwd:", "Show more", "Executions").
+- `npm ci`: clean. `npm run test`: 68 files, 1883 tests passed (after the merge). `npm run format:check`: clean.
 
 ## Left for later
 
-- Part I (in-app admins) when slice 16 is on dev.
 - The image addresses for part A step 10 come from the owner.
 
 ## Risks
