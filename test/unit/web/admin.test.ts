@@ -605,6 +605,43 @@ describe("trash", () => {
     });
   });
 
+  it("keeps focus on the opener when a press outside closes a dialog", async () => {
+    await boot("/?latency=0#/trash");
+    await until(() => {
+      expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
+    });
+    const opener = button("Empty trash now...");
+    opener.focus();
+    opener.click();
+    const press = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    dialog().parentElement?.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("closes an open dialog on browser Back and leaves nothing inert", async () => {
+    await boot("/?latency=0#/trash");
+    await until(() => {
+      expect(main().querySelectorAll(".trash-table tbody tr")).toHaveLength(1);
+    });
+    window.history.pushState(null, "", "#/trash");
+    button("Empty trash now...").click();
+    expect(document.querySelectorAll("[inert]").length).toBeGreaterThan(0);
+    window.history.replaceState(null, "", "/?latency=0#/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await until(() => {
+      expect(main().querySelector(".trash-table")).toBeNull();
+    });
+    expect(dialog()).toBeNull();
+    expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+    expect(document.querySelector("main")?.closest("[aria-hidden]")).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
   it("hides Empty trash from callers who are not admins", async () => {
     await boot("/?latency=0&admin=0#/trash");
     await until(() => {
