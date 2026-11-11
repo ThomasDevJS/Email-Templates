@@ -1,6 +1,6 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-11, errata run 4 (slices 8a-8d, 9-13 as built at 6374b7b; commits 85de724, 7d9c91a, e3cf0a6 + handoff). Before: D29 run (ADR-0008), D27 run (ADR-0007), D26 run (ADR-0006), errata run 3. Repo is the source of truth; this file is a cache.
+Last run: 2026-11-11, D31 run (one-click insert, slice 15; ADR-0009, amendments 0004, 0006, note 0007) and D32 run (in-app admins, slice 16; amendments 0003, 0008). Orchestrator saved WIP commits mid-run (be9344d, 66553a9, 7695b89, 8152348); mine 8c3cd99, f6b0d5e + slice 16 handoff. Before: errata run 4, D29, D27, D26. Repo is the source of truth; this file is a cache.
 
 ## Files I own
 - docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Proposed; S7 not run; Built so far section). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
@@ -41,6 +41,18 @@ Last run: 2026-11-11, errata run 4 (slices 8a-8d, 9-13 as built at 6374b7b; comm
 - Buffer: evicted slot first, apply takes denied slot, `evt:lost`. Log targetId falls back to dispatch-resolved folder (grant.remove). `prof:<sha256>`.
 - Add-on slice 12: no headers on home/state cards, one-line labels " · ", hint "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.", Favorites hidden when empty.
 
+## D31 (owner 2026-11-11): one-click insert, slice 15 (spec 7.4, 13.9, ADR-0009)
+- Every compose row "Insert" one click. Unfilled field REMOVED (owner decision, no marker): value order typed > value > fallback > "", then 4 gap rules (U+0020 only, per text run and subject): space both sides drop after; space before + `,.;:!?` drop before; run start drop space after; run end drop space before. Left alone: across inline tags, nbsp, empty blocks (smoke 13). 8 test pairs in ADR-0004 Amendment 2026-11-11.
+- Platform: UpdateDraftActionResponse has no notification [A15]; ActionResponse has no draft action [A44]; card closes after insert (S6 step 0, undocumented). FixedFooter primary must be FILLED [A40]; manifest secondaryColor default blue #2196F3 [A42]; DecoratedText one button or switch or end icon + onClick [A43]. A40-A44 in ADR-0009.
+- Row button carries `rc` "t,c,b"; mismatch with apply lists -> details card + change line. Unknown draft field with template address -> details card. Row hint counts first in label (hint, fields, path).
+- Details card = preview + prompt merged; opens via template.apply followUp:true (no event); Insert apply without followUp; `counted=1` on re-rendered card. Switches subj/rcpt replace "Insert with subject"/"Insert body only". Footer Insert + Edit in library.
+- Home: Favorites, Recent minus Favorites, Folders; no search hint; footer FILLED slate + manifest secondaryColor slate.
+- Q56-Q61 (counts on row, Bcc/outside one click, footer, no hint, label order, details open no usage).
+
+## D32 (owner 2026-11-11): in-app admins, slice 16 (spec 5.8, 6, 7.3, 11.1, 13.10)
+- index.json `admins: [{email, addedAt, addedBy}]` (own field, not settings map), cap 20. Admin = ADMIN_EMAILS or ADMIN_GROUP or list. Ops admin.add/admin.remove {email}, admin web, deltas via commit, no base. Directory users.get domain_public existence check, store primaryEmail. No self-removal. No op writes Script Properties. restore keeps live admins. Audit targetType admin. Q62-Q66.
+- File split: 15 owns src/addon, shared/placeholders, appsscript.json, user-quick-start, editor-guide, editor.ts help string; 16 owns server, shared/permissions|model|errors, rest of web, admin guide, runbook.
+
 ## Scopes (10, unchanged)
 gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, script.projects.readonly, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Subject needs none extra (S5 verified). Any new scope needs owner approval.
 
@@ -63,7 +75,7 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - 32a446c: warm save 4.2-5.2 s, Drive writes 2.0-2.7 s.
 
 ## Slice plan
-- Slices 1-13 (with 4b, 5b, 5c, 6a, 6b, 8a-8d) done and on dev (f88ab0b). 14 = wording pass, in build: re-check spec 7-7.3 and wireframes 01, 02, 07 after it. Gmail panel compose actions wait for S7 (spec 13.7). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
+- Slices 1-13 done, on dev (f88ab0b). 14 wording pass in build: re-check spec 7-7.3 and wireframe 07 after it. 15 one-click (after 14), 16 admins (parallel). Next free slice 17. Gmail panel compose actions wait for S7 (spec 13.7). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
@@ -75,7 +87,7 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A39]. Question IDs global Q1-Q55. Slice numbers: next free 15. Spikes S2, S2b, S4, S5, S6 closed (S6 step 7 open, Q55); S7 open (panel pass first task, harness in dev build).
+- External sources [A1]..[A44]. Question IDs global Q1-Q66. Slice numbers: next free 17. ADR next free 0010. Spikes S2, S2b, S4, S5, S6 closed (S6 step 7 open, Q55); S7 open (panel pass first task, harness in dev build).
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
