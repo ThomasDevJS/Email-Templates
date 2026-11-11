@@ -42,7 +42,7 @@ function emptySection(view: SidebarHome): SectionSpec {
       { kind: "text", text: "No templates shared with you yet." },
       {
         kind: "text",
-        text: "Your private folder is ready: open the library to create one.",
+        text: 'Your folder "My templates" is ready. Open the library to create a template.',
       },
       openLibraryButton,
     ],
