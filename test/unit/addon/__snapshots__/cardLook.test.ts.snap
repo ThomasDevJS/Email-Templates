@@ -1,0 +1,486 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`card look is frozen (D34) > compose: home, folder, search, no match 1`] = `
+[
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "Favorites",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill · Sales | Insert",
+      ],
+      [
+        "Recent",
+        "item: Template T2 | Sales | Insert",
+      ],
+      [
+        "Folders",
+        "item: Sales | 3 templates | ",
+        "item: My templates | 0 templates | ",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "Folders",
+        "item: Quotes | 1 template | ",
+      ],
+      [
+        "",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill | Insert",
+        "item: Template T2 |  | Insert",
+      ],
+    ],
+    "title": "Sales",
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "Results",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill · Sales | Insert",
+        "item: Template T2 | Sales | Insert",
+        "item: Template T3 | Sales / Quotes | Insert",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "",
+        "text: No templates match "zz". Try fewer words, or remove folder: and tag: from the search.",
+      ],
+    ],
+    "title": undefined,
+  },
+]
+`;
+
+exports[`card look is frozen (D34) > details cards 1`] = `
+[
+  {
+    "footer": [
+      "Insert",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: (!) The recipients of this template changed. Check them and press Insert again.",
+      ],
+      [
+        "",
+        "text: Body",
+      ],
+    ],
+    "title": "Template T1",
+  },
+  {
+    "footer": [
+      "New email",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.",
+      ],
+      [
+        "",
+        "text: Body",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": "Template T1",
+  },
+  {
+    "footer": [
+      "Reply",
+      "Reply all",
+    ],
+    "sections": [
+      [
+        "",
+        "text: Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.",
+      ],
+      [
+        "",
+        "text: Body",
+      ],
+      [
+        "",
+        "buttons: New email",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": "Template T1",
+  },
+]
+`;
+
+exports[`card look is frozen (D34) > inbox: home, folder, search, no match 1`] = `
+[
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "Favorites",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill · Sales | New email",
+      ],
+      [
+        "Recent",
+        "item: Template T2 | Sales | New email",
+      ],
+      [
+        "Folders",
+        "item: Sales | 3 templates | ",
+        "item: My templates | 0 templates | ",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "Folders",
+        "item: Quotes | 1 template | ",
+      ],
+      [
+        "",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill | New email",
+        "item: Template T2 |  | New email",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": "Sales",
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "Results",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill · Sales | New email",
+        "item: Template T2 | Sales | New email",
+        "item: Template T3 | Sales / Quotes | New email",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "",
+        "text: No templates match "zz". Try fewer words, or remove folder: and tag: from the search.",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": undefined,
+  },
+]
+`;
+
+exports[`card look is frozen (D34) > message: home, folder, search, no match 1`] = `
+[
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "Favorites",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill · Sales | ",
+        "buttons: Reply, Reply all",
+      ],
+      [
+        "Recent",
+        "item: Template T2 | Sales | ",
+        "buttons: Reply, Reply all",
+      ],
+      [
+        "Folders",
+        "item: Sales | 3 templates | ",
+        "item: My templates | 0 templates | ",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "Folders",
+        "item: Quotes | 1 template | ",
+      ],
+      [
+        "",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill | ",
+        "buttons: Reply, Reply all",
+        "item: Template T2 |  | ",
+        "buttons: Reply, Reply all",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": "Sales",
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "Results",
+        "item: Template T1 | Adds To 1, Cc 1 · 1 field to fill · Sales | ",
+        "buttons: Reply, Reply all",
+        "item: Template T2 | Sales | ",
+        "buttons: Reply, Reply all",
+        "item: Template T3 | Sales / Quotes | ",
+        "buttons: Reply, Reply all",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      "Open library",
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "input: Search templates",
+      ],
+      [
+        "",
+        "text: No templates match "zz". Try fewer words, or remove folder: and tag: from the search.",
+      ],
+      [
+        "",
+        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+      ],
+    ],
+    "title": undefined,
+  },
+]
+`;
+
+exports[`card look is frozen (D34) > state cards 1`] = `
+[
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: Cannot identify your Migway account.",
+        "text: This app does not work when several Google accounts are signed in. Use a separate Chrome profile for Migway, or an incognito window with only your Migway account.",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: Migway Templates is not set up yet.",
+        "text: Ask your admin to finish setup, then press Retry.",
+        "buttons: Retry",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: You don't have access to this template. Ask a folder manager.",
+        "buttons: Refresh",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: This template was deleted or moved. Press Refresh to update the list.",
+        "buttons: Refresh",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: The library is busy. Try again in a few seconds.",
+        "text: Request ID R1",
+        "buttons: Retry",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: Service is busy. Try again in a minute.",
+        "text: Request ID R1",
+        "buttons: Retry",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: Something went wrong. Press Retry.",
+        "text: Request ID R1",
+        "text: Details for your admin: m",
+        "buttons: Retry",
+      ],
+    ],
+    "title": undefined,
+  },
+  {
+    "footer": [
+      undefined,
+      undefined,
+    ],
+    "sections": [
+      [
+        "",
+        "text: Something went wrong. Press Retry.",
+        "text: Request ID R1",
+        "buttons: Retry",
+      ],
+    ],
+    "title": undefined,
+  },
+]
+`;
