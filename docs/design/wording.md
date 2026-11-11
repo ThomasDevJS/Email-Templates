@@ -361,3 +361,4 @@ New texts. Paths are relative to `src/`.
 | Where | Text |
 |---|---|
 | `addon/cards/folder.ts` | Showing {shown} of {total} {favorites / recent templates / folders / results}. Use Search or Open library for the rest. (last line of a list cut to stay under Gmail's 100 widgets per card) |
+| `addon/cards/recipients.ts` | A reply adds {n} recipient(s). (label of "Add recipients" on the side-panel details card with an email open, when the template has a To: a reply never adds it) |

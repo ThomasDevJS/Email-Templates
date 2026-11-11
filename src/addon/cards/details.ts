@@ -130,14 +130,15 @@ function subjectSection(state: DetailsState): SectionSpec[] {
 }
 
 /**
- * Section "Recipients": "Add recipients" when a press adds one, then the lines of `recipientWidgets` (finish-typing
- * line only when `typing`), then `extra`.
+ * Section "Recipients": "Add recipients" when a press adds one (its count as a reply when `reply`), then the lines
+ * of `recipientWidgets` (finish-typing line only when `typing`), then `extra`.
  */
 function recipientSection(
   view: DetailsView,
   toggle: boolean,
   typing: boolean,
   extra: readonly Widget[],
+  reply = false,
 ): SectionSpec[] {
   const { plan } = view;
   const adds = recipientCount(plan.added) > 0;
@@ -148,7 +149,7 @@ function recipientSection(
           {
             kind: "item",
             text: "Add recipients",
-            bottomLabel: addsLine(plan),
+            bottomLabel: addsLine(plan, reply),
             toggle: { name: RECIPIENT_SWITCH, selected: toggle },
           } as const,
         ]),
@@ -250,10 +251,8 @@ export function panelDetailsCard(
   entry: PanelEntry,
 ): CardSpec {
   const [primary, secondary, ...rest] = panelActions(state, entry);
-  const toLine =
-    entry === "message" && state.plan.added.to.length > 0
-      ? [line(REPLY_TO_LINE)]
-      : [];
+  const reply = entry === "message" && state.plan.added.to.length > 0;
+  const toLine = reply ? [line(REPLY_TO_LINE)] : [];
   return {
     name: `details-${state.template.id}`,
     title: state.template.title,
@@ -262,7 +261,7 @@ export function panelDetailsCard(
         state,
         entry === "message" ? REPLY_FIRST_NAME_HINT : null,
       ),
-      ...recipientSection(state, state.addRecipients, false, toLine),
+      ...recipientSection(state, state.addRecipients, false, toLine, reply),
       { widgets: [line(SIGNATURE_LINE)] },
       previewSection(state),
       ...(rest.length === 0
