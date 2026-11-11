@@ -469,6 +469,42 @@ describe("export and import tab", () => {
     expect(createUrl).not.toHaveBeenCalled();
   });
 
+  it("counts progress from the live total of each page", async () => {
+    await boot(
+      "/?latency=0&failOp=export.library&exportPage=1&fail=NETWORK&failSkip=3#/admin/transfer",
+    );
+    interface Run {
+      withSuccessHandler(handler: (value: unknown) => void): Run;
+      withFailureHandler(handler: (error: unknown) => void): Run;
+      rpc(op: string, args: unknown, id: string): void;
+    }
+    const script = (window as unknown as { google: { script: { run: Run } } })
+      .google.script;
+    // A save after the start: every page now counts 5 templates.
+    const wrap = (inner: Run): Run => ({
+      withSuccessHandler: (handler) =>
+        wrap(
+          inner.withSuccessHandler((value) => {
+            const reply = value as {
+              data?: { next?: unknown; total?: number };
+            };
+            if (reply.data?.next !== undefined) reply.data.total = 5;
+            handler(value);
+          }),
+        ),
+      withFailureHandler: (handler) => wrap(inner.withFailureHandler(handler)),
+      rpc: (op, args, id) => {
+        inner.rpc(op, args, id);
+      },
+    });
+    script.run = wrap(script.run);
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    await waitStatus(/^The export stopped after 2 of 5 templates/);
+  });
+
   it("words a failed export from its progress and the server's answer", () => {
     expect(exportFailedText(0, 0, null)).toBe(
       "The export did not start: the server did not answer after 4 tries. No file was downloaded, so wait a few minutes and export again.",

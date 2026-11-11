@@ -144,7 +144,9 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
     const items = [...page.items];
     while (page.next !== null) {
       progress.done = items.length;
-      status.textContent = `Exporting ${String(items.length)} of ${String(total)} templates...`;
+      // Each page counts the live library: a save during the export changes the total (13 retry 2 minor 5).
+      progress.total = page.total;
+      status.textContent = `Exporting ${String(items.length)} of ${String(page.total)} templates...`;
       page = await pageAt(page.next);
       items.push(...page.items);
     }
