@@ -491,6 +491,35 @@ describe("read-only editor (use level)", () => {
     );
   });
 
+  it("shows no Bcc note under None, and the note again once Bcc holds an address", () => {
+    const options = {
+      domain: () => "example.com",
+      readOnly: true,
+      onChange: () => undefined,
+      describedBy: "",
+      announce: () => undefined,
+    };
+    const field = recipientField("bcc", options);
+    const note = () =>
+      field.element.querySelector<HTMLElement>("#rcpt-bcc-note");
+    expect(note()?.hidden).toBe(true);
+    field.set(["audit@example.com"]);
+    expect(note()?.hidden).toBe(false);
+    expect(
+      recipientField("bcc", {
+        ...options,
+        readOnly: false,
+      }).element.querySelector<HTMLElement>("#rcpt-bcc-note")?.hidden,
+    ).toBe(false);
+  });
+
+  it("opens when the caller's own details cannot be read", async () => {
+    await openEditor("/?latency=0&fail=INTERNAL&failOp=me#/edit/T-QUOTE");
+    await until(() => {
+      expect(byId("title").value).not.toBe("");
+    });
+  });
+
   it("shows stored addresses as chips without remove buttons", () => {
     const field = recipientField("cc", {
       domain: () => "example.com",
@@ -997,6 +1026,27 @@ describe("unsaved-changes guard", () => {
     await until(() => {
       expect(dialogs()).toBe(1);
     });
+  });
+
+  it("adds no history entry for Back and Discard", async () => {
+    await openFromLibrary();
+    const length = window.history.length;
+    const editing = window.location.hash;
+    edit();
+    window.history.back();
+    await until(() => {
+      expect(dialogs()).toBe(1);
+      expect(window.location.hash).toBe(editing);
+    });
+    button("Discard changes").click();
+    await until(() => {
+      expect(window.location.hash).toBe("#/library");
+      expect(main().querySelector("#list-heading")).not.toBeNull();
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(window.history.length).toBe(length);
+    expect(window.location.hash).toBe("#/library");
+    expect(dialogs()).toBe(0);
   });
 
   it("keeps no Favorites mode after Favorites and Keep editing", async () => {

@@ -88,4 +88,10 @@ describe("styles (slice 8b editor)", () => {
     expect(note).toContain("width: 680px");
     expect(note).toContain("margin: 20px auto -8px");
   });
+
+  it("draws no border around a read-only Title (8b minor 5)", () => {
+    expect(rule(".panel-control input[readonly]")).toContain(
+      "border-color: transparent",
+    );
+  });
 });

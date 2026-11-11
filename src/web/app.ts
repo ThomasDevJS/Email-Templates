@@ -358,7 +358,12 @@ export function startApp(host: Host): AppContext {
     };
     // While the view asks, the address goes back to it; leaving later moves it on again.
     const held = view?.canLeave?.(() => {
-      host.navigate(routeHash(next), false);
+      // A known distance travels again to the entry the user chose, so leaving adds no entry (8b minor 5).
+      if (moved === 0) host.navigate(routeHash(next), false);
+      else {
+        returning = routeHash(next);
+        host.go(moved);
+      }
       open();
     });
     if (held !== false) open();

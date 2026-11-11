@@ -866,7 +866,8 @@ export function editorView(
       )
         notice.textContent = `${PERSONAL_OFF_TEXT} You can still insert this template.`;
     }
-    const caller = me ?? app.api.me();
+    // Without `me` the editor opens with no outside marks; the server still checks every save (8b minor 5).
+    const caller = me ?? app.api.me().catch(() => null);
     if (id === "") {
       me = await caller;
       show(current);

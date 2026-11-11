@@ -83,6 +83,14 @@ export function recipientField(
   const list = h("ul", { class: "chips", "aria-label": `${name} addresses` });
   const errors = h("div", { id: `${id}-error`, class: "error" });
   const none = h("span", { class: "hint" }, "None");
+  const note =
+    field === "bcc"
+      ? h(
+          "p",
+          { id: `${id}-note`, class: "hint" },
+          "Hidden from the other recipients of the email.",
+        )
+      : null;
 
   /** The pill with the address and its remove button; the outside mark goes under it. */
   const chip = (address: string, position: number, marked: boolean) =>
@@ -129,6 +137,8 @@ export function recipientField(
     );
     list.hidden = addresses.length === 0;
     none.hidden = !(options.readOnly && addresses.length === 0);
+    // "None" needs no note about hidden addresses (8b minor 5).
+    if (note !== null) note.hidden = !none.hidden;
     replace(errors, ...problems.map((problem) => h("p", {}, problem.message)));
     input.setAttribute("aria-invalid", String(problems.length > 0));
   };
@@ -194,19 +204,7 @@ export function recipientField(
       "div",
       { class: "panel-row" },
       h("label", { for: id }, name),
-      h(
-        "div",
-        { class: "panel-control" },
-        box,
-        field === "bcc"
-          ? h(
-              "p",
-              { id: `${id}-note`, class: "hint" },
-              "Hidden from the other recipients of the email.",
-            )
-          : null,
-        errors,
-      ),
+      h("div", { class: "panel-control" }, box, note, errors),
     ),
     values: () => [...addresses],
     set: (next) => {
