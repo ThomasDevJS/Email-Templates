@@ -4,12 +4,20 @@ import {
 } from "../../shared/model/validate";
 import { exportFileName, importSummary, sharedFolders } from "../admin/model";
 import { folderPath } from "../library/model";
-import type { FolderRow, ImportReport } from "../rpc/api";
+import { ErrorCode } from "../../shared/errors/codes";
+import type { ExportPage, FolderRow, ImportReport } from "../rpc/api";
+import { RpcError } from "../rpc/client";
 import { lineText } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
 import type { AdminData } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
+
+/** Retries of an export page answered BUSY, and the first wait; the waits grow 1x, 2x, 3x. */
+export const EXPORT_RETRIES = 3;
+export const EXPORT_RETRY_MS = 200;
+export const EXPORT_BUSY_TEXT =
+  "The export stopped: the server was too busy to record it in the audit log. Nothing was downloaded. Try again in a minute.";
 
 /**
  * Tab "Export and import" (wireframe 06). Export: whole library (admin) or one folder the caller manages, joined
@@ -87,12 +95,27 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
   single.addEventListener("change", sync);
   sync();
 
+  /** One page; BUSY (its audit event could not be stored) is retried after EXPORT_RETRY_MS, 2 and 3 times that. */
+  const pageAt = async (folderId: string, offset: number) => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await app.api.exportPage(folderId, offset);
+      } catch (error: unknown) {
+        const busy = error instanceof RpcError && error.code === ErrorCode.BUSY;
+        if (!busy || attempt > EXPORT_RETRIES) throw error;
+        await new Promise((resolve) =>
+          setTimeout(resolve, EXPORT_RETRY_MS * attempt),
+        );
+      }
+    }
+  };
+
   const pages = async (folderId: string) => {
-    let page = await app.api.exportPage(folderId, 0);
+    let page: ExportPage = await pageAt(folderId, 0);
     const items = [...page.items];
     while (page.next !== null) {
       status.textContent = `Exporting ${String(items.length)} of ${String(page.total)} templates...`;
-      page = await app.api.exportPage(folderId, page.next);
+      page = await pageAt(folderId, page.next);
       items.push(...page.items);
     }
     return { file: { ...page.header, items }, count: items.length };
@@ -113,7 +136,11 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
         status.textContent = `Exported ${String(count)} templates to ${name}.`;
       })
       .catch((error: unknown) => {
-        status.textContent = lineText(error, app.fail(error));
+        // No file is offered: a page that failed leaves the export incomplete.
+        status.textContent =
+          error instanceof RpcError && error.code === ErrorCode.BUSY
+            ? EXPORT_BUSY_TEXT
+            : lineText(error, app.fail(error));
       })
       .finally(() => {
         run.disabled = false;

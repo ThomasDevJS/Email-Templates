@@ -1,7 +1,8 @@
 /**
  * Dev harness (`npm run dev:web`, `scripts/lighthouse.mjs`): a fake `google.script` with an in-memory server, so
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
- * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
+ * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code
+ * (`&failTimes=<n>`: only the first n calls),
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
  * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
  * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only.
@@ -1049,13 +1050,23 @@ const OPS: Readonly<Record<string, Op>> = {
   },
 };
 
+/** Simulated failures so far, for `?failTimes=<n>`. */
+let failed = 0;
+
 function reply(op: string, args: unknown): unknown {
   const params = new URLSearchParams(window.location.search);
   const started = Date.now();
   try {
     const fail = params.get("fail");
-    if (fail !== null && (params.get("failOp") ?? op) === op)
+    const times = Number(params.get("failTimes") ?? "Infinity");
+    if (
+      fail !== null &&
+      (params.get("failOp") ?? op) === op &&
+      failed < times
+    ) {
+      failed += 1;
       throw new AppError(fail as ErrorCode, `Simulated ${fail}`);
+    }
     const handler = OPS[op];
     if (handler === undefined)
       throw new AppError(

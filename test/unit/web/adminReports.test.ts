@@ -333,6 +333,60 @@ describe("export and import tab", () => {
     );
   });
 
+  it("retries a page answered BUSY and then downloads the whole file", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    const clicks: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicks.push(this.download);
+    });
+    await boot(
+      "/?latency=0&fail=BUSY&failOp=export.library&failTimes=2#/admin/transfer",
+    );
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    await vi.waitFor(
+      () => {
+        expect(status()).toMatch(/Exported 4 templates to /);
+      },
+      { timeout: 4000, interval: 10 },
+    );
+    expect(clicks).toHaveLength(1);
+    expect(toasts()).toBe("");
+  });
+
+  it("stops after the retries with a clear message and downloads nothing", async () => {
+    const createUrl = vi.fn(() => "blob:x");
+    URL.createObjectURL = createUrl;
+    URL.revokeObjectURL = vi.fn();
+    const clicks: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicks.push(this.download);
+    });
+    await boot("/?latency=0&fail=BUSY&failOp=export.library#/admin/transfer");
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    await vi.waitFor(
+      () => {
+        expect(status()).toContain(
+          "The export stopped: the server was too busy to record it in the audit log. Nothing was downloaded. Try again in a minute.",
+        );
+      },
+      { timeout: 4000, interval: 10 },
+    );
+    expect(clicks).toEqual([]);
+    expect(createUrl).not.toHaveBeenCalled();
+    expect(button("Export").disabled).toBe(false);
+  });
+
   it("validates a file before Import, then imports into the chosen folder", async () => {
     await boot("/?latency=0#/admin/transfer");
     await until(() => {
