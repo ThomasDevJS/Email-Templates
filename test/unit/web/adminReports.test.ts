@@ -924,7 +924,7 @@ describe("config tab, Admins section (D32)", () => {
       section().querySelector(".setting-help")?.id,
     );
     expect(section().textContent).toContain(
-      "Admins manage every shared folder, grants, settings, imports and backups. Add people by their example.com address.",
+      "Admins manage every shared folder, its access, settings, imports and backups. Add people by their example.com address.",
     );
     expect(rows()).toEqual(["dev.user@example.com", "ana.moreno@example.com"]);
     const [own, other] = [...section().querySelectorAll(".admins li")] as [
