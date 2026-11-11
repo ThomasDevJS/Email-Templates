@@ -63,7 +63,12 @@ export interface ButtonSpec {
 export type IconName = "star" | "schedule" | "description" | "folder";
 
 export type Widget =
-  | { readonly kind: "text"; readonly text: string }
+  | {
+      readonly kind: "text";
+      readonly text: string;
+      /** "error": a line that reports a problem, shown in brand red; it keeps its words ("(!)"), so color is extra. */
+      readonly tone?: "error";
+    }
   | {
       readonly kind: "item";
       readonly text: string;

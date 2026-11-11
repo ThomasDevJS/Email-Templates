@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Migway Templates: Gmail card looks (Today, A, B)</title>
+    <style>
+      /* Sizes and colors measured from the owner's Gmail screenshots (popup 500 px, bar 40 px, rows 44 px).
+         Fonts: Gmail's own stack with a system fallback; nothing loads from the network. */
+      body {
+        margin: 0;
+        padding: 32px;
+        background: #f1f3f4;
+        font-family: "Google Sans Text", "Google Sans", Roboto, Arial, "Liberation Sans", sans-serif;
+        color: #1f1f1f;
+      }
+      .sheet { display: inline-block; padding: 24px; margin-bottom: 32px; background: #f1f3f4; }
+      .sheet h2 { margin: 0 0 16px; font-size: 13px; font-weight: 400; color: #5f6368; }
+      .grid { display: grid; gap: 8px 32px; align-items: start; }
+      .g500 { grid-template-columns: repeat(3, 500px); }
+      .g300 { grid-template-columns: repeat(3, 300px); }
+      .lab { font-size: 12px; line-height: 16px; color: #5f6368; }
+      .lab.gap { margin-top: 32px; }
+      .note { font-size: 11px; line-height: 15px; color: #5f6368; }
+
+      /* Gmail frame */
+      .gm { background: #fff; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px #c4c7c5; }
+      .bar { display: flex; align-items: center; height: 40px; padding: 0 20px 0 26px; background: #424242; color: #fff; font-size: 16px; font-weight: 700; }
+      .bar.back { padding-left: 12px; }
+      .bar .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .bar svg { flex: none; margin-left: 8px; }
+      .bar.back svg:first-child { margin: 0 12px 0 0; }
+      svg { display: block; width: 24px; height: 24px; fill: currentColor; }
+
+      /* Card Service widgets as Gmail draws them */
+      .ch { padding: 12px 16px; }
+      .ch .t { font-size: 16px; line-height: 24px; }
+      .ch .s { font-size: 12px; line-height: 16px; color: #444746; }
+      .sec { padding: 12px 16px 8px; border-top: 1px solid #c4c7c5; }
+      .bar + .sec { border-top: 0; padding-bottom: 12px; }
+      .sh { margin-bottom: 3px; font-size: 14px; line-height: 16px; color: #444746; }
+      .in { display: flex; align-items: center; height: 38px; margin: 0 0 8px; padding: 0 15px; border: 1px solid #747775; border-radius: 4px; font-size: 14px; color: #444746; }
+      .bar + .sec .in { margin: 0; }
+      .p { margin: 4px 0 8px; font-size: 14px; line-height: 20px; }
+      .dt { display: flex; align-items: center; min-height: 44px; padding: 4px 0; box-sizing: border-box; }
+      .dt.one { min-height: 36px; }
+      .dt .ic { flex: none; margin-right: 16px; color: #444746; }
+      .dt .tx { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+      .dt .t { font-size: 14px; line-height: 20px; }
+      .dt .l { font-size: 12px; line-height: 16px; color: #444746; }
+      .dt .btn, .dt .ib, .dt .sw { flex: none; margin-left: 12px; }
+      .link { color: #0b57d0; }
+      .grey { color: #5f6368; }
+      .bs { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 8px; }
+      .btn { display: inline-flex; align-items: center; height: 28px; padding: 0 24px; border-radius: 14px; box-sizing: border-box; font-size: 14px; font-weight: 500; white-space: nowrap; }
+      .filled { background: #2a3c49; color: #fff; }
+      .blue { background: #2c6ee2; color: #fff; }
+      .outlined { padding: 0 23px; border: 1px solid #747775; color: #0b57d0; }
+      .ib { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; color: #444746; }
+      .sw { position: relative; width: 52px; height: 32px; border-radius: 16px; background: #0b57d0; }
+      .sw::after { content: ""; position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; }
+      .ff { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 24px; border-top: 1px solid #c4c7c5; }
+    </style>
+  </head>
+  <body>
+    <section class="sheet" id="popup">
+      <h2>Popup over a draft (opened from the draft's toolbar), 500 px wide. Shown taller than Gmail's 500 px frame so the whole card is visible.</h2>
+      <div class="grid g500"></div>
+    </section>
+    <br />
+    <section class="sheet" id="panel">
+      <h2>Gmail's right side panel, 300 px wide. Shown at full card height.</h2>
+      <div class="grid g300"></div>
+    </section>
+
+    <script>
+      const FAVORITES = [
+        ["Driver welcome", "Onboarding"],
+        ["Load confirmation", "Dispatch · 2 fields to fill"],
+        ["Rate confirmation follow-up", "Accounting · Adds Cc 1"],
+      ];
+      const RECENT = [
+        ["Truck inspection reminder", "Safety"],
+        ["Driver leaving notice", "HR · Adds Cc 1, Bcc 1 · 1 field to fill"],
+      ];
+      const FOLDERS = [["Accounting", 6], ["Dispatch", 14], ["HR", 5], ["Onboarding", 9], ["Safety", 11]];
+      const HINT = "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.";
+
+      const stroke = (d) => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>`;
+      const ICON = {
+        star: '<path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/>',
+        clock: '<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>',
+        folder: '<path d="M9.17 6l2 2H20v10H4V6h5.17M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>',
+        more: '<path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>',
+        close: '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>',
+        back: '<path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>',
+        reply: '<path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>',
+        replyAll: '<path d="M7 8V5l-7 7 7 7v-3l-4-4 4-4zm6 1V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/>',
+        insert: stroke("M17 6.5H6.5V17M6.5 6.5L18 18"),
+        edit: stroke("M11 5H5v14h14v-6") + stroke("M17.5 3.5l3 3L12 15H9v-3z"),
+      };
+      const svg = (name) => `<svg viewBox="0 0 24 24">${ICON[name]}</svg>`;
+      const btn = (text, style) => `<span class="btn ${style}">${text}</span>`;
+      // `title` is the hover label (ImageButton alt text).
+      const ibtn = (name, alt) => `<span class="ib" title="${alt}" aria-label="${alt}">${svg(name)}</span>`;
+      const dt = (inner, one) => `<div class="dt${one ? " one" : ""}">${inner}</div>`;
+      const tx = (text, label, top) =>
+        `<div class="tx">${top ? `<div class="l">${top}</div>` : ""}<div class="t">${text}</div>${label ? `<div class="l">${label}</div>` : ""}</div>`;
+      const act = (text) => dt(tx(`<span class="link">${text}</span>`), true);
+      const sec = (header, inner) => `<div class="sec">${header ? `<div class="sh">${header}</div>` : ""}${inner}</div>`;
+      const bar = (back) => `<div class="bar${back ? " back" : ""}">${back ? svg("back") : ""}<span class="name">Migway Templates</span>${svg("more")}${svg("close")}</div>`;
+
+      const ROW_ACTION = { compose: ["Insert", "insert", "Insert"], inbox: ["New email", "edit", "New email from"], message: ["Reply", "reply", "Reply with"] };
+
+      function row(look, entry, icon, [title, hint]) {
+        const [text, glyph, alt] = ROW_ACTION[entry];
+        if (look === "today") {
+          const item = svg(icon).replace("<svg", '<svg class="ic"') + tx(title, hint);
+          return entry === "message"
+            ? dt(item) + `<div class="bs">${btn("Reply", "filled")}${btn("Reply all", "outlined")}</div>`
+            : dt(item + btn(text, "filled"));
+        }
+        const item = tx(`<b>${title}</b>`, hint);
+        if (look === "a") return dt(item + btn(text, "outlined")) + (entry === "message" ? act("Reply all") : "");
+        return entry === "message"
+          ? dt(item) + `<div class="bs">${ibtn("reply", `Reply with ${title}`)}${ibtn("replyAll", `Reply all with ${title}`)}</div>`
+          : dt(item + ibtn(glyph, `${alt} ${title}`));
+      }
+
+      function folder(look, [name, count]) {
+        const icon = svg("folder").replace("<svg", '<svg class="ic"');
+        return look === "b"
+          ? dt(icon + tx(`${name} <span class="grey">(${count})</span>`), true)
+          : dt(icon + tx(name, `${count} templates`));
+      }
+
+      function home(look, entry) {
+        const n = (title, list) => (look === "today" ? title : `${title} (${list.length})`);
+        const last = entry === "compose" ? "" : `<div class="p">${HINT}</div>`;
+        return (
+          `<div class="gm">${bar(false)}` +
+          sec("", '<div class="in">Search templates</div>') +
+          sec(n("Favorites", FAVORITES), FAVORITES.map((t) => row(look, entry, "star", t)).join("")) +
+          sec(n("Recent", RECENT), RECENT.map((t) => row(look, entry, "clock", t)).join("")) +
+          sec(n("Folders", FOLDERS), FOLDERS.map((f) => folder(look, f)).join("")) +
+          (look === "today"
+            ? (last ? sec("", last) : "") + `<div class="ff">${btn("Open library", "blue")}</div>`
+            : sec("", last + act("Open library"))) +
+          "</div>"
+        );
+      }
+
+      function details() {
+        const toggle = (text, label) => dt(tx(text, label) + '<span class="sw"></span>');
+        return (
+          `<div class="gm">${bar(true)}` +
+          '<div class="ch"><div class="t">Load confirmation</div><div class="s">Dispatch</div></div>' +
+          sec("Fields", '<div class="p">Fill in now, or leave blank and type in the draft.</div><div class="in">Load number</div><div class="in">Driver name</div>') +
+          sec("", toggle("Replace the subject", "Load [Load number] confirmed")) +
+          sec("Recipients", toggle("Add recipients", "Adds 1 recipient.") + dt(tx("dispatch@example.com", "", "Cc"))) +
+          sec("", '<div class="p">Hi [Driver name],<br>Load [Load number] is confirmed. Pickup and delivery details are below.<br>Reply to this email if anything changes.</div>') +
+          `<div class="ff">${btn("Edit in library", "outlined")}${btn("Insert", "filled")}</div></div>`
+        );
+      }
+
+      const NOTE = {
+        today: "DecoratedText: start icon (star, schedule, folder), text, bottomLabel, button = TextButton FILLED #2a3c49. Plain section headers. FixedFooter primary \"Open library\" (blue in the owner's screenshot).",
+        a: "DecoratedText: text in &lt;b&gt;, bottomLabel (Gmail's secondary color), no start icon, button = TextButton OUTLINED. Section header with count. No FixedFooter. \"Open library\": DecoratedText with onClick and &lt;font color&gt; text, last on the card (TextButton BORDERLESS is Developer Preview, so not used).",
+        b: "As A. Row button = ImageButton with setIconUrl (hosted PNG) and alt text as the hover label. Folders: DecoratedText with start icon, one line, count after the name in &lt;font color&gt; (Card Service has no right-aligned text slot).",
+        details: "CardHeader title and subtitle (folder path). TextParagraph, 2 TextInput, DecoratedText with Switch (2), DecoratedText topLabel, TextParagraph preview. FixedFooter: primary TextButton FILLED #2a3c49 \"Insert\", secondary OUTLINED. The only filled button on the card.",
+        todayOpen: "Row = DecoratedText, then ButtonSet: \"Reply\" FILLED, \"Reply all\" OUTLINED. 2 widgets per row.",
+        aOpen: "Row = DecoratedText with \"Reply\" OUTLINED, then \"Reply all\" as a DecoratedText with onClick (setComposeAction) and &lt;font color&gt; text. 2 widgets per row.",
+        bOpen: "Row = DecoratedText, then ButtonSet of 2 ImageButton (reply, reply all). A DecoratedText holds one button, so two icons cannot sit at the right of the row.",
+      };
+      const LOOKS = [["today", "Today"], ["a", "A, quiet"], ["b", "B, icon rows"]];
+      const lab = (text, gap) => `<div class="lab${gap ? " gap" : ""}">${text}</div>`;
+      const note = (key) => `<div class="note">${NOTE[key]}</div>`;
+      const block = (entry, suffix, gap, notes) =>
+        LOOKS.map(([, name]) => lab(name + suffix, gap)).join("") +
+        LOOKS.map(([look]) => home(look, entry)).join("") +
+        notes.map(note).join("");
+
+      document.querySelector("#popup .grid").innerHTML =
+        block("compose", "", false, ["today", "a", "b"]) +
+        lab("Details card of \"Load confirmation\" (tap on a row title)", true) + lab("A, quiet: details", true) + lab("B, icon rows: details (same card as A)", true) +
+        "<div></div>" + details() + details() +
+        "<div></div>" + note("details") + note("details");
+      document.querySelector("#panel .grid").innerHTML =
+        block("inbox", ": no email open", false, ["today", "a", "b"]) +
+        block("message", ": email open", true, ["todayOpen", "aOpen", "bOpen"]);
+    </script>
+  </body>
+</html>

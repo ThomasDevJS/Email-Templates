@@ -97,8 +97,9 @@ describe("manifest settings (ADR-0001, ADR-0003, ADR-0005)", () => {
     ]);
   });
 
-  it("sets the slate button color for outlined buttons (ADR-0009 section 4)", () => {
+  it("sets the slate toolbar and button colors (ADR-0009 section 4, D35)", () => {
     expect(manifest.addOns.common.layoutProperties).toEqual({
+      primaryColor: "#2a3c49",
       secondaryColor: "#2a3c49",
     });
     expect(manifest.oauthScopes).toHaveLength(10);

@@ -99,6 +99,9 @@
   - Must fix: admin-guide:273 `npx clasp open-script` fails after `.clasp.json` deleted ("Script ID not set"); first-load failure shows banner + toast (two alerts, two retry buttons) and Reload drops focus to BODY.
   - Server clean: `exps:<run>` 60 s bound to actor/kind/folderId + live token; newId = digestIndex(sha256(getUuid)), 80 bits, format unchanged. Leak probe 12 runs 0 hits.
   - Probes in scratchpad/20a/p: first.cjs (first paint/fail/20 s), slowlist.cjs (delay one op via window.__op hook), folders.cjs, nav2.cjs, drawer.cjs, caret2.cjs, insert.cjs (menu "Ask the sender...").
+- Slice 21 card feedback D35 (2026-11-11): FAIL (review on 9e338cb). Code clean; part K step 2 "Same popup" after a row Insert that closes the card. 71 files, 1958 tests, Code.js 370.4 KB, 10 scopes.
+  - Code: render.ts toAction sole Action builder, INSTANT {onBack, onOpenLink} = NONE else SPINNER; Widget text tone "error" -> <font color="#b32025"> around escaped text (details (!) line, state card first line). primaryColor slate. cardLook snapshot (5de6f7f) passes on base.
+  - #b32025: 6.67 on white, 2.41 on #202124. No red passes 4.5 on both; part K must record dark card background.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
