@@ -1031,3 +1031,63 @@ describe("unsaved-changes guard", () => {
     expect(unload()).toBe(true);
   });
 });
+
+describe("merge with the main line (slices 11 and 13 meet slice 8b)", () => {
+  const dialogs = () => [...document.querySelectorAll('[role="dialog"]')];
+  const titleOf = () => dialogs()[0]?.querySelector("h2")?.textContent;
+
+  function edit(): void {
+    const title = byId("title");
+    title.value = "Changed title";
+    title.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  /** Library, then the editor of the first row: both entries pushed by the app, so Back knows the distance. */
+  async function openFromLibrary(): Promise<void> {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelector('td[tabindex="0"]')).not.toBeNull();
+    });
+    document.querySelector<HTMLElement>("[data-nav=library]")?.click();
+    key(main().querySelector('td[tabindex="0"]') as HTMLElement, "Enter");
+    await until(() => {
+      expect(window.location.hash).toMatch(/^#\/edit\//);
+      expect(byId("title").value).not.toBe("");
+    });
+  }
+
+  it("Back with a link dialog open and unsaved changes shows only the leave question; Keep editing keeps the history", async () => {
+    await openFromLibrary();
+    const length = window.history.length;
+    const editing = window.location.hash;
+    edit();
+    button("Link").click();
+    expect(titleOf()).toBe("Insert link");
+    window.history.back();
+    await until(() => {
+      expect(dialogs()).toHaveLength(1);
+      expect(titleOf()).toBe("Leave without saving?");
+      expect(window.location.hash).toBe(editing);
+    });
+    expect(document.querySelectorAll("[inert]").length).toBeGreaterThan(0);
+    button("Keep editing").click();
+    await until(() => {
+      expect(dialogs()).toHaveLength(0);
+    });
+    expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+    expect(window.history.length).toBe(length);
+    expect(window.location.hash).toBe(editing);
+    expect(byId("title").value).toBe("Changed title");
+  });
+
+  it("Back with a link dialog open and nothing changed closes the dialog and leaves", async () => {
+    await openFromLibrary();
+    button("Link").click();
+    window.history.back();
+    await until(() => {
+      expect(main().querySelector("#list-heading")).not.toBeNull();
+    });
+    expect(dialogs()).toHaveLength(0);
+    expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+  });
+});

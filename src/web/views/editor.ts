@@ -23,7 +23,12 @@ import { createEditor, type Editor } from "../editor/setup";
 import { createToolbar } from "../editor/toolbar";
 import { editableFolders, folderPath } from "../library/model";
 import { formatTime, h, replace, uid } from "../ui/dom";
-import { openDialog, promptText, type OpenDialog } from "../ui/dialog";
+import {
+  cancelDialogs,
+  openDialog,
+  promptText,
+  type OpenDialog,
+} from "../ui/dialog";
 import { icon } from "../ui/icons";
 import { openMenu } from "../ui/menu";
 import { toRpcError } from "../ui/status";
@@ -1032,6 +1037,8 @@ export function editorView(
       then();
       return true;
     };
+    // A link, image or field dialog open at Back or Forward closes first, so the question is the only dialog.
+    cancelDialogs();
     const from = document.activeElement;
     asking = openDialog({
       title: "Leave without saving?",
