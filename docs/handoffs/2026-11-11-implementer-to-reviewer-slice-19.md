@@ -52,3 +52,13 @@ src/server/storage/{driveClient,advancedDrive,restDrive,driveStore,port}.ts, src
 ## Commands
 
 `npm ci`; `npm run lint` (clean); `npm run typecheck` (clean); `npm run test:coverage` (68 files, 1924 tests passed, lines 97.96%); `npm run build -- --env dev` (Code.js 367.5 KB of 800 KB); `npm run scopes:check` (10 scopes, all approved); `npm run format:check` (clean).
+
+## Retry 1 (review FAIL, docs/reviews/slice-19.md)
+
+- Must-fix: `errorSummary` (shared/errors/codes.ts) = "<code> <error name>". `job:<name>:lastError` = "<time> <errorSummary>", or for daily a `JobError` "daily steps failed: <step> (<code>)". `runJob` rethrows a `JobError` with that text and deletes `lastError` on success (it did not before). Runbook: required check of `job:tick|refreshMembers|daily|triggers:lastError` after the deploy.
+- Places checked for raw messages: health.ts `describe` (fixed), daily.ts step text (fixed), triggers.ts `recordJobError` (fixed through health.ts; `maintain` in entry.ts only logs), membership/snapshot.ts group warning stored in members.json (fixed, same summary), setup (runs in `runJob`), `serverLogger` (errorName and 3 `at` frames, no message), dispatch/handle (`toErrorBody`: AppError text or "Internal error"), audit `errorCode` (code only), admins.ts (message tested by regex, not stored), transfer.ts and transfer/plan.ts (AppError texts only), driveStore `readBackup` (AppError texts only).
+- Minor 3: `fileUrl` refuses IDs outside `[A-Za-z0-9_-]` before any request. `encodeURIComponent` alone fails: WHATWG URL reads `%2e%2e` as `..`. Tested with `a/b`, `x?y`, `z#w`, `..`, `%2e%2e`, `.`.
+- Minor 4: HTTP 429 answers QUOTA "Service is busy. Try again in a minute."
+- Minor 5: `readIndex`, `readSide`, `readBody` read raw once when the Advanced read throws a non-AppError, so a damaged live file answers "index.json is not valid JSON" again.
+- Tests: auditRead.test.ts 13 (lastError text, Admin job row shows step and code, damaged index.json with `leak@example.com` in no property, log line or rethrown message for daily and tick, a quoting platform error stored as "INTERNAL Error" and cleared by the next success). Updated texts in jobs (4), entry (1), membership (1), storage (1).
+- Commands from a clean install: lint, typecheck clean; 68 files, 1928 tests passed; Code.js 368.3 KB; 10 scopes; format clean.
