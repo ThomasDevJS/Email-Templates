@@ -391,8 +391,8 @@ export function startApp(host: Host): AppContext {
       ?.addEventListener("click", action);
   void host.location().then((location) => {
     const start = startRoute(location);
-    if (location.hash.replace(/^#/, "") === "" && start !== LIBRARY)
-      host.navigate(routeHash(start), true);
+    // Stamps the page's first entry with its position, so a Back to it travels back in place of pushing (8b minor 2).
+    host.navigate(routeHash(start), true);
     render(start);
     // Pulls keyboard focus into the page, so the first "/" or arrow key reaches the app (smoke 5b item 8).
     if (document.activeElement === document.body) main.focus();

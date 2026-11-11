@@ -963,6 +963,42 @@ describe("unsaved-changes guard", () => {
     });
   });
 
+  it("keeps the Forward entries after Back to the page's first entry and Keep editing", async () => {
+    await boot("/?latency=0#/library");
+    await until(() => {
+      expect(main().querySelector('td[tabindex="0"]')).not.toBeNull();
+    });
+    key(main().querySelector('td[tabindex="0"]') as HTMLElement, "Enter");
+    await until(() => {
+      expect(byId("title").value).not.toBe("");
+    });
+    const editing = window.location.hash;
+    button("History").click();
+    await until(() => {
+      expect(window.location.hash).toMatch(/^#\/history\//);
+    });
+    window.history.back();
+    await until(() => {
+      expect(window.location.hash).toBe(editing);
+      expect(byId("title").value).not.toBe("");
+    });
+    edit();
+    window.history.back();
+    await until(() => {
+      expect(dialogs()).toBe(1);
+      expect(window.location.hash).toBe(editing);
+    });
+    button("Keep editing").click();
+    await until(() => {
+      expect(dialogs()).toBe(0);
+    });
+    // History is still one entry ahead: Forward asks before it leaves.
+    window.history.forward();
+    await until(() => {
+      expect(dialogs()).toBe(1);
+    });
+  });
+
   it("keeps no Favorites mode after Favorites and Keep editing", async () => {
     await openEditor("/?latency=0#/edit/T-QUOTE");
     edit();
