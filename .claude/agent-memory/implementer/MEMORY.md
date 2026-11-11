@@ -127,6 +127,7 @@
 - shared/model/recipients.ts: `validateRecipients`, `importRecipients`, `splitBlocked`, `recipientsOf` (absent = []), `RECIPIENTS_EXTERNAL_KEY`. `to/cc/bcc` OPTIONAL on Item/BodyFile so src/web builds unchanged.
 - `prepareBody(raw, opts, subject, {lists, policy})`; server `prepareFor(props, html, subject, lists)`, `recipientPolicy(props)` (body.ts). `template.update` keeps lists left out of args (`keptStringArray`).
 - Add-on: cards/recipients.ts (`recipientPlan`, `recipientActions` = draft list + new, REPLACE), `draftRecipients` (event.ts), `Ports.hash` (`rh`), Review rows (`rowButton`), prompt card `rcpt` switch; prompt card `rh` absent = body only.
+- Retry 1: draft lists are known or unknown (`DraftRecipients`, null); an unknown field never gets a replace action. `recipientWidgets` is the single source of recipient lines on both cards. Version-file lists: `isStoredList`, `unreadableRecipients`.
 ## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
 - Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry` set in `ports(event)`; `templateItem(t, entry, below)`, `folderCard(..., entry)`, `homeCard(view, entry)`, `searchCard(..., entry)`, `previewCard(..., entry)`; `TOOLBAR_HINT` (home.ts); `onMessageOpen` + manifest `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
 - TEMPORARY: src/addon/spikeS7.ts, `onS7Card/Compose/Notify`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-10-s7.md.

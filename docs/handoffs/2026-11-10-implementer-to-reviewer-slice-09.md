@@ -108,4 +108,4 @@ For the architect (spec 7.1 erratum, not edited here): the prompt card switch bo
 
 Left for later: the `prof:` cache key holding an internal recipient's address (last fix round). Smoke "Slice 9" now says the console must target the app's inner frame `userHtmlFrame`.
 
-Checks from a clean install: see the report of this retry.
+Checks from a clean install (`rm -rf node_modules && npm ci`): lint and typecheck clean; test:coverage 60 files, 1414 tests, 95.67% statements, 89.57% branches, 96.59% lines; build dev Code.js 346.6 KB, index.html 340.6 KB (unchanged); scopes:check 10 approved; format:check clean; lighthouse 100 on 11 views.
