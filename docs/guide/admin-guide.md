@@ -20,7 +20,7 @@ Access lives on folders. A grant gives one principal one level on one folder. Su
 | `use` | user | List, search, preview, insert and star templates |
 | `edit` | manager-editor | `use`, plus create, edit, duplicate, move, delete, restore templates, and version history |
 | `manage` | folder manager | `edit`, plus subfolders, rename, move or delete the folder, grants on its subtree, export of the folder |
-| admin | member of Script Property `ADMIN_GROUP`, or listed in `ADMIN_EMAILS` | `manage` on every folder, private ones included (only `use` on personal folders while personal templates are off), plus the admin-only rows below |
+| admin | member of Script Property `ADMIN_GROUP`, or listed in `ADMIN_EMAILS` | `manage` on every folder, personal ones included (only `use` on personal folders while personal templates are off), plus the admin-only rows below |
 
 Role matrix (ADR-0003 Part C). "yes on source and target" means the level is needed on both folders.
 
