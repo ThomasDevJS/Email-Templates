@@ -4,7 +4,7 @@
  * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
  * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
- * with personal templates off (My templates at `use`), `?access=none` shows no folder at all.
+ * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only.
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
@@ -35,6 +35,8 @@ const FREIGHT = PARAMS.get("sample") === "freight";
 const PERSONAL_OFF = PARAMS.get("personal") === "off";
 const MINE_LEVEL: AccessLevel = PERSONAL_OFF ? "use" : "edit";
 const NO_ACCESS = PARAMS.get("access") === "none";
+/** `?access=use`: every shared folder at `use`; with `?personal=off` the caller can create nowhere. */
+const USE_ONLY = PARAMS.get("access") === "use";
 
 function folder(
   id: string,
@@ -48,7 +50,7 @@ function folder(
     name,
     parentId,
     kind,
-    level,
+    level: USE_ONLY && kind === "shared" ? "use" : level,
     ownerEmail: kind === "private" ? ME : "",
     sortOrder: 0,
     createdAt: NOW,
