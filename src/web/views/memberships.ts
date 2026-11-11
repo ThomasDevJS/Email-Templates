@@ -1,6 +1,6 @@
 import type { Memberships } from "../rpc/api";
 import { formatTime, h, replace } from "../ui/dom";
-import { lineText, skeletonRows } from "../ui/status";
+import { adminLineText, lineText, skeletonRows } from "../ui/status";
 import {
   adminTable,
   noteRow,
@@ -93,7 +93,11 @@ export function membershipsTab(app: AppContext, panel: HTMLElement): View {
       .then((data) => {
         draw(data);
         status.textContent = `Refreshed ${String(data.groups.length)} groups.`;
-      }, failed)
+      })
+      .catch((error: unknown) => {
+        table.setAttribute("aria-busy", "false");
+        status.textContent = adminLineText(error, app.fail(error));
+      })
       .finally(() => {
         refresh.disabled = false;
         refresh.focus();

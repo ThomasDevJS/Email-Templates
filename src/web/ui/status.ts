@@ -36,6 +36,20 @@ function conflictText(error: RpcError): string {
     : error.message;
 }
 
+/** DENIED on an admin-only action: the caller lost admin since the page loaded (slice 16 retry 1, wording.md). */
+export const ADMIN_DENIED_TEXT =
+  "You are no longer an admin, so nothing was changed. Ask an admin if you need access.";
+
+/** `lineText` for an admin-only action: a DENIED there means the caller is no longer an admin. */
+export function adminLineText(
+  error: unknown,
+  shown: HTMLElement | null,
+): string {
+  return toRpcError(error).code === ErrorCode.DENIED
+    ? ADMIN_DENIED_TEXT
+    : lineText(error, shown);
+}
+
 /** User-facing text per code (spec section 7). */
 export function messageOf(error: RpcError): string {
   switch (error.code) {

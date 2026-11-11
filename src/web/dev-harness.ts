@@ -494,9 +494,13 @@ let admins: AdminEntry[] =
         { email: ANA, addedAt: "2026-11-09T13:05:00.000Z", addedBy: ME },
       ];
 
-/** `admin.add` as the server answers it: form, domain, account (`nobody@` has none), cap, repeat. */
+/**
+ * `admin.add` as the server answers it: form, domain, account (`nobody@` has none, `flaky@` gets no Directory
+ * answer), cap, repeat. `ana@example.com` is an alias of Ana's primary address.
+ */
 function adminAdd(args: Record<string, unknown>) {
-  const email = str(args, "email").trim().toLowerCase();
+  const typed = str(args, "email").trim().toLowerCase();
+  const email = typed === "ana@example.com" ? ANA : typed;
   const refuse = (reason: string, message: string) =>
     new AppError(ErrorCode.VALIDATION, message, { reason });
   if (!isAdminAddress(email, "example.com")) {
@@ -507,20 +511,26 @@ function adminAdd(args: Record<string, unknown>) {
           "Enter an email address, for example name@example.com.",
         );
   }
+  if (email.startsWith("flaky@"))
+    throw new AppError(
+      ErrorCode.INTERNAL,
+      "The address could not be checked. Try again.",
+      { reason: "ADMIN_CHECK" },
+    );
   if (email.startsWith("nobody@"))
     throw refuse(
       "ADMIN_NO_ACCOUNT",
       "No example.com account has this address. A group goes in the admin group the owner sets.",
     );
   if (admins.some((entry) => entry.email === email))
-    return { admins, changed: false };
+    return { email, admins, changed: false };
   if (admins.length >= ADMINS_MAX)
     throw refuse(
       "ADMIN_TOO_MANY",
       "The list holds 20 admins. Remove one first.",
     );
   admins = [...admins, { email, addedAt: NOW, addedBy: ME }];
-  return { admins, changed: true };
+  return { email, admins, changed: true };
 }
 
 function adminRemove(args: Record<string, unknown>) {
@@ -534,7 +544,7 @@ function adminRemove(args: Record<string, unknown>) {
   const kept = admins.filter((entry) => entry.email !== email);
   const changed = kept.length !== admins.length;
   admins = kept;
-  return { admins, changed };
+  return { email, admins, changed };
 }
 
 /** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale base, no-op on the same value. */

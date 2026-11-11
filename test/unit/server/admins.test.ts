@@ -311,6 +311,7 @@ describe("admin.add and admin.remove results", () => {
     person("carl.alias@example.com", "Carl@Example.com");
     const result = add(OWNER, "  CARL.Alias@Example.COM ");
     expect(result).toEqual({
+      email: CARL,
       admins: [
         { email: CARL, addedAt: "2026-11-09T12:00:00.000Z", addedBy: OWNER },
       ],

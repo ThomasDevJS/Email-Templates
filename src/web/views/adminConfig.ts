@@ -2,7 +2,7 @@ import { formatBytes } from "../admin/model";
 import type { ConfigView, JobRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace } from "../ui/dom";
-import { lineText, skeletonRows } from "../ui/status";
+import { adminLineText, skeletonRows } from "../ui/status";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import { settingsSection } from "./adminSettings";
 import type { AppContext, View } from "./context";
@@ -134,7 +134,7 @@ function backupsSection(app: AppContext): HTMLElement {
                 return app.reload();
               })
               .catch((error: unknown) => {
-                status.textContent = lineText(error, app.fail(error));
+                status.textContent = adminLineText(error, app.fail(error));
               })
               .finally(() => {
                 setBusy(false);

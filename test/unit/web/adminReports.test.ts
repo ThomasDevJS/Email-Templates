@@ -32,6 +32,8 @@ async function boot(url: string): Promise<void> {
   await import("../../../src/web/app");
 }
 
+const NO_LONGER_ADMIN =
+  "You are no longer an admin, so nothing was changed. Ask an admin if you need access.";
 const main = () => document.getElementById("main") as HTMLElement;
 const text = () => main().textContent;
 const toasts = () => document.getElementById("toasts")?.textContent ?? "";
@@ -942,14 +944,116 @@ describe("config tab, Admins section (D32)", () => {
     expect(rows()).toEqual(["dev.user@example.com"]);
   });
 
-  it("shows the DENIED text when the caller is no longer an admin", async () => {
+  it("shows the no-longer-admin text on Add and on Remove, and leaves the field unmarked", async () => {
     await open("/?latency=0&fail=DENIED&failOp=admin.add#/admin/config");
     add("carl@example.com");
     await until(() => {
+      expect(adminStatus().textContent).toBe(NO_LONGER_ADMIN);
+    });
+    expect(input().hasAttribute("aria-invalid")).toBe(false);
+    expect(rows()).toHaveLength(2);
+    document.body.replaceChildren();
+    vi.resetModules();
+    await open("/?latency=0&fail=DENIED&failOp=admin.remove#/admin/config");
+    (
+      section().querySelector(
+        '[aria-label="Remove ana.moreno@example.com as admin"]',
+      ) as HTMLButtonElement
+    ).click();
+    button("Remove admin", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(adminStatus().textContent).toBe(NO_LONGER_ADMIN);
+    });
+    expect(input().hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("shows the Directory text in the line, with no toast, when the address could not be checked", async () => {
+    await open();
+    add("flaky@example.com");
+    await until(() => {
       expect(adminStatus().textContent).toBe(
-        "You don't have access to this template. Ask a folder manager.",
+        "The address could not be checked. Try again.",
       );
     });
-    expect(rows()).toHaveLength(2);
+    expect(toasts()).toBe("");
+    expect(input().hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("names the stored address when an alias is already an admin", async () => {
+    await open();
+    add("ana@example.com");
+    await until(() => {
+      expect(adminStatus().textContent).toBe(
+        "ana.moreno@example.com is already an admin.",
+      );
+    });
+  });
+});
+
+describe("admin-only actions refused because the caller is no longer an admin (slice 16 retry 1)", () => {
+  it("Settings Save", async () => {
+    await boot("/?latency=0&fail=DENIED&failOp=config.set#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+    });
+    const outside = main().querySelectorAll(
+      "fieldset.setting",
+    )[1] as HTMLElement;
+    radio(outside, "Allowed").click();
+    radio(outside, "example.com only").click();
+    button("Save", outside).click();
+    button("Allow only example.com", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(outside.textContent).toContain(NO_LONGER_ADMIN);
+    });
+  });
+
+  it("Restore a backup", async () => {
+    await boot("/?latency=0&fail=DENIED&failOp=backup.restore#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll(".backups li")).toHaveLength(3);
+    });
+    (
+      main().querySelector(
+        '[aria-label="Restore the backup of 2026-11-08"]',
+      ) as HTMLButtonElement
+    ).click();
+    button("Restore 2026-11-08", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(status()).toContain(NO_LONGER_ADMIN);
+    });
+  });
+
+  it("Export of the whole library", async () => {
+    await boot("/?latency=0&fail=DENIED&failOp=export.library#/admin/transfer");
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    await until(() => {
+      expect(status()).toContain(NO_LONGER_ADMIN);
+    });
+  });
+
+  it("Import (Check file)", async () => {
+    await boot("/?latency=0&fail=DENIED&failOp=import#/admin/transfer");
+    await until(() => {
+      expect(button("Check file")).toBeTruthy();
+    });
+    const input = labelled<HTMLInputElement>("Export file");
+    Object.defineProperty(input, "files", {
+      value: [
+        new File(
+          [JSON.stringify({ schemaVersion: 1, items: [] })],
+          "export.json",
+        ),
+      ],
+    });
+    labelled<HTMLSelectElement>("Import into").value = "F-QUOTES";
+    input.dispatchEvent(new Event("change"));
+    button("Check file").click();
+    await until(() => {
+      expect(status()).toContain(NO_LONGER_ADMIN);
+    });
   });
 });

@@ -7,7 +7,7 @@ import { folderPath } from "../library/model";
 import type { ExportPage, FolderRow, ImportReport } from "../rpc/api";
 import { ErrorCode } from "../../shared/errors/codes";
 import { RpcError } from "../rpc/client";
-import { lineText, toRpcError } from "../ui/status";
+import { adminLineText, lineText, toRpcError } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
 import type { AdminData } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
@@ -171,7 +171,13 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
         status.textContent = exportFailedText(
           progress.done,
           progress.total,
-          noAnswer ? null : lineText(error, app.fail(error)),
+          noAnswer
+            ? null
+            : // The library export is admin only; a folder export needs manage.
+              (folderId === "" ? adminLineText : lineText)(
+                error,
+                app.fail(error),
+              ),
         );
       })
       .finally(() => {
@@ -299,7 +305,7 @@ function importSection(app: AppContext, data: AdminData): HTMLElement {
         void app.reload();
       })
       .catch((error: unknown) => {
-        status.textContent = lineText(error, app.fail(error));
+        status.textContent = adminLineText(error, app.fail(error));
       })
       .finally(() => {
         validate.disabled = false;

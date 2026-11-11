@@ -3,7 +3,8 @@ import { addedByText, fixedAdminTexts } from "../admin/model";
 import type { AdminsResult, ConfigView } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { h, replace, uid } from "../ui/dom";
-import { lineText } from "../ui/status";
+import { ErrorCode } from "../../shared/errors/codes";
+import { adminLineText, toRpcError } from "../ui/status";
 import type { AppContext } from "./context";
 
 /**
@@ -39,10 +40,12 @@ export function adminsSection(app: AppContext, data: ConfigView): HTMLElement {
   );
   let busy = false;
 
+  /** `typed`: the call checks the address in the field, so a VALIDATION answer marks the field. */
   const run = (
     busyText: string,
     call: () => Promise<AdminsResult>,
     done: (result: AdminsResult) => string,
+    typed: boolean,
   ) => {
     busy = true;
     status.textContent = busyText;
@@ -53,8 +56,13 @@ export function adminsSection(app: AppContext, data: ConfigView): HTMLElement {
         status.textContent = done(result);
       })
       .catch((error: unknown) => {
-        status.textContent = lineText(error, app.fail(error));
-        if (status.textContent !== "")
+        const rpc = toRpcError(error);
+        // The Directory could not answer: the server's own text in the line, no toast (spec 7.3).
+        status.textContent =
+          rpc.details?.["reason"] === "ADMIN_CHECK"
+            ? rpc.message
+            : adminLineText(error, app.fail(error));
+        if (typed && rpc.code === ErrorCode.VALIDATION)
           input.setAttribute("aria-invalid", "true");
       })
       .finally(() => {
@@ -84,8 +92,9 @@ export function adminsSection(app: AppContext, data: ConfigView): HTMLElement {
               () => app.api.removeAdmin(email),
               (result) =>
                 result.changed
-                  ? `${email} is no longer an admin.`
-                  : `${email} is not in the list.`,
+                  ? `${result.email} is no longer an admin.`
+                  : `${result.email} is not in the list.`,
+              false,
             );
             return undefined;
           },
@@ -157,11 +166,11 @@ export function adminsSection(app: AppContext, data: ConfigView): HTMLElement {
       () => app.api.addAdmin(typed),
       (result) => {
         input.value = "";
-        const email = typed.trim().toLowerCase();
         return result.changed
-          ? `${result.admins.at(-1)?.email ?? email} is now an admin.`
-          : `${email} is already an admin.`;
+          ? `${result.email} is now an admin.`
+          : `${result.email} is already an admin.`;
       },
+      true,
     );
   });
   show(data.admins);

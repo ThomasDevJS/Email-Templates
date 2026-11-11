@@ -29,6 +29,8 @@ export type AdminReason =
   | "ADMIN_CHECK";
 
 export interface AdminsResult {
+  /** The address acted on: the stored primary address on add (an alias shows as it is stored). */
+  readonly email: string;
   readonly admins: AdminEntry[];
   readonly changed: boolean;
 }
@@ -150,7 +152,8 @@ function change(
     const current = loadIndexForWrite(services);
     context.recheck(current);
     const entries = adminEntriesOf(current.admins, domain);
-    if (edit(entries) === null) return { admins: entries, changed: false };
+    if (edit(entries) === null)
+      return { email: event.email, admins: entries, changed: false };
     return commitLocked(services, (latest: IndexDoc) => {
       const admins = editedList(latest.admins, domain, edit);
       return {
@@ -164,7 +167,7 @@ function change(
             after: { email: event.email, admin: event.admin },
           }),
         ],
-        result: { admins, changed: true },
+        result: { email: event.email, admins, changed: true },
       };
     });
   });

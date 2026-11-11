@@ -200,6 +200,8 @@ export interface JobRow {
 }
 
 export interface AdminsResult {
+  /** The address the server acted on: the stored primary address on add. */
+  readonly email: string;
   readonly admins: readonly AdminEntry[];
   readonly changed: boolean;
 }

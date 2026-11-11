@@ -7,7 +7,7 @@ import type { TrashRow } from "../rpc/api";
 import { openDialog } from "../ui/dialog";
 import { formatTime, h, replace, uid } from "../ui/dom";
 import { person } from "../ui/person";
-import { lineText, skeletonRows } from "../ui/status";
+import { adminLineText, lineText, skeletonRows } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { pathBlock, titleBlock } from "./grid";
 
@@ -142,7 +142,7 @@ export function trashView(
                 heading.focus();
               })
               .catch(async (error: unknown) => {
-                status.textContent = lineText(error, app.fail(error));
+                status.textContent = adminLineText(error, app.fail(error));
                 await load();
               });
             return true;
