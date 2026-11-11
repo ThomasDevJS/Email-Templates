@@ -29,7 +29,15 @@ import { openMenu } from "../ui/menu";
 import { toRpcError } from "../ui/status";
 import type { AppContext, View } from "./context";
 import { problemList, type ListedProblem } from "./problems";
-import { previewAsMe, promptUses, subjectAsMe, usedText } from "./preview";
+import { escapeText } from "../../shared/html/escape";
+import { parseText } from "../../shared/placeholders/grammar";
+import {
+  previewAsMe,
+  promptUses,
+  subjectAsMe,
+  usedText,
+  withChips,
+} from "./preview";
 import { recipientBlock, recipientField, type ChipField } from "./recipients";
 import { tagEditor, type TagEditor } from "./tags";
 
@@ -324,6 +332,8 @@ export function editorView(
     "aria-describedby": "subject-count",
   });
   const subjectCount = h("span", { id: "subject-count", class: "count-hint" });
+  /** The subject with its placeholders drawn as blanks, while it holds one (the input shows the text form). */
+  const readsAs = h("p", { class: "reads-as" });
   /** True while the subject input was the last field in focus, so "Insert field" targets it. */
   let subjectActive = false;
   const folderSelect = h("select", { id: "folder" });
@@ -472,6 +482,13 @@ export function editorView(
 
   const showSubjectCount = () => {
     subjectCount.textContent = `${String(subjectInput.value.length)}/${String(SUBJECT_MAX)} (optional)`;
+    const subject = subjectInput.value;
+    readsAs.hidden = !parseText(subject).some(
+      (segment) => segment.kind === "variable" || segment.kind === "prompt",
+    );
+    if (readsAs.hidden) return;
+    // `withChips` escapes every text run; the subject is plain text, so it goes in escaped.
+    readsAs.innerHTML = `<span class="reads-label">Reads as</span><span>${withChips(escapeText(subject))}</span>`;
   };
 
   const fillFolders = () => {
@@ -716,6 +733,7 @@ export function editorView(
               h("label", { for: "subject" }, "Subject"),
               subjectInput,
               subjectCount,
+              readsAs,
             ),
             mount,
           ),

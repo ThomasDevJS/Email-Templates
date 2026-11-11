@@ -228,6 +228,24 @@ describe("editor layout (slice 8b)", () => {
     );
   });
 
+  it("shows the subject with blanks under the field while it holds a placeholder", async () => {
+    await openEditor("/?latency=0#/edit/T-QUOTE");
+    const reads = main().querySelector(".reads-as") as HTMLElement;
+    expect(reads.hidden).toBe(false);
+    expect(reads.textContent).toBe("Reads asQuote for Product name");
+    expect(reads.querySelector(".ph.ask")?.getAttribute("aria-label")).toBe(
+      "Field: Product name, asked at insert",
+    );
+    const subject = byId("subject");
+    subject.value = "Offer <b> {{sender.name|us}}";
+    subject.dispatchEvent(new Event("input"));
+    expect(reads.textContent).toBe("Reads asOffer <b> Sender name or us");
+    expect(reads.querySelector("b")).toBeNull();
+    subject.value = "Offer \\{{x}}";
+    subject.dispatchEvent(new Event("input"));
+    expect(reads.hidden).toBe(true);
+  });
+
   it("collapses a panel section with its heading button", async () => {
     await openEditor("/?latency=0#/edit/T-QUOTE");
     const toggle = button("Details");

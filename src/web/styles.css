@@ -1412,6 +1412,28 @@ table {
   border-color: var(--field-line);
 }
 
+.subject-row {
+  flex-wrap: wrap;
+}
+
+.reads-as {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 12px;
+  align-items: baseline;
+  margin: 0 0 4px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.reads-label {
+  flex: none;
+  width: 54px;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 400;
+}
+
 .count-hint {
   flex: none;
   color: var(--ink-3);
