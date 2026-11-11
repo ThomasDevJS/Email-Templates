@@ -1,11 +1,13 @@
 /**
  * Dev harness (`npm run dev:web`, `scripts/lighthouse.mjs`): a fake `google.script` with an in-memory server, so
  * the web app runs in a local browser. Never part of the production bundle (scripts/build.mjs bundles app.ts only).
- * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code,
+ * URL options: `?latency=<ms>` (default 120), `?fail=<CODE>&failOp=<op>` makes that op fail with that code
+ * (`&failSkip=<n>`: not the first n calls; `&failTimes=<n>`: only n calls),
  * `?admin=0` makes the caller a manage holder instead of an admin in the admin view, `?sample=freight` loads
- * freight templates with invented names for screenshots (the tests use the default sample), `?external=deny` turns
- * outside recipients off, `?unreadable=cc,bcc` makes `version.restore` report those lists of the old version as
- * unreadable.
+ * freight templates with invented names for screenshots (the tests use the default sample), `?personal=off` starts
+ * with personal templates off (My templates at `use`), `?access=none` shows no folder at all, `?access=use` shared folders at `use` only,
+ * `?external=deny` turns outside recipients off, `?unreadable=cc,bcc` makes `version.restore` report those lists of the old
+ * version as unreadable.
  */
 import { prepareBody } from "../shared/body/prepare";
 import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
@@ -16,6 +18,12 @@ import {
   type RecipientPolicy,
   type Recipients,
 } from "../shared/model/recipients";
+import {
+  isSettingName,
+  isSettingValue,
+  type SettingEntry,
+  type SettingName,
+} from "../shared/model/settings";
 import { scanBody } from "../shared/placeholders/validate";
 import type { AccessLevel } from "../shared/permissions/levels";
 import type { GoogleScript, ScriptLocation } from "./host";
@@ -32,8 +40,12 @@ interface Version extends Recipients {
 const ME = "dev.user@example.com";
 const PARAMS = new URLSearchParams(window.location.search);
 const NOW = "2026-11-09T14:03:00.000Z";
-const FREIGHT =
-  new URLSearchParams(window.location.search).get("sample") === "freight";
+const FREIGHT = PARAMS.get("sample") === "freight";
+const PERSONAL_OFF = PARAMS.get("personal") === "off";
+const MINE_LEVEL: AccessLevel = PERSONAL_OFF ? "use" : "edit";
+const NO_ACCESS = PARAMS.get("access") === "none";
+/** `?access=use`: every shared folder at `use`; with `?personal=off` the caller can create nowhere. */
+const USE_ONLY = PARAMS.get("access") === "use";
 
 function folder(
   id: string,
@@ -47,7 +59,7 @@ function folder(
     name,
     parentId,
     kind,
-    level,
+    level: USE_ONLY && kind === "shared" ? "use" : level,
     ownerEmail: kind === "private" ? ME : "",
     sortOrder: 0,
     createdAt: NOW,
@@ -68,7 +80,7 @@ const folders = FREIGHT
       folder("F-CARRIER", "Carrier relations", "", "manage"),
       folder("F-BILLING", "Billing", "", "edit"),
       folder("F-EMPTY", "HR", "", "edit"),
-      folder("F-MINE", "My templates", "", "edit", "private"),
+      folder("F-MINE", "My templates", "", MINE_LEVEL, "private"),
     ].map((entry, sortOrder) => ({ ...entry, sortOrder }))
   : [
       folder("F-SALES", "Sales", "", "manage"),
@@ -76,7 +88,7 @@ const folders = FREIGHT
       folder("F-ONBOARD", "Onboarding", "F-SALES", "manage"),
       folder("F-SUPPORT", "Support", "", "use"),
       folder("F-EMPTY", "HR", "", "edit"),
-      folder("F-MINE", "My templates", "", "edit", "private"),
+      folder("F-MINE", "My templates", "", MINE_LEVEL, "private"),
     ];
 
 const items = new Map<string, Item>();
@@ -87,6 +99,7 @@ const favorites = new Set<string>(
 let seq = 100;
 
 function levelOf(folderId: string): AccessLevel {
+  if (NO_ACCESS) return "none";
   return folders.find((entry) => entry.id === folderId)?.level ?? "none";
 }
 
@@ -104,11 +117,14 @@ function needLevel(folderId: string, need: "use" | "edit"): void {
 /** Templates stored before the admin turned outside recipients off keep them (spec 5.7). */
 let seeding = true;
 
-/** The server's recipient rule, with the dev domain. */
+/** The server's recipient rule, with the dev domain and the admin setting (slice 11). */
 function devPolicy(): RecipientPolicy {
   return {
     domain: "example.com",
-    external: !seeding && PARAMS.get("external") === "deny" ? "deny" : "allow",
+    external:
+      !seeding && settings.recipientsExternal.value === "deny"
+        ? "deny"
+        : "allow",
   };
 }
 
@@ -454,6 +470,35 @@ const AUDIT = Array.from({ length: 60 }, (_, n) => ({
 
 const BACKUPS = ["2026-11-09", "2026-11-08", "2026-11-07"];
 
+const settings: Record<SettingName, SettingEntry> = {
+  personalTemplates: PERSONAL_OFF
+    ? { value: "off", updatedAt: "", updatedBy: "" }
+    : { value: "on", updatedAt: "2026-11-09T13:05:00.000Z", updatedBy: ANA },
+  recipientsExternal:
+    PARAMS.get("external") === "deny"
+      ? { value: "deny", updatedAt: "2026-11-09T13:05:00.000Z", updatedBy: ANA }
+      : { value: "allow", updatedAt: "", updatedBy: "" },
+};
+
+/** `config.set` as the server answers it: VALIDATION, CONFLICT on a stale base, no-op on the same value. */
+function configSet(args: Record<string, unknown>) {
+  const name = args["name"];
+  if (!isSettingName(name))
+    throw new AppError(ErrorCode.VALIDATION, "Setting does not exist.");
+  const entry = settings[name];
+  if (entry.value === args["value"]) return { name, ...entry, changed: false };
+  if (entry.updatedAt !== args["baseAt"] || entry.updatedBy !== args["baseBy"])
+    throw new AppError(
+      ErrorCode.CONFLICT,
+      "Another admin changed this setting.",
+      { name, ...entry },
+    );
+  if (!isSettingValue(name, args["value"]))
+    throw new AppError(ErrorCode.VALIDATION, "Bad value.");
+  settings[name] = { value: args["value"], updatedAt: NOW, updatedBy: ME };
+  return { name, ...settings[name], changed: true };
+}
+
 function auditQuery(args: Record<string, unknown>) {
   const id = str(args, "id");
   if (id !== "") {
@@ -482,13 +527,16 @@ function auditQuery(args: Record<string, unknown>) {
   };
 }
 
-function exportOp(folderId: string) {
+/** `start: true` answers a run token; any other call answers the one page (the harness ignores the token). */
+function exportOp(args: Record<string, unknown>, folderId: string) {
   const scope = folderId === "" ? "library" : "folder";
   const inScope = [...items.values()].filter(
     (entry) =>
       entry.deletedAt === "" &&
       (folderId === "" || entry.folderId === folderId),
   );
+  if (args["start"] === true)
+    return { token: "DEV-EXPORT-RUN", total: inScope.length };
   return {
     header: {
       schemaVersion: 1,
@@ -578,7 +626,7 @@ function isAdmin(): boolean {
 }
 
 function liveFolders(): typeof folders {
-  return folders.filter((entry) => entry.deletedAt === "");
+  return folders.filter((entry) => !NO_ACCESS && entry.deletedAt === "");
 }
 
 function devFolder(id: string): (typeof folders)[number] {
@@ -937,10 +985,12 @@ const OPS: Readonly<Record<string, Op>> = {
         lastUsedAt: n === 0 ? NOW : "",
       })),
   }),
-  "export.folder": (args) => exportOp(str(args, "folderId")),
-  "export.library": () => exportOp(""),
+  "export.folder": (args) => exportOp(args, str(args, "folderId")),
+  "export.library": (args) => exportOp(args, ""),
   import: importOp,
+  "config.set": configSet,
   "config.get": () => ({
+    settings,
     domain: "example.com",
     adminGroup: "admins@example.com",
     resolver: "groupsapp_direct",
@@ -1001,6 +1051,8 @@ const OPS: Readonly<Record<string, Op>> = {
     );
     return {
       purged: gone.length + goneFolders.length,
+      templates: gone.length,
+      folders: goneFolders.length,
       filesTrashed: gone.length,
       itemsPending: pending,
     };
@@ -1065,13 +1117,26 @@ const OPS: Readonly<Record<string, Op>> = {
   },
 };
 
+/** Calls of the failing op and simulated failures so far, for `?failSkip=<n>` and `?failTimes=<n>`. */
+let seen = 0;
+let failed = 0;
+
 function reply(op: string, args: unknown): unknown {
   const params = new URLSearchParams(window.location.search);
   const started = Date.now();
   try {
     const fail = params.get("fail");
-    if (fail !== null && (params.get("failOp") ?? op) === op)
+    const times = Number(params.get("failTimes") ?? "Infinity");
+    const skip = Number(params.get("failSkip") ?? "0");
+    if (
+      fail !== null &&
+      (params.get("failOp") ?? op) === op &&
+      (seen += 1) > skip &&
+      failed < times
+    ) {
+      failed += 1;
       throw new AppError(fail as ErrorCode, `Simulated ${fail}`);
+    }
     const handler = OPS[op];
     if (handler === undefined)
       throw new AppError(

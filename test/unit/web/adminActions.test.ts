@@ -2,6 +2,8 @@
 import { describe, expect, it } from "vitest";
 import {
   actionWords,
+  emptyTrashQuestion,
+  rowActionWords,
   purgeText,
   resultTag,
 } from "../../../src/web/admin/actions";
@@ -12,6 +14,7 @@ describe("actionWords", () => {
     expect(actionWords("template.update")).toBe("Template updated");
     expect(actionWords("grant.add")).toBe("Grant added");
     expect(actionWords("backup.restore")).toBe("Backup restored");
+    expect(actionWords("export.library")).toBe("Library export started");
     expect(actionWords("future.op")).toBe("future.op");
     expect(actionWords("toString")).toBe("toString");
     expect(actionWords("")).toBe("");
@@ -40,26 +43,62 @@ describe("resultTag", () => {
 
 describe("purgeText", () => {
   it("counts templates like the dialog and names deleted folders apart", () => {
-    expect(purgeText(4, 0, 4)).toBe(
+    expect(purgeText(4, 0)).toBe(
       "Emptied the trash: 4 templates removed for good.",
     );
-    expect(purgeText(1, 0, 1)).toBe(
+    expect(purgeText(1, 0)).toBe(
       "Emptied the trash: 1 template removed for good.",
     );
-    expect(purgeText(4, 0, 5)).toBe(
+    expect(purgeText(4, 1)).toBe(
       "Emptied the trash: 4 templates and 1 deleted folder removed for good.",
     );
-    expect(purgeText(0, 0, 2)).toBe(
+    expect(purgeText(0, 2)).toBe(
       "Emptied the trash: 0 templates and 2 deleted folders removed for good.",
     );
   });
 
-  it("never counts more templates than the server removed", () => {
-    expect(purgeText(3, 0, 2)).toBe(
+  it("takes the server's counts, whatever the list showed", () => {
+    expect(purgeText(2, 0)).toBe(
       "Emptied the trash: 2 templates removed for good.",
     );
-    expect(purgeText(1, 2, 0)).toBe(
+    expect(purgeText(0, 0)).toBe(
       "Emptied the trash: 0 templates removed for good.",
+    );
+  });
+});
+
+describe("rowActionWords", () => {
+  it("labels an export start with its count and folder path, other rows with the action words", () => {
+    expect(
+      rowActionWords({
+        action: "export.library",
+        targetPath: "",
+        exportTemplates: 25,
+      }),
+    ).toBe("Library export started, 25 templates");
+    expect(
+      rowActionWords({
+        action: "export.folder",
+        targetPath: "/Sales/Quotes",
+        exportTemplates: 1,
+      }),
+    ).toBe("Folder export started: Sales / Quotes, 1 template");
+    expect(rowActionWords({ action: "export.folder", targetPath: "/S" })).toBe(
+      "Folder export started",
+    );
+    expect(rowActionWords({ action: "grant.add", targetPath: "/S" })).toBe(
+      "Grant added",
+    );
+  });
+});
+
+describe("emptyTrashQuestion", () => {
+  it("uses the singular for one template and the plural otherwise", () => {
+    expect(emptyTrashQuestion(1)).toBe(
+      "Empty the trash? The 1 template in it is removed for good, and deleted folders go too. This cannot be undone.",
+    );
+    expect(emptyTrashQuestion(3)).toBe(
+      "Empty the trash? All 3 templates in it are removed for good, and deleted folders go too. This cannot be undone.",
     );
   });
 });

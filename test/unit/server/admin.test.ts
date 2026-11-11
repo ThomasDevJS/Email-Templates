@@ -20,7 +20,7 @@ import { WRITE_LOCK_MS } from "../../../src/server/lock";
 import { ADMIN_EMAILS_KEY } from "../../../src/server/membership/snapshot";
 import type { Surface } from "../../../src/shared/log/logger";
 import type { RpcResponse } from "../../../src/shared/model/protocol";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -28,6 +28,8 @@ let world: World;
 
 beforeEach(() => {
   world = setupWorld();
+  // D11 rules: personal templates on (D29 default is off).
+  setSetting(world, "personalTemplates", "on");
 });
 
 afterEach(() => {
@@ -474,6 +476,27 @@ describe("grants", () => {
     expect(grant(sales.id, key, "use", "ou").principalKey).toBe(key);
   });
 
+  it("logs the grant's folder as targetId on grant.remove, ok and denied, never the principal", () => {
+    const sales = folder("Sales");
+    const added = grant(sales.id, ANA, "use");
+    const lastLine = () =>
+      JSON.parse(world.lines.at(-1) ?? "{}") as Record<string, unknown>;
+    expect(codeOf(ANA, "grant.remove", { grantId: added.id })).toBe("DENIED");
+    expect(lastLine()).toMatchObject({
+      action: "grant.remove",
+      targetId: sales.id,
+      result: "denied",
+    });
+    world.lines.length = 0;
+    world.ok(OWNER, "grant.remove", { grantId: added.id });
+    expect(lastLine()).toMatchObject({
+      action: "grant.remove",
+      targetId: sales.id,
+      result: "ok",
+    });
+    expect(world.lines.join("\n")).not.toContain(ANA);
+  });
+
   it("answers NOT_FOUND when the grant was removed by someone else", () => {
     const sales = folder("Sales");
     const added = grant(sales.id, ANA, "use");
@@ -705,6 +728,21 @@ describe("trash", () => {
     expect(world.ok<{ purged: number }>(OWNER, "trash.purge").purged).toBe(0);
   });
 
+  it("answers how many templates and how many folders the purge removed", () => {
+    const sales = folder("Sales");
+    const old = folder("Old");
+    const inOld = template(old.id, "In old");
+    const gone = template(sales.id, "Gone");
+    world.ok(OWNER, "template.delete", { id: gone.id });
+    world.ok(OWNER, "template.delete", { id: inOld.id });
+    world.ok(OWNER, "folder.delete", { folderId: old.id });
+    expect(world.ok(OWNER, "trash.purge")).toMatchObject({
+      purged: 3,
+      templates: 2,
+      folders: 1,
+    });
+  });
+
   it(`trashes at most ${String(PURGE_FILES_MAX)} body files per purge and leaves the rest to the daily orphan cleanup`, () => {
     const sales = folder("Sales");
     const items = Array.from({ length: PURGE_FILES_MAX + 3 }, (_, n) =>
@@ -718,6 +756,8 @@ describe("trash", () => {
       ).length;
     expect(world.ok(OWNER, "trash.purge")).toEqual({
       purged: PURGE_FILES_MAX + 3,
+      templates: PURGE_FILES_MAX + 3,
+      folders: 0,
       filesTrashed: PURGE_FILES_MAX,
       itemsPending: 3,
     });

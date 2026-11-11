@@ -35,6 +35,7 @@ export function view(fields: Partial<SidebarHome> = {}): SidebarHome {
     ],
     favorites: [],
     recent: [],
+    personalTemplates: "on",
     ...fields,
   };
 }

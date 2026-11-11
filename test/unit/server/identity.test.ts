@@ -69,6 +69,35 @@ describe("Directory profile (ADR-0004 Sender values)", () => {
     expect(world.directory.calls).toHaveLength(2);
   });
 
+  it("keeps no address in any Script Cache key: profiles of sender and recipient, apply, home, lists", () => {
+    world.directory.users.set(ANA, DIRECTORY_USER);
+    const folder = world.ok<{ id: string }>(OWNER, "folder.create", {
+      name: "Sales",
+    });
+    const item = world.ok<{ id: string }>(OWNER, "template.create", {
+      folderId: folder.id,
+      title: "T",
+      html: "<p>x</p>",
+      to: ["bob@example.com"],
+    });
+    world.ok(OWNER, "profile.me");
+    world.ok(OWNER, "sidebar.home");
+    world.ok(OWNER, "template.list");
+    world.ok(OWNER, "template.apply", {
+      id: item.id,
+      knownVersion: 0,
+      recipientEmailIfInternal: ANA,
+    });
+    const keys = world.cache.keys();
+    expect(keys.some((key) => key.startsWith("prof:"))).toBe(true);
+    expect(keys.filter((key) => key.includes("@"))).toEqual([]);
+    const calls = world.directory.calls.length;
+    expect(lookupProfile(world.services, "ANA@example.com").givenName).toBe(
+      "Ana",
+    );
+    expect(world.directory.calls).toHaveLength(calls);
+  });
+
   it("returns blanks without caching when the Directory lookup fails", () => {
     expect(lookupProfile(world.services, "ghost@example.com").name).toBe("");
     world.directory.users.set("ghost@example.com", DIRECTORY_USER);

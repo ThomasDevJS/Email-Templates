@@ -2449,6 +2449,53 @@ code,
   white-space: nowrap;
 }
 
+/* Settings (D29): one fieldset per setting between the rules of the facts list. */
+.setting {
+  margin: 0;
+  padding: 12px 10px 14px;
+  border: none;
+  border-top: 1px solid var(--line-strong);
+}
+
+.setting + .setting {
+  border-top-color: var(--line);
+}
+
+.setting:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.setting legend {
+  float: left;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.setting-help {
+  clear: both;
+  margin: 0 0 10px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.setting .scope {
+  margin-bottom: 6px;
+}
+
+.setting-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 10px;
+}
+
+.setting-actions .status {
+  margin: 0;
+}
+
 .backups {
   margin: 8px 0 0;
   padding: 0;

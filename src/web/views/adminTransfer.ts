@@ -4,16 +4,24 @@ import {
 } from "../../shared/model/validate";
 import { exportFileName, importSummary, sharedFolders } from "../admin/model";
 import { folderPath } from "../library/model";
-import type { FolderRow, ImportReport } from "../rpc/api";
+import type { ExportPage, FolderRow, ImportReport } from "../rpc/api";
+import { RpcError } from "../rpc/client";
 import { lineText } from "../ui/status";
 import { h, replace, uid } from "../ui/dom";
 import type { AdminData } from "./admin";
 import { adminTable, tableRow, toneTag, type Column } from "./adminTable";
 import type { AppContext, View } from "./context";
 
+/** Retries of an export start or page that failed with a retryable error, and the first wait (1x, 2x, 3x). */
+export const EXPORT_RETRIES = 3;
+export const EXPORT_RETRY_MS = 200;
+export const EXPORT_RETRY_TEXT =
+  "The export stopped: the server did not answer after 4 tries. Nothing was downloaded. Wait a few minutes, then export again.";
+
 /**
- * Tab "Export and import" (wireframe 06). Export: whole library (admin) or one folder the caller manages, joined
- * from pages into one JSON download `migway-templates-<scope>-<date>.json`. Import (admin): choose a file and a
+ * Tab "Export and import" (wireframe 06). Export: whole library (admin) or one folder the caller manages. The start
+ * call records the export in the audit log and returns a run token; the pages, read with it, are joined into one JSON
+ * download `migway-templates-<scope>-<date>.json`. Import (admin): choose a file and a
  * target folder, Validate (nothing is written), then Import with the same file and target.
  */
 const REPORT_COLUMNS: readonly Column[] = [
@@ -87,12 +95,32 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
   single.addEventListener("change", sync);
   sync();
 
+  /** Runs `work`; a retryable failure is tried again after EXPORT_RETRY_MS, then 2 and 3 times that. */
+  const retrying = async <T>(work: () => Promise<T>): Promise<T> => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await work();
+      } catch (error: unknown) {
+        const retry = error instanceof RpcError && error.retryable;
+        if (!retry || attempt > EXPORT_RETRIES) throw error;
+        await new Promise((resolve) =>
+          setTimeout(resolve, EXPORT_RETRY_MS * attempt),
+        );
+      }
+    }
+  };
+
   const pages = async (folderId: string) => {
-    let page = await app.api.exportPage(folderId, 0);
+    const { token, total } = await retrying(() =>
+      app.api.exportStart(folderId),
+    );
+    const pageAt = (offset: number) =>
+      retrying(() => app.api.exportPage(folderId, offset, token));
+    let page: ExportPage = await pageAt(0);
     const items = [...page.items];
     while (page.next !== null) {
-      status.textContent = `Exporting ${String(items.length)} of ${String(page.total)} templates...`;
-      page = await app.api.exportPage(folderId, page.next);
+      status.textContent = `Exporting ${String(items.length)} of ${String(total)} templates...`;
+      page = await pageAt(page.next);
       items.push(...page.items);
     }
     return { file: { ...page.header, items }, count: items.length };
@@ -113,7 +141,11 @@ function exportSection(app: AppContext, data: AdminData): HTMLElement {
         status.textContent = `Exported ${String(count)} templates to ${name}.`;
       })
       .catch((error: unknown) => {
-        status.textContent = lineText(error, app.fail(error));
+        // No file is offered: a page that failed leaves the export incomplete.
+        status.textContent =
+          error instanceof RpcError && error.retryable
+            ? EXPORT_RETRY_TEXT
+            : lineText(error, app.fail(error));
       })
       .finally(() => {
         run.disabled = false;

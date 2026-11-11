@@ -25,8 +25,20 @@ export interface AuditFilter {
   readonly target: string;
 }
 
-/** A row of the table: the event without `before` and `after`, which the details drawer loads by ID. */
-export type AuditRow = Omit<AuditEvent, "before" | "after">;
+/**
+ * A row of the table: the event without `before` and `after`, which the details drawer loads by ID. An `export.*`
+ * start event adds its template count, so the row reads "Library export started, 25 templates".
+ */
+export type AuditRow = Omit<AuditEvent, "before" | "after"> & {
+  readonly exportTemplates?: number;
+};
+
+/** `after.templates` of an `export.*` event, or null for any other event or an unreadable `after`. */
+function exportTemplates(event: AuditEvent): number | null {
+  if (!event.action.startsWith("export.")) return null;
+  const { templates } = (event.after ?? {}) as Record<string, unknown>;
+  return Number.isInteger(templates) ? (templates as number) : null;
+}
 
 export interface AuditPage {
   readonly total: number;
@@ -79,7 +91,9 @@ export function matches(event: AuditEvent, filter: AuditFilter): boolean {
 }
 
 function row(event: AuditEvent): AuditRow {
+  const templates = exportTemplates(event);
   return {
+    ...(templates === null ? {} : { exportTemplates: templates }),
     id: event.id,
     ts: event.ts,
     actor: event.actor,

@@ -1,4 +1,5 @@
 import type { Folder, Grant } from "../model/data";
+import { personalTemplatesOn, type StoredSettings } from "../model/settings";
 import { higher, type AccessLevel } from "./levels";
 import { ROLE_MATRIX } from "./matrix";
 import { principalKey } from "./principals";
@@ -13,6 +14,8 @@ export interface Subject {
 export interface PermissionData {
   readonly folders: readonly Folder[];
   readonly grants: readonly Grant[];
+  /** Admin settings of the index (D29); absent = the defaults. */
+  readonly settings?: StoredSettings | undefined;
 }
 
 export type LevelOf = (folderId: string) => AccessLevel;
@@ -65,13 +68,25 @@ function grantLevel(
 export const PRIVATE_OWNER_LEVEL: AccessLevel =
   ROLE_MATRIX["private.self"].level;
 
+function isOwner(chain: readonly Folder[], subject: Subject): boolean {
+  const owner = chain.find((folder) => folder.kind === "private")?.ownerEmail;
+  return (
+    owner !== undefined &&
+    owner.toLowerCase() === subject.email.trim().toLowerCase()
+  );
+}
+
 /** Private tree: the owner holds `edit`, nobody else holds anything; grants there are ignored (D11). */
 function privateLevel(chain: readonly Folder[], subject: Subject): AccessLevel {
-  const owner = chain.find((folder) => folder.kind === "private")?.ownerEmail;
-  return owner !== undefined &&
-    owner.toLowerCase() === subject.email.trim().toLowerCase()
-    ? PRIVATE_OWNER_LEVEL
-    : "none";
+  return isOwner(chain, subject) ? PRIVATE_OWNER_LEVEL : "none";
+}
+
+/** Personal templates off (D29, ADR-0008 section 3): owner and admins read and insert, nobody writes. */
+function privateOffLevel(
+  chain: readonly Folder[],
+  subject: Subject,
+): AccessLevel {
+  return subject.isAdmin || isOwner(chain, subject) ? "use" : "none";
 }
 
 function groupGrants(grants: readonly Grant[]): Map<string, Grant[]> {
@@ -87,14 +102,19 @@ function groupGrants(grants: readonly Grant[]): Map<string, Grant[]> {
 /**
  * Effective level = maximum over grants on the folder and every ancestor whose principal the subject holds.
  * Admin = `manage` on every existing folder, private ones included. Unknown folder = `none`. Memoized per folder.
+ * While personal templates are off (D29), a private tree is `use` for its owner and admins and `none` for others;
+ * that rule runs before the admin rule.
  */
 export function levelResolver(subject: Subject, data: PermissionData): LevelOf {
+  const privateOff = !personalTemplatesOn(data.settings);
   const byId = folderMap(data.folders);
   const grantsByFolder = groupGrants(data.grants);
   const memo = new Map<string, AccessLevel>();
   const compute = (folderId: string): AccessLevel => {
     const chain = ancestry(folderId, byId);
     if (chain.length === 0) return "none";
+    if (privateOff && inPrivateTree(chain))
+      return privateOffLevel(chain, subject);
     if (subject.isAdmin) return "manage";
     if (inPrivateTree(chain)) return privateLevel(chain, subject);
     return grantLevel(chain, subject, grantsByFolder);

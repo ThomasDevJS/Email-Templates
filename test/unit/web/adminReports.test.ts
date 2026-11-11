@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { EXPORT_RETRY_TEXT } from "../../../src/web/views/adminTransfer";
 import { stubLayout } from "./domStubs";
 
 const INDEX = readFileSync(
@@ -60,6 +61,42 @@ function labelled<T extends HTMLElement>(label: string): T {
   const control = document.getElementById(id);
   if (control === null) throw new Error(`no control for ${label}`);
   return control as T;
+}
+
+function radio(root: HTMLElement, label: string): HTMLInputElement {
+  const found = [...root.querySelectorAll("label")].find(
+    (candidate) => candidate.textContent.trim() === label,
+  );
+  const input = found?.querySelector("input");
+  if (input === null || input === undefined) throw new Error(`no ${label}`);
+  return input;
+}
+
+function checkedLabel(root: HTMLElement): string {
+  return (
+    root.querySelector("input:checked")?.closest("label")?.textContent.trim() ??
+    ""
+  );
+}
+
+/** One server op straight through the harness, as another admin's tab would send it. */
+function otherTab(op: string, args: unknown): Promise<unknown> {
+  const run = (
+    window as unknown as {
+      google: {
+        script: {
+          run: {
+            withSuccessHandler(handler: (value: unknown) => void): {
+              rpc(op: string, args: unknown, id: string): void;
+            };
+          };
+        };
+      };
+    }
+  ).google.script.run;
+  return new Promise((resolve) => {
+    run.withSuccessHandler(resolve).rpc(op, args, "other-tab");
+  });
 }
 
 function dialog(): HTMLElement | null {
@@ -297,6 +334,65 @@ describe("export and import tab", () => {
     );
   });
 
+  /** Boots the transfer tab on `query`, clicks Export, and records downloads. */
+  const exportWith = async (query: string) => {
+    const createUrl = vi.fn(() => "blob:x");
+    URL.createObjectURL = createUrl;
+    URL.revokeObjectURL = vi.fn();
+    const clicks: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicks.push(this.download);
+    });
+    await boot(`/?latency=0&failOp=export.library&${query}#/admin/transfer`);
+    await until(() => {
+      expect(button("Export")).toBeTruthy();
+    });
+    button("Export").click();
+    return { clicks, createUrl };
+  };
+  const waitStatus = (part: string | RegExp) =>
+    vi.waitFor(
+      () => {
+        expect(status()).toMatch(part);
+      },
+      { timeout: 4000, interval: 10 },
+    );
+
+  it("retries a start answered BUSY and then downloads the whole file", async () => {
+    const { clicks } = await exportWith("fail=BUSY&failTimes=2");
+    await waitStatus(/Exported 4 templates to /);
+    expect(clicks).toHaveLength(1);
+    expect(toasts()).toBe("");
+  });
+
+  it("retries a page that failed with a retryable error after the start", async () => {
+    const { clicks } = await exportWith("fail=INTERNAL&failSkip=1&failTimes=3");
+    await waitStatus(/Exported 4 templates to /);
+    expect(clicks).toHaveLength(1);
+  });
+
+  it("stops after the retries with a clear message and downloads nothing", async () => {
+    const { clicks, createUrl } = await exportWith("fail=BUSY&failSkip=1");
+    await waitStatus(EXPORT_RETRY_TEXT);
+    expect(EXPORT_RETRY_TEXT).toBe(
+      "The export stopped: the server did not answer after 4 tries. Nothing was downloaded. Wait a few minutes, then export again.",
+    );
+    expect(clicks).toEqual([]);
+    expect(createUrl).not.toHaveBeenCalled();
+    expect(button("Export").disabled).toBe(false);
+  });
+
+  it("stops at once on a refused page (expired run) and downloads nothing", async () => {
+    const { clicks, createUrl } = await exportWith(
+      "fail=VALIDATION&failSkip=1&failTimes=1",
+    );
+    await waitStatus("Simulated VALIDATION.");
+    expect(clicks).toEqual([]);
+    expect(createUrl).not.toHaveBeenCalled();
+  });
+
   it("validates a file before Import, then imports into the chosen folder", async () => {
     await boot("/?latency=0#/admin/transfer");
     await until(() => {
@@ -407,7 +503,6 @@ describe("config tab", () => {
       main().querySelector("tr .tag.warn")?.closest(".status-cell")
         ?.textContent,
     ).toBe("Late2026-11-09T10:15:00.000Z Error: GroupsApp unavailable");
-    expect(text()).not.toContain("Outside recipients");
     for (const value of [
       "example.com",
       "admins@example.com",
@@ -429,7 +524,8 @@ describe("config tab", () => {
     const config = main().querySelector(".config") as HTMLElement;
     expect(
       [...config.querySelectorAll("h2")].map((heading) => heading.textContent),
-    ).toEqual(["Settings", "Jobs", "Backups"]);
+    ).toEqual(["Settings", "Environment", "Jobs", "Backups"]);
+    expect(text()).not.toContain("RECIPIENTS_EXTERNAL");
   });
 
   it("restores a backup after a confirmation that names the date, Cancel first", async () => {
@@ -462,6 +558,179 @@ describe("config tab", () => {
     await until(() => {
       expect(status()).toContain("Restored the backup of 2026-11-08.");
     });
+  });
+
+  it("shows each setting with its explanation, current value and last change", async () => {
+    await boot("/?latency=0#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const [personal, outside] = [
+      ...main().querySelectorAll<HTMLFieldSetElement>("fieldset.setting"),
+    ] as [HTMLFieldSetElement, HTMLFieldSetElement];
+    expect(personal.querySelector("legend")?.textContent).toBe(
+      "Personal templates",
+    );
+    expect(personal.textContent).toContain(
+      "Users can create their own templates in My templates.",
+    );
+    expect(personal.getAttribute("aria-describedby")).toBe(
+      personal.querySelector(".setting-help")?.id,
+    );
+    expect(checkedLabel(personal)).toBe("On");
+    expect(personal.textContent).toMatch(/Last change: ana\.moreno on Nov 9, /);
+    expect(button("Save", personal).disabled).toBe(true);
+    expect(outside.querySelector("legend")?.textContent).toBe(
+      "Outside recipients",
+    );
+    expect(
+      [...outside.querySelectorAll("label")].map((l) => l.textContent.trim()),
+    ).toEqual(["Allowed", "example.com only"]);
+    expect(checkedLabel(outside)).toBe("Allowed");
+    expect(outside.textContent).toContain("Default, never changed.");
+  });
+
+  it("asks before turning personal templates off, Cancel first; saves after the confirm", async () => {
+    await boot("/?latency=0#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const personal = main().querySelector("fieldset.setting") as HTMLElement;
+    radio(personal, "Off").click();
+    const save = button("Save", personal);
+    expect(save.disabled).toBe(false);
+    save.focus();
+    save.click();
+    const confirm = dialog() as HTMLElement;
+    expect(confirm.textContent).toContain("Turn off personal templates?");
+    expect(confirm.textContent).toContain("Nothing is deleted.");
+    expect(document.activeElement?.textContent).toBe("Cancel");
+    button("Cancel", confirm).click();
+    await until(() => {
+      expect(dialog()).toBeNull();
+    });
+    expect(personal.textContent).toContain("Last change: ana.moreno");
+    save.click();
+    button("Turn off", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(personal.textContent).toContain(
+        "Saved. Personal templates are off for every user from their next action.",
+      );
+    });
+    expect(personal.textContent).toContain("Last change: dev.user on Nov 9");
+    expect(save.disabled).toBe(true);
+    expect(save.textContent).toBe("Save");
+  });
+
+  it("saves a change that takes nothing away with no dialog", async () => {
+    await boot("/?latency=0&personal=off#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const personal = main().querySelector("fieldset.setting") as HTMLElement;
+    expect(checkedLabel(personal)).toBe("Off");
+    radio(personal, "On").click();
+    button("Save", personal).click();
+    expect(dialog()).toBeNull();
+    await until(() => {
+      expect(personal.textContent).toContain(
+        "Saved. Personal templates are on for every user from their next action.",
+      );
+    });
+  });
+
+  it("asks before allowing only the domain, and shows a conflict with the current value", async () => {
+    await boot("/?latency=0#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const outside = main().querySelectorAll(
+      "fieldset.setting",
+    )[1] as HTMLElement;
+    await otherTab("config.set", {
+      name: "recipientsExternal",
+      value: "deny",
+      baseAt: "",
+      baseBy: "",
+    });
+    radio(outside, "example.com only").click();
+    button("Save", outside).click();
+    const confirm = dialog() as HTMLElement;
+    expect(confirm.textContent).toContain("Allow only example.com recipients?");
+    button("Allow only example.com", confirm).click();
+    await until(() => {
+      expect(outside.textContent).toMatch(
+        /dev\.user changed this setting on Nov 9, .*\. The page now shows the current value\./,
+      );
+    });
+    expect(checkedLabel(outside)).toBe("example.com only");
+    expect(button("Save", outside).disabled).toBe(true);
+    radio(outside, "Allowed").click();
+    button("Save", outside).click();
+    expect(dialog()).toBeNull();
+    await until(() => {
+      expect(outside.textContent).toContain(
+        "Saved. Outside recipients are allowed.",
+      );
+    });
+  });
+
+  it("shows the current value from a CONFLICT after an A, B, A change and keeps focus off the body", async () => {
+    await boot("/?latency=0#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const outside = main().querySelectorAll(
+      "fieldset.setting",
+    )[1] as HTMLElement;
+    await otherTab("config.set", {
+      name: "recipientsExternal",
+      value: "deny",
+      baseAt: "",
+      baseBy: "",
+    });
+    await otherTab("config.set", {
+      name: "recipientsExternal",
+      value: "allow",
+      baseAt: "2026-11-09T14:03:00.000Z",
+      baseBy: "dev.user@example.com",
+    });
+    radio(outside, "example.com only").click();
+    const save = button("Save", outside);
+    save.focus();
+    save.click();
+    button("Allow only example.com", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(outside.textContent).toMatch(
+        /dev\.user changed this setting on Nov 9, .*\. The page now shows the current value\./,
+      );
+    });
+    expect(checkedLabel(outside)).toBe("Allowed");
+    expect(outside.textContent).toContain("Last change: dev.user on Nov 9");
+    expect(save.disabled).toBe(true);
+    expect(document.activeElement).toBe(
+      outside.querySelector('[role="status"]'),
+    );
+  });
+
+  it("moves focus to the status line after a Save without a dialog", async () => {
+    await boot("/?latency=0&personal=off#/admin/config");
+    await until(() => {
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+    });
+    const personal = main().querySelector("fieldset.setting") as HTMLElement;
+    radio(personal, "On").click();
+    const save = button("Save", personal);
+    save.focus();
+    save.click();
+    expect(document.activeElement).toBe(save);
+    expect(save.getAttribute("aria-disabled")).toBe("true");
+    await until(() => {
+      expect(personal.textContent).toContain("Saved.");
+    });
+    expect(document.activeElement).toBe(
+      personal.querySelector('[role="status"]'),
+    );
   });
 
   it("shows the empty and error states of the config tab", async () => {

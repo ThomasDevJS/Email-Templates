@@ -8,7 +8,7 @@ import { SIDE_CACHE } from "../../../src/server/cache/sideCache";
 import { TEXT_MISS_BUDGET } from "../../../src/server/handlers/body";
 import { runTick } from "../../../src/server/jobs/tick";
 import { applyUsage } from "../../../src/server/audit/usage";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 /** Slice 5 ops: `search`, `search.body`, `favorite.set`, `favorite.unset`, and Favorites and Recent in the lists. */
 const ANA = "ana@example.com";
@@ -20,6 +20,8 @@ let hr: Folder;
 
 beforeEach(() => {
   world = setupWorld();
+  // D11 rules: personal templates on (D29 default is off).
+  setSetting(world, "personalTemplates", "on");
   sales = world.ok<Folder>(OWNER, "folder.create", { name: "Sales" });
   hr = world.ok<Folder>(OWNER, "folder.create", { name: "HR" });
 });
@@ -152,6 +154,42 @@ describe("search (sidebar, spec 4.4)", () => {
     });
     expect(search(ANA, "secret")).toHaveLength(1);
     expect(search(OWNER, "secret")).toEqual([]);
+  });
+
+  it("does not match recipient addresses (spec 5.7, Q39: web app library only)", () => {
+    create(sales.id, "Offer", { to: ["buyer@example.com"] });
+    grant(sales.id, ANA, "use");
+    expect(search(ANA, "buyer")).toEqual([]);
+    expect(search(ANA, "buyer@example.com")).toEqual([]);
+  });
+
+  it("template.list carries To, Cc and Bcc of the visible templates only, [] for templates without lists", () => {
+    create(sales.id, "Offer", { to: ["buyer@example.com"], bcc: [BOB] });
+    create(hr.id, "Hidden", { cc: ["hidden@example.com"] });
+    grant(sales.id, ANA, "use");
+    const legacy = create(sales.id, "Legacy");
+    const index = world.services.store().readIndex();
+    world.services.store().writeIndex({
+      ...index,
+      items: index.items.map((item) => {
+        if (item.id !== legacy.id) return item;
+        // An item written before slice 9: no lists.
+        return Object.fromEntries(
+          Object.entries(item).filter(
+            ([key]) => !["to", "cc", "bcc"].includes(key),
+          ),
+        ) as unknown as Item;
+      }),
+    });
+    world.props.deleteProperty("INDEX_REV");
+    const listed = world.ok<{ items: Item[] }>(ANA, "template.list").items;
+    expect(
+      listed.map(({ title, to, cc, bcc }) => ({ title, to, cc, bcc })),
+    ).toEqual([
+      { title: "Offer", to: ["buyer@example.com"], cc: [], bcc: [BOB] },
+      { title: "Legacy", to: [], cc: [], bcc: [] },
+    ]);
+    expect(JSON.stringify(listed)).not.toContain("hidden@example.com");
   });
 
   it("does not match names of folders the caller cannot see", () => {

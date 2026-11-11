@@ -43,6 +43,8 @@ export interface SidebarHome {
   readonly favorites: readonly string[];
   /** Template IDs. Empty until slice 5. */
   readonly recent: readonly string[];
+  /** Admin setting (D29): picks the empty-card text (spec 7.2). */
+  readonly personalTemplates: "on" | "off";
 }
 
 /** Caller's Directory values (ADR-0004 Sender values). Blank means unresolved. */

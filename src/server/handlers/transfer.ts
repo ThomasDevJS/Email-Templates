@@ -7,6 +7,7 @@ import {
   type RecipientCode,
 } from "../../shared/model/recipients";
 import { tagList, templateTitle } from "../../shared/model/validate";
+import { isId } from "../../shared/ids";
 import { inPrivateTree } from "../../shared/permissions/effective";
 import { controlIndex, oneLine } from "../../shared/placeholders/subject";
 import { auditEvent, type EventSource } from "../audit/events";
@@ -30,7 +31,12 @@ import {
   type MakeFolder,
   type ReportLine,
 } from "../transfer/plan";
-import { prepareFor, readStoredBody, recipientPolicy } from "./body";
+import {
+  prepareFor,
+  readStoredBody,
+  recheckRecipients,
+  recipientPolicy,
+} from "./body";
 import { commit } from "./commit";
 import { newFolder } from "./folders";
 import { chainOf, folderPath, liveFolder } from "./indexOps";
@@ -42,11 +48,17 @@ import {
 } from "./templates";
 
 /**
- * Export and import (wireframe 06, spec 4.5, ADR-0002 Backup and export). Exports page through the templates,
- * EXPORT_PAGE per call, so one call reads at most EXPORT_PAGE bodies from Drive (cache first); the browser joins
- * the pages into one file. Import is admin only and runs Validate (`dryRun`) and Import on the same rules.
+ * Export and import (wireframe 06, spec 4.5, ADR-0002 Backup and export). An export run starts with a `start: true`
+ * call: it commits one audit event into `pendingAudit` (who, scope, number of templates; no title, content or
+ * address) and returns a run token. Each page call carries the token and reads at most EXPORT_PAGE bodies from
+ * Drive (cache first, never cache-filling); the browser joins the pages into one file. Import is admin only and
+ * runs Validate (`dryRun`) and Import on the same rules.
  */
 export const EXPORT_PAGE = 20;
+/** A run token lives this long after its start or its last page (sliding, so a long export keeps going). */
+export const EXPORT_RUN_TTL_S = 600;
+export const EXPORT_RESTART =
+  "This export is no longer valid (it expired or belongs to another session). Nothing was downloaded. Start the export again.";
 
 /** Live folders of the subtree under `rootId`, the root included. */
 function subtree(index: IndexDoc, rootId: string): Set<string> {
@@ -75,6 +87,18 @@ function libraryFolders(index: IndexDoc): Set<string> {
   );
 }
 
+/** The scope of an export and its folders on a given index (the request's, or the one read inside the lock). */
+interface Scoped {
+  readonly scope: ExportScope;
+  readonly folderIds: (index: IndexDoc) => ReadonlySet<string>;
+}
+
+function liveItems(index: IndexDoc, folderIds: ReadonlySet<string>): Item[] {
+  return index.items.filter(
+    (item) => item.deletedAt === "" && folderIds.has(item.folderId),
+  );
+}
+
 export interface ExportPage {
   readonly header: ExportHeader;
   readonly items: ExportItem[];
@@ -83,14 +107,80 @@ export interface ExportPage {
   readonly next: number | null;
 }
 
-/** One page of the export of the folders `scopeIds`. Grants of folders outside the scope never appear. */
-function exportPage(
-  context: HandlerContext,
-  scopeIds: ReadonlySet<string>,
-  scope: ExportScope,
-): ExportPage {
+export interface ExportStart {
+  /** Run token for the page calls; valid for this caller and scope only. */
+  readonly token: string;
+  readonly total: number;
+}
+
+/** What the Script Cache holds under `exp:<token>`. */
+interface ExportRun {
+  readonly actor: string;
+  readonly kind: ExportScope["kind"];
+  readonly folderId: string;
+}
+
+const runKey = (token: string): string => `exp:${token}`;
+
+/**
+ * Commits the one audit event of an export run through the index write (ADR-0002 security events), counted on the
+ * index read inside the lock, then stores the run token. A failed commit (BUSY, Drive error) throws a retryable
+ * error and no token exists, so no page can be read.
+ */
+function startExport(context: HandlerContext, scoped: Scoped): ExportStart {
+  const { scope } = scoped;
+  const folder = scope.kind === "folder";
+  const total = commit(context, (current) => {
+    if (folder) liveFolder(current, scope.folderId);
+    const templates = liveItems(current, scoped.folderIds(current)).length;
+    const event = auditEvent(eventSource(context, scope.folderId), {
+      action: folder ? "export.folder" : "export.library",
+      targetType: folder ? "folder" : "library",
+      targetId: scope.folderId,
+      targetPath: folder ? folderPath(current, scope.folderId) : "",
+      after: { scope: scope.kind, templates },
+    });
+    return { doc: current, events: [event], result: templates };
+  });
+  const token = context.services.newId();
+  const run: ExportRun = {
+    actor: context.caller.email,
+    kind: scope.kind,
+    folderId: scope.folderId,
+  };
+  context.services.cache.put(
+    runKey(token),
+    JSON.stringify(run),
+    EXPORT_RUN_TTL_S,
+  );
+  return { token, total };
+}
+
+/**
+ * Refuses a page whose token is missing, malformed, expired or evicted, or belongs to another caller or scope;
+ * otherwise extends the token's life by EXPORT_RUN_TTL_S.
+ */
+function checkRun(context: HandlerContext, scope: ExportScope): void {
+  const token = optString(context.args, "token");
+  const raw = isId(token) ? context.services.cache.get(runKey(token)) : null;
+  const run = raw === null ? null : (JSON.parse(raw) as ExportRun);
+  if (
+    raw === null ||
+    run?.actor !== context.caller.email ||
+    run.kind !== scope.kind ||
+    run.folderId !== scope.folderId
+  )
+    throw new AppError(ErrorCode.VALIDATION, EXPORT_RESTART);
+  context.services.cache.put(runKey(token), raw, EXPORT_RUN_TTL_S);
+}
+
+/** One page of the export of `scoped`. Grants of folders outside the scope never appear. */
+function exportPage(context: HandlerContext, scoped: Scoped): ExportPage {
+  const { scope } = scoped;
+  checkRun(context, scope);
   const { index } = context.access();
   const offset = optInt(context.args, "offset");
+  const scopeIds = scoped.folderIds(index);
   const folders = index.folders
     .filter((folder) => scopeIds.has(folder.id))
     .map((folder) => ({
@@ -106,9 +196,7 @@ function exportPage(
       principalKey,
       level,
     }));
-  const items = index.items.filter(
-    (item) => item.deletedAt === "" && scopeIds.has(item.folderId),
-  );
+  const items = liveItems(index, scopeIds);
   const page = items.slice(offset, offset + EXPORT_PAGE).map((item) => ({
     meta: {
       id: item.id,
@@ -118,7 +206,7 @@ function exportPage(
       tags: item.tags,
       ...recipientsOf(item),
     },
-    html: readStoredBody(context.services, item),
+    html: readStoredBody(context.services, item, false),
   }));
   const end = offset + page.length;
   return {
@@ -136,23 +224,37 @@ function exportPage(
   };
 }
 
+/** `start: true` starts a run (audit event, token); otherwise one page of the run named by `token`. */
+function runExport(
+  context: HandlerContext,
+  scoped: Scoped,
+): ExportStart | ExportPage {
+  return optBool(context.args, "start")
+    ? startExport(context, scoped)
+    : exportPage(context, scoped);
+}
+
 /** `export.folder` (manage on the folder): the folder and its subtree. */
-export function exportFolder(context: HandlerContext): ExportPage {
-  const { index } = context.access();
-  const root = liveFolder(index, reqString(context.args, "folderId"));
-  return exportPage(context, subtree(index, root.id), {
-    kind: "folder",
-    folderId: root.id,
-    name: root.name,
+export function exportFolder(
+  context: HandlerContext,
+): ExportStart | ExportPage {
+  const root = liveFolder(
+    context.access().index,
+    reqString(context.args, "folderId"),
+  );
+  return runExport(context, {
+    scope: { kind: "folder", folderId: root.id, name: root.name },
+    folderIds: (index) => subtree(index, root.id),
   });
 }
 
 /** `export.library` (admin): every shared folder and its templates. */
-export function exportLibrary(context: HandlerContext): ExportPage {
-  return exportPage(context, libraryFolders(context.access().index), {
-    kind: "library",
-    folderId: "",
-    name: "",
+export function exportLibrary(
+  context: HandlerContext,
+): ExportStart | ExportPage {
+  return runExport(context, {
+    scope: { kind: "library", folderId: "", name: "" },
+    folderIds: libraryFolders,
   });
 }
 
@@ -187,7 +289,7 @@ function reasonOf(error: unknown): string {
  * dropped; too many refuses the whole file).
  */
 function prepareItems(context: HandlerContext, file: ImportFile): Prepared[] {
-  const policy = recipientPolicy(context.services.props);
+  const policy = recipientPolicy(context);
   return file.items.map((record): Prepared => {
     if (!record.ok)
       return { ok: false, label: record.label, reason: record.reason };
@@ -208,12 +310,7 @@ function prepareItems(context: HandlerContext, file: ImportFile): Prepared[] {
           fileFolderId: meta.folderId,
           title: templateTitle(meta.title),
           tags: tagList(meta.tags),
-          body: prepareFor(
-            context.services.props,
-            html,
-            oneLine(meta.subject),
-            recipients,
-          ),
+          body: prepareFor(context, html, oneLine(meta.subject), recipients),
           dropped,
         },
       };
@@ -456,6 +553,7 @@ function commitImport(context: HandlerContext, run: ImportRun): ImportReport {
     const items: Item[] = [];
     const lines = [...placement.lines];
     for (const { ready, folderId } of placement.placed) {
+      recheckRecipients(context, current, ready.body.recipients);
       const body = bodies.get(ready.id);
       if (body === undefined)
         lines.push({

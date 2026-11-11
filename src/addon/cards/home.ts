@@ -26,8 +26,17 @@ const openLibraryButton = {
   buttons: [{ text: "Open library", action: action("onOpenLink") }],
 } as const satisfies Widget;
 
-/** Wireframe 07 A. */
-function emptySection(): SectionSpec {
+/** Wireframe 07 A; A2 while personal templates are off (D29). */
+function emptySection(view: SidebarHome): SectionSpec {
+  if (view.personalTemplates === "off")
+    return {
+      widgets: [
+        {
+          kind: "text",
+          text: "No templates shared with you yet. Ask your admin for access to a folder.",
+        },
+      ],
+    };
   return {
     widgets: [
       { kind: "text", text: "No templates shared with you yet." },
@@ -77,7 +86,7 @@ function byIds(view: SidebarHome, ids: readonly string[]): SidebarTemplate[] {
 
 function homeSections(view: SidebarHome, entry: Entry): SectionSpec[] {
   // Spec section 7 "no visible templates": an empty private folder still counts as empty.
-  if (view.templates.length === 0) return [emptySection()];
+  if (view.templates.length === 0) return [emptySection(view)];
   return [
     searchSection(""),
     ...listSection(
@@ -111,8 +120,10 @@ export const ECHO_MAX = 60;
 
 /** "No templates match ...": what was searched and how to widen it (spec section 7). */
 export function noMatchText(query: string): string {
+  // By code point, so an emoji is never split into a lone surrogate.
+  const chars = Array.from(query);
   const shown =
-    query.length > ECHO_MAX ? `${query.slice(0, ECHO_MAX)}...` : query;
+    chars.length > ECHO_MAX ? `${chars.slice(0, ECHO_MAX).join("")}...` : query;
   return `No templates match "${shown}". Try fewer words, or remove folder: and tag: from the search.`;
 }
 

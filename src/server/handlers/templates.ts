@@ -30,6 +30,7 @@ import {
   prepareFor,
   readStoredBody,
   readableBody,
+  recheckRecipients,
   recipientPolicy,
 } from "./body";
 import { callerLists, callerRecent, type CallerLists } from "./favorites";
@@ -78,12 +79,19 @@ function listed(context: HandlerContext, folderId: string): ItemView[] {
   const live = new Set(
     index.folders.filter((f) => f.deletedAt === "").map((f) => f.id),
   );
-  return index.items
-    .filter((item) => item.deletedAt === "")
-    .filter((item) => live.has(item.folderId))
-    .filter((item) => folderId === "" || item.folderId === folderId)
-    .map((item) => ({ ...item, level: levelOf(item.folderId) }))
-    .filter((item) => atLeast(item.level, "use"));
+  return (
+    index.items
+      .filter((item) => item.deletedAt === "")
+      .filter((item) => live.has(item.folderId))
+      .filter((item) => folderId === "" || item.folderId === folderId)
+      // Lists absent on items before slice 9 read as [] (spec 5.7); the library search matches them.
+      .map((item) => ({
+        ...item,
+        ...recipientsOf(item),
+        level: levelOf(item.folderId),
+      }))
+      .filter((item) => atLeast(item.level, "use"))
+  );
 }
 
 export interface TrashView extends ItemView {
@@ -191,10 +199,7 @@ export function appliedRecipients(
   context: HandlerContext,
   item: Item,
 ): AppliedRecipients {
-  return splitBlocked(
-    recipientsOf(item),
-    recipientPolicy(context.services.props),
-  );
+  return splitBlocked(recipientsOf(item), recipientPolicy(context));
 }
 
 /**
@@ -248,7 +253,7 @@ function readDraft(context: HandlerContext, stored = NO_RECIPIENTS): Draft {
   const title = templateTitle(reqString(context.args, "title"));
   const tags = tagList(optStringArray(context.args, "tags"));
   const body = prepareFor(
-    context.services.props,
+    context,
     optString(context.args, "html"),
     optString(context.args, "subject"),
     recipientArgs(context, stored),
@@ -324,12 +329,7 @@ export function templateDuplicate(context: HandlerContext): Item {
   const draft: Draft = {
     title: copyTitle(source.title),
     tags: [...source.tags],
-    body: prepareFor(
-      context.services.props,
-      stored,
-      source.subject,
-      recipientsOf(source),
-    ),
+    body: prepareFor(context, stored, source.subject, recipientsOf(source)),
   };
   return addTemplate(context, folderId, draft, "template.duplicate");
 }
@@ -348,6 +348,7 @@ function addTemplate(
   const email = context.caller.email;
   return commit(context, (current) => {
     liveFolder(current, folderId);
+    recheckRecipients(context, current, draft.body.recipients);
     const item: Item = {
       id,
       kind: "template",
@@ -387,6 +388,7 @@ export function templateUpdate(context: HandlerContext): Item {
     checkBaseVersion(before, baseVersion);
     const folderId = moveTo || before.folderId;
     liveFolder(current, folderId);
+    recheckRecipients(context, current, draft.body.recipients);
     const after: Item = {
       ...before,
       ...bodyFields(draft.body, body),

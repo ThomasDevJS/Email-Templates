@@ -1,3 +1,5 @@
+import { displayPath } from "./model";
+
 /**
  * Audit log wording (design system "Admin"): operation names in words, results as one word. The raw name stays in
  * the details drawer; an unknown name shows as it is.
@@ -30,12 +32,13 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
     "trash.purge": "Removed from trash for good",
     "backup.restore": "Backup restored",
     "backup.list": "Backups listed",
-    "export.folder": "Folder exported",
-    "export.library": "Library exported",
+    "export.folder": "Folder export started",
+    "export.library": "Library export started",
     import: "Templates imported",
     "membership.refresh": "Memberships refreshed",
     "membership.status": "Memberships viewed",
     "config.get": "Config viewed",
+    "config.set": "Setting changed",
     "audit.query": "Audit log viewed",
     "audit.dropped": "Audit events dropped",
     "usage.report": "Usage viewed",
@@ -50,6 +53,21 @@ const ACTION_WORDS: ReadonlyMap<string, string> = new Map(
 
 export function actionWords(action: string): string {
   return ACTION_WORDS.get(action) ?? action;
+}
+
+/**
+ * Action words of an audit row; an export start adds its count and, for a folder, the path: "Library export
+ * started, 25 templates", "Folder export started: Sales / Quotes, 12 templates".
+ */
+export function rowActionWords(row: {
+  readonly action: string;
+  readonly targetPath: string;
+  readonly exportTemplates?: number;
+}): string {
+  const words = actionWords(row.action);
+  if (row.exportTemplates === undefined) return words;
+  const path = row.targetPath === "" ? "" : `: ${displayPath(row.targetPath)}`;
+  return `${words}${path}, ${plural(row.exportTemplates, "template")}`;
 }
 
 /** Result word and tint: the word is the tag, the tint repeats it. */
@@ -70,19 +88,22 @@ export function resultTag(result: string): { word: string; tone: Tone } {
   }
 }
 
-/**
- * "Empty trash" result in the unit of its dialog: templates, then the deleted folders that went with them.
- * `purged` counts both (server `trash.purge`); `before` and `after` are the trash rows around the purge.
- */
-export function purgeText(
-  before: number,
-  after: number,
-  purged: number,
-): string {
-  const templates = Math.min(purged, Math.max(0, before - after));
-  const folders = purged - templates;
-  const plural = (n: number, word: string) =>
-    `${String(n)} ${word}${n === 1 ? "" : "s"}`;
+/** "1 template", "2 templates". */
+export function plural(n: number, word: string): string {
+  return `${String(n)} ${word}${n === 1 ? "" : "s"}`;
+}
+
+/** The "Empty trash" confirmation for the `count` templates in the list. */
+export function emptyTrashQuestion(count: number): string {
+  const what =
+    count === 1
+      ? "The 1 template in it is"
+      : `All ${plural(count, "template")} in it are`;
+  return `Empty the trash? ${what} removed for good, and deleted folders go too. This cannot be undone.`;
+}
+
+/** "Empty trash" result from the server's counts (`trash.purge` `templates`, `folders`). */
+export function purgeText(templates: number, folders: number): string {
   return folders === 0
     ? `Emptied the trash: ${plural(templates, "template")} removed for good.`
     : `Emptied the trash: ${plural(templates, "template")} and ${plural(folders, "deleted folder")} removed for good.`;

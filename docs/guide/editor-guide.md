@@ -2,7 +2,7 @@
 
 For managers and editors who write templates. The [quick start](user-quick-start.md) covers inserting templates in Gmail.
 
-You edit templates in folders where you hold the level `edit` or `manage`. Every person can edit their own "My templates" folder. The [admin guide](admin-guide.md) explains levels and grants.
+You edit templates in folders where you hold the level `edit` or `manage`. Every person can edit their own "My templates" folder while an admin has personal templates on; when they are off, "My templates" is read only ("Personal templates are turned off by your admin."). The [admin guide](admin-guide.md) explains levels and grants.
 
 ## The library
 
@@ -122,7 +122,7 @@ A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 2
 
 - Type an address, then Enter, comma, semicolon or space: it becomes a chip. Pasting a list makes one chip per address. Leaving the field does the same. Backspace in the empty field removes the last chip; each chip has its own × button.
 - An address outside migway.com shows "outside migway.com" under its chip. Bcc shows "Hidden from the other recipients of the email."
-- Mistakes show under the field at once, with the same text the save uses: "Cc, address 2 is not an email address. Use the form name@company.com.", "Cc holds 11 addresses. Use at most 10 per field.", "safety@migway.com is in both To and Cc. Keep it in one field.". When the owner turned outside addresses off, an outside chip turns red: "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save."
+- Mistakes show under the field at once, with the same text the save uses: "Cc, address 2 is not an email address. Use the form name@company.com.", "Cc holds 11 addresses. Use at most 10 per field.", "safety@migway.com is in both To and Cc. Keep it in one field.". When an admin set "Outside recipients" to "migway.com only" (Admin, Config, Settings), an outside chip turns red and Save refuses it: "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save."
 - Save always sends all three fields; removing every chip of a field clears it.
 
 Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting.

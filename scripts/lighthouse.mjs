@@ -1,7 +1,8 @@
 // `npm run lighthouse`: builds the web app with the dev harness, serves it on 127.0.0.1 and runs the Lighthouse
-// accessibility audit on the library, editor, history, the 6 admin tabs and trash views, plus the library, the
-// editor and the admin audit tab in the dark theme (spec section 8; the design system requires 100). Chrome:
-// CHROME_PATH, else the preinstalled /opt/pw-browsers/chromium. No browser is downloaded.
+// accessibility audit on the library (also with personal templates off), editor, history, the 6 admin tabs and
+// trash views, plus the library, the editor, the admin audit tab and the admin config tab in the dark theme (spec
+// section 8; the design system requires 100). Chrome: CHROME_PATH, else the preinstalled /opt/pw-browsers/chromium.
+// No browser is downloaded.
 import { launch } from "chrome-launcher";
 import { existsSync } from "node:fs";
 import lighthouse from "lighthouse";
@@ -22,12 +23,14 @@ const VIEWS = [
   ["admin export and import", "?latency=0#/admin/transfer"],
   ["admin config", "?latency=0#/admin/config"],
   ["trash", "?latency=0#/trash"],
+  ["library personal off", "?latency=0&personal=off#/library?folder=F-MINE"],
 ];
 /** Chrome's `--force-dark-mode` makes `prefers-color-scheme: dark` match. */
 const DARK_VIEWS = [
   ["library dark", "?latency=0#/library"],
   ["editor dark", "?latency=0#/edit/T-QUOTE"],
   ["admin audit dark", "?latency=0#/admin/audit"],
+  ["admin config dark", "?latency=0#/admin/config"],
 ];
 
 function chromePath() {

@@ -24,12 +24,18 @@ import {
   ROOT,
   type MatrixAction,
 } from "../../../src/shared/permissions/matrix";
+import type { StoredSettings } from "../../../src/shared/model/settings";
 import {
   domainOf,
   isAdminEmail,
   principalKey,
   principalsFor,
 } from "../../../src/shared/permissions/principals";
+
+/** Personal templates on (D11 rules); absent settings read as off (D29). */
+const ON: StoredSettings = {
+  personalTemplates: { value: "on", updatedAt: "", updatedBy: "" },
+};
 
 function folder(
   id: string,
@@ -209,9 +215,13 @@ const TARGETS: Readonly<Record<MatrixAction, readonly string[]>> = {
   "private.self": ["MINE"],
 };
 
-function worldFor(role: Role): { subject: Subject; data: PermissionData } {
+function worldFor(
+  role: Role,
+  settings: StoredSettings = ON,
+): { subject: Subject; data: PermissionData } {
   const email = `${role}@example.com`;
   const data: PermissionData = {
+    settings,
     folders: [
       folder("P"),
       folder("F", "P"),
@@ -254,6 +264,24 @@ describe("role matrix (ADR-0003 Part C): 17 actions x 4 roles", () => {
       );
     }
     expect(PRIVATE_OWNER_LEVEL).toBe("edit");
+  });
+
+  it("while personal templates are off, gives owner and admins `use` on a private tree, nothing above (D29)", () => {
+    for (const role of ROLES) {
+      const { subject: who, data } = worldFor(role, {});
+      const levelOf = levelResolver(who, data);
+      expect(levelOf("MINE")).toBe("use");
+      expect(levelOf("F")).toBe(
+        worldFor(role).data.grants[0]?.level ?? "manage",
+      );
+      for (const action of Object.keys(ROLE_MATRIX) as MatrixAction[]) {
+        const need = ROLE_MATRIX[action];
+        if (need.kind !== "level") continue;
+        expect(checkNeed(need, who.isAdmin, levelOf, ["MINE"])).toBe(
+          need.level === "use",
+        );
+      }
+    }
   });
 });
 
@@ -336,6 +364,7 @@ describe("effective level: inheritance, private folders, moves", () => {
 
   it("gives the private folder owner `edit` on the folder and its subfolders, ignores grants there (D11)", () => {
     const data = {
+      settings: ON,
       folders,
       grants: [grant("PRIV", "domain", "example.com", "manage")],
     };
@@ -346,6 +375,25 @@ describe("effective level: inheritance, private folders, moves", () => {
       "none",
     );
     expect(levelResolver(subject("bob@example.com", true), data)("PRIV")).toBe(
+      "manage",
+    );
+  });
+
+  it("while personal templates are off: owner and admin `use`, others none, grants still ignored (D29)", () => {
+    const data = {
+      folders,
+      grants: [grant("PRIV", "domain", "example.com", "manage")],
+    };
+    expect(levelResolver(subject("ana@example.com"), data)("PRIVSUB")).toBe(
+      "use",
+    );
+    expect(levelResolver(subject("bob@example.com"), data)("PRIV")).toBe(
+      "none",
+    );
+    expect(levelResolver(subject("bob@example.com", true), data)("PRIV")).toBe(
+      "use",
+    );
+    expect(levelResolver(subject("bob@example.com", true), data)("A")).toBe(
       "manage",
     );
   });

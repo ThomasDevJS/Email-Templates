@@ -21,7 +21,10 @@ import {
 } from "../../../src/server/handlers/config";
 import {
   EXPORT_PAGE,
+  EXPORT_RESTART,
+  EXPORT_RUN_TTL_S,
   type ExportPage,
+  type ExportStart,
   type ImportReport,
 } from "../../../src/server/handlers/transfer";
 import { runDaily } from "../../../src/server/jobs/daily";
@@ -34,7 +37,7 @@ import {
 } from "../../../src/shared/model/validate";
 import type { Surface } from "../../../src/shared/log/logger";
 import { requireStoreIds } from "../../../src/server/storage/setupStore";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -147,14 +150,21 @@ type Case = (f: Fixture) => [string, unknown];
 const OPS: Readonly<Record<string, Case>> = {
   "audit.query": () => ["audit.query", {}],
   "usage.report": () => ["usage.report", {}],
-  "export.folder": (f) => ["export.folder", { folderId: f.quotes.id }],
-  "export.library": () => ["export.library", {}],
+  "export.folder": (f) => [
+    "export.folder",
+    { folderId: f.quotes.id, start: true },
+  ],
+  "export.library": () => ["export.library", { start: true }],
   "import (validate)": (f) => [
     "import",
     { folderId: f.quotes.id, file: f.file, dryRun: true },
   ],
   import: (f) => ["import", { folderId: f.quotes.id, file: f.file }],
   "config.get": () => ["config.get", {}],
+  "config.set": () => [
+    "config.set",
+    { name: "personalTemplates", value: "on", baseAt: "", baseBy: "" },
+  ],
   "backup.list": () => ["backup.list", {}],
   "backup.restore": () => [
     "backup.restore",
@@ -171,6 +181,7 @@ const EXPECTED: Readonly<Record<string, readonly string[]>> = {
   "import (validate)": ADMIN_ONLY,
   import: ADMIN_ONLY,
   "config.get": ADMIN_ONLY,
+  "config.set": ADMIN_ONLY,
   "backup.list": ADMIN_ONLY,
   "backup.restore": ADMIN_ONLY,
 };
@@ -196,7 +207,7 @@ describe("role matrix of the slice 6b ops", () => {
     }
   });
 
-  it("re-checks the admin inside the lock on backup.restore and import", () => {
+  it("re-checks the admin inside the lock on backup.restore, import and config.set", () => {
     const f = fixture("admin");
     const date = new Date(world.clock.now).toISOString().slice(0, 10);
     const tryLock = world.lock.tryLock.bind(world.lock);
@@ -208,6 +219,16 @@ describe("role matrix of the slice 6b ops", () => {
     expect(
       codeOf(OWNER, "import", { folderId: f.quotes.id, file: f.file }),
     ).toBe("DENIED");
+    world.props.setProperty("ADMIN_EMAILS", OWNER);
+    expect(
+      codeOf(OWNER, "config.set", {
+        name: "personalTemplates",
+        value: "on",
+        baseAt: "",
+        baseBy: "",
+      }),
+    ).toBe("DENIED");
+    expect(fileIndex().settings).toBeUndefined();
   });
 });
 
@@ -387,21 +408,196 @@ describe("usage.report", () => {
   });
 });
 
+/** Starts an export run and reads all its pages with the run token. */
 function exportAll(
   caller: string,
   op: string,
   args: object = {},
 ): { header: ExportPage["header"]; items: ExportPage["items"] } {
-  let page = world.ok<ExportPage>(caller, op, args);
+  const { token } = world.ok<ExportStart>(caller, op, { ...args, start: true });
+  let page = world.ok<ExportPage>(caller, op, { ...args, token });
   const items = [...page.items];
   while (page.next !== null) {
-    page = world.ok<ExportPage>(caller, op, { ...args, offset: page.next });
+    page = world.ok<ExportPage>(caller, op, {
+      ...args,
+      token,
+      offset: page.next,
+    });
     items.push(...page.items);
   }
   return { header: page.header, items };
 }
 
 describe("export", () => {
+  beforeEach(() => {
+    // D11 rules: personal templates on (D29 default is off).
+    setSetting(world, "personalTemplates", "on");
+  });
+
+  const exportEvents = () =>
+    fileIndex().pendingAudit.filter((event) =>
+      event.action.startsWith("export."),
+    );
+
+  it("commits one audit event per export run with who, scope and count, and no content", () => {
+    const sales = folder("Sales");
+    for (let n = 0; n < EXPORT_PAGE + 1; n++)
+      template(sales.id, `T${String(n)}`, "Secret subject", "<p>Secret</p>");
+    exportAll(OWNER, "export.folder", { folderId: sales.id });
+    expect(exportEvents()).toHaveLength(1);
+    exportAll(OWNER, "export.library");
+    const total = EXPORT_PAGE + 1;
+    const events = exportEvents();
+    expect(events).toEqual([
+      expect.objectContaining({
+        action: "export.folder",
+        actor: OWNER,
+        targetType: "folder",
+        targetId: sales.id,
+        targetPath: "/Sales",
+        after: { scope: "folder", templates: total },
+        result: "ok",
+      }),
+      expect.objectContaining({
+        action: "export.library",
+        targetType: "library",
+        targetId: "",
+        after: { scope: "library", templates: total },
+      }),
+    ]);
+    expect(JSON.stringify(events)).not.toContain("Secret");
+    const rows = world
+      .ok<AuditQueryResult>(OWNER, "audit.query", { month: "2026-11" })
+      .rows.filter((entry) => entry.action.startsWith("export."));
+    expect(rows.map((entry) => entry.exportTemplates)).toEqual([total, total]);
+  });
+
+  it("answers no export data without a committed start for this caller and scope", () => {
+    const sales = folder("Sales");
+    const hr = folder("HR");
+    grant(sales.id, ANA, "manage");
+    grant(hr.id, ANA, "manage");
+    for (let n = 0; n < 25; n++)
+      template(sales.id, `T${String(n)}`, "", "<p>Secret</p>");
+    const mine = world.ok<ExportStart>(OWNER, "export.library", {
+      start: true,
+    });
+    const ana = world.ok<ExportStart>(ANA, "export.folder", {
+      folderId: hr.id,
+      start: true,
+    });
+    expect(exportEvents()).toHaveLength(2);
+    const refused = (caller: string, op: string, args: object) => {
+      const response = world.call(caller, op, args);
+      expect(response).toMatchObject({
+        ok: false,
+        error: { code: "VALIDATION", message: EXPORT_RESTART },
+      });
+      expect(JSON.stringify(response)).not.toContain("Secret");
+    };
+    for (const offset of [0, 1, 21, 25, 1000])
+      refused(OWNER, "export.library", { offset });
+    refused(OWNER, "export.library", { offset: 1, token: "" });
+    refused(OWNER, "export.library", { token: "not-a-token" });
+    refused(OWNER, "export.library", { token: world.services.newId() });
+    refused(OWNER, "export.library", { token: ana.token });
+    refused(ANA, "export.folder", { folderId: sales.id, token: ana.token });
+    refused(ANA, "export.folder", { folderId: sales.id, token: mine.token });
+    refused(OWNER, "export.folder", { folderId: hr.id, token: mine.token });
+    const page = (offset: number) =>
+      world.ok<ExportPage>(OWNER, "export.library", {
+        offset,
+        token: mine.token,
+      });
+    expect(page(1).items).toHaveLength(EXPORT_PAGE);
+    expect(page(21).items).toHaveLength(4);
+    expect(page(25)).toMatchObject({ items: [], next: null });
+    expect(exportEvents()).toHaveLength(2);
+  });
+
+  it("refuses a page once the token expired, also on replay, and keeps a token alive while pages arrive", () => {
+    const sales = folder("Sales");
+    template(sales.id, "T", "", "<p>Secret</p>");
+    const { token } = world.ok<ExportStart>(OWNER, "export.library", {
+      start: true,
+    });
+    const page = () => world.call(OWNER, "export.library", { token });
+    for (let n = 0; n < 3; n++) {
+      world.clock.now += (EXPORT_RUN_TTL_S - 60) * 1000;
+      expect(page().ok).toBe(true);
+    }
+    world.clock.now += (EXPORT_RUN_TTL_S + 1) * 1000;
+    for (let n = 0; n < 2; n++) {
+      const response = page();
+      expect(response).toMatchObject({
+        ok: false,
+        error: { code: "VALIDATION", message: EXPORT_RESTART },
+      });
+      expect(JSON.stringify(response)).not.toContain("Secret");
+    }
+    world.cache.removeAll(
+      world.cache.keys().filter((k) => k.startsWith("exp:")),
+    );
+    const evicted = world.ok<ExportStart>(OWNER, "export.library", {
+      start: true,
+    });
+    world.cache.removeAll([`exp:${evicted.token}`]);
+    expect(
+      world.call(OWNER, "export.library", { token: evicted.token }),
+    ).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
+  });
+
+  it("does not start an export when its audit event cannot be committed", () => {
+    const sales = folder("Sales");
+    template(sales.id, "T", "", "<p>Secret</p>");
+    const before = fileIndex().rev;
+    world.lock.tryLock = () => false;
+    const busy = world.call(OWNER, "export.folder", {
+      folderId: sales.id,
+      start: true,
+    });
+    expect(busy).toMatchObject({
+      ok: false,
+      error: { code: "BUSY", retryable: true },
+    });
+    expect(JSON.stringify(busy)).not.toContain("Secret");
+    expect(fileIndex().rev).toBe(before);
+    expect(exportEvents()).toHaveLength(0);
+    expect(world.cache.keys().some((k) => k.startsWith("exp:"))).toBe(false);
+  });
+
+  it("keeps the event of a cold 1,000-template export and caches none of its bodies", () => {
+    const sales = folder("Sales");
+    for (let run = 0; run < 5; run++) {
+      const items = Array.from({ length: IMPORT_ITEMS_MAX }, (_, n) => ({
+        meta: { title: `T${String(run)}-${String(n)}` },
+        html: "<p>x</p>",
+      }));
+      const file = JSON.stringify({ schemaVersion: 1, folders: [], items });
+      world.ok(OWNER, "import", { folderId: sales.id, file });
+    }
+    world.clock.now += 7 * HOUR_MS;
+    const put = world.cache.put.bind(world.cache);
+    const bodyPuts: string[] = [];
+    world.cache.put = (key, value, ttl) => {
+      if (key.startsWith("bd:")) bodyPuts.push(key);
+      put(key, value, ttl);
+    };
+    const data = exportAll(OWNER, "export.library");
+    expect(data.items).toHaveLength(1000);
+    expect(bodyPuts).toHaveLength(0);
+    const logged = () =>
+      world
+        .ok<AuditQueryResult>(OWNER, "audit.query", {
+          month: "2026-11",
+          action: "export.library",
+        })
+        .rows.map((row) => row.exportTemplates);
+    expect(logged()).toEqual([1000]);
+    runTick(world.services);
+    expect(logged()).toEqual([1000]);
+  });
+
   it("exports the folder subtree with subjects and only the grants inside it", () => {
     const sales = folder("Sales");
     const quotes = folder("Quotes", sales.id);
@@ -457,7 +653,11 @@ describe("export", () => {
     });
     world.cache.removeAll(fileIndex().items.map((i) => `bd:${i.bodyFileId}`));
     world.ok(OWNER, "config.get");
-    const first = world.ok<ExportPage>(OWNER, "export.library");
+    const { token } = world.ok<ExportStart>(OWNER, "export.library", {
+      start: true,
+    });
+    world.ok(OWNER, "config.get");
+    const first = world.ok<ExportPage>(OWNER, "export.library", { token });
     expect(first.items).toHaveLength(EXPORT_PAGE);
     expect(lastCalls().drive).toBe(EXPORT_PAGE);
     expect(first.next).toBe(EXPORT_PAGE);
@@ -473,6 +673,11 @@ function importFile(file: object): string {
 }
 
 describe("import", () => {
+  beforeEach(() => {
+    // D11 rules: personal templates on (D29 default is off).
+    setSetting(world, "personalTemplates", "on");
+  });
+
   it("re-imports an exported folder into a new folder with its subject, then skips it the second time", () => {
     const sales = folder("Sales");
     const sub = folder("Sub", sales.id);

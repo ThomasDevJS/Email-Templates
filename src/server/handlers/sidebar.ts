@@ -1,4 +1,5 @@
 import type { Folder, IndexDoc, Item } from "../../shared/model/data";
+import { settingValue } from "../../shared/model/settings";
 import {
   recipientsOf,
   splitBlocked,
@@ -133,7 +134,7 @@ function visibleTemplates(context: HandlerContext) {
   const templates = index.items
     .filter((item) => item.deletedAt === "" && visible.has(item.folderId))
     .sort((a, b) => a.title.localeCompare(b.title));
-  const policy = recipientPolicy(context.services.props);
+  const policy = recipientPolicy(context);
   const listed = (item: Item) => toTemplate(item, levelOf, policy);
   return { visible, parentOf, templates, listed };
 }
@@ -162,6 +163,10 @@ export function sidebarHome(context: HandlerContext): SidebarHome {
     templates,
     favorites: lists.favorites.slice(0, FAVORITES_SHOWN),
     recent: lists.recent.slice(0, RECENT_SHOWN),
+    personalTemplates: settingValue(
+      context.access().index.settings,
+      "personalTemplates",
+    ),
   };
 }
 

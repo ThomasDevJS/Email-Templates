@@ -172,6 +172,22 @@ describe("home card (wireframe 01)", () => {
     expect(card).not.toHaveProperty("footer");
   });
 
+  it("shows the empty state of wireframe 07 A2 while personal templates are off", () => {
+    const card = homeCard(
+      view({
+        folders: [],
+        subfolders: [],
+        templates: [],
+        personalTemplates: "off",
+      }),
+      "compose",
+    );
+    expect(texts(card)).toEqual([
+      "No templates shared with you yet. Ask your admin for access to a folder.",
+    ]);
+    expect(buttons(card)).toEqual([]);
+  });
+
   it("shows the empty state when the only folder is the caller's empty private folder", () => {
     const card = homeCard(
       view({
@@ -218,6 +234,16 @@ describe("search card (spec 4.4)", () => {
     ]);
     expect(noMatchText("y".repeat(ECHO_MAX))).toContain(
       `"${"y".repeat(ECHO_MAX)}"`,
+    );
+  });
+
+  it("cuts the echoed query by characters, so an emoji is never split", () => {
+    const text = noMatchText(`${"a".repeat(ECHO_MAX - 1)}😀😀`);
+    expect(text).toContain(`"${"a".repeat(ECHO_MAX - 1)}😀..."`);
+    // No high surrogate without its low half.
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(text)).toBe(false);
+    expect(noMatchText("😀".repeat(ECHO_MAX))).toContain(
+      `"${"😀".repeat(ECHO_MAX)}"`,
     );
   });
 

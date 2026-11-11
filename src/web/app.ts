@@ -23,7 +23,7 @@ import {
   showToast,
   toRpcError,
 } from "./ui/status";
-import { setInert, trapTab } from "./ui/dialog";
+import { cancelDialogs, setInert, trapTab } from "./ui/dialog";
 import { h } from "./ui/dom";
 import { icon, iconSprite } from "./ui/icons";
 import { initials, shortName } from "./ui/person";
@@ -307,7 +307,10 @@ export function startApp(host: Host): AppContext {
     if (routeHash(next) === expected) return;
     const open = () => {
       favoritesOnly = false;
+      // A dialog or drawer belongs to the page being left; nothing may stay inert behind the new one.
+      cancelDialogs();
       render(next);
+      if (document.activeElement === document.body) main.focus();
     };
     // While the view asks, the address goes back to it; leaving later moves it on again.
     const held = view?.canLeave?.(() => {

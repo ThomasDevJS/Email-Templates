@@ -18,7 +18,7 @@ import {
 } from "../../../src/addon/flows";
 import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
 import { FakeCache } from "../../fakes/cache";
-import { OWNER, setupWorld, type World } from "../../fakes/world";
+import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
 
 /** Template recipients in the add-on (spec 5.7, wireframe 02): Review rows, cards, `rh` check, actions. */
 const ANA = "ana@example.com";
@@ -295,7 +295,7 @@ describe("preview card and Insert", () => {
 
   it("deny: the blocked address is listed as not added and never inserted", () => {
     const item = create();
-    world.props.setProperty("RECIPIENTS_EXTERNAL", "deny");
+    setSetting(world, "recipientsExternal", "deny");
     const card = cardOf(previewFlow(ports(), newDraft, { id: item.id }));
     expect(texts(card)).toContain(
       `Not added: ${BCC}. Outside example.com, turned off by your admin.`,

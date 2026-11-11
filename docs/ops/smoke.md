@@ -134,20 +134,6 @@ Needs: the dev deployment of this build, the owner account (admin) and the secon
 9. Dev data only. Restore from backup, pick the newest date: the dialog names the date and has Cancel focused. Confirm: "Restored the backup of <date>." This overwrites `index.json`, `favorites.json` and `usage.json` with the copies of that night, so `Smoke 6b` and everything made after the backup leave the library. Audit log: a `backup.restore` row with your address.
 10. Apps Script editor, Executions: the `import`, `export.folder` and `backup.restore` lines carry `action`, `actor`, `targetId` (the folder ID for import and export, empty for the restore), result, timing and calls; no title, subject, body or file content.
 
-## Slice 9
-
-Needs: the dev deployment of this build (reopen the add-on). Set the recipients in the web editor (slice 8b): the To, Cc and Bcc fields in the Details panel on the right; type an address and press Enter to make it a chip, then Save. Template "Smoke 9 recipients" in a shared folder, Subject `Smoke 9`, body `Hello`, To `s9-to@migway.com`, Cc `s9-cc@migway.com` and `s9-outside@example.com`, Bcc `s9-bcc@migway.com`; template "Smoke 9 plain" with body `Plain` and no recipients. Script Property `RECIPIENTS_EXTERNAL` unset. Nothing is sent: discard every draft. The compose card is modal: type addresses until each one is a chip, click into the draft body, then open the add-on from the draft's toolbar.
-
-1. New draft, empty. Open the folder: the row "Smoke 9 recipients" says "Adds To 1, Cc 2, Bcc 1" and has "Review", not Insert. Review: the "Recipients" section lists To `s9-to`, Cc `s9-cc`, Cc `s9-outside@example.com` with "outside migway.com", Bcc `s9-bcc` with "hidden from other recipients", and "Finish typing addresses in the draft first: an address still being typed is lost."; then "Sets the draft subject." and "Adds 4 recipients."; buttons Insert and "Insert body only". Insert: body `Hello`, Subject `Smoke 9`, all 4 addresses in their fields, the Bcc line open.
-2. New draft, To `a@migway.com` and Cc `b@migway.com` typed as chips. Review: "Not added: s9-to@migway.com. The draft already has a To recipient." and "Adds 3 recipients.". Insert: To holds only `a@`; Cc holds `b@`, `s9-cc@`, `s9-outside@`; Bcc holds `s9-bcc@`. No address lost.
-3. Reply to a received message, then Review: the To line is "Not added", "The draft already has a subject. It is kept.", buttons Insert, "Insert with subject", "Insert body only". Insert: To and Subject kept, Cc and Bcc added, the draft stays in its conversation. Forward of a message: Insert fills To with `s9-to@`.
-4. New draft, Cc `s9-cc@migway.com` typed as a chip. Review: "Not added: s9-cc@migway.com. It is already in the draft." Insert: one `s9-cc` chip.
-5. Changed recipients under an open card: new draft, Review, keep the card open. In the script editor set Script Property `RECIPIENTS_EXTERNAL` to `deny`. Tap Insert: the draft does not change and the card shows "(!) The recipients of this template changed. Check them and press Insert again." with "Not added: s9-outside@example.com. Outside migway.com, turned off by your admin." Insert again: every address but `s9-outside@` is added.
-6. `deny` on the list: tap "Open library" and close it (this drops the cached list), open the folder: the row says "Adds To 1, Cc 1, Bcc 1". Then delete the `RECIPIENTS_EXTERNAL` property (back to allowed).
-7. "Insert body only": new draft, Review, "Insert body only": body `Hello` only; Subject, To, Cc and Bcc stay empty.
-8. Regression: new draft, row "Smoke 9 plain" shows Insert and no "Adds" line. One tap inserts `Plain` at the cursor.
-9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `draft` with counts and `hasSubject` only. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
-
 ## Slice 8b
 
 Needs: the dev deployment of this build (open the web app `/dev` URL), the owner account, the second account from slice 2 with `use` on one shared folder, and a public `https` image wider than 600 pixels plus one narrower than 600 pixels.
@@ -160,6 +146,35 @@ Needs: the dev deployment of this build (open the web app `/dev` URL), the owner
 6. History: the version of step 4 shows its To and Cc lines above the subject.
 7. Second account, open a template of the `use` folder by its link: no toolbar, no Save, no History; the note "You can use this template but not change it. To change it, ask a folder manager for edit access."; title, subject and folder cannot be changed; the chips have no × button.
 8. Narrow window (about 390 pixels wide, or the browser's device mode): no sideways scroll; the toolbar scrolls inside its row; the panel sits below the sheet with "Details", "The sender fills in" and "Preview" as collapsible headings.
+
+## Slice 9
+
+Needs: the dev deployment of this build (reopen the add-on). Set the recipients in the web editor (slice 8b): the To, Cc and Bcc fields in the Details panel on the right; type an address and press Enter to make it a chip, then Save. Template "Smoke 9 recipients" in a shared folder, Subject `Smoke 9`, body `Hello`, To `s9-to@migway.com`, Cc `s9-cc@migway.com` and `s9-outside@example.com`, Bcc `s9-bcc@migway.com`; template "Smoke 9 plain" with body `Plain` and no recipients. Admin, Config, Settings, Outside recipients: allowed. Nothing is sent: discard every draft. The compose card is modal: type addresses until each one is a chip, click into the draft body, then open the add-on from the draft's toolbar.
+
+1. New draft, empty. Open the folder: the row "Smoke 9 recipients" says "Adds To 1, Cc 2, Bcc 1" and has "Review", not Insert. Review: the "Recipients" section lists To `s9-to`, Cc `s9-cc`, Cc `s9-outside@example.com` with "outside migway.com", Bcc `s9-bcc` with "hidden from other recipients", and "Finish typing addresses in the draft first: an address still being typed is lost."; then "Sets the draft subject." and "Adds 4 recipients."; buttons Insert and "Insert body only". Insert: body `Hello`, Subject `Smoke 9`, all 4 addresses in their fields, the Bcc line open.
+2. New draft, To `a@migway.com` and Cc `b@migway.com` typed as chips. Review: "Not added: s9-to@migway.com. The draft already has a To recipient." and "Adds 3 recipients.". Insert: To holds only `a@`; Cc holds `b@`, `s9-cc@`, `s9-outside@`; Bcc holds `s9-bcc@`. No address lost.
+3. Reply to a received message, then Review: the To line is "Not added", "The draft already has a subject. It is kept.", buttons Insert, "Insert with subject", "Insert body only". Insert: To and Subject kept, Cc and Bcc added, the draft stays in its conversation. Forward of a message: Insert fills To with `s9-to@`.
+4. New draft, Cc `s9-cc@migway.com` typed as a chip. Review: "Not added: s9-cc@migway.com. It is already in the draft." Insert: one `s9-cc` chip.
+5. Changed recipients under an open card: new draft, Review, keep the card open. In the web app, Admin, Config, Settings, "Outside recipients": choose "migway.com only", Save, confirm "Allow only migway.com". Tap Insert: the draft does not change and the card shows "(!) The recipients of this template changed. Check them and press Insert again." with "Not added: s9-outside@example.com. Outside migway.com, turned off by your admin." Insert again: every address but `s9-outside@` is added.
+6. `deny` on the list: tap "Open library" and close it (this drops the cached list), open the folder: the row says "Adds To 1, Cc 1, Bcc 1". Then Admin, Config, Settings, "Outside recipients": choose "Allowed" and Save (back to allowed).
+7. "Insert body only": new draft, Review, "Insert body only": body `Hello` only; Subject, To, Cc and Bcc stay empty.
+8. Regression: new draft, row "Smoke 9 plain" shows Insert and no "Adds" line. One tap inserts `Plain` at the cursor.
+9. Apps Script editor, Executions: the `template.apply` lines of steps 1 to 8 carry `draft` with counts and `hasSubject` only. No line holds `s9-`, `a@migway.com`, `b@migway.com` or `example.com`.
+
+## Slice 11
+
+Needs: the dev deployment of this build; the owner (admin) in two browser tabs on Admin, Config; the pilot account with an existing "My templates" folder holding at least one template; a second domain account that never opened the library ("new user"); a shared folder with the pilot at `use` and one template whose Cc holds `s11-out@example.com`. Nothing is sent: discard every draft.
+
+1. Before the run, Apps Script editor, Script Properties: note whether `RECIPIENTS_EXTERNAL` exists (Q50). If it is `deny`, write that down; the app ignores it from now on.
+2. Config tab, Settings: "Personal templates" shows Off and "Default, never changed."; "Outside recipients" shows Allowed and "Default, never changed.". The Environment list has no `RECIPIENTS_EXTERNAL` row.
+3. Pilot, library, "My templates": the line "Personal templates are turned off by your admin. You can still insert these templates." and no New template button; the row menu has no Edit, Move, Duplicate or Delete. Gmail draft: the pilot inserts a personal template; the text arrives. Opening one in the editor and pressing Save answers "Personal templates are turned off by your admin."
+4. New user, library: no "My templates" folder; with no shared folder: "No templates shared with you yet. Ask your admin for access to a folder." Gmail panel, compose: the same sentence and no button.
+5. Owner, tab 1: Personal templates, On, Save: no dialog, "Saved. Personal templates are on for every user from their next action." and "Last change: <owner> on <time>.". New user reloads the library: "My templates" appears. Pilot reloads: New template is back, an edit saves.
+6. Owner, tab 2 (not reloaded, still shows Off): pick On, Save: "<owner> changed this setting on <time>. The page now shows the current value."; the group shows On.
+7. Owner, tab 1: Off, Save: the dialog "Turn off personal templates?" with Cancel focused; Cancel keeps On; Save, "Turn off": saved. The pilot's templates and favorites are all still listed and insertable.
+8. Outside recipients: "example.com only" (migway.com on dev), Save, confirm "Allow only migway.com". Gmail draft, Review the template with `s11-out@example.com`: "Not added: s11-out@example.com. Outside migway.com, turned off by your admin." Editor Save of that template answers the `RCPT_EXTERNAL` text. Back to Allowed, Save (no dialog): Insert adds the address again.
+9. Audit log tab: 4 "Setting changed" rows (steps 5, 7, 8 twice) with before and after in the details; step 6 wrote none. Executions: the `config.set` log lines carry `targetId` "" and no "on", "off", "allow" or "deny".
+10. If step 1 found `RECIPIENTS_EXTERNAL`: delete it, and set "migway.com only" in Settings if it was `deny`.
 
 ## Slice 12
 

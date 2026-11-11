@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   NO_RECIPIENTS,
-  externalRule,
   importRecipients,
   isAddress,
   isOutside,
@@ -56,13 +55,6 @@ describe("normalization", () => {
     });
     expect(unreadableRecipients(stored)).toEqual(["cc", "bcc"]);
     expect(unreadableRecipients({})).toEqual([]);
-  });
-
-  it("treats only `deny` (any case, spaces) as deny", () => {
-    expect(externalRule(null)).toBe("allow");
-    expect(externalRule("")).toBe("allow");
-    expect(externalRule("no")).toBe("allow");
-    expect(externalRule(" DENY ")).toBe("deny");
   });
 });
 

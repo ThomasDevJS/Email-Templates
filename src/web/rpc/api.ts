@@ -10,6 +10,12 @@ import type {
   RecipientField,
   Recipients,
 } from "../../shared/model/recipients";
+import type {
+  SettingEntry,
+  SettingName,
+  SettingValue,
+  Settings,
+} from "../../shared/model/settings";
 import type { AccessLevel } from "../../shared/permissions/levels";
 import type { RpcClient } from "./client";
 
@@ -125,7 +131,9 @@ export interface AuditFilter {
   readonly page: number;
 }
 
-export type AuditRow = Omit<AuditEvent, "before" | "after">;
+export type AuditRow = Omit<AuditEvent, "before" | "after"> & {
+  readonly exportTemplates?: number;
+};
 
 export interface AuditPage {
   readonly month: string;
@@ -156,6 +164,12 @@ export interface ExportPage {
   readonly items: readonly unknown[];
   readonly total: number;
   readonly next: number | null;
+}
+
+/** Answer of an export start: the run token for the page calls and the templates in scope. */
+export interface ExportStart {
+  readonly token: string;
+  readonly total: number;
 }
 
 export interface ReportLine {
@@ -193,8 +207,8 @@ export interface ConfigView {
   readonly appVersion: string;
   readonly indexBytes: number;
   readonly indexWarnBytes: number;
-  /** Spec 5.7 `RECIPIENTS_EXTERNAL`; `config.get` does not return it yet, so the Config tab shows no row. */
-  readonly recipientsExternal?: "allow" | "deny";
+  /** Admin settings (D29, spec 5.8), defaults filled in. */
+  readonly settings: Settings;
   readonly jobs: readonly JobRow[];
   readonly triggersError: string;
 }
@@ -232,6 +246,8 @@ export interface Api {
   /** `itemsPending`: purged templates whose stored versions the daily job removes. */
   purgeTrash(): Promise<{
     purged: number;
+    templates: number;
+    folders: number;
     filesTrashed: number;
     itemsPending: number;
   }>;
@@ -249,14 +265,25 @@ export interface Api {
   audit(filter: AuditFilter): Promise<AuditPage>;
   auditEvent(month: string, id: string): Promise<{ event: AuditEvent }>;
   usage(): Promise<{ since: string; rows: UsageRow[] }>;
-  /** `folderId` "" exports the whole library (admin). */
-  exportPage(folderId: string, offset: number): Promise<ExportPage>;
+  /** `folderId` "" exports the whole library (admin). The start records the export in the audit log. */
+  exportStart(folderId: string): Promise<ExportStart>;
+  exportPage(
+    folderId: string,
+    offset: number,
+    token: string,
+  ): Promise<ExportPage>;
   importFile(
     folderId: string,
     file: string,
     dryRun: boolean,
   ): Promise<ImportReport>;
   config(): Promise<ConfigView>;
+  /** `config.set`: CONFLICT with the current entry in `details` when `base` is not the last change. */
+  setSetting(
+    name: SettingName,
+    value: SettingValue,
+    base: SettingEntry,
+  ): Promise<SettingEntry & { changed: boolean }>;
   backups(): Promise<{ dates: string[] }>;
   restoreBackup(date: string): Promise<{ date: string; rev: number }>;
 }
@@ -316,13 +343,24 @@ export function createApi(client: RpcClient): Api {
     audit: (filter) => call("audit.query", filter),
     auditEvent: (month, id) => call("audit.query", { month, id }),
     usage: () => call("usage.report"),
-    exportPage: (folderId, offset) =>
+    exportStart: (folderId) =>
       folderId === ""
-        ? call("export.library", { offset })
-        : call("export.folder", { folderId, offset }),
+        ? call("export.library", { start: true })
+        : call("export.folder", { folderId, start: true }),
+    exportPage: (folderId, offset, token) =>
+      folderId === ""
+        ? call("export.library", { offset, token })
+        : call("export.folder", { folderId, offset, token }),
     importFile: (folderId, file, dryRun) =>
       call("import", { folderId, file, dryRun }),
     config: () => call("config.get"),
+    setSetting: (name, value, base) =>
+      call("config.set", {
+        name,
+        value,
+        baseAt: base.updatedAt,
+        baseBy: base.updatedBy,
+      }),
     backups: () => call("backup.list"),
     restoreBackup: (date) => call("backup.restore", { date }),
   };

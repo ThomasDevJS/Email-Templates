@@ -75,22 +75,20 @@ function flushBuffer(
   return withLock(services.lock, WRITE_LOCK_MS, () => {
     const buffered = readBuffer(services.cache);
     const applied = applies(buffered.events);
-    const denied = [
-      ...denials(buffered.events),
-      ...droppedEvents(services, buffered.dropped),
-    ];
+    const denied = denials(buffered.events);
+    const audit = [...denied, ...droppedEvents(services, buffered.dropped)];
     if (applied.length > 0)
       writeSideLocked(
         services,
         "usage",
         applyUsage(services.store().readSide("usage"), applied),
       );
-    if (denied.length > 0) {
+    if (audit.length > 0) {
       commitLocked(services, (current) => {
         const known = new Set(current.pendingAudit.map((event) => event.id));
         return {
           doc: current,
-          events: denied.filter((event) => !known.has(event.id)),
+          events: audit.filter((event) => !known.has(event.id)),
           result: undefined,
         };
       });
@@ -98,7 +96,7 @@ function flushBuffer(
     clearBuffer(services.cache, buffered);
     return {
       applies: applied.length,
-      denied: denied.length - Math.min(1, buffered.dropped),
+      denied: denied.length,
       dropped: buffered.dropped,
     };
   });

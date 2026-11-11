@@ -92,6 +92,7 @@ export const POLICY: PolicyTable = {
   "membership.refresh": web("admin.ops"),
   "membership.status": web("admin.ops"),
   "config.get": web("admin.ops"),
+  "config.set": web("admin.ops"),
   "backup.list": web("admin.ops"),
   "backup.restore": web("admin.ops"),
 };
