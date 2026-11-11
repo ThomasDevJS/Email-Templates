@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: buffer slots, log `targetId`, export event; Proposed) (Amendment 2026-11-11, D32: in-app admin list; Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: buffer slots, log `targetId`, export event; Proposed) (Amendment 2026-11-11, D32: in-app admin list; Accepted 2026-11-11, built in slice 16)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -92,7 +92,7 @@ Interface (contract, not code):
 - Switch to `directory` after an admin grants Groups Reader to the server owner (2.5b): adds scope `admin.directory.group.member.readonly` (owner consent only), `nested: true`. `cloud_identity` needs Enterprise or Cloud Identity Premium plus a standard GCP project.
 - OU grants: `groupsapp_direct` cannot resolve OUs. Grants to OUs are stored but inactive and shown as "Inactive: OU resolution needs the Directory resolver" (Q4).
 
-Admin role: member of `ADMIN_GROUP` (Script Property, group email) via the snapshot, or listed in `ADMIN_EMAILS` (Script Property, break-glass, initial value the owner). Admin membership is never granted in-app. [D32, 2026-11-11, Proposed: a third source, the in-app list `admins` in `index.json`, edited by admins with `admin.add` and `admin.remove`. See Amendment 2026-11-11 (D32).]
+Admin role: member of `ADMIN_GROUP` (Script Property, group email) via the snapshot, or listed in `ADMIN_EMAILS` (Script Property, break-glass, initial value the owner). Admin membership is never granted in-app. [D32, 2026-11-11, Accepted: a third source, the in-app list `admins` in `index.json`, edited by admins with `admin.add` and `admin.remove`. See Amendment 2026-11-11 (D32).]
 
 ### Triggers
 
@@ -230,7 +230,7 @@ Export audit: one start event per export run through `commit`, then a run token;
 
 ## Amendment 2026-11-11 (D32): in-app admin list
 
-Status: Proposed until the owner approves. Owner (2026-11-11), quoting the admin guide: "Admin status is never granted in the app - lets change that and add setting for admins to add more admins". Storage follows ADR-0008 (Amendment 2026-11-11, D32).
+Status: Accepted 2026-11-11 (owner decision D32 "yes, details by the architect"; built in slice 16, review FAIL, retry 1 PASS). Was Proposed. Q62 to Q66 are built at their defaults. Section "As built (slice 16)" at its end records 4 changes against the text. Owner (2026-11-11), quoting the admin guide: "Admin status is never granted in the app - lets change that and add setting for admins to add more admins". Storage follows ADR-0008 (Amendment 2026-11-11, D32).
 
 Today (src/shared/permissions/principals.ts `isAdminEmail`, src/server/membership/snapshot.ts `subjectFor`): admin = listed in `ADMIN_EMAILS` (Script Property, break-glass, `setup()` seeds the owner) or a member of `ADMIN_GROUP` in the membership snapshot. Only the owner edits both, in the Apps Script editor.
 
@@ -252,9 +252,9 @@ Decision: option 2. This replaces the orchestrator's "stale-write refusal as in 
 ### Mechanism
 
 - Admin = `ADMIN_EMAILS` or `ADMIN_GROUP` member or in `admins` of the index. `isAdminEmail` gains a fourth input, the in-app addresses. `subjectFor` checks the two properties first and reads the index (`loadIndex`, Script Cache) only when both say no.
-- In-lock re-check: dispatch `recheck` for admin rows passes the in-lock index's list, so an admin removed a moment ago is refused inside the lock of every admin write, `admin.add` and `admin.remove` included.
+- In-lock re-check: dispatch `recheck` for admin rows passes the in-lock index's list, so an admin removed a moment ago is refused inside the lock of every admin write, `admin.add` and `admin.remove` included. [As built: for every write, see below.]
 - Who may add or remove: any admin, from any of the 3 sources. Web app only (policy surface `web`); the add-on token route is refused like every web-only op. Manage holders and users: DENIED with one denied audit row (existing rule).
-- Addresses: people of the own domain only. The server checks the form (the recipient rule of spec 5.7), the domain part equals `DOMAIN`, then reads the Directory with the existing scope (`directoryUsers().get(email, { viewType: "domain_public", projection: "basic" })`, as `lookupProfile` does). Not found: refused. A group address is not a user and is refused the same way; groups go in `ADMIN_GROUP`. The stored address is the reply's `primaryEmail`, lower case, so an alias resolves to the address the caller signs in with. Other Directory errors: SERVER, nothing written. Reason for a check here while recipients have none (Q38): a typo in a privilege grant hands admin to whoever gets that address later.
+- Addresses: people of the own domain only. The server checks the form (the recipient rule of spec 5.7), the domain part equals `DOMAIN`, then reads the Directory with the existing scope (`directoryUsers().get(email, { viewType: "domain_public", projection: "basic" })`, as `lookupProfile` does). Not found: refused. A group address is not a user and is refused the same way; groups go in `ADMIN_GROUP`. The stored address is the reply's `primaryEmail`, lower case, so an alias resolves to the address the caller signs in with. Other Directory errors: SERVER, nothing written. [As built: INTERNAL with `details.reason` `ADMIN_CHECK`, see below.] Reason for a check here while recipients have none (Q38): a typo in a privilege grant hands admin to whoever gets that address later.
 - Cap: 20 addresses in the list. The 21st add is refused.
 - No lockout: `ADMIN_EMAILS` is out of the app's reach (no op writes a Script Property), and `setup()` seeds it with the owner. So the app can empty its own list and admins still exist. An admin cannot remove themself (refused by the server; the UI hides the button on the own row). Two admins removing each other at once: the lock serializes them; the second finds itself removed in the re-check and gets DENIED, so one stays.
 - The list cannot hold or remove a break-glass or group admin: `admin.remove` edits only `admins`. Removing the owner's break-glass entry is impossible by design; the Settings section shows `ADMIN_EMAILS` and `ADMIN_GROUP` read only.
@@ -276,6 +276,14 @@ Decision: option 2. This replaces the orchestrator's "stale-write refusal as in 
 | An admin removes themself by mistake | Refused; another admin removes them |
 
 Default deny holds: an address is admin only when one of the 3 sources lists it exactly (trim, lower case). A malformed `admins` entry grants nothing (ADR-0008 Amendment 2026-11-11, D32).
+
+### As built (slice 16, checked in src at 16df87a)
+
+- In-lock check for every write (retry 1). `lockedSubject(context, index)` in src/server/dispatch/dispatch.ts builds the caller's subject from the snapshot read again and the in-lock index, for admin rows and level rows alike; `recheck` is the only in-lock authorization path. The reviewer removed an in-app admin between the dispatch check and the lock and tried 9 writes: all refused, nothing written (5 of them landed on the first build). Cost: none beyond the in-lock index read that `commit` already does.
+- Directory failure other than not found: INTERNAL (log level `error`) with `details.reason` `ADMIN_CHECK` and the text "The address could not be checked. Try again."; one warn line `directory.users.get` with `errorCode` "<reason>:<status>", no address and no message. Not found is matched by `/not found/i` on the error message (unverified on Google; smoke "Slice 16" step 4).
+- Results of `admin.add` and `admin.remove` carry `email`, the stored primary address; the screen texts name it.
+- A DENIED on any admin-only action shows "You are no longer an admin, so nothing was changed. Ask an admin if you need access." (spec 7.3). A blank caller is never admin (the old code matched "" against a blank `ADMIN_EMAILS`).
+- A list that cannot be read for the write answers CONFLICT (`editedList`), no default.
 
 ## Consequences
 

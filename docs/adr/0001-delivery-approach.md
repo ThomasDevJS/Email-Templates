@@ -66,7 +66,7 @@ Owner decision D22 (2026-11-10): Gmail web on Chrome is the only acceptance clie
 
 ## Amendment 2026-11-10: side-panel insert (D27)
 
-Status: Proposed. Owner decision D27 (2026-11-10): the Gmail side panel must insert templates like the compose toolbar. Gmail ignores `UpdateDraftActionResponse` from the side panel (owner's spike S6 runs). Mechanism in ADR-0007: the side panel creates a new draft (`STANDALONE_DRAFT`) or a reply (`REPLY_AS_DRAFT`) with compose actions and `ComposeActionResponse`; a new `unconditional` contextual trigger gives the panel the open message ID; no new scope, checked by spike S7 (spec 14.2). The add-on now has three entry functions: `onComposeOpen`, `onHomepage`, `onMessageOpen`.
+Status: Accepted 2026-11-11 with ADR-0007 (spike S7 passed; built in slice 18; was Proposed). Owner decision D27 (2026-11-10): the Gmail side panel must insert templates like the compose toolbar. Gmail ignores `UpdateDraftActionResponse` from the side panel (owner's spike S6 runs). Mechanism in ADR-0007: the side panel creates a new draft (`STANDALONE_DRAFT`) or a reply (`REPLY_AS_DRAFT`) with compose actions and `ComposeActionResponse`; a new `unconditional` contextual trigger gives the panel the open message ID; no new scope, checked by spike S7 (spec 14.2). The add-on now has three entry functions: `onComposeOpen`, `onHomepage`, `onMessageOpen`.
 
 ## Consequences
 

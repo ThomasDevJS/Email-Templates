@@ -1,6 +1,6 @@
 # ADR-0002: Storage, caching and concurrency
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches) (Amendment 2026-11-10, errata run 3: export, import and backups as built, Proposed) (Amendment 2026-11-10: owner handover, Proposed) (Amendment 2026-11-10: admin settings in `index.json`, D29, Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: export start event and run token, buffer slots, `prof:` hash; Proposed)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (Amendment 2026-11-10: lock-free readers, body and side caches) (Amendment 2026-11-10, errata run 3: export, import and backups as built, Proposed) (Amendment 2026-11-10: owner handover, Proposed) (Amendment 2026-11-10: admin settings in `index.json`, D29, Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: export start event and run token, buffer slots, `prof:` hash; Proposed) (Amendment 2026-11-11, slice 19: raw media read for JSON Lines files, job error texts; Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -81,12 +81,12 @@ All files live in one folder `Migway Templates Data`, created by the setup funct
 | `usage.json` | `{ rev, items: { id: { applyCount, lastUsedAt } }, recent: { email: [itemId] } }` [entries also carry `days`, applies per UTC day, 30 days kept; Amendment 2026-11-10, errata run 3] | 5-min trigger | 0.5 MB |
 | `members.json` | group snapshot (ADR-0003 Part B) | 15-min trigger | under 450 KB |
 | `bodies/<itemId>.v<version>.json` | `{ itemId, version, html, plainText, savedAt, savedBy, note, restoredFrom, sha256 }`, immutable. `appProperties`: `itemId`, `version`, `savedBy`, `restoredFrom` | requests, outside lock | 2 to 100 KB each |
-| `audit/YYYY-MM.jsonl` | one audit event per line, append-only, one file per month | daily trigger | 2.4 MB per month |
+| `audit/YYYY-MM.jsonl` | one audit event per line, append-only, one file per month [read with Drive REST media, `readRawText`; Amendment 2026-11-11, slice 19] | daily trigger | 2.4 MB per month |
 | `backups/YYYY-MM-DD/` | copies of `index.json`, `favorites.json`, `usage.json` | daily trigger | 1.5 MB per day, 14 kept |
 
 Version history uses no extra index: `files.list` with `appProperties has { key='itemId' and value='<id>' }` returns all versions of one item in one call (100 units [R4 S70]).
 
-Drive access: Advanced Drive service v3 (`Drive.Files.create`, `Drive.Files.update` with a media blob, `Drive.Files.get` with `alt: 'media'`, `Drive.Files.list`). Fallback if slice 2 shows the Advanced service rejects a `drive.file`-only token: Drive REST v3 through `UrlFetchApp` with `ScriptApp.getOAuthToken()`, same scope, `https://www.googleapis.com/` added to `urlFetchWhitelist`.
+Drive access: Advanced Drive service v3 (`Drive.Files.create`, `Drive.Files.update` with a media blob, `Drive.Files.get` with `alt: 'media'`, `Drive.Files.list`). [Slice 19: `Drive.Files.get` with `alt: 'media'` reads one JSON document only; month files and backup copies are read with Drive REST media under both clients, and the Drive prefix in `urlFetchWhitelist` is required in every environment. Amendment 2026-11-11, slice 19.] Fallback if slice 2 shows the Advanced service rejects a `drive.file`-only token: Drive REST v3 through `UrlFetchApp` with `ScriptApp.getOAuthToken()`, same scope, `https://www.googleapis.com/` added to `urlFetchWhitelist`.
 
 ### Caching
 
@@ -352,6 +352,34 @@ Event buffer (`evt:*`, apply and denied events only; no change event goes throug
 
 Cache keys hold no address: `prof:<sha256 of the lower-case address>`. Old `prof:<email>` keys are never read and expire within 6 h.
 
+## Amendment 2026-11-11, slice 19: JSON Lines reads and job error texts
+
+Status: Proposed until the owner approves. Built in slice 19, review FAIL on job error texts, retry 1 PASS (docs/reviews/slice-19.md). Merged c6e2334; verified on dev: `audit.query` for 2026-11 answers ok, 70 events, in 968 ms. Checked in src at 16df87a.
+
+Platform fact (owner's test round 1 part D on dev, then a diagnostic build): `Drive.Files.get(id, { alt: "media" })` of the Advanced Drive service parses the media as JSON. For a file whose text is not one JSON document it throws `HttpResponseException: Response Code: 200. Message: <file text>`. A JSON Lines file of 2 or more lines is such a file. So `audit/2026-11.jsonl` became unreadable with its second line, and the daily and 5-minute rolls into that file failed (`appendAudit` reads the file before it appends). No event was lost: the append fails before `pendingAudit` changes, and the next roll skips IDs already in the file. The test fakes did not model the throw. Spike S2 (e) and Q16 tested JSON files only.
+
+Options for reading JSON Lines:
+1. A raw read through Drive REST media (`UrlFetchApp` with `ScriptApp.getOAuthToken()`, the client already built as the Q16 fallback), used only for text that is not one JSON document. Same scope (`drive.file`), same OAuth client.
+2. Switch every read to the REST client (`DRIVE_CLIENT=rest`). One code path, but every index and body read changes its client on a working build.
+3. Store a month as one JSON document (an array). Every roll rewrites and re-parses the whole month, and the dev data needs a migration.
+4. Parse the exception message for the file text. Fragile, undocumented, and the message carries personal data into memory and logs.
+
+Decision: option 1. Mechanism:
+- `DriveClient.readRawText(fileId)` exists under both clients; the Advanced client takes the REST media reader as its third argument (`advancedDriveClient(files, blobs, rawMedia)`, wired in runtime.ts). `readText` stays on the Advanced service for `index.json`, side files and bodies.
+- Callers of `readRawText`: `audit.query` (`monthText`), `appendAudit` (daily roll and the early roll of `tick`), `readBackup` (backup copies before a restore). `readIndex`, `readSide` and `readBody` read raw once when the Advanced read throws an error that is not an `AppError`, so a damaged live file answers "<file> is not valid JSON" with no file text.
+- `https://www.googleapis.com/drive/v3/` is in `urlFetchWhitelist` (appsscript.json) in every environment. The REST client is no longer a fallback only.
+- File IDs go into the URL only when they hold letters, digits, `-` and `_` (`fileUrl`); any other ID is refused before a request. `encodeURIComponent` alone is not enough: URL parsers read `%2e%2e` as `..`. IDs come from Drive `files.list` results only; `audit.query` takes a month, never an ID.
+- HTTP 429 answers QUOTA "Service is busy. Try again in a minute."; other non-2xx answers INTERNAL "Drive REST get failed with HTTP <n>". The fake now throws for non-JSON media like the platform; reverting the fix fails 19 tests.
+
+Options for the stored job error text:
+1. Store the exception message, cut to 500 characters (built until slice 19). The Drive error quoted the audit file, addresses included, into `job:daily:lastError`, a Script Property that the Admin page shows while a job is late and that script editors read.
+2. Store "<code> <error name>" only, from the error object, never its message.
+3. Store nothing; keep only `lastOk`. The admin loses the step and the code that the runbook needs.
+
+Decision: option 2. Privacy rule: no stored, shown or rethrown job error carries a platform message, because a platform message can quote file text. Mechanism: `errorSummary(error)` (src/shared/errors/codes.ts) returns "<code> <error name>". `job:<name>:lastError` = "<time> <errorSummary>", or for `daily` a `JobError` "daily steps failed: <step> (<code>)" built from step names and codes only, at most 500 characters. `runJob` rethrows a `JobError` with the same text and deletes `lastError` on success. The group warning stored in `members.json` uses the same summary. The reviewer damaged 6 files holding an address and a token: 0 hits in properties, log lines, rethrown messages and responses. After the deploy of slice 19 the owner checks and clears the 4 `lastError` properties once (runbook "Required after deploying this build"); Executions and Cloud Logging entries of the failed runs expire on Google's schedule.
+
+Job health while the roll failed (for the runbook): "Nightly backup and cleanup" read "OK" until 48 h after its last success, then "Late"; the other daily steps still ran. "Save insert counts and refused actions" stayed "OK" while `pendingAudit` was under 200 KB.
+
 ## Consequences
 
 - Easier: one folder holds all data; one file read rebuilds the cache; the consent list loses `spreadsheets`; no spreadsheet UI exists for hand edits; change and audit commit in one write.
@@ -363,7 +391,7 @@ Cache keys hold no address: `prof:<sha256 of the lower-case address>`. Old `prof
 
 - Q14. Apply and denied events may lose up to 5 min on cache eviction (console logs keep them). Recommendation: accept.
 - Q15. Keep all versions in v1. Recommendation: accept, revisit at 50,000 files.
-- Q16. Resolved 2026-11-09: the Advanced Drive service works on `drive.file` alone (create, update, get media, trash). `alt: media` returns parsed JSON with reordered keys; the adapter re-serializes (docs/spikes/slice-02-s2b.md). `appProperties` list is confirmed at the first version-history use in slice 3.
+- Q16. Resolved 2026-11-09: the Advanced Drive service works on `drive.file` alone (create, update, get media, trash). `alt: media` returns parsed JSON with reordered keys; the adapter re-serializes (docs/spikes/slice-02-s2b.md). [2026-11-11, slice 19: for text that is not one JSON document `alt: media` throws `HttpResponseException: Response Code: 200`; such files go through Drive REST media. Amendment 2026-11-11, slice 19.] `appProperties` list is confirmed at the first version-history use in slice 3.
 - Q17. Resolved 2026-11-09: read 549 to 809 ms, write about 1,130 ms for 821 KB. Option 2 stands.
 - Q18. Prod data in the prod owner's My Drive or in a shared drive? A shared-drive folder created by hand is not visible to `drive.file`. Recommendation: the prod owner's My Drive (dedicated account, Q3); shared drive only if the 2.5b dry run shows the setup function can create its own folder there.
 - Q26. Prod owner identity (refines Q3, D16). Recommendation: a dedicated account if Migway has one before 2.5b; a handover then moves a credential, not data.
