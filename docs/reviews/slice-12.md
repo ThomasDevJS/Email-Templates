@@ -53,3 +53,29 @@ j. See Commands.
 7. home.ts:24 `openLibraryButton` is exported but used only in home.ts.
 
 Probe scripts: removed after the run. No edit to src/, test/, scripts/ or config.
+
+## Follow-up (9d48a79, 85d6d50)
+
+### Verdict: PASS
+
+Gaps 1, 2, 4, 5, 6 and 7 are fixed. Gap 3 is resolved: folder rows show only their hints. 1 new minor: the 60-character cut can split a surrogate pair.
+
+Commands (clean install, worktree root):
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | pass, 559 packages, audit 16 (14 moderate, 2 high) |
+| `npm run lint` | pass, 0 problems |
+| `npm run typecheck` | pass |
+| `npm run test:coverage` | pass, 62 files, 1440 tests; statements 95.72%, branches 89.65%, lines 96.67% (5500/5689) |
+| `npm run build -- --env dev` | pass, Code.js 347.9 KB of 800 KB |
+| `npm run scopes:check` | pass, "10 scopes, all approved" |
+| `npm run format:check` | pass |
+
+Secret scan of the 2 commits: 0 hits. Emails: `a@example.com`, `b@example.com` (tests). URLs: none.
+
+1. Labels. render.ts:70-72 passes top and bottom labels through `escapeText` only. Probe through `renderCard` with a recording CardService covered home (compose, side panel), folder, search, preview and prompt cards with recipients, a not-added address and an unknown Bcc field: 26 labels, none holding `<`, `>`, `&` or a newline. Row labels are one line, for example "Plain folder · 1 field to fill · Adds To 1, Cc 1, Bcc 1". Recipient markers read "outside migway.com · hidden from other recipients". Folder card rows show "1 field to fill · Adds To 1, Cc 1, Bcc 1" or "Adds Bcc 2", and rows without hints have no label. Dynamic parts are escaped: render.test.ts gives `R&amp;D &lt;b&gt;...`. If Gmail shows labels as plain text, a folder name with `&` or `<` shows the entities. Smoke "Slice 12" step 1 now checks this with a folder named `R&D <b>`.
+2. No-match echo. `ECHO_MAX` = 60 (home.ts:110). A 5,000-character query gives a 146-character text: 60 characters, then "...". `"a"×58 + "&<b>x"` is cut before escaping, so no entity is split: `...aa&amp;&lt;...`. Gap: `"a"×59 + "😀"` ends the quote with a lone high surrogate (0xD83D, `isWellFormed()` false). Gmail probably shows a replacement glyph there. Fix: `Array.from(query).slice(0, ECHO_MAX).join("")`. Not blocking.
+3. Behavior. The same probe ran on 3e78c62 and the new head: 526 replies each. All 322 draft responses are identical, and so are all actions, toggles and server ops on preview and prompt cards. Compose preview and prompt card texts are identical to base once the base `\n` between recipient markers becomes " · ". Folder rows keep 3 Insert and 2 Review buttons (recipient templates). Side-panel home, folder, search and preview cards have 0 Insert or prompt-Insert controls. The 48 differing card lines are home, folder and search: the footer move and the new labels.
+4. Docs and code. Smoke "Slice 12" has 8 steps. Step 6 is an Insert regression tap. Step 7 notes the dev S7 section after the hint. Step 8 states that DENIED, QUOTA and request-ID cards cannot be reached in a smoke run. Smoke "Slice 4" steps 1 and 2 and deploy.md step 10 quote this build. "sidebar" appears in src/addon only in module paths and the op name `sidebar.home`, never in user text. `openLibraryButton` (home.ts:24) is unexported, and only `emptySection` uses it. `LIBRARY_FOOTER` (spec.ts) is the footer form of the same text and action. It is a separate placement, not a copy of that widget.
+5. See the commands table.
