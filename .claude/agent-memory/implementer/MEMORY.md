@@ -79,9 +79,6 @@
 - `folderLabel` in folders.ts: `folder.list` renames other users' private folders "My templates (owner)".
 - Web: `formatTime` local; `conflictText` in status.ts; `DialogAction.autofocus`; rowMenu takes `{ busy, done }`; library `bodyPending`.
 
-## Lessons (slice 5b)
-- Do not build a rule on undocumented event fields before a diagnostics run; 5b's threadId rule never fired.
-
 ## Code map (after slice 6a)
 - Server: handlers/admin.ts (`adminFolders` DENIED for non-managers, `membershipStatus/Refresh` view with counts, `trashPurge`); jobs/daily.ts `purgeDeleted(services, cutoff, source, write)`; targets.ts `restoreTargets`; dispatch `recheck` re-reads the snapshot for admin rows; triggers create-then-delete, `recordJobError` (health.ts); `TRASH_DAYS`, `FOLDER_DEPTH_MAX` in shared/model/validate.ts.
 - Web: router `trash`, `admin` (tab folders|memberships), `?view=admin`; views/admin.ts (tablist), adminFolders.ts, memberships.ts, trash.ts; admin/model.ts (pure); tree `rootLabel`; rail Admin link from `manage` levels; harness `?admin=0`, grants, memberships, trash ops.
@@ -102,7 +99,7 @@
 ## Slice 8a (UI shell, 2026-11-10)
 - Shell owns the sidebar tree (`createFolderTree(onOpen, null)`), `drawSide` after every load; library implements `View.scope(folderId, favorites)` for in-place selection. Icons `ui/icons.ts`, people `ui/person.ts`, `folderCounts`, `formatTime(iso, "date"|"time", now)`.
 - Tests read titles via `.row-title`; sidebar tree via `#side [role="tree"]`. Harness `?sample=freight` for screenshots only.
-- Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire`. Lighthouse dark: Chrome `--force-dark-mode`.
+- Screens: Playwright `chromium.launch()`, context `colorScheme`, `timezoneId: "UTC"`; script in the scratchpad loads repo code by absolute path with `createRequire` (s11/shot.mjs + `servePage`); plain chromium `--screenshot` hangs. Lighthouse dark: `--force-dark-mode`.
 - The scratchpad is shared with other sessions: an `ed.py` got overwritten. Use unique file names.
 - 8a review FAIL: a panel that covers content must be modal (trap, inert, outside press closes); icon colors need 3:1 on every fill they sit on (paper, canvas, select). `test/unit/web/contrast.test.ts` now gates token pairs. Focus selectors: `a[href]`, never `[href]` (SVG `<use>`).
 
@@ -134,7 +131,6 @@
 - Off rule in `levelResolver` before the admin rule; dispatch `deniedError(index, targets)` picks the off text. `recipientPolicy(context)` reads the setting; the property reader is gone.
 - `config.set` in handlers/config.ts (withLock + loadIndexForWrite + recheck, no-op returns before any write). Binary settings: CONFLICT unreachable; client shows the conflict text on `changed: false` with a newer entry.
 - Tests: `setSetting(world, name, value)` in test/fakes/world.ts; D11 tests turn personal templates on in `beforeEach`. Enforcement table in test/unit/server/settings.test.ts. Harness `?personal=off`, `?access=none`.
-- Screens via scratchpad s11/shot.mjs (Playwright, `servePage`); plain chromium `--screenshot` hangs.
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
