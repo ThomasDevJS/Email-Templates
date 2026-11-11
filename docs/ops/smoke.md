@@ -221,7 +221,7 @@ Templates to create in the library first, in a folder you can edit:
 9. Details card of T4 in a draft with a subject: "Replace the subject" off. Turn "Add recipients" off, click "Insert": text only, subject and recipients unchanged.
 10. Home: a template that is a favorite and recently inserted shows only under Favorites; no hint under "Search templates"; "Open library" is slate. Record: the color of "Edit in library" on a details card (slate or blue).
 11. An admin keeps access to every folder, so this step runs as the second account with "Can use" on T1's folder: it opens the add-on (list loaded); the owner removes that access in Admin, "Folders and access". Row Insert on T1 (list still loaded): "You don't have access to this template. Ask a folder manager.", the draft unchanged.
-12. Side panel (no draft): rows show no Insert; tapping a name opens the details card with no boxes and no Insert; "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar." ends the card.
+12. Side panel, no email open: each row shows "New email", no Insert; tapping a name opens the details card with boxes, "New email" in the footer and no "Replace the subject" switch; "To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar." ends the card.
 13. Row Insert on T5. Record: the empty middle paragraph shows as a blank line (y/n). Yes is accepted for v1.
 
 | Step | Record                              | Result |
