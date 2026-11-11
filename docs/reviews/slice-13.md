@@ -1,8 +1,12 @@
 # Review: slice 13, last fix round
 
+## Final verdict (retry 1, head f3f8156): FAIL
+
+A cold library export of 1,000 templates (the brief's stated size) returns all 50 pages and stores 47 of 50 page events. The export's own `bd:*` body cache writes evict its first `evt:*` entries from the 1,000-item Script Cache before `tick`; `audit.dropped` stays 0. See "Retry 1" below. The first review follows.
+
 Date: 2026-11-11. Branch `slice/13-fix-round`, base 8f6c972, head 3ca3920 (13 commits). Reviewer.
 
-## Verdict: FAIL
+## First review verdict: FAIL
 
 Item 6 (export audit event) does not hold. A caller skips the event with `offset` 1. A busy buffer lock or a buffer full of applies loses it while the export still answers ok. The other 13 items pass.
 
@@ -51,3 +55,54 @@ Tests that fail on old code: the head test tree on base 8f6c972 gives 408 failed
 | `npm run lighthouse` | 14 of 14 views at 100 |
 
 Probes: scratch copy with test/unit/server/probe13.test.ts (config.set, export offset, busy lock, full buffer, flood counts) and a Playwright script against `node scripts/dev-web.mjs`; both deleted from the worktree view (scratchpad only).
+
+## Retry 1
+
+Date: 2026-11-11. Diff `acf07ee..f3f8156` (5 commits, 18 files, +536 -62). Reviewer.
+
+### Verdict: FAIL
+
+Must-fix 1 and 2 hold for the lock and the buffer count. They do not hold for the cache: an export event that entered the buffer can be evicted after its page returned data.
+
+### Must fix
+
+1. `src/server/handlers/transfer.ts:120` stores the page event in the Script Cache, then `readStoredBody` (`src/server/handlers/body.ts:91`) puts one `bd:*` entry per uncached body. The Script Cache holds 1,000 items, oldest first out (ADR-0002 line 19, ADR-0005 line 108, `test/fakes/cache.ts`). Probe (cold cache, 7 h after the saves, page by page, then `tick`): 300 templates: 15 of 15 events stored. 600: 30 of 30. 1,000: 47 of 50 stored, 1,000 templates returned, `dropped` 0. The 3 lost events are pages at offsets 0, 20 and 40 (probe), so the audit log has no record of templates 1 to 60. At 10x most events go. Spec 11.1 line 575 says change events are never dropped.
+   Fix options, cheapest first: (a) the export reads bodies without `cacheBody` (stops self-eviction; other traffic can still evict within 5 min, the Q14 risk accepted for applies only); (b) when the buffer holds change events, flush them to `pendingAudit` from the export call itself every k pages; (c) the ADR-0002 line 128 route: `commitLocked` per page (one index write per 20 templates). A test: 1,000 templates, cold cache, every page event in `pendingAudit` after `tick`.
+
+### Minor
+
+2. `src/server/audit/query.ts:148`: the joined row keeps the first page's ID, so the Details drawer opens page 1 only (`after` says 20 templates while the row says all 25). The other page events are in the month file and unreachable in the UI.
+3. `src/server/audit/query.ts:137`: two interleaved exports by one admin (two tabs) pair wrongly. Probe: rows "all 25", "1 to 20 of 25", "21 to 25 of 25". Different admins never join (key holds the actor); two sequential exports stay two rows.
+4. `src/server/audit/buffer.ts:118`: `evt:lost` undercounts when it expired after 6 h with no loss and at least `evt:lostSeen` new losses arrive before the next `tick`. Plus the documented same-instant race (line 78). Normal case exact (probes 7, 3; flood 81).
+5. `src/server/audit/buffer.ts:49`: `weakerSlot` skips evicted keys, so with `evt:meta` at 200 and evicted slots a change event answers BUSY while room exists. BUSY only, no loss.
+6. A `manage` holder can fill the 200 slots with cheap `offset: 1e9` calls (no body read), evicting buffered applies (counted) and refusing every export for up to 5 min. Each call is itself audited.
+7. `src/web/views/adminTransfer.ts:19` says "Try again in a minute"; a full buffer clears only at `tick`, every 5 min (`src/server/jobs/triggers.ts:22`). The handoff Risks line says 1 minute.
+8. Docs for the architect: spec 575 and 578, ADR-0002 line 128, ADR-0003 lines 185 and 208 describe the old export event. Listed in the handoff.
+
+### Judgements
+
+a. Offsets (server probe, 25 templates): absent, 0, 1, 21, 24, 25, 26, 1e9, 2^53-1, 1e300: each ok call stored exactly 1 event, `after { scope, offset, templates, total }` (offset 1: 20 of 25; 21: 4; beyond the end: 0). -1, 1.5, "1", null, NaN, Infinity, true, [1]: VALIDATION, no data, no event. `limit`, `pageSize`, `size`, `count`, `max` 1000: 20 items. No event holds a title, subject, body or grant address; the actor is the exporter.
+b. Roles: folder export as `manage` holder writes its event; library export as `manage` holder: DENIED, no data, no change event. Interleaved pages of 2 callers, 12 calls: events = ok calls, all in `pendingAudit` after `tick`. Real concurrency: `bufferEvent` writes under the script lock, so pages serialize or answer BUSY.
+c. Lock busy: BUSY, `retryable`, no body in the answer, no event. Full of changes: BUSY, `dropped` unchanged. Rank: 198 changes + 1 apply + 1 denied, export takes the denied slot, the next export the apply slot, the third is BUSY; `dropped` 2, then an apply into the full buffer makes 3. 250 denied + 30 applies + 1 export: 200 events, 30 applies kept, `dropped` 81. Busy-lock losses: 5 applies + 2 denied give one `audit.dropped { dropped: 7 }`; next tick none; 3 more give 3.
+d. Item 3 (4,000-template limit): 200 page calls fill the buffer and call 201 answers BUSY until `tick` (probe). At 1,000 templates (50 pages) the buffer never fills. Accept for v1 on its own: BUSY loses no data. It is moot until must-fix 1 is fixed, because eviction starts at about 1,000 body puts.
+e. Web export (Chromium 1243, dev harness): `failTimes=2`: done in 613 ms (waits 200 + 400), 1 file. `failTimes=3`: 1,228 ms, 1 file. BUSY always: stops after 1,225 ms with "The export stopped: the server was too busy to record it in the audit log. Nothing was downloaded. Try again in a minute.", 0 `createObjectURL`, 0 download clicks, no toast, Export enabled. The download runs only after the last page (`adminTransfer.ts:135`), so a mid-export BUSY offers nothing (code read; the harness has 4 templates, 1 page).
+f. Audit join: sequential exports by one admin stay 2 rows; a partial export reads "templates 1 to 20 of 25"; an offset-1 export reads "templates 2 to 25 of 25"; an `actor` filter keeps total = rows. A month filter splits an export at the month edge (handoff Risks).
+g. Minor 3 (`config.set` with `from`): "This page is out of date. Reload it and save again.", index settings unchanged (settings.test.ts, 2 cases). Smoke: one sentence replaced ("Admin, Config, Settings, Outside recipients: allowed."), rest of the paragraph identical (`git diff acf07ee..HEAD -- docs/ops/smoke.md`, 1 line).
+h. Regression (Chromium, dev harness): folder dialog opens with focus on the select (HR, My templates, Sales, Sales / Onboarding, Sales / Quotes); outside click and Escape close it with focus on New template; Back closes it, 0 `[inert]`, focus on `main`; Create opens `#/new?folder=F-EMPTY`. Trash: confirm "The 1 template in it is removed for good", focus Cancel; outside click returns focus to the opener; Empty trash gives "Emptied the trash: 1 template removed for good.", focus on the h1. Settings conflict: unit tests pass (Chromium needs a patched harness; first review covered it, no settings UI change since).
+i. Scope: retry changes nothing in src/web/views/editor.ts, src/web/editor/, history, preview, problems, tags, src/web/ui/dialog.ts, styles.css, appsscript.json, package files, scripts/.
+j. Secret scan of added lines: 0 keys or tokens. Matches: "Secret" fixture strings in tests, `someone.else@example.com`, `a@example.com`, the smoke.md migway.com role addresses (unchanged sentence context). URLs added: none. No new network call. Scopes unchanged.
+
+### Commands (worktree, clean install)
+
+| Command | Result |
+|---|---|
+| `rm -rf node_modules && npm ci` | exit 0 |
+| `npm run lint` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run test:coverage` | 64 files, 1706 passed, 0 failed. Lines 96.78 (addon 100, server 99.31, shared 100, web 92.2) |
+| `npm run build -- --env dev` | Code.js 358.3 KB of 800, index.html 361.7 KB of 400 |
+| `npm run scopes:check` | 10 scopes, all approved |
+| `npm run format:check` | clean |
+| `npm run lighthouse` | 14 of 14 views at 100 |
+
+Probes: scratch copy (`git archive HEAD`) with test/unit/server/probe13r.test.ts (28 tests, all pass), probe13evict.test.ts (1,000 templates: expected 50 events, got 47) and puppeteer-core scripts against `node scripts/dev-web.mjs`. Nothing added to the worktree.
