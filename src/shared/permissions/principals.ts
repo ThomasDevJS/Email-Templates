@@ -49,6 +49,7 @@ export function isAdminEmail(
   appAdmins: () => readonly string[] = () => [],
 ): boolean {
   const needle = email.trim().toLowerCase();
+  if (needle === "") return false;
   const listed = adminEmails
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
@@ -56,5 +57,5 @@ export function isAdminEmail(
   if (listed) return true;
   const group = adminGroup.trim().toLowerCase();
   if (group !== "" && groupsOf(email, snapshot).includes(group)) return true;
-  return needle !== "" && appAdmins().includes(needle);
+  return appAdmins().includes(needle);
 }
