@@ -1,11 +1,11 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-10, D29 run (admin settings, ADR-0008, slice 11). Before: D27 run (ADR-0007), D26 run (ADR-0006, 2579b6b), errata run 3 (6a/6b as built, owner handover). Repo is the source of truth; this file is a cache.
+Last run: 2026-11-11, errata run 4 (slices 8a-8d, 9-13 as built at 6374b7b; commits 85de724, 7d9c91a, e3cf0a6 + handoff). Before: D29 run (ADR-0008), D27 run (ADR-0007), D26 run (ADR-0006), errata run 3. Repo is the source of truth; this file is a cache.
 
 ## Files I own
-- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). 0006 template recipients (Proposed 2026-11-10). 0007 side-panel insert (Proposed 2026-11-10). 0008 admin settings (Proposed 2026-11-10). Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
+- docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed). 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Proposed; S7 not run; Built so far section). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
 - docs/spec.md (sections 1-16; 4.5 export/import as built; 5.1 depth 5; 5.2 key max 254; 5.6 subject D24; 11 `draft`; 11.1 admin audit/log rules; 12.1 measured; 13.3 6a/6b done; 13.4 known limits; 13.5 slice 7 and v1.1 items; 5.7 recipients; 7.1 recipient texts; 13.6 slice 9; 14.1 spike S6; 4.1a panel flow; 7.2 panel texts; 13.7 Gmail panel pass; 14.2 spike S7; 5.8 settings + enforcement table; 7.3 settings texts; 13.8 slice 11; Q1-Q52; 16.1 restore, 16.2 damaged-file recovery, 16.3 owner handover)
-- docs/wireframes/01-07 (02 preview and prompt cards; 06 as built: tabs, inline error format, restore dialog, Trash view)
+- docs/wireframes/01-07 (01 slice 12 cards + panel interim; 02 recipient lines; 04 editor 8b direction A; 06 as built; 07 states slice 12). 03 and 05 keep old layout; 03 points to docs/design/screens/8a.
 
 ## Owner decisions in force
 - D15 one Apps Script project. Add-on runs as user, web app deployment runs as owner (USER_DEPLOYING, DOMAIN).
@@ -30,9 +30,16 @@ Last run: 2026-11-10, D29 run (admin settings, ADR-0008, slice 11). Before: D27 
 - 0004 amendment D26: pointer to 0006.
 - 0001 amendment 2026-11-10 (D27, Proposed): pointer to 0007; entry fns onComposeOpen, onHomepage, onMessageOpen.
 - 0007 (D27): side panel cannot change an open draft (UpdateDraftActionResponse ignored there). Uses compose actions: `setComposeAction` STANDALONE_DRAFT -> `GmailApp.createDraft(to, subject, "", {htmlBody, cc, bcc})`; REPLY_AS_DRAFT -> `getMessageById(gmail.messageId).createDraftReply/ReplyAll("", {htmlBody, cc, bcc})`; `setCurrentMessageAccessToken(gmail.accessToken)`; `ComposeActionResponseBuilder.setGmailDraft`. New manifest entry contextualTriggers unconditional `onMessageOpen` (homepage events carry no messageId). Row button: inbox "New email", message "Reply"; preview adds "Reply all", "New email"; "Review"/prompt rules as compose. Footer hint to compose toolbar. One pipeline, `entryOf(event)` compose|message|inbox in event.ts; `rowButton`, `insertButtons` only readers. D24: new draft gets template subject; reply never gets subject option; no "with subject"/"body only" in panel. D26: recipientActions on computed draft (new empty; reply To=sender; reply all To+Cc of message). Log `draft.via` compose|new|reply|replyAll. Signature not added, card says so (reading needs restricted gmail.settings.basic). Clipboard rejected (no Card Service class). Prompt blank field: notification; fallback Check + confirm card.
-- 0008 (D29): settings in index.json `settings` { name: {value, updatedAt, updatedBy} }, absent = default (personalTemplates off, recipientsExternal allow). Rejected: Script Properties (snapshot stale in lock recheck, change+audit two writes, editor bypass), side file. Op `config.set {name, value, from}` admin web; from != current -> CONFLICT; same value -> changed:false no audit. Audit targetType config, targetId name, before/after {name,value}; log targetId "", no value. setup writes none; backup.restore keeps live settings; RECIPIENTS_EXTERNAL property retired (slice 11). Off = one rule in levelResolver before admin rule: private tree -> `use` for owner and admins, none others; folder.list skips ensurePrivateFolder. DENIED text "Personal templates are turned off by your admin." Config tab Settings: radio + Save + confirm on take-away + last change. Amendments 2026-11-10 (D29) in 0002, 0003, 0006.
+- 0008 (D29): settings in index.json `settings` { name: {value, updatedAt, updatedBy} }, absent = default (personalTemplates off, recipientsExternal allow). Rejected: Script Properties (snapshot stale in lock recheck, change+audit two writes, editor bypass), side file. Op `config.set {name, value, baseAt, baseBy}` (slice 13; was `from`) admin web; base != stored last change -> CONFLICT; same value -> changed:false no audit. Audit targetType config, targetId name, before/after {name,value}; log targetId "", no value. setup writes none; backup.restore keeps live settings; RECIPIENTS_EXTERNAL property retired (slice 11). Off = one rule in levelResolver before admin rule: private tree -> `use` for owner and admins, none others; folder.list skips ensurePrivateFolder. DENIED text "Personal templates are turned off by your admin." Config tab Settings: radio + Save + confirm on take-away + last change. Amendments 2026-11-10 (D29) in 0002, 0003, 0006.
 - 0005 run 3: amendment owner change and dev to prod follow ADR-0002 owner handover.
 - 0005: esbuild, vitest, one bundle. Amendment 2026-11-10: bundle ships as JSON string literal, `/` before `/` or `*` written as `\/`, `(0, eval)(literal)`; HtmlService cut `//` after template literals on 43f10de; sandbox frame sets no CSP.
+
+## Errata run 4 facts (as built 6374b7b)
+- Recipients: actions REPLACE a field (S6); build sends draft list + new. `draftRecipients` null = unknown field: no action, unknown To = filled, card "Add by hand". `rh` = template lists + blocked only (Q54). Finish-typing line on both cards. Prompt switch label "Adds n recipients." `recheckRecipients` in lock (create, dup, update, version restore, import; import refuses whole file, Q53). `template.update` keeps omitted lists. `recipientsUnreadable` on version.restore.
+- Settings: `config.set {name, value, baseAt, baseBy}`; `from` -> "This page is out of date..."; name echo 40; `settingsOf` fills defaults (not readIndexDoc); restore event `liveSettingsKept: true`. While off: grant.* DENIED for admins, admin.folders drops private folders.
+- Export: start call commits one event via `commit`, token `exp:<token>` 600 s sliding, pages need it, misses not cached. Audit words "Library export started, n templates".
+- Buffer: evicted slot first, apply takes denied slot, `evt:lost`. Log targetId falls back to dispatch-resolved folder (grant.remove). `prof:<sha256>`.
+- Add-on slice 12: no headers on home/state cards, one-line labels " · ", hint "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.", Favorites hidden when empty.
 
 ## Scopes (10, unchanged)
 gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, script.projects.readonly, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Subject needs none extra (S5 verified). Any new scope needs owner approval.
@@ -56,18 +63,19 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - 32a446c: warm save 4.2-5.2 s, Drive writes 2.0-2.7 s.
 
 ## Slice plan
-- Slices 1-7, 8a, 10 done; 8c in review; 9 in progress. 11 = admin settings (D29) after 8c and 9 merge (spec 13.8). Gmail panel pass with D27 (S7 first, spec 13.7), 8b (editor redesign moves recipient fields into Details panel). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
+- Slices 1-13 (with 4b, 5b, 5c, 6a, 6b, 8a-8d) done and on dev (f88ab0b). 14 = wording pass, in build: re-check spec 7-7.3 and wireframes 01, 02, 07 after it. Gmail panel compose actions wait for S7 (spec 13.7). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
 - Q40-Q46 (D27): contextual trigger yes if no prompt, no signature, row Reply, discarded draft counts, mail.google.com never (hint only), reply-all merged cc, no forward.
 - Q47-Q52 (D29): dev reads off after deploy (accept), off caps owner+admin to use (accept, turn on to clean up), no third setting, no RECIPIENTS_EXTERNAL fallback, read+insert not hide, quick start disclosure.
+- Q53 import refused on in-lock deny race (accept); Q54 rh without draft field state (accept); Q55 S6 step 7 fresh consent (owner runs by hand before prod).
 - Q32 closed by D29. Q33-Q39 (D26): limits, no placeholders, To in reply not added, secondary domains (RECIPIENT_DOMAINS if needed), private allowed, no existence check, address search web only.
 - Q22 = D23 open, assumption 3 s apply. Q23 built 6a. Q25 rec accept.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A39]. Question IDs global Q1-Q52. Slice numbers: next free 12. Spikes S2, S2b, S4, S5 closed; S6 open (slice 9 first task; owner's runs used side panel, rerun from compose toolbar); S7 open (panel pass first task).
+- External sources [A1]..[A39]. Question IDs global Q1-Q55. Slice numbers: next free 15. Spikes S2, S2b, S4, S5, S6 closed (S6 step 7 open, Q55); S7 open (panel pass first task, harness in dev build).
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
@@ -76,7 +84,7 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - In execute-as-me web app, getUserCache is the owner's: never server-side.
 - drive.file files created by hand are invisible to the app.
 - Owner's 30 simultaneous executions cap all server work.
-- Do not invent mechanism details: read the source (e.g. scripts/lib/html.mjs) before writing an amendment.
+- Do not invent mechanism details: read the source (e.g. scripts/lib/html.mjs) before writing an amendment. Handoffs can be wrong (slice 12 said QUOTA "30 seconds"; code counts down 60 s).
 - Google reference pages can be incomplete (A13 missed `subject`): the owner's smoke log is the evidence for live event fields.
 - setup() refuses any account but recorded OWNER_EMAIL; triggers belong to their creator. Any owner change touches both.
 - Side panel = homepage trigger: no draftMetadata, draft responses silently ignored. Ask owners which entry point they used.
