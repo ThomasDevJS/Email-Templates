@@ -231,6 +231,26 @@ describe("Reply from a row (AC 4)", () => {
     });
   });
 
+  it("a reply-to with 2 addresses: the first gives the first name, neither gets a template Cc", () => {
+    const item = create({
+      html: "<p>Hi {{recipient.first_name|there}}</p>",
+      cc: [BOB, OUT, CC],
+    });
+    composeFlow(
+      ports("message", {
+        from: "Someone <someone@example.com>",
+        replyTo: `"bob@example.com" <${BOB}>, "Max, M." <${OUT}>`,
+      }),
+      opened,
+      { id: item.id, as: "reply", rc: "0,3,0" },
+    );
+    expect(draftCall()?.args).toEqual([
+      "",
+      { htmlBody: "<p>Hi Bob</p>", cc: CC },
+    ]);
+    expect(sent[0]?.args).toMatchObject({ recipientEmailIfInternal: BOB });
+  });
+
   it("no reply-to: From decides; an outside sender sends an empty recipientEmailIfInternal", () => {
     const item = create({ html: "<p>Hi {{recipient.first_name|there}}</p>" });
     composeFlow(ports("message", { from: `Max <${OUT}>` }), opened, {
@@ -495,7 +515,7 @@ describe("server failures (AC 10)", () => {
     [ErrorCode.NETWORK, WRONG],
     [
       ErrorCode.NOT_CONFIGURED,
-      "Migway Templates is not set up yet. Ask your admin to finish setup, then press Retry.",
+      "Migway Templates is not set up yet. Ask your admin to finish setup.",
     ],
     [
       ErrorCode.AUTH_NO_USER,

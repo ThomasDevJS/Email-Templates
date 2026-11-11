@@ -1,6 +1,6 @@
 # ADR-0007: Insert from the Gmail side panel (D27)
 
-Status: Accepted 2026-11-11 (spike S7 passed on Gmail web from the side panel, dev-56bf795, docs/spikes/slice-10-s7.md). Was Proposed 2026-11-10. Owner decision D27 sets the requirement; this ADR sets the mechanism. Section "Acceptance 2026-11-11" holds the S7 facts and the design of slice 18; it replaces the lines marked [S7] below. Its new owner questions (Q67 to Q74) carry defaults.
+Status: Accepted 2026-11-11 (spike S7 passed on Gmail web from the side panel, dev-56bf795, docs/spikes/slice-10-s7.md). Was Proposed 2026-11-10. Owner decision D27 sets the requirement; this ADR sets the mechanism. Section "Acceptance 2026-11-11" holds the S7 facts and the design of slice 18; it replaces the lines marked [S7] below. Its new owner questions (Q67 to Q74) carry defaults; Q68 and Q74 are settled yes (part J). Amendment 2026-11-11 (D33 and slice 18 follow-up 1): "Reply" and "Reply all" on rows; failures raise one sentence. Accepted 2026-11-11 (owner decision D33; built and reviewed).
 Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
@@ -181,7 +181,7 @@ A `DecoratedText` row holds one button and one `onClick` [A43]. The row button i
 | Entry | Row button (`FILLED` slate) | Screen reader | Compose type |
 |---|---|---|---|
 | `inbox` | "New email" | "New email from <title>" | `STANDALONE_DRAFT` |
-| `message` | "Reply" | "Reply with <title>" | `REPLY_AS_DRAFT` |
+| `message` | "Reply" [D33: "Reply" and "Reply all" in a button row under the title, Amendment 2026-11-11] | "Reply with <title>" | `REPLY_AS_DRAFT` |
 | `compose` | "Insert" (unchanged) | "Insert <title>" | none |
 
 Options for the 3 actions of the details card with a message open (a `FixedFooter` holds 2 buttons [A40]):
@@ -255,7 +255,7 @@ Verified: the harness (src/addon/spikeS7.ts at dev-56bf795, 10 scopes) called `s
 
 ### A8. Errors and states
 
-A compose-action callback answers with a draft or a notification (S7 result 5). No state card, no navigation.
+[Superseded by Amendment 2026-11-11, part 2: failures throw one sentence; no notification.] A compose-action callback answers with a draft or a notification (S7 result 5). No state card, no navigation.
 
 | Case | Detected | Answer | Draft | Counted |
 |---|---|---|---|---|
@@ -292,7 +292,38 @@ Slice 18 deletes src/addon/spikeS7.ts and its tests, `onS7Card`, `onS7Compose`, 
 
 - Easier: the panel inserts with one press, beside the open email, which the modal compose card cannot.
 - Harder: two kinds of insert to explain (into an open draft, or a new draft). The hint and the quick start carry it.
-- Unverified until the slice 18 smoke: compose actions on a row button and a footer button (Q74), form inputs in a compose callback (Q68), the header reads (A7). Each has a named fallback.
+- Unverified until the slice 18 smoke: compose actions on a row button and a footer button (Q74), form inputs in a compose callback (Q68), the header reads (A7). Each has a named fallback. [Part J, 2026-11-11: Q68 and Q74 yes; the header reads ran (steps 7 and 9); no fallback built.]
+
+## Amendment 2026-11-11: "Reply all" on rows (D33) and failure sentences (slice 18 follow-ups)
+
+Status: Accepted 2026-11-11. Owner decision D33 (2026-11-11): "might add reply and reply all", read by the orchestrator as a request; the row height is the trade-off. Built as slice 18 follow-up 2, review PASS. Follow-up 1 is a fix of a defect found in the owner's Gmail, review PASS.
+
+### Part J facts (owner's Gmail, dev-5065ba1)
+
+- Q74: a compose action works on a `DecoratedText` row button and on a `FixedFooter` button.
+- Q68: typed values and the "Add recipients" switch reach the compose-action callback.
+- Step 11: "New email" on a template deleted while listed showed nothing and opened no draft. A notification returned by a compose-action callback from a row button is not shown in Gmail. S7 result 5 had shown one from a `ButtonSet` button.
+- A reply carries the Gmail signature below the template text; a new email carries none.
+- A double press opened 1 draft (Q69).
+
+### 1. Rows with an email open (D33)
+
+Options:
+1. One "Reply" in the row (A2 as accepted); "Reply all" on the details card only. One widget per row; "Reply all" costs a tap on the name.
+2. The row `DecoratedText` without a button, then a `ButtonSet` right under it with "Reply" (`FILLED` slate) and "Reply all" (`OUTLINED`). A `DecoratedText` holds one button [A43], so a second button needs its own widget. Each row is 2 widgets and one line taller.
+3. "Reply all" as the row's `onClick`. Loses the tap that opens the details card, the only way to pre-fill.
+
+Decision: option 2, the owner's request. Mechanism (src/addon/cards/folder.ts `rowButtons`, `templateItem`, `listSection`): `templateItem` returns 1 widget (compose "Insert", inbox "New email") or 2 widgets (message); both buttons call `onCompose` with `as` `reply` or `replyAll` and the row's `rc`; `listSection` collapses after 5 whole rows, so a collapsed message section shows 10 widgets. `composeFlow` already handled `replyAll` (no first name, only new Cc). Compose and inbox cards are byte-identical to before. Screen reader names "Reply with <title>" and "Reply all with <title>".
+
+Cost: Gmail allows 100 widgets per card. With an email open the home card reaches that limit at 69 top-level folders and a folder card at 58 subfolders; no folder cap exists. Slice 20b keeps every card under 100 widgets for any data.
+
+### 2. Failures of a compose action (slice 18 follow-up 1)
+
+Options:
+1. Throw an `Error` whose message is one plain sentence. A thrown error is the one answer a callback always produces; Gmail shows it in its error bar.
+2. Reload the list each time the panel opens, so a deleted template is gone before the press. Adds one `sidebar.home` per message opened (`onMessageOpen` fires on each) and would not have caught step 11 (the template was deleted after the folder card loaded).
+
+Decision: option 1. Mechanism (src/addon/panel.ts `panelAnswer`): every refusal throws `new Error(<sentence>)`; a throw before a draft exists becomes "Something went wrong. Try again."; a throw while building the response after a draft exists becomes "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it."; the caught error's text is dropped, because it may hold an address or a stack. No request ID and no "Details for your admin" line. DENIED and NOT_FOUND still clear the cached view. The sentences are in spec 7.2. Side effect: each refusal is a failed run in Executions and, with `exceptionLogging: STACKDRIVER`, an error log entry that holds the sentence only. Open: how Gmail shows the sentence (Q75, part J step 11 rerun).
 
 ## Decision summary
 
@@ -313,7 +344,7 @@ Slice 18 deletes src/addon/spikeS7.ts and its tests, `onS7Card`, `onS7Compose`, 
 
 ## Open questions
 
-- Q40 to Q46 in spec section 15, resolved in Acceptance section A1. New: Q67 to Q74.
+- Q40 to Q46 in spec section 15, resolved in Acceptance section A1. New: Q67 to Q74; Q68 and Q74 closed 2026-11-11. Amendment 2026-11-11: Q75.
 
 ## Sources
 

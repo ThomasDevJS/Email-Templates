@@ -1,7 +1,7 @@
 # ADR-0009: Compose card for one-click insert and optional pre-fill (D31)
 
-Status: Proposed (2026-11-11)
-Date: 2026-11-11
+Status: Accepted 2026-11-11 (owner decision D31; built in slice 15, review PASS with follow-up 1; side panel in slice 18). Was Proposed 2026-11-11. Q58 to Q61 are built at their defaults and covered by D31. Section "As built 2026-11-11" holds the facts of the build and of the owner's test round 1.
+Date: 2026-11-11, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
 ## Context
@@ -33,7 +33,7 @@ Options:
 2. Two buttons per row ("Insert", "Fill in"). Not possible: one button per `DecoratedText` [A43]. A `ButtonSet` under each row doubles the card height.
 3. Insert opens a menu. Card Service has no menu widget; a pushed card is one more click.
 
-Decision: option 1. The button reads "Insert" on every row (Home, folder, search results), screen reader "Insert <title>". "Review" goes away. The row `onClick` opens the details card. Side panel: rows keep today's behavior until spike S7 (ADR-0007), see section 6.
+Decision: option 1. The button reads "Insert" on every row (Home, folder, search results), screen reader "Insert <title>". "Review" goes away. The row `onClick` opens the details card. Side panel: rows keep today's behavior until spike S7 (ADR-0007), see section 6. [Side panel as built: ADR-0007 A2 and its Amendment 2026-11-11 (D33).]
 
 ## 2. Details card: one card for preview and pre-fill
 
@@ -77,7 +77,21 @@ The card closes (S6 step 0). The draft is the result: body at the cursor, subjec
 
 ## 6. Side panel (ADR-0007, decision unchanged)
 
-Until spike S7: panel rows and the details card show no Insert, as built. After S7: the row button ("New email", "Reply") is a compose action with the same one-click rules (removal of blank fields, row `rc` check, `recipientActions` on the computed draft); the row tap opens the details card whose footer button is the compose action and reads its inputs from the event's form inputs (S7 records that a compose-action callback receives them). The blank-field notification and the "Check" fallback of ADR-0007 section 3 drop, since a blank field is removed. [2026-11-11, S7 passed: the panel details card is set in ADR-0007 "Acceptance 2026-11-11" section A2: no subject switch, "Add recipients" kept, footer "Reply" and "Reply all" with a message open. Form inputs in a compose callback are checked in the slice 18 smoke (Q68).]
+[Superseded by ADR-0007 "Acceptance 2026-11-11" and its Amendment 2026-11-11.] Until spike S7: panel rows and the details card show no Insert, as built. After S7: the row button ("New email", "Reply") is a compose action with the same one-click rules (removal of blank fields, row `rc` check, `recipientActions` on the computed draft); the row tap opens the details card whose footer button is the compose action and reads its inputs from the event's form inputs (S7 records that a compose-action callback receives them). The blank-field notification and the "Check" fallback of ADR-0007 section 3 drop, since a blank field is removed. [2026-11-11, S7 passed: the panel details card is set in ADR-0007 "Acceptance 2026-11-11" section A2: no subject switch, "Add recipients" kept, footer "Reply" and "Reply all" with a message open. Form inputs in a compose callback are checked in the slice 18 smoke (Q68).]
+
+## As built 2026-11-11 (slices 15 and 18, test round 1)
+
+Facts checked in src at 16df87a and in the owner's Gmail (test round 1, dev-56bf795 and dev-5065ba1):
+- The compose card closes after Insert, from a row (part B steps 1 and 3) and from the details card. Section 5 holds.
+- "Open library" and "Edit in library" open the library in a new Chrome window. The code asks for `OpenAs.OVERLAY` with `OnClose.RELOAD_ADD_ON`; Gmail web opens a window. Whether closing it reloads the card is unverified.
+- In a narrow draft Gmail moves the add-on icon into the "⋮" menu of the draft toolbar (part B).
+- Details Insert parameters: `id`, `version`, `values`, `rh`, `counted`; no `title` (section 2 named it). The card takes the title from the cached row or the apply result.
+- A card pushed by a row Insert (count change, unknown draft field) carries `counted=1`: the row call already buffered the apply event.
+- `replacesSubject(draftHasSubject)` takes one argument.
+- Follow-up 1: a re-rendered card carries the merged values of each call, so the row Insert, the first details Insert and a re-rendered Insert give the same body and subject (reviewer: 18 of 18). The recipient first name is a field on every details card when the template holds it without default text, because a `followUp` call never resolves it; the box starts empty with the hint "Leave blank to use the To recipient's first name, when known."
+- The change line is the first section, prefixed "(!) ".
+- Slice 18: one render function `rendered(body, input)` serves `insertFlow`, `promptInsertFlow` and both side-panel flows.
+- Open: rule 2 punctuation (Q76); no cap on the rendered subject (slice 20b); row Insert gives no notice for a left-out outside address or a skipped To (Q77, ADR-0006 Amendment 2026-11-11).
 
 ## Consequences
 
@@ -88,7 +102,7 @@ Until spike S7: panel rows and the details card show no Insert, as built. After 
 
 ## Open questions
 
-Spec section 15: Q56 to Q61.
+Spec section 15: Q56 to Q61 (built at their defaults), Q76, Q77.
 
 ## Sources
 

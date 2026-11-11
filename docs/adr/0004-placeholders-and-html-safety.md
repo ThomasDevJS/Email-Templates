@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Proposed, see ADR-0006); one-click insert D31 (Proposed 2026-11-11, see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)")
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)")
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -85,8 +85,8 @@ Saved items store the parsed `placeholders` (names) and `prompts` (normalized la
 
 1. Prompt identity: label trimmed, inner whitespace collapsed, compared case-insensitively. The first spelling is shown. One input per identity fills every occurrence.
 2. Variable values. Sender values come from the caller's profile (below). `recipient.first_name` resolves only when the draft has exactly one To recipient and that address is in the Migway domain; it is then the Directory `name.givenName`. Zero or several To recipients, or an external address, leave it unresolved. External addresses never leave the add-on and are never logged.
-3. Unresolved variable with a fallback: the fallback is used. Unresolved variable without a fallback becomes an implicit prompt ("Your phone", "Recipient first name"). No placeholder ever renders as empty text by accident. [D31, 2026-11-11, Proposed: on the compose card an implicit prompt left blank renders as empty text on purpose, with the cleanup rules of Amendment 2026-11-11.]
-4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified). [Not tried in slice 4; optional, no slice owns it.] [D31, 2026-11-11, Proposed: on the compose card a blank field no longer blocks; it is removed with the cleanup rules. See Amendment 2026-11-11.]
+3. Unresolved variable with a fallback: the fallback is used. Unresolved variable without a fallback becomes an implicit prompt ("Your phone", "Recipient first name"). No placeholder ever renders as empty text by accident. [D31, 2026-11-11, Accepted: on the compose card and in the side panel an implicit prompt left blank renders as empty text on purpose, with the cleanup rules of Amendment 2026-11-11.]
+4. Prompt card: one `TextInput` per explicit and implicit prompt, with ID `p-<n>` (`[a-zA-Z0-9-]+`, max 64 chars [R4 S36]). The Apply callback rejects the request and re-renders the card with "Fill 2 fields: Meeting date, Your phone" if any value is blank. The callback is the enforcement point. Slice 4 also tries `Action.setRequiredWidgets` for earlier feedback (availability in Gmail unverified). [Not tried in slice 4; optional, no slice owns it.] [D31, 2026-11-11, Accepted: on the compose card a blank field no longer blocks; it is removed with the cleanup rules. See Amendment 2026-11-11.]
 5. Values: plain text, max 500 characters, HTML-escaped (`& < > " '`), newline becomes `<br>`. Fallbacks and Directory values get the same escaping. Rendering never creates markup from values.
 6. Escape: `\{{` renders as the literal `{{`.
 7. Insert: `UpdateDraftBodyAction` with `MUTABLE_HTML` and `UpdateDraftBodyType.IN_PLACE_INSERT` [R4 S4, S5b]. The rendered HTML is the sanitized stored body with tokens replaced. Subject is not touched in v1. [Changed by D21: see Amendment 2026-11-10, subject.]
@@ -261,7 +261,7 @@ Consequences: no new op, no new scope. Users who want the template subject on a 
 
 ## Amendment 2026-11-10: template recipients (D26)
 
-Status: Proposed until the owner approves. Mechanism, options and platform facts: ADR-0006.
+Status: Accepted 2026-11-11 with ADR-0006 (was Proposed). Mechanism, options and platform facts: ADR-0006.
 
 - Placeholders: the grammar of this ADR does not apply to To, Cc and Bcc. Recipient fields hold literal addresses; a `{` fails `RCPT_FORMAT` (ADR-0006 section 3).
 - Apply semantics 7: the one `UpdateDraftActionResponse` also carries one recipient action per field with new addresses (ADR-0006 section 4), after spike S6.
@@ -270,7 +270,7 @@ Status: Proposed until the owner approves. Mechanism, options and platform facts
 
 ## Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)
 
-Status: Proposed until the owner approves this text. The rule itself is the owner's decision of 2026-11-11 (D31 point 2, relayed by the orchestrator): an unfilled field is removed, no marker. Owner request: "insert template in 1 click (or help pre-fill if they want to (or they do it themselves in the gmail, we just insert template and remove placeholders))". Card layout and the details card: ADR-0009. Recipients: ADR-0006 Amendment 2026-11-11.
+Status: Accepted 2026-11-11 (built in slice 15, review PASS; follow-up 1 gives one result on every insert path; was Proposed). Open by default: Q76 (rule 2 knows ASCII punctuation only). The rule itself is the owner's decision of 2026-11-11 (D31 point 2, relayed by the orchestrator): an unfilled field is removed, no marker. Owner request: "insert template in 1 click (or help pre-fill if they want to (or they do it themselves in the gmail, we just insert template and remove placeholders))". Card layout and the details card: ADR-0009. Recipients: ADR-0006 Amendment 2026-11-11.
 
 Context. Today a template with a field the sender fills (`{{ask:Label}}`, or a variable with no value and no fallback) opens the prompt card, and Insert stays blocked until every field holds a value (Apply semantics 4). D31 asks for Insert in one click for every template. The grammar gives `{{ask:Label}}` no fallback; only variables carry `|fallback`. So on one click every explicit field, and every implicit field, has no value.
 

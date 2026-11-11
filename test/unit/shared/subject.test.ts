@@ -4,10 +4,41 @@ import {
   renderSubject,
 } from "../../../src/shared/placeholders/render";
 import {
+  SUBJECT_MAX,
   controlIndex,
   oneLine,
 } from "../../../src/shared/placeholders/subject";
 import { scanBody } from "../../../src/shared/placeholders/validate";
+
+describe("rendered subject length (slice 15 review minor 4)", () => {
+  // "Load " + answer + " for Ann": 13 characters around the answer.
+  const ask = (answer: string) =>
+    renderSubject("Load {{ask:Number}} for {{ask:Driver}}", {
+      values: {},
+      answers: { number: answer, driver: "Ann" },
+    }).text;
+
+  it("cuts a long rendered subject to SUBJECT_MAX characters", () => {
+    const text = ask("7".repeat(500));
+    expect(text).toHaveLength(SUBJECT_MAX);
+    expect(text.startsWith("Load 777")).toBe(true);
+  });
+
+  it("never splits an emoji at the cut and drops a trailing space", () => {
+    const emoji = ask(`${"x".repeat(SUBJECT_MAX - 6)}\u{1F600}y`);
+    expect(emoji).toHaveLength(SUBJECT_MAX - 1);
+    expect(emoji.endsWith("x")).toBe(true);
+    expect(ask(`${"x".repeat(SUBJECT_MAX - 6)} yy`)).toHaveLength(
+      SUBJECT_MAX - 1,
+    );
+  });
+
+  it("leaves a subject at the limit unchanged", () => {
+    const text = ask("x".repeat(SUBJECT_MAX - 13));
+    expect(text).toHaveLength(SUBJECT_MAX);
+    expect(text.endsWith(" for Ann")).toBe(true);
+  });
+});
 
 describe("subject text rules (spec 5.6)", () => {
   it("finds the first control character, line separators included", () => {

@@ -1,6 +1,6 @@
 # ADR-0006: Template recipients (To, Cc, Bcc)
 
-Status: Accepted 2026-11-11 (spike S6 passed on Gmail web from the compose toolbar, dev-ec0ccb2; built in slice 9, review PASS on 08955ca; editor fields in slice 8b). Was Proposed 2026-11-10. Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting, built in slice 11. Amendment 2026-11-11 (D31, Proposed): one-click insert also for templates with recipients; the disclosure moves from a card before the insert to the row hint before it and the draft's own fields after it.
+Status: Accepted 2026-11-11 (spike S6 passed on Gmail web from the compose toolbar, dev-ec0ccb2; built in slice 9, review PASS on 08955ca; editor fields in slice 8b). Was Proposed 2026-11-10. Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting, built in slice 11. Amendment 2026-11-11 (D31, Accepted 2026-11-11, built in slice 15; the notice point of Q77 stays Proposed): one-click insert also for templates with recipients; the disclosure moves from a card before the insert to the row hint before it and the draft's own fields after it.
 Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
@@ -120,7 +120,7 @@ Options for one-click Insert from a list row:
 2. One click stays for templates with no recipients. A template with any recipient opens the preview card (or the prompt card, when it has prompts); its Insert is the confirmation.
 3. One click unless Bcc or an outside address is set.
 
-Decision: option 2. [D31, 2026-11-11, Proposed: replaced by option 1 with a count check; see Amendment 2026-11-11.] One extra click on recipient templates only. A Bcc or outside address never reaches a draft without a card that showed it. Mechanism:
+Decision: option 2. [D31, 2026-11-11, Accepted: replaced by option 1 with a count check; see Amendment 2026-11-11.] One extra click on recipient templates only. A Bcc or outside address never reaches a draft without a card that showed it. Mechanism:
 - List rows (Home, Folder, Search, Favorites, Recent) of a template with recipients show the bottom label "Adds To 1, Cc 1, Bcc 1" (only fields with addresses) and the row button reads "Review". The sidebar list carries counts only: item field `rc: [to, cc, bcc]`, no addresses.
 - Preview and prompt cards list every address on its own line with its field. An outside address carries "outside migway.com" (the caller's domain, from the caller's address). A Bcc line carries "hidden from other recipients". Not-added addresses (already in the draft, To rule, `blocked`) are listed with the reason.
 - `template.apply` returns `to`, `cc`, `bcc`, `blocked` on every call, filtered by the current switch, outside the `knownVersion` rule (the lists are small and the switch can change without a new version). The add-on never caches them.
@@ -169,7 +169,7 @@ Spike S6 record: docs/spikes/slice-09-s6.md. Owner run on dev-ec0ccb2 from the c
 
 ## Amendment 2026-11-11: one-click insert with recipients (D31)
 
-Status: Proposed until the owner approves. Owner decision D31 (2026-11-11): Insert on every row inserts in one click, templates with recipients included. This replaces the decision of section 5 (option 2) with option 1 plus a count check. Fields the sender fills: ADR-0004 Amendment 2026-11-11. Cards: ADR-0009.
+Status: Accepted 2026-11-11 (owner decision D31; built in slice 15, review PASS; test round 1 part B on dev-56bf795: one-click T6 added all 4 addresses). Was Proposed. One point stays Proposed, because it is the owner's to judge: a row Insert gives no notice for an outside address left out under `deny` or a template To skipped because the draft has one (Q77; the details card names both). Owner decision D31 (2026-11-11): Insert on every row inserts in one click, templates with recipients included. This replaces the decision of section 5 (option 2) with option 1 plus a count check. Fields the sender fills: ADR-0004 Amendment 2026-11-11. Cards: ADR-0009.
 
 Platform facts (read 2026-11-11):
 - `UpdateDraftActionResponseBuilder` has 6 methods: body, subject, To, Cc, Bcc actions and `build` [A15]. `ActionResponseBuilder` has navigation, notification, open link, state changed and `build`, and no draft action [A44]. A callback returns one of the two. So an insert response cannot carry a notification: the "result line after insert" of the D31 reading is not possible.

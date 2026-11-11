@@ -68,6 +68,7 @@ Templates that add recipients say so on the row, for example Adds Cc 1. The draf
 - `folder:sales` and `tag:pricing` narrow the results to folders or tags with a word that starts with that text.
 - Favorites: click the star (☆) next to a template in the library. The panel shows up to 10.
 - Recent: your last 5 inserted templates. A new insert can take up to about 15 minutes to show there.
+- Folders: the panel lists up to 40. A longer list ends with "Showing 40 of ... folders. Use Search or Open library for the rest."
 
 ## Your own templates in "My templates"
 

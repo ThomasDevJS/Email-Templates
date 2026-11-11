@@ -35,10 +35,10 @@ toggles carry aria-pressed, menus aria-haspopup; one tab stop with arrows, Home,
 value ("Font: Georgia"). "Insert field" sits at the right end.
 Blanks: value placeholders amber with a dotted line; asked fields in a dashed box; fallback reads
 "<name> or <fallback>". Atomic, contenteditable=false. aria-label "Field: Sender name",
-"Field: Recipient first name, fallback there", "Field: Load number, asked at insert".
+"Field: Recipient first name, default text there", "Field: Load number, the sender fills it in" (slice 14).
 "Reads as" line under the Subject only while the subject holds a placeholder.
 Right panel 340 px: Details, "The sender fills in" (each asked field, "used once" / "used n times"; empty:
-"Nothing yet. To add a question, choose Insert field, then Ask the user."), tabs "Preview as me" and
+"Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender."), tabs "Preview as me" and
 "Problems n" (live errors plus the last save's problems; a refused save opens Problems; each problem with a
 field is a button that focuses it).
 Under 860 px: the panel moves below the sheet; each section collapses with its heading button (aria-expanded).
@@ -52,8 +52,8 @@ browser's own leave prompt.
 
 Placeholder menu ({{ or toolbar):
   Sender name | Sender title | Sender phone | Sender department | Recipient first name
-  Ask the user... -> dialog: Label (1-40 chars)
-  Add fallback... -> dialog on a selected chip: fallback text (0-80 chars)
+  Ask the sender... -> dialog "Ask the sender": "Field name the sender sees" (1-40 chars)
+  Add default text... -> dialog "Default text" on a selected chip (0-80 chars)
 
 Conflict dialog (CONFLICT on save), title "This template changed":
   "Ben saved version 8 at 2:05 PM while you edited."
@@ -66,7 +66,7 @@ Subject field (D21, spec 5.6):
   as text, no chips. Placeholder menu inserts token text at the cursor when the subject has
   focus. Enter does not add a line. Paste of a line break becomes one space in the input; the
   server still rejects line breaks with SUBJ_LINEBREAK.
-  Problems name the field: "Subject: Unknown placeholder sender.nmae at char 3."
+  Problems name the field: "Subject: Unknown field sender.nmae at character 3. ..." (slice 14 text)
   Empty subject = the draft subject is not touched on Insert.
 
 Recipients (D26, ADR-0006). Built in slice 8b in the Details panel of design direction A (right panel

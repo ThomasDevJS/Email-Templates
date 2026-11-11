@@ -1,12 +1,13 @@
 Screen 7: States (empty, no permission, loading, error, trash)
 Slices 3 (web), 4 (sidebar), 6 (admin). Error codes in docs/spec.md section 7. Sidebar cards as built in slice 12:
-no header on any state card.
+no header on any state card. Texts as built at 16df87a (slice 14 wording pass, docs/design/wording.md).
 
 A. Sidebar, no templates visible (personal templates on)
 +--------------------------------------+
 | No templates shared with you yet.    |
-| Your private folder is ready: open   |
-| the library to create one.           |
+| Your folder "My templates" is ready. |
+| Open the library to create a         |
+| template.                            |
 | [Open library]                       |
 +--------------------------------------+
 
@@ -16,7 +17,7 @@ A2. Sidebar, no templates visible, personal templates off (D29, added 2026-11-10
 | Ask your admin for access to a       |
 | folder.                              |
 +--------------------------------------+
-Library with no visible folder: the same sentence, no button.
+Library with no visible folder: "No templates shared with you yet. Ask your admin for access to a folder.", no button.
 Library, own My templates while off: line above the list "Personal templates are turned off by your admin.
 You can still insert these templates." No New template button; row menus show no Edit, Move, Duplicate or Delete.
 
@@ -26,21 +27,25 @@ B. Sidebar, no permission (DENIED)
 | template. Ask a folder manager.      |
 | [Back]                               |  [Refresh] when there is no card to go back to
 +--------------------------------------+
+The compose card shows this text for every DENIED. Web, admin-only action: "You are no longer an admin, so nothing
+was changed. Ask an admin if you need access." Side panel actions: the sentences of spec 7.2, no card.
 
 C. Sidebar, error with retry (BUSY, QUOTA, TIMEOUT, SERVER)
 +--------------------------------------+
-| Something went wrong. Press Retry.   |  BUSY: "Busy right now. Press Retry in a few
+| Something went wrong. Press Retry.   |  BUSY: "The library is busy. Try again in a few
 | Request ID MWARO9CA-YG9VT8           |  seconds." QUOTA: "Service is busy. Try again
-| [Retry]  [Back]                      |  in a minute."
+| [Retry]  [Back]                      |  in a minute." NETWORK adds "Details for your admin: <message>"
 +--------------------------------------+
-Not configured: "Migway Templates is not set up yet." "Ask the owner to finish setup, then press Retry." [Retry]
-Not found: "This template was removed or moved. Press Refresh to update the list." [Refresh]
+Not configured: "Migway Templates is not set up yet." "Ask your admin to finish setup, then press Retry." [Retry]
+Web app, not configured: toast "Something went wrong. Try again." with the request ID (the server text does not
+reach the screen; open for the fix round).
+Not found: "This template was deleted or moved. Press Refresh to update the list." [Refresh]
 
-D. Account not identified (AUTH_NO_USER), sidebar and web app
+D. Account not identified (AUTH_NO_USER, AUTH_DOMAIN), sidebar and web app
 +--------------------------------------------------------------+
 | Cannot identify your Migway account.                         |
-| Apps Script does not support several signed-in Google        |
-| accounts. Use a separate Chrome profile for Migway, or an    |
+| This app does not work when several Google accounts are      |
+| signed in. Use a separate Chrome profile for Migway, or an   |
 | incognito window with only your Migway account.              |
 +--------------------------------------------------------------+
 
@@ -56,16 +61,17 @@ F. Web app empty folder
   [+ New template]          (edit level only; otherwise no button)
 
 G. Web app no search results
-  No templates match "qoute". Try folder: or tag:.
+  No templates match "qoute". Try fewer words, or remove folder: and tag: from the search.
 
 H. Trash (Library > Trash)
 +----------------------------------------------------------------------------+
-| Trash. Deleted templates stay 30 days, then are removed.                   |
-| Title              Folder          Deleted      By     Days left           |
+| Deleted templates stay here 30 days. After that they are deleted for good. |
+| Template           Folder          Deleted      By     Days left           |
 | Old price list     Sales/Quotes    2026-10-30   Ana    20   [Restore]      |
-| (Purge now: admin only)                                                    |
+| [Empty trash now...]  (admin only)                                         |
 +----------------------------------------------------------------------------+
 Empty: "Trash is empty. Deleted templates stay here for 30 days."
 
 I. Save conflict (CONFLICT): see 04-web-editor.txt.
-J. Busy toast (BUSY): "Busy, try again." [Retry], role="alert", auto-dismiss off.
+J. Busy toast (BUSY): "The library is busy. Try again in a few seconds." [Retry] [Close], role="alert",
+   auto-dismiss off.

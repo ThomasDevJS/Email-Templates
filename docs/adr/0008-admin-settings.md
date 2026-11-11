@@ -1,6 +1,6 @@
 # ADR-0008: In-app admin settings (personal templates, outside recipients)
 
-Status: Accepted 2026-11-11 (owner asked for both switches, D26 and D29; built in slice 11, review PASS, hardened in slice 13). Was Proposed 2026-11-10. Amendment 2026-11-11 (D32, Proposed): the in-app admin list.
+Status: Accepted 2026-11-11 (owner asked for both switches, D26 and D29; built in slice 11, review PASS, hardened in slice 13). Was Proposed 2026-11-10. Amendment 2026-11-11 (D32, Accepted 2026-11-11, built in slice 16): the in-app admin list.
 Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
@@ -31,7 +31,7 @@ Decision: option 2.
 Mechanism:
 - Index field `settings`, optional. Shape: `{ personalTemplates: { value, updatedAt, updatedBy }, recipientsExternal: { value, updatedAt, updatedBy } }`. An absent object or absent entry reads as the default with `updatedAt: ""`, `updatedBy: ""`. Each reader fills the defaults with `settingsOf` [built: `readIndexDoc` leaves the object as stored, so no read path can write a default; As built]; the shape check refuses a present entry whose `value` is not in its allowed list (damaged file, INTERNAL, spec 16.2).
 - Fixed list in src/shared (one table): `personalTemplates`: `on`, `off`, default `off`. `recipientsExternal`: `allow`, `deny`, default `allow`.
-- Who may change: admins only (`ADMIN_GROUP` member or `ADMIN_EMAILS`) [D32, 2026-11-11, Proposed: or in the in-app list `admins`], web app only. Manage holders and users never see or change settings. The policy row is admin, so dispatch re-reads the membership snapshot inside the lock before the write (spec 6, admin rows).
+- Who may change: admins only (`ADMIN_GROUP` member or `ADMIN_EMAILS`) [D32, 2026-11-11, Accepted: or in the in-app list `admins`], web app only. Manage holders and users never see or change settings. The policy row is admin, so dispatch re-reads the membership snapshot inside the lock before the write (spec 6, admin rows).
 - Delay: server checks use the new value from the next request on. A request already running when the change commits keeps the old value for reads; its writes re-check in the lock on the fresh index and follow the new value. Web app controls follow on the next library load; until then the server refuses. The sidebar can show its cached view for up to 10 min; under the "off" rules below nothing in that view becomes reachable that the server would refuse.
 - Two admins at once: the op carries `baseAt` and `baseBy`, the `updatedAt` and `updatedBy` of the entry the admin saw ("" for the default) [slice 13; slice 11 built `from`, the value the admin saw, which could not see an A, B, A sequence]. In the lock, a last change other than the base answers CONFLICT with who and when; nothing is written. A current value equal to the new value answers ok with `changed: false`, no write, no audit event.
 - Fresh install: `setup()` writes no settings. An absent object means the defaults (`off`, `allow`). `setup()` is idempotent and never resets an admin's choice. An index from before this change (dev) also reads as the defaults: personal templates turn off on dev at the deploy (Q47).
@@ -126,7 +126,7 @@ Left open: the client and server CONFLICT texts differ in the time part (the ser
 
 ## Amendment 2026-11-11 (D32): the in-app admin list
 
-Status: Proposed until the owner approves. Role rules, ops and threats: ADR-0003 Amendment 2026-11-11 (D32).
+Status: Accepted 2026-11-11 (owner decision D32; built in slice 16, review PASS after retry 1). Was Proposed. Role rules, ops and threats: ADR-0003 Amendment 2026-11-11 (D32).
 
 Options:
 1. One more entry in the `settings` map. The map holds one value per name from a fixed list of values, changed by `config.set` with a base; a list of people fits neither the value check nor the base rule.
@@ -134,10 +134,10 @@ Options:
 
 Decision: option 2. Mechanism:
 - Absent = `[]`. `setup()` writes none.
-- Readers call `appAdminsOf(index)` (src/shared/model, beside `settingsOf`): it returns the lower-case addresses of well-formed entries (string `email` matching the recipient form and the domain, string `addedAt`, string `addedBy`) and drops the rest. A malformed entry grants nothing and never fails the index, so a bad entry cannot block every op the way a damaged index does (spec 16.2). `indexProblem` accepts `admins` absent or an array.
+- Readers call `appAdminsOf(index)` (src/shared/model, beside `settingsOf`): it returns the lower-case addresses of well-formed entries (string `email` matching the recipient form and the domain, string `addedAt`, string `addedBy`) and drops the rest. A malformed entry grants nothing and never fails the index, so a bad entry cannot block every op the way a damaged index does (spec 16.2). `indexProblem` accepts `admins` absent or an array. [As built: `indexProblem` accepts any value; `adminEntriesOf` reads a non-array as `[]` and drops bad entries, and the next add or remove stores the clean list (slice 16 review minor 6). Safer than the text: no value of `admins` can fail the index.]
 - Every index writer keeps `admins` as read, like `settings` (a test writes a template after `admin.add` and reads the list back).
 - `config.get` adds `admins` (the entries) and `breakGlass` (the `ADMIN_EMAILS` addresses, read only); `adminGroup` is already there.
-- UI: Admin, Config, Settings, a section "Admins" after the two switches (wireframe 06, spec 7.3).
+- UI: Admin, tab "Settings and backups" (named "Config" before slice 14), a section "Admins" after the two switches (wireframe 06, spec 7.3).
 
 ## Consequences
 

@@ -23,3 +23,15 @@ export function oneLine(text: string): string {
     out += isControlChar(text.charCodeAt(i)) ? " " : text.charAt(i);
   return out.replace(/ {2,}/g, " ").trim();
 }
+
+/**
+ * A rendered subject cut to `SUBJECT_MAX` UTF-16 units, the count the editor and save check use. A cut through an
+ * emoji drops its lone first half; a space left at the end goes too.
+ */
+export function capSubject(text: string): string {
+  if (text.length <= SUBJECT_MAX) return text;
+  const cut = text.slice(0, SUBJECT_MAX);
+  const last = cut.charCodeAt(SUBJECT_MAX - 1);
+  const whole = last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
+  return whole.trimEnd();
+}

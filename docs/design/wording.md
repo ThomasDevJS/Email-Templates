@@ -364,3 +364,13 @@ New texts. Paths are relative to `src/`.
 | `web/app.ts` | Templates could not be loaded. Press Reload to try again. / Reload (button) |
 | `web/ui/status.ts` | Migway Templates is not set up yet. Ask your admin to finish setup. (NOT_CONFIGURED; was "Something went wrong. Try again.") |
 | `web/views/adminAdmins.ts` | Admins manage every shared folder, its access, settings, imports and backups. Add people by their {domain} address. (was "... shared folder, grants, ..."; spec 7.3 line 533 and wireframe 06 line 119 still quote the old text) |
+
+## Gmail cards fix round (slice 20b)
+
+New texts. Paths are relative to `src/`.
+
+| Where | Text |
+|---|---|
+| `addon/cards/folder.ts` | Showing {shown} of {total} {favorites / recent templates / folders / results}. Use Search or Open library for the rest. (last line of a list cut to stay under Gmail's 100 widgets per card) |
+| `addon/cards/recipients.ts` | A reply adds {n} recipient(s). (label of "Add recipients" on the side-panel details card with an email open, when the template has a To: a reply never adds it) |
+| `addon/panel.ts` | Migway Templates is not set up yet. Ask your admin to finish setup. (side-panel action refused for "not set up": the server text, without "then press Retry", because Gmail's error bar has no Retry) |
