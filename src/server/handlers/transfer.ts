@@ -30,7 +30,12 @@ import {
   type MakeFolder,
   type ReportLine,
 } from "../transfer/plan";
-import { prepareFor, readStoredBody, recipientPolicy } from "./body";
+import {
+  prepareFor,
+  readStoredBody,
+  recheckRecipients,
+  recipientPolicy,
+} from "./body";
 import { commit } from "./commit";
 import { newFolder } from "./folders";
 import { chainOf, folderPath, liveFolder } from "./indexOps";
@@ -451,6 +456,7 @@ function commitImport(context: HandlerContext, run: ImportRun): ImportReport {
     const items: Item[] = [];
     const lines = [...placement.lines];
     for (const { ready, folderId } of placement.placed) {
+      recheckRecipients(context, current, ready.body.recipients);
       const body = bodies.get(ready.id);
       if (body === undefined)
         lines.push({

@@ -30,6 +30,7 @@ import {
   prepareFor,
   readStoredBody,
   readableBody,
+  recheckRecipients,
   recipientPolicy,
 } from "./body";
 import { callerLists, callerRecent, type CallerLists } from "./favorites";
@@ -340,6 +341,7 @@ function addTemplate(
   const email = context.caller.email;
   return commit(context, (current) => {
     liveFolder(current, folderId);
+    recheckRecipients(context, current, draft.body.recipients);
     const item: Item = {
       id,
       kind: "template",
@@ -379,6 +381,7 @@ export function templateUpdate(context: HandlerContext): Item {
     checkBaseVersion(before, baseVersion);
     const folderId = moveTo || before.folderId;
     liveFolder(current, folderId);
+    recheckRecipients(context, current, draft.body.recipients);
     const after: Item = {
       ...before,
       ...bodyFields(draft.body, body),

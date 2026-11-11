@@ -10,7 +10,7 @@ import { reqInt, reqString } from "../dispatch/args";
 import { eventSource, type HandlerContext } from "../dispatch/context";
 import { nowIso } from "../services";
 import type { BodyRef as StoredBody } from "../storage/port";
-import { prepareFor, readableBody } from "./body";
+import { prepareFor, readableBody, recheckRecipients } from "./body";
 import { commit } from "./commit";
 import { liveItem, replaceById } from "./indexOps";
 import { bodyFields, templateEvent, writeBody } from "./templates";
@@ -141,6 +141,7 @@ export function versionRestore(
   return commit(context, (current) => {
     const before = liveItem(current, id);
     checkBaseVersion(before, baseVersion);
+    recheckRecipients(context, current, prepared.recipients);
     const after: Item = {
       ...before,
       ...bodyFields(prepared, body),

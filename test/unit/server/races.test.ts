@@ -275,3 +275,101 @@ describe("personal templates switched off while a write runs (D29, ADR-0008 sect
     expect(fileIndex().items.find((x) => x.id === item.id)?.title).toBe("Mine");
   });
 });
+
+describe("outside recipients switched to deny while a write runs (ADR-0008 section 1)", () => {
+  const OUTSIDE = "buyer@other.org";
+  const toDeny = () => {
+    setSetting(world, "recipientsExternal", "deny");
+  };
+  const refused = (response: RpcResponse) => {
+    expect(response).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDATION",
+        details: { problems: [{ code: "RCPT_EXTERNAL", field: "to" }] },
+      },
+    });
+  };
+
+  it("refuses a create that started under allow; nothing is stored", () => {
+    const before = fileIndex().items.length;
+    refused(
+      racing(
+        OWNER,
+        "template.create",
+        { folderId: a.id, title: "Out", html: "<p>x</p>", to: [OUTSIDE] },
+        toDeny,
+      ),
+    );
+    expect(fileIndex().items).toHaveLength(before);
+  });
+
+  it("refuses an update, a duplicate and a version restore that carry an outside address", () => {
+    const item = world.ok<Item>(OWNER, "template.create", {
+      folderId: a.id,
+      title: "Out",
+      html: "<p>x</p>",
+      to: [OUTSIDE],
+    });
+    world.ok(OWNER, "template.update", {
+      id: item.id,
+      baseVersion: 1,
+      title: "Out",
+      html: "<p>y</p>",
+      to: [],
+    });
+    const count = fileIndex().items.length;
+    refused(
+      racing(
+        OWNER,
+        "template.update",
+        {
+          id: item.id,
+          baseVersion: 2,
+          title: "Out",
+          html: "<p>z</p>",
+          to: [OUTSIDE],
+        },
+        toDeny,
+      ),
+    );
+    setSetting(world, "recipientsExternal", "allow");
+    refused(
+      racing(
+        OWNER,
+        "version.restore",
+        { id: item.id, version: 1, baseVersion: 2 },
+        toDeny,
+      ),
+    );
+    setSetting(world, "recipientsExternal", "allow");
+    world.ok(OWNER, "version.restore", {
+      id: item.id,
+      version: 1,
+      baseVersion: 2,
+    });
+    refused(racing(OWNER, "template.duplicate", { id: item.id }, toDeny));
+    const stored = fileIndex();
+    expect(stored.items).toHaveLength(count);
+    expect(stored.items.find((x) => x.id === item.id)).toMatchObject({
+      currentVersion: 3,
+      to: [OUTSIDE],
+    });
+  });
+
+  it("refuses an import that started under allow; nothing is imported", () => {
+    const before = fileIndex();
+    const file = JSON.stringify({
+      schemaVersion: 1,
+      folders: [],
+      grants: [],
+      items: [{ meta: { title: "Out", to: [OUTSIDE] }, html: "<p>x</p>" }],
+    });
+    const response = racing(OWNER, "import", { folderId: a.id, file }, toDeny);
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "VALIDATION" },
+    });
+    expect(fileIndex().items).toEqual(before.items);
+  });
+});
