@@ -268,9 +268,9 @@ A compose-action callback answers with a draft or a notification (S7 result 5). 
 | Message can no longer be read (deleted, moved, other account) | `getMessageById` or a header read throws, or returns null | "This email can no longer be read. Open it again, or use New email." | none | no |
 | Reply pressed without a message ID in the event | `messageIdOf(event)` = "" | "Open the email you want to answer, then press Reply again." | none | no |
 | A box over 500 characters | details press, before any call | "Each box takes up to 500 characters. Shorten the long one and try again." | none | no |
-| New template version since the card opened | apply version ≠ card `version` | "This template changed. Go back and open it again." | none | yes |
+| New template version since the card opened | apply version differs from the card `version` | "This template changed. Go back and open it again." | none | yes |
 | Other recipient lists than the card showed | `rh` differs | "The recipients of this template changed. Go back and open it again." | none | yes |
-| Row counts differ | `rc` ≠ lists | A4 text; view cache cleared | none | yes |
+| Row counts differ | `rc` differs from the lists | A4 text; view cache cleared | none | yes |
 | Gmail refuses the draft | `createDraft*` throws | "Something went wrong. Try again." plus "Details for your admin: <error message>" | none | yes |
 | Failure after the draft exists | throw after `createDraft*` returned | "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it." | in Drafts | yes |
 
