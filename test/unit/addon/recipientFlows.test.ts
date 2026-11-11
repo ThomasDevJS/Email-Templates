@@ -16,6 +16,7 @@ import {
   promptInsertFlow,
   type Ports,
 } from "../../../src/addon/flows";
+import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
 import { FakeCache } from "../../fakes/cache";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
@@ -120,11 +121,15 @@ function folderCardOf(entry: Entry = "compose"): CardSpec {
   return cardOf(folderFlow(ports(entry), { folderId: sales.id, page: "1" }));
 }
 
-const newDraft: AddonEvent = { draftMetadata: { toRecipients: [] } };
+// Spike S6: `draftMetadata` carries all 3 lists, empty when the field is empty.
+const newDraft: AddonEvent = {
+  draftMetadata: { toRecipients: [], ccRecipients: [], bccRecipients: [] },
+};
 const reply: AddonEvent = {
   draftMetadata: {
     toRecipients: ["Driver@Example.org"],
     ccRecipients: ["boss@example.com"],
+    bccRecipients: [],
     subject: "Re: leaving",
   },
 };
@@ -167,9 +172,17 @@ describe("list rows", () => {
     expect(widgets(card)).toContainEqual({
       kind: "item",
       text: "Add recipients",
-      bottomLabel: `To ${TO}, Cc ${CC}, Bcc ${BCC} (outside example.com)`,
+      bottomLabel: "Adds 3 recipients.",
       toggle: { name: "rcpt", selected: true },
     });
+    // The same lines as the preview card: markers, then the finish-typing line.
+    expect(widgets(card)).toContainEqual({
+      kind: "item",
+      topLabel: "Bcc",
+      text: BCC,
+      bottomLabel: "outside example.com\nhidden from other recipients",
+    });
+    expect(texts(card)).toContain(FINISH_TYPING);
   });
 
   it("side panel rows show the hint and no button", () => {
@@ -224,6 +237,21 @@ describe("preview card and Insert", () => {
       cc: ["boss@example.com", CC],
       bcc: [BCC],
     });
+  });
+
+  it("a draft whose Cc list cannot be read: Cc is not touched and the card says what to add by hand", () => {
+    const item = create();
+    const odd: AddonEvent = {
+      draftMetadata: { toRecipients: [], ccRecipients: "x", bccRecipients: [] },
+    };
+    const card = cardOf(previewFlow(ports(), odd, { id: item.id }));
+    expect(texts(card)).toContain(
+      `The draft's Cc recipients could not be read and were not changed. Add by hand: ${CC}.`,
+    );
+    expect(texts(card)).toContain(FINISH_TYPING);
+    expect(
+      insertOf(insertFlow(ports(), odd, named(card, "Insert"))).recipients,
+    ).toEqual({ to: [TO], bcc: [BCC] });
   });
 
   it("Insert body only sends no subject and no recipients", () => {
@@ -346,10 +374,27 @@ describe("prompt card", () => {
     expect(widgets(card)).toContainEqual(
       expect.objectContaining({
         text: "Add recipients",
-        bottomLabel: `To ${TO}, Cc ${CC}`,
+        bottomLabel: "Adds 2 recipients.",
         toggle: { name: "rcpt", selected: true },
       }),
     );
+  });
+
+  it("in a reply the prompt card lists the To as not added and the Bcc marker, like the preview card", () => {
+    const item = create("<p>{{ask:Driver}}</p>");
+    const { card } = opened(item, reply);
+    expect(texts(card)).toEqual(
+      expect.arrayContaining([
+        `Not added: ${TO}. The draft already has a To recipient.`,
+        FINISH_TYPING,
+      ]),
+    );
+    expect(widgets(card)).toContainEqual({
+      kind: "item",
+      topLabel: "Bcc",
+      text: BCC,
+      bottomLabel: "outside example.com\nhidden from other recipients",
+    });
   });
 
   it("Insert body only: no switch, no recipients", () => {

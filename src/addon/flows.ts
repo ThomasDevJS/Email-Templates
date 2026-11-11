@@ -6,7 +6,7 @@ import {
   type SidebarHome,
   type SidebarTemplate,
 } from "../shared/model/sidebar";
-import type { AppliedRecipients, Recipients } from "../shared/model/recipients";
+import type { AppliedRecipients } from "../shared/model/recipients";
 import { domainOf } from "../shared/permissions/principals";
 import { previewText, subjectPreview } from "../shared/placeholders/preview";
 import {
@@ -25,7 +25,6 @@ import {
   recipientActions,
   recipientPlan,
   recipientsText,
-  switchLabel,
 } from "./cards/recipients";
 import {
   SEARCH_INPUT,
@@ -52,6 +51,7 @@ import {
   internalRecipient,
   draftHasSubject,
   type AddonEvent,
+  type DraftRecipients,
   type Entry,
 } from "./event";
 import {
@@ -201,6 +201,8 @@ function listsOf(reply: AppliedRecipients): AppliedRecipients {
   };
 }
 
+const NO_DRAFT: DraftRecipients = { to: [], cc: [], bcc: [] };
+
 function rhOf(ports: Ports, lists: AppliedRecipients): string {
   return ports.hash(recipientsText(lists));
 }
@@ -220,7 +222,11 @@ function previewOf(
     draftHasSubject(event),
     ports.entry,
     {
-      plan: recipientPlan(body, draftRecipients(event)),
+      // The side panel has no draft and inserts nothing: list the addresses as for an empty draft.
+      plan: recipientPlan(
+        body,
+        ports.entry === "compose" ? draftRecipients(event) : NO_DRAFT,
+      ),
       rh: rhOf(ports, body),
       domain: domainOf(ports.userEmail),
       changed,
@@ -262,7 +268,7 @@ interface Ready {
   /** The template lists, or null for "Insert body only" (no recipient action, no switch). */
   readonly recipients: AppliedRecipients | null;
   /** The draft's lists from the tap's event. */
-  readonly draft: Recipients;
+  readonly draft: DraftRecipients;
   readonly rh: string;
   readonly domain: string;
 }
@@ -289,10 +295,7 @@ function insertOrAsk(ready: Ready): Reply {
     card: promptCard({
       ...ready,
       rh: lists === null ? "" : ready.rh,
-      recipientsLabel:
-        lists === null
-          ? ""
-          : switchLabel(recipientPlan(lists, ready.draft), ready.domain),
+      recipients: lists === null ? null : recipientPlan(lists, ready.draft),
       addRecipients: true,
       fields,
       entered: [],
@@ -491,9 +494,8 @@ export function promptInsertFlow(
       // A changed template shows the switches at their defaults: subject off when the draft has one (D24).
       replaceSubject: replaceSubject || (changed && !draftHasSubject(event)),
       rh: bodyOnly ? "" : rh,
-      recipientsLabel: bodyOnly
-        ? ""
-        : switchLabel(recipientPlan(lists, draft), domainOf(ports.userEmail)),
+      recipients: bodyOnly ? null : recipientPlan(lists, draft),
+      domain: domainOf(ports.userEmail),
       addRecipients: addRecipients || changed || listsChanged,
       values,
       fields,

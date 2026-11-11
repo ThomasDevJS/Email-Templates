@@ -18,12 +18,17 @@ import { previewCard } from "../../../src/addon/cards/preview";
 import { NO_RECIPIENTS } from "../../../src/shared/model/recipients";
 
 const NONE = {
-  plan: { added: NO_RECIPIENTS, notAdded: [] },
+  plan: { added: NO_RECIPIENTS, notAdded: [], unknown: NO_RECIPIENTS },
   rh: "RH",
   domain: "migway.com",
   changed: false,
 };
-const NO_RCPT = { rh: "", recipientsLabel: "", addRecipients: false };
+const NO_RCPT = {
+  rh: "",
+  recipients: null,
+  domain: "migway.com",
+  addRecipients: false,
+};
 import { promptCard, tooManyFieldsCard } from "../../../src/addon/cards/prompt";
 import {
   CALLBACKS,

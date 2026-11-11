@@ -1,7 +1,13 @@
 import { subjectPreview } from "../../shared/placeholders/preview";
 import type { PromptField } from "../../shared/placeholders/render";
 import { inputName } from "../prompts";
-import { RECIPIENT_SWITCH } from "./recipients";
+import { recipientCount } from "../../shared/model/recipients";
+import {
+  RECIPIENT_SWITCH,
+  addsLine,
+  recipientWidgets,
+  type RecipientPlan,
+} from "./recipients";
 import {
   SKIP_SUBJECT,
   SUBJECT_SWITCH,
@@ -25,8 +31,10 @@ export interface PromptState {
   readonly replaceSubject: boolean;
   /** `rh` of the lists the card was built from (spec 5.7); "" for "Insert body only" (no recipients). */
   readonly rh: string;
-  /** Addresses Insert adds, with markers (`switchLabel`); "" shows no "Add recipients" switch. */
-  readonly recipientsLabel: string;
+  /** What Insert does with the recipients, null for "Insert body only" (no switch, no lines). */
+  readonly recipients: RecipientPlan | null;
+  /** The caller's domain, for the "outside" marker. */
+  readonly domain: string;
   /** State of the "Add recipients" switch, on by default (wireframe 02). */
   readonly addRecipients: boolean;
   readonly values: Readonly<Record<string, string>>;
@@ -63,17 +71,25 @@ function subjectSwitch(state: PromptState): Widget[] {
   ];
 }
 
-/** Wireframe 02: "Add recipients" with the addresses below, only when Insert would add one. */
-function recipientSwitch(state: PromptState): Widget[] {
-  if (state.recipientsLabel === "") return [];
-  return [
-    {
-      kind: "item",
-      text: "Add recipients",
-      bottomLabel: state.recipientsLabel,
-      toggle: { name: RECIPIENT_SWITCH, selected: state.addRecipients },
-    },
-  ];
+/**
+ * Wireframe 02: "Add recipients" with "Adds n recipients." below, only when Insert would add one, then the same
+ * recipient lines as the preview card (`recipientWidgets`).
+ */
+function recipientSection(state: PromptState): Widget[] {
+  const plan = state.recipients;
+  if (plan === null) return [];
+  const toggle: Widget[] =
+    recipientCount(plan.added) === 0
+      ? []
+      : [
+          {
+            kind: "item",
+            text: "Add recipients",
+            bottomLabel: addsLine(plan),
+            toggle: { name: RECIPIENT_SWITCH, selected: state.addRecipients },
+          },
+        ];
+  return [...toggle, ...recipientWidgets(plan, state.domain)];
 }
 
 export function promptCard(state: PromptState): CardSpec {
@@ -92,7 +108,7 @@ export function promptCard(state: PromptState): CardSpec {
           { kind: "text", text: "Fill these fields to insert" },
           ...state.order.flatMap((index) => input(state, index)),
           ...subjectSwitch(state),
-          ...recipientSwitch(state),
+          ...recipientSection(state),
           ...problem,
         ],
       },

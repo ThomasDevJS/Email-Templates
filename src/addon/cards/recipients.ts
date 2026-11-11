@@ -7,18 +7,23 @@ import {
   type RecipientField,
   type Recipients,
 } from "../../shared/model/recipients";
+import type { DraftRecipients } from "../event";
 import type { Widget } from "./spec";
 
 /**
  * Template recipients at Insert (D26, spec 5.7, ADR-0006 section 4, spike S6). The one place that decides which
  * addresses reach the draft. Gmail's recipient actions replace a field (S6 step 2), so each action carries the
- * draft's list from the tap's event followed by the new addresses.
+ * draft's list from the tap's event followed by the new addresses. A draft field the event does not give as a list
+ * of strings is unknown and never gets an action.
  */
 
 /** Prompt card switch "Add recipients" (wireframe 02). */
 export const RECIPIENT_SWITCH = "rcpt";
 export const RECIPIENTS_CHANGED =
   "The recipients of this template changed. Check them and press Insert again.";
+/** Text typed in a recipient field that is not yet a chip is not in the event, and a replace drops it. */
+export const FINISH_TYPING =
+  "Finish typing addresses in the draft first: an address still being typed is lost.";
 
 export type NotAddedReason = "to" | "present" | "blocked";
 
@@ -29,6 +34,8 @@ export interface RecipientPlan {
     readonly address: string;
     readonly reason: NotAddedReason;
   }[];
+  /** Template addresses of draft fields that could not be read: the user adds them by hand. */
+  readonly unknown: Recipients;
 }
 
 /** One recipient action per field that gains an address; a field without one gets no action. */
@@ -42,26 +49,30 @@ function keyOf(address: string): string {
 }
 
 /**
- * Truth table (spec 5.7):
+ * Truth table (spec 5.7, plus unknown draft fields):
  *
- * | Template address                      | Draft To empty | Draft To filled            |
- * |---------------------------------------|----------------|----------------------------|
- * | To                                    | added          | not added (`to`)           |
- * | Cc, Bcc                               | added          | added                      |
- * | already in any draft field, any case  | not added (`present`)                       |
- * | in `blocked` (switch `deny`)          | not added (`blocked`)                       |
+ * | Template address                     | Draft To empty | Draft To filled  | Draft field unknown       |
+ * |--------------------------------------|----------------|------------------|---------------------------|
+ * | To                                   | added          | not added (`to`) | not added, add by hand    |
+ * | Cc, Bcc                              | added          | added            | not added, add by hand    |
+ * | already in a known draft field       | not added (`present`), any case                              |
+ * | in `blocked` (switch `deny`)         | not added (`blocked`)                                        |
  */
 export function recipientPlan(
   template: AppliedRecipients,
-  draft: Recipients,
+  draft: DraftRecipients,
 ): RecipientPlan {
-  const present = new Set(RECIPIENT_FIELDS.flatMap((f) => draft[f].map(keyOf)));
+  const present = new Set(
+    RECIPIENT_FIELDS.flatMap((f) => (draft[f] ?? []).map(keyOf)),
+  );
   const notAdded: RecipientPlan["notAdded"][number][] = [];
+  const unknown: Record<RecipientField, string[]> = { to: [], cc: [], bcc: [] };
   const keep = (field: RecipientField) =>
     template[field].filter((address) => {
       if (present.has(keyOf(address)))
         notAdded.push({ address, reason: "present" });
-      else if (field === "to" && draft.to.length > 0)
+      else if (draft[field] === null) unknown[field].push(address);
+      else if (field === "to" && (draft.to ?? []).length > 0)
         notAdded.push({ address, reason: "to" });
       else return true;
       return false;
@@ -69,22 +80,24 @@ export function recipientPlan(
   const added = { to: keep("to"), cc: keep("cc"), bcc: keep("bcc") };
   for (const address of template.blocked)
     notAdded.push({ address, reason: "blocked" });
-  return { added, notAdded };
+  return { added, notAdded, unknown };
 }
 
-/** `add` false ("Insert body only", the switch off): no action at all. */
+/** `add` false ("Insert body only", the switch off): no action at all. Unknown fields never get one. */
 export function recipientActions(
   template: AppliedRecipients,
-  draft: Recipients,
+  draft: DraftRecipients,
   add: boolean,
 ): RecipientActions {
   if (!add) return {};
   const { added } = recipientPlan(template, draft);
   return Object.fromEntries(
-    RECIPIENT_FIELDS.filter((field) => added[field].length > 0).map((field) => [
-      field,
-      [...draft[field], ...added[field]],
-    ]),
+    RECIPIENT_FIELDS.flatMap((field) => {
+      const current = draft[field];
+      return current === null || added[field].length === 0
+        ? []
+        : [[field, [...current, ...added[field]]]];
+    }),
   );
 }
 
@@ -129,7 +142,11 @@ const REASONS: Readonly<Record<NotAddedReason, (domain: string) => string>> = {
   blocked: (domain) => `Outside ${domain}, turned off by your admin.`,
 };
 
-/** Preview card "Recipients" (spec 7.1): one line per added address with its field and markers, then "Not added". */
+/**
+ * Recipient lines of the preview card and the prompt card (spec 7.1), one function so the two cards show the same:
+ * one line per added address with its field and markers, the ones not added and why, one line per unreadable draft
+ * field naming the addresses to add by hand, and the finish-typing line when Insert adds an address.
+ */
 export function recipientWidgets(
   plan: RecipientPlan,
   domain: string,
@@ -149,15 +166,15 @@ export function recipientWidgets(
     kind: "text",
     text: `Not added: ${address}. ${REASONS[reason](domain)}`,
   }));
-  return [...lines, ...skipped];
-}
-
-/** Prompt card switch label: "Cc safety@migway.com, Bcc records@partner.com (outside migway.com)". */
-export function switchLabel(plan: RecipientPlan, domain: string): string {
-  return RECIPIENT_FIELDS.flatMap((field) =>
-    plan.added[field].map((address) => {
-      const outside = isOutside(address, domain) ? ` (outside ${domain})` : "";
-      return `${FIELD_LABELS[field]} ${address}${outside}`;
-    }),
-  ).join(", ");
+  const unread: Widget[] = RECIPIENT_FIELDS.filter(
+    (field) => plan.unknown[field].length > 0,
+  ).map((field) => ({
+    kind: "text",
+    text: `The draft's ${FIELD_LABELS[field]} recipients could not be read and were not changed. Add by hand: ${plan.unknown[field].join(", ")}.`,
+  }));
+  const typing: Widget[] =
+    recipientCount(plan.added) > 0
+      ? [{ kind: "text", text: FINISH_TYPING }]
+      : [];
+  return [...lines, ...skipped, ...unread, ...typing];
 }

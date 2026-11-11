@@ -4,7 +4,7 @@ import {
   type DraftField,
   type DraftInfo,
 } from "../shared/model/protocol";
-import type { Recipients } from "../shared/model/recipients";
+import type { RecipientField } from "../shared/model/recipients";
 import { domainOf } from "../shared/permissions/principals";
 
 /**
@@ -105,23 +105,33 @@ export function draftInfo(event: AddonEvent | undefined): DraftInfo {
   };
 }
 
-function stringList(value: unknown): readonly string[] | undefined {
+/** A draft field's list as the event gives it, or null when unknown: the field is never rewritten then. */
+export type DraftRecipients = Readonly<
+  Record<RecipientField, readonly string[] | null>
+>;
+
+function stringList(value: unknown): readonly string[] | null {
   return Array.isArray(value) && value.every((v) => typeof v === "string")
     ? value
-    : undefined;
+    : null;
 }
 
 /**
  * The draft's To, Cc and Bcc as the tap's event carries them (spike S6: arrays of bare addresses in `draftMetadata`;
- * `gmail` repeats the non-empty ones). A missing list reads as empty. Values stay in the add-on: they only go back
- * to Gmail in the recipient actions.
+ * `gmail` repeats the non-empty ones). The first source holding the key decides: an array of strings (possibly
+ * empty) is known; a missing key, null, a string, an object or an array with a non-string entry is unknown (null).
+ * Gmail replaces a field on every recipient action, so an unknown field must never get one. Values stay in the
+ * add-on: they only go back to Gmail in the recipient actions.
  */
-export function draftRecipients(event: AddonEvent | undefined): Recipients {
-  const read = (name: string) =>
-    sourcesOf(event)
+export function draftRecipients(
+  event: AddonEvent | undefined,
+): DraftRecipients {
+  const read = (name: string) => {
+    const source = sourcesOf(event)
       .reverse()
-      .map((source) => stringList(source[name]))
-      .find((list) => list !== undefined) ?? [];
+      .find((s) => s[name] !== undefined);
+    return source === undefined ? null : stringList(source[name]);
+  };
   return {
     to: read("toRecipients"),
     cc: read("ccRecipients"),
