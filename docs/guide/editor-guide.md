@@ -99,10 +99,10 @@ The "Insert field" menu lists 5 values and "Ask the sender...".
 | "Ask the sender..." | `{{ask:Meeting date}}` | What the user types in the panel |
 
 - Default text: select a blank, open "Insert field", "Add default text...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
-- A value with no directory entry and no default text becomes a field the sender must fill. Nothing is ever inserted blank.
+- A value with no directory entry and no default text becomes a field the sender fills in. In Gmail, "Insert" on the row leaves every field without a value out of the draft, with the space next to it: "Hi [Driver name], thanks" becomes "Hi, thanks". An empty paragraph stays. The sender fills fields first by tapping the template's name, or types the words in the draft. Give a value default text when a sentence must never read with a hole.
 - Saving warns about "Recipient first name" without default text: "The sender is asked for it when it is unknown."
 - "Ask the sender..." takes a field name of 1 to 40 characters. The same field name used several times is asked once. A field the sender fills in takes no default text.
-- At most 20 fields the sender fills in per template, subject and text together.
+- At most 20 fields the sender fills in per template, subject and text together. The panel shows at most 20 boxes; with more, the rest are left out of the draft.
 - Fields work in text only, never inside a link or image address.
 - One field must keep one format. Bolding a whole blank works; bolding half of a typed `{{...}}` is an error.
 - `\{{` writes literal double braces.
@@ -112,9 +112,9 @@ The "Insert field" menu lists 5 values and "Ask the sender...".
 
 - Plain text, one line, up to 200 characters. Line breaks are refused on save ("Subject must be one line").
 - Fields work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`.
-- A field name used in subject and text is asked once and fills both.
+- A field name used in subject and text has one box and fills both. A subject made only of fields without a value leaves the draft subject as it was.
 - Empty subject: inserting the template never touches the draft subject.
-- In Gmail the template subject fills an empty subject box only. A subject already in the draft is kept unless the user picks "Insert with subject". Details: [quick start](user-quick-start.md).
+- In Gmail the template subject fills an empty subject box only. A subject already in the draft is kept unless the sender turns on "Replace the subject" after tapping the template's name. Details: [quick start](user-quick-start.md).
 
 ## Recipients (To, Cc, Bcc)
 
@@ -125,7 +125,7 @@ A template can add fixed addresses to To, Cc and Bcc: at most 10 per field and 2
 - Mistakes show under the field at once, with the same text the save uses: "Cc, address 2 is not an email address. Use the form name@company.com.", "Cc holds 11 addresses. Use at most 10 per field.", "safety@migway.com is in both To and Cc. Keep it in one field.". When an admin set "Outside recipients" to "migway.com only" (Admin, Config, Settings), an outside chip turns red and Save refuses it: "Bcc, address 1 is outside migway.com. Your admin allows only migway.com addresses. Remove it to save."
 - Save always sends all three fields; removing every chip of a field clears it.
 
-Users with use access see every address on a card before Insert and cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To); "Insert body only" adds none. Users should finish typing their own addresses before inserting.
+Added to the draft when someone inserts this template. The row in Gmail shows how many; the draft shows them after the insert. Senders with "Can use" cannot change them. Insert adds Cc and Bcc always and To only when the draft has no To (a reply keeps its To). Tapping the template's name lists every address; turning off "Add recipients" there adds none. Senders should finish typing their own addresses before inserting.
 
 ## Saving and the "This template changed" dialog
 
