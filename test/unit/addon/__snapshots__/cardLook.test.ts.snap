@@ -10,8 +10,7 @@ exports[`card look is frozen (D34) > compose: home, folder, search, no match 1`]
     "sections": [
       [
         "",
-        "input: Search templates",
-        "buttons: Search",
+        "columns: input: Search templates | buttons: Search",
       ],
       [
         "Favorites",
@@ -55,8 +54,7 @@ exports[`card look is frozen (D34) > compose: home, folder, search, no match 1`]
     "sections": [
       [
         "",
-        "input: Search templates",
-        "buttons: Search",
+        "columns: input: Search templates | buttons: Search",
       ],
       [
         "Results",
@@ -75,8 +73,7 @@ exports[`card look is frozen (D34) > compose: home, folder, search, no match 1`]
     "sections": [
       [
         "",
-        "input: Search templates",
-        "buttons: Search",
+        "columns: input: Search templates | buttons: Search",
       ],
       [
         "",

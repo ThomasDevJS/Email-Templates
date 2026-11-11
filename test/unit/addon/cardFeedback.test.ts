@@ -212,7 +212,10 @@ describe("Search button (D36)", () => {
       searchCard(data, "x", data.templates, "message"),
       searchCard(data, "zz", [], "inbox"),
     ]) {
-      const [box, button] = card.sections[0]?.widgets ?? [];
+      const first = card.sections[0]?.widgets ?? [];
+      const [box, button] = first.flatMap((w) =>
+        w.kind === "columns" ? [w.fill, w.fit] : [w],
+      );
       expect(box?.kind === "input" && box.onChange).toEqual({ fn: "onSearch" });
       expect(button).toEqual({
         kind: "buttons",
@@ -236,6 +239,47 @@ describe("Search button (D36)", () => {
     const at = fns.lastIndexOf("onSearch");
     expect(fns.filter((fn) => fn === "onSearch")).toHaveLength(2);
     expect(argsOf("setLoadIndicator")[at]).toBe("SPINNER");
+  });
+
+  it("compose: box and button in one row of 2 columns; side panel: stacked", () => {
+    const row = homeCard(data, "compose").sections[0]?.widgets;
+    expect(row?.map((w) => w.kind)).toEqual(["columns"]);
+    expect(
+      row?.[0]?.kind === "columns" && [row[0].fill.kind, row[0].fit.kind],
+    ).toEqual(["input", "buttons"]);
+    for (const entry of ["inbox", "message"] as const)
+      expect(
+        homeCard(data, entry).sections[0]?.widgets.map((w) => w.kind),
+      ).toEqual(["input", "buttons"]);
+    renderCard(homeCard(data, "compose"));
+    expect(argsOf("newColumns")).toHaveLength(1);
+    expect(argsOf("addColumn")).toHaveLength(2);
+    expect(argsOf("setHorizontalSizeStyle")).toEqual([
+      "FILL_AVAILABLE_SPACE",
+      "FILL_MINIMUM_SPACE",
+    ]);
+    expect(argsOf("setVerticalAlignment")).toEqual(["CENTER", "CENTER"]);
+  });
+
+  it("a Columns build that throws falls back to the stacked box and button", () => {
+    const base = createRecordingCardService();
+    calls = base.calls;
+    vi.stubGlobal(
+      "CardService",
+      new Proxy(base.service, {
+        get: (target, method) =>
+          method === "newColumns"
+            ? () => {
+                throw new Error("Columns not supported");
+              }
+            : (Reflect.get(target, method) as unknown),
+      }),
+    );
+    expect(() => renderCard(homeCard(data, "compose"))).not.toThrow();
+    expect(argsOf("addColumn")).toHaveLength(0);
+    expect(argsOf("setTitle")).toContain("Search templates");
+    expect(argsOf("setText")).toContain("Search");
+    expect(argsOf("build")).toHaveLength(1);
   });
 
   it("a button icon that throws leaves the card whole, the button without its icon", () => {

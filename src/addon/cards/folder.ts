@@ -24,7 +24,9 @@ export const VISIBLE_ROWS = 5;
 /**
  * Rows a list shows at most (Gmail: 100 widgets per card). With an email open a template row is 2 widgets. Worst
  * home card: search box and button 2 + Favorites 21 + Recent 11 + Folders 41 + hint 1 = 76; worst folder card:
- * Folders 41 + page 40 + pager 2 + hint 1 = 84; search 2 + 41 + 1 = 44. Favorites, Recent and search match the server's own caps.
+ * Folders 41 + page 40 + pager 2 + hint 1 = 84; search 2 + 41 + 1 = 44. In compose the search row is Columns with
+ * 2 widgets, counted as 3 to be safe; compose rows are 1 widget, so the compose home stays at 62 or less.
+ * Favorites, Recent and search match the server's own caps.
  */
 export const LIST_MAX = {
   favorites: 10,

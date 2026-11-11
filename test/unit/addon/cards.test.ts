@@ -53,9 +53,13 @@ import {
   waitSeconds,
 } from "../../../src/addon/cards/states";
 
-/** Every widget of a card, footer buttons excluded. */
+/** Every widget of a card, footer buttons excluded; a row of columns as its two widgets. */
 function widgets(card: CardSpec): Widget[] {
-  return card.sections.flatMap((section) => section.widgets);
+  return card.sections.flatMap((section) =>
+    section.widgets.flatMap((w) =>
+      w.kind === "columns" ? [w.fill, w.fit] : [w],
+    ),
+  );
 }
 
 function texts(card: CardSpec): string[] {

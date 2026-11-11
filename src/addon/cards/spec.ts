@@ -103,7 +103,16 @@ export type Widget =
       readonly hint?: string;
       /** Runs when the user changes the value (sidebar search). */
       readonly onChange?: ActionSpec;
+    }
+  | {
+      /** One row of two (Card Service Columns, compose dialog only): `fill` takes the space, `fit` the minimum. */
+      readonly kind: "columns";
+      readonly fill: Single;
+      readonly fit: Single;
     };
+
+/** Every widget but a row of columns. */
+export type Single = Exclude<Widget, { kind: "columns" }>;
 
 export interface SectionSpec {
   readonly header?: string;

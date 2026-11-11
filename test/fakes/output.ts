@@ -149,6 +149,11 @@ export function createRecordingCardService(): {
     },
     TextButtonStyle: { FILLED: "FILLED", OUTLINED: "OUTLINED", TEXT: "TEXT" },
     LoadIndicator: { SPINNER: "SPINNER", NONE: "NONE" },
+    HorizontalSizeStyle: {
+      FILL_AVAILABLE_SPACE: "FILL_AVAILABLE_SPACE",
+      FILL_MINIMUM_SPACE: "FILL_MINIMUM_SPACE",
+    },
+    VerticalAlignment: { CENTER: "CENTER", TOP: "TOP", BOTTOM: "BOTTOM" },
     SwitchControlType: { SWITCH: "SWITCH", CHECK_BOX: "CHECK_BOX" },
     ComposedEmailType: {
       REPLY_AS_DRAFT: "REPLY_AS_DRAFT",
