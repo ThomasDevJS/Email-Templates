@@ -12,6 +12,7 @@ import { openDialog } from "../ui/dialog";
 import { h, uid } from "../ui/dom";
 import { RpcError } from "../rpc/client";
 import { lineText } from "../ui/status";
+import { adminsSection } from "./adminAdmins";
 import type { AppContext } from "./context";
 
 /** The current entry a CONFLICT carries in `details` (ADR-0008 section 2), or null for any other error. */
@@ -161,5 +162,6 @@ export function settingsSection(
     ...names.map((name) =>
       settingBlock(app, name, data.settings[name], data.domain),
     ),
+    adminsSection(app, data),
   );
 }

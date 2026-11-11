@@ -614,7 +614,7 @@ describe("config tab", () => {
   it("shows each setting with its explanation, current value and last change", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
     });
     const [personal, outside] = [
       ...main().querySelectorAll<HTMLFieldSetElement>("fieldset.setting"),
@@ -644,7 +644,7 @@ describe("config tab", () => {
   it("asks before turning personal templates off, Cancel first; saves after the confirm", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
     });
     const personal = main().querySelector("fieldset.setting") as HTMLElement;
     radio(personal, "Off").click();
@@ -676,7 +676,7 @@ describe("config tab", () => {
   it("saves a change that takes nothing away with no dialog", async () => {
     await boot("/?latency=0&personal=off#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
     });
     const personal = main().querySelector("fieldset.setting") as HTMLElement;
     expect(checkedLabel(personal)).toBe("Off");
@@ -693,7 +693,7 @@ describe("config tab", () => {
   it("asks before allowing only the domain, and shows a conflict with the current value", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
     });
     const outside = main().querySelectorAll(
       "fieldset.setting",
@@ -729,7 +729,7 @@ describe("config tab", () => {
   it("shows the current value from a CONFLICT after an A, B, A change and keeps focus off the body", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
     });
     const outside = main().querySelectorAll(
       "fieldset.setting",
@@ -767,7 +767,7 @@ describe("config tab", () => {
   it("moves focus to the status line after a Save without a dialog", async () => {
     await boot("/?latency=0&personal=off#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(2);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
     });
     const personal = main().querySelector("fieldset.setting") as HTMLElement;
     radio(personal, "On").click();
@@ -790,5 +790,166 @@ describe("config tab", () => {
       expect(text()).toContain("Settings could not be loaded.");
     });
     expect(toasts()).toContain("Request ID");
+  });
+});
+
+describe("config tab, Admins section (D32)", () => {
+  const section = () =>
+    main().querySelector("fieldset.admins-setting") as HTMLElement;
+  const rows = () =>
+    [...section().querySelectorAll(".admins li")].map(
+      (row) => row.querySelector(".row-title")?.textContent,
+    );
+  const input = () => labelled<HTMLInputElement>("Email address");
+  const adminStatus = () =>
+    section().querySelector('[role="status"]') as HTMLElement;
+
+  async function open(url = "/?latency=0#/admin/config"): Promise<void> {
+    await boot(url);
+    await until(() => {
+      expect(section()).not.toBeNull();
+    });
+  }
+
+  function add(email: string): void {
+    input().value = email;
+    button("Add admin", section()).click();
+  }
+
+  it("shows the list with sources, no Remove on the caller's own row, the owner and group rows", async () => {
+    await open();
+    expect(section().querySelector("legend")?.textContent).toBe("Admins");
+    expect(section().getAttribute("aria-describedby")).toBe(
+      section().querySelector(".setting-help")?.id,
+    );
+    expect(section().textContent).toContain(
+      "Admins manage every shared folder, grants, settings, imports and backups. Add people by their example.com address.",
+    );
+    expect(rows()).toEqual(["dev.user@example.com", "ana.moreno@example.com"]);
+    const [own, other] = [...section().querySelectorAll(".admins li")] as [
+      HTMLElement,
+      HTMLElement,
+    ];
+    expect(own.querySelector("button")).toBeNull();
+    expect(own.textContent).toMatch(/Added by ana\.moreno on Nov 8, /);
+    expect(other.querySelector("button")?.getAttribute("aria-label")).toBe(
+      "Remove ana.moreno@example.com as admin",
+    );
+    expect(section().textContent).toContain(
+      "Set by the owner: owner@example.com. These cannot be removed here.",
+    );
+    expect(section().textContent).toContain("Members of admins@example.com.");
+  });
+
+  it("shows the empty list text", async () => {
+    await open("/?latency=0&admins=none#/admin/config");
+    expect(section().textContent).toContain("No admins added here yet.");
+    expect(section().querySelector(".admins")).toBeNull();
+  });
+
+  it("adds an admin: busy text, result, list from the op, focus on the status line", async () => {
+    await open();
+    const addButton = button("Add admin", section());
+    addButton.focus();
+    add(" Carl@Example.com ");
+    expect(addButton.textContent).toBe("Adding...");
+    expect(addButton.getAttribute("aria-disabled")).toBe("true");
+    await until(() => {
+      expect(adminStatus().textContent).toBe(
+        "carl@example.com is now an admin.",
+      );
+    });
+    expect(rows()).toContain("carl@example.com");
+    expect(input().value).toBe("");
+    expect(addButton.textContent).toBe("Add admin");
+    expect(addButton.hasAttribute("aria-disabled")).toBe(false);
+    expect(document.activeElement).toBe(adminStatus());
+    add("carl@example.com");
+    await until(() => {
+      expect(adminStatus().textContent).toBe(
+        "carl@example.com is already an admin.",
+      );
+    });
+  });
+
+  it("shows each refusal text inline and marks the field", async () => {
+    await open();
+    for (const [typed, message] of [
+      ["name", "Enter an email address, for example name@example.com."],
+      ["eve@other.org", "Only example.com addresses can be admins."],
+      [
+        "nobody@example.com",
+        "No example.com account has this address. A group goes in the admin group the owner sets.",
+      ],
+    ] as const) {
+      add(typed);
+      await until(() => {
+        expect(adminStatus().textContent).toBe(message);
+      });
+      expect(input().getAttribute("aria-invalid")).toBe("true");
+      expect(input().getAttribute("aria-describedby")).toBe(adminStatus().id);
+    }
+    expect(rows()).toHaveLength(2);
+  });
+
+  it("removes after a confirm with Cancel focused; focus moves to the status line", async () => {
+    await open();
+    const remove = section().querySelector(
+      '[aria-label="Remove ana.moreno@example.com as admin"]',
+    ) as HTMLButtonElement;
+    remove.focus();
+    remove.click();
+    const confirm = dialog() as HTMLElement;
+    expect(confirm.textContent).toContain(
+      "Remove ana.moreno@example.com as admin?",
+    );
+    expect(confirm.textContent).toContain(
+      "They lose admin access at their next action. Their templates and folders stay.",
+    );
+    expect(document.activeElement?.textContent).toBe("Cancel");
+    button("Cancel", confirm).click();
+    await until(() => {
+      expect(document.activeElement).toBe(remove);
+    });
+    expect(rows()).toHaveLength(2);
+    remove.click();
+    button("Remove admin", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(adminStatus().textContent).toBe(
+        "ana.moreno@example.com is no longer an admin.",
+      );
+    });
+    expect(rows()).toEqual(["dev.user@example.com"]);
+    await until(() => {
+      expect(document.activeElement).toBe(adminStatus());
+    });
+  });
+
+  it('answers "not in the list" when another admin removed the person first', async () => {
+    await open();
+    await otherTab("admin.remove", { email: "ana.moreno@example.com" });
+    (
+      section().querySelector(
+        '[aria-label="Remove ana.moreno@example.com as admin"]',
+      ) as HTMLButtonElement
+    ).click();
+    button("Remove admin", dialog() as HTMLElement).click();
+    await until(() => {
+      expect(adminStatus().textContent).toBe(
+        "ana.moreno@example.com is not in the list.",
+      );
+    });
+    expect(rows()).toEqual(["dev.user@example.com"]);
+  });
+
+  it("shows the DENIED text when the caller is no longer an admin", async () => {
+    await open("/?latency=0&fail=DENIED&failOp=admin.add#/admin/config");
+    add("carl@example.com");
+    await until(() => {
+      expect(adminStatus().textContent).toBe(
+        "You don't have access to this template. Ask a folder manager.",
+      );
+    });
+    expect(rows()).toHaveLength(2);
   });
 });

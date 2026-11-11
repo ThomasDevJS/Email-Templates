@@ -16,6 +16,7 @@ import type {
   SettingValue,
   Settings,
 } from "../../shared/model/settings";
+import type { AdminEntry } from "../../shared/model/admins";
 import type { AccessLevel } from "../../shared/permissions/levels";
 import type { RpcClient } from "./client";
 
@@ -198,6 +199,11 @@ export interface JobRow {
   readonly lastError: string;
 }
 
+export interface AdminsResult {
+  readonly admins: readonly AdminEntry[];
+  readonly changed: boolean;
+}
+
 export interface ConfigView {
   readonly domain: string;
   readonly adminGroup: string;
@@ -209,6 +215,9 @@ export interface ConfigView {
   readonly indexWarnBytes: number;
   /** Admin settings (D29, spec 5.8), defaults filled in. */
   readonly settings: Settings;
+  /** In-app admins and the `ADMIN_EMAILS` addresses (D32, spec 6). */
+  readonly admins: readonly AdminEntry[];
+  readonly breakGlass: readonly string[];
   readonly jobs: readonly JobRow[];
   readonly triggersError: string;
 }
@@ -284,6 +293,9 @@ export interface Api {
     value: SettingValue,
     base: SettingEntry,
   ): Promise<SettingEntry & { changed: boolean }>;
+  /** `admin.add`, `admin.remove` (D32): the list after the call; `changed: false` when nothing changed. */
+  addAdmin(email: string): Promise<AdminsResult>;
+  removeAdmin(email: string): Promise<AdminsResult>;
   backups(): Promise<{ dates: string[] }>;
   restoreBackup(date: string): Promise<{ date: string; rev: number }>;
 }
@@ -361,6 +373,8 @@ export function createApi(client: RpcClient): Api {
         baseAt: base.updatedAt,
         baseBy: base.updatedBy,
       }),
+    addAdmin: (email) => call("admin.add", { email }),
+    removeAdmin: (email) => call("admin.remove", { email }),
     backups: () => call("backup.list"),
     restoreBackup: (date) => call("backup.restore", { date }),
   };
