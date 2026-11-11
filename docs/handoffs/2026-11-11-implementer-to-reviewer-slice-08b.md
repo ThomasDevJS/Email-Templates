@@ -131,3 +131,42 @@ Screenshots re-taken at scale 2: editor, editor-dark, editor-390, placeholder-me
 Checks from a clean install: lint and typecheck clean; test:coverage 63 files, 1481 tests, 96.13% statements, 90.03% branches, 95.44% functions, 97.01% lines; build dev Code.js 347.9 KB, index.html 376.9 KB (+1.8 KB over the first build: picker, guard, "Reads as"); scopes:check 10 approved; format:check clean; lighthouse 100 on all 13 runs.
 
 Files: src/web/app.ts (hook), src/web/views/context.ts (`canLeave`), src/web/views/editor.ts, src/web/editor/{schema,toolbar}.ts, src/web/ui/menu.ts, src/web/styles.css, test/unit/web/{editor,editorPanel}.test.ts, docs/guide/editor-guide.md, docs/ops/smoke.md, docs/design/screens/8b/.
+
+## Retry 1 (2026-11-11, review FAIL: 2 blockers, 7 minors, CSS budget)
+
+Commits a630c11 to the handoff commit on `slice/08b-ui-editor`. Not merged, not pushed.
+
+Blockers:
+1. Insert position. `Editor.hold()` (src/web/editor/setup.ts) saves a selection bookmark before a dialog opens and maps it through every later transaction; `run(command)` restores it, then runs the unchanged command; `release()` on Cancel. Used by Image (also across the width read), Link and "Ask the user...". Fallback keeps its saved chip position (modal dialog: no edit can move it). An image that fails or takes over 5 s is inserted at the saved place with no width (unchanged rule). Chromium, body "Hello world", caret after "Hello": image (fast, 1.5 s, failing), link and asked field land after "Hello" with Enter and with OK, 10 of 10.
+2. One leave dialog. The editor keeps the open question; a second exit attempt focuses its first button and returns false. Chromium: Back twice 1 dialog, Trash then Back 1 dialog.
+
+Minors:
+3. `openScope` sets Favorites mode only inside the leave callback (app.ts). Chromium: Favorites, Keep editing, breadcrumb opens "Sales / Quotes", Favorites not current.
+4. The panel's outside-press handler ignores presses inside a dialog backdrop; the question returns focus to the control that started the exit, or to the editor body when focus was on the page body. Chromium 390: panel stays open, focus on Trash.
+5. History positions: `googleHost` writes `{ page, at }` as the history state; `onBackForward(hash, moved)` reports the distance; a held Back or Forward travels back with `host.go(-moved)` (new `Host.go`, `window.history.go`) and ignores the return trip. Entries from before the page load (no state) fall back to the old push. Chromium: Back twice and Forward, Keep editing: history length unchanged (4, 5); next Back after Forward lands on the library. Harness passes the state through. Not verified in Google's frame: smoke step needed (Forward, Keep editing, Back once: the library opens, not History).
+6. Chips announce "Added a@x.com to Cc" (several: "Added a@x.com, b@y.com to Cc") and "Removed a@x.com from Cc" (× and Backspace) in the editor's status region (`ChipOptions.announce`). It is the visible status line, so it shows above the toolbar too.
+7. Problems tab: live errors (backslash, placeholder problems in body and subject, recipient problems) plus the last save's other problems, deduplicated by text; redrawn only when the list changes (role=alert). Typing does not switch tabs; a refused save does. Each problem with a field is a button that focuses it (subject, body, To, Cc, Bcc) and opens a collapsed Details section.
+8. Details rows (Title, Folder, Tags, To, Cc, Bcc) stack the label above a full-width control: "Dispatch / Rate confirmations" fits at 1440, 1024 and 390. The read-only note moves into the sheet column (680 px, centered with the sheet).
+9. smoke.md lines 37, 38, 62 corrected. `chipText` removed; its 3 cases now assert `blankParts`.
+
+Budget: scripts/web.mjs `minifiedStyles` runs esbuild `transform` (loader css, minify, legalComments none) for the production page and the harness page; it throws when the result holds `//`, `/*`, `<?` or `</style`. Verified: the built page's style block has none of the four (test), library, editor and admin audit at 1440 light, 1440 dark and 390 are pixel-identical before and after except 1 to 4 px of the search caret blink. index.html 379.3 KB before, 367.7 KB after (-11.6 KB).
+
+Changed texts (old, new):
+
+| Where | Old | New |
+|---|---|---|
+| Chip added (status) | (none) | "Added <addresses> to <To/Cc/Bcc>" |
+| Chip removed (status) | (none) | "Removed <address> from <To/Cc/Bcc>" |
+| smoke.md 37 | "Version 4", "Loaded the latest version. Your changes were discarded." | header "Saved as version 4, <time>", "Opened their version. Your changes were discarded." |
+| smoke.md 38 | "the preview shows chips" | "the preview shows the placeholders as blanks" |
+| smoke.md 62 | "Version 1", "Version 2", "Loaded the latest version..." | "Saved as version 1, <time>", "Saved as version 2, <time>", "Opened their version..." |
+
+Tests added (all fail on d8de28d): editorPanel (image at the caret by Enter and OK with the caret reset meanwhile, link by Enter and OK, Back twice, Trash then Back, Forward history, Favorites state, 390 focus, focus nowhere, live Problems and links, chip announcements); editor.test (hold through moved selection and typed text, held link range, destroyed editor, asked field, fallback); styles.test (details rows, note); webBundle.test (minified styles). None deleted; round-trip fixtures unchanged. No new color.
+
+Checks from a clean install (`rm -rf node_modules && npm ci`: 559 packages): lint clean; typecheck clean; test:coverage 63 files, 1498 tests, 96.49% statements, 90.39% branches, 95.95% functions, 97.35% lines; build dev Code.js 347.9 KB, index.html 367.7 KB of 400; scopes:check 10 approved; format:check clean; lighthouse 100 on 13 of 13.
+
+Screenshots re-taken at scale 2: editor, editor-dark, editor-390, placeholder-menu, link-dialog, recipient-error, preview-recipients, leave-dialog, font-menu, editor-readonly.
+
+Left for later: Bcc box empty input line, Title input border in read-only, Bcc note under "None" (review h.2, h.5); Back then Discard still pushes the target (one extra entry); `me` failing blocks the editor (review c).
+
+Files: src/web/{app,host,dev-harness,styles.css}, src/web/editor/{setup,picker,schema}.ts, src/web/views/{editor,recipients,problems}.ts, scripts/web.mjs, test/unit/web/{editor,editorPanel,styles}.test.ts, test/unit/scripts/webBundle.test.ts, docs/ops/smoke.md, docs/design/screens/8b/.
