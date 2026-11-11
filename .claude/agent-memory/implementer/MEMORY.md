@@ -55,11 +55,7 @@
 - Payload fields need a reader; review flags unused ones as dead.
 
 ## Code map (after slice 4b)
-- `src/shared/requestId.ts`: `newRequestId`, `requestIdNow` (`XXXXXXXX-XXXXXX`), used by web, add-on, `web.open`, rpc fallback.
-- `src/server/metrics.ts`: `newStats`, `meterProps/Cache/Lock/Drive/Directory` (method table `Record<keyof T, true>`, method looked up per call so test monkeypatches work), `snapshotProps` (one `getProperties` per request; triggers live). `Services.startedMs`; `RequestStats` has `calls` and `ms`.
-- Log line: `calls`, `timing` (numbers only); add-on sends `timing` (`requestTiming` in protocol.ts filters keys and ranges).
-- `loadIndex` is lock-free; `maintain` runs in `doGet` only. Body cache `bd:<bodyFileId>` in handlers/body.ts (`readStoredBody`, `cacheBody`).
-- Web: views/rowActions.ts (row menu), grid "Actions" column, `AppContext.pushRoute`, library selects folders in place, `openDialog({ returnFocus })`.
+- shared/requestId.ts (`requestIdNow`); server/metrics.ts (`meter*`, `snapshotProps`: one `getProperties` per request); log `calls`, `timing`; body cache `bd:<bodyFileId>`; web views/rowActions.ts, `AppContext.pushRoute`.
 
 ## Lessons (slices 4b to 6b, merged)
 - Snapshots break read-check-write; re-read live in the lock.
@@ -115,8 +111,7 @@
 - Retry 1: draft lists are known or unknown (`DraftRecipients`, null); an unknown field never gets a replace action. `recipientWidgets` is the single source of recipient lines on both cards. Version-file lists: `isStoredList`, `unreadableRecipients`.
 ## Slice 10 (S7 harness + side-panel interim fix, 2026-11-10)
 - Permanent: `entryOf`, `messageIdOf`, `Entry` (event.ts); `Ports.entry`; cards take `entry`; `onMessageOpen` + `contextualTriggers` `unconditional`; `ButtonSpec.compose` -> `setComposeAction`.
-- TEMPORARY: src/addon/spikeS7.ts, `onS7Card/Compose/Notify`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts. Inventory in docs/handoffs/2026-11-10-implementer-to-reviewer-slice-10-s7.md.
-- Harness guard stays outside the error wrapper (the guard test expects a throw). `perl -0pi` multi-file edits pass the worktree guard; python heredocs do not.
+- TEMPORARY: src/addon/spikeS7.ts, `onS7*`, Reply kinds `s7`, `s7Error`, test/fakes/gmail.ts (inventory: slice-10-s7 handoff). Harness guard stays outside the error wrapper.
 ## Slice 12 (add-on layout and wording, 2026-11-11)
 - Model: `title?`, `ButtonSpec.style` filled|outlined (filled = slate `SLATE` via setBackgroundColor), item `icon` (Material name only), `SectionSpec.collapseAfter`, `LIBRARY_FOOTER`.
 - `templateItem(t, entry, path, icon)`: one-line bottom label path · hints (path "" on folder cards). Labels get escapeText, never `<br>`. `listSection` drops empty, collapses past `VISIBLE_ROWS` 5.
@@ -125,13 +120,18 @@
 ## Slice 8c (admin UI, 2026-11-10)
 - `views/adminTable.ts` (`adminTable`, `tableRow` with `data-label`, `noteRow`, `toneTag`); `admin/actions.ts` (`actionWords`, `resultTag`, `purgeText`). Tint tokens `--ok-bg`, `--warn-bg`, `--red-bg`.
 - Admin h1 then tab h2s (Lighthouse heading order). Admin tables stack under 860 px via `td[data-label]::before`.
-- Worktree guard refuses `cmd && python3 - <<EOF`; scratchpad `ed8c.py` (@@@/<<</===/>>>) run alone works. Screens: scratchpad `shoot8c.cjs`, dev server on a fixed port, rebuild by restart.
 
 ## Slice 8d (web minors, 2026-11-10)
 - `setInert(el, on)` in ui/dialog.ts (inert + aria-hidden) used by the panel and `openDialog` (all body children but the backdrop and #toasts; undo before refocus).
 - `person(email, showAddress)`: audit shows the address as a 12 px `--ink-3` line; elsewhere tooltip plus sr-only " (address)".
 - Focus ring rule: on the active item (`outline-offset: -2px`), never around a listbox. Stacked labels `content: attr(data-label) / ""`.
 - CSS-only fixes get a text test in test/unit/web/styles.test.ts. Old-code check: copy src/web to scratchpad, `git checkout HEAD -- src/web`, run, copy back.
+
+## Slice 8b (editor direction A, 2026-11-11)
+- views/editor.ts builds the work area once in `build()` after `loading` (level from `app.items()`; `use` = read-only); `savedText`, `panelSection`, `panelTabs`, `editorSkeleton`. views/recipients.ts `recipientField` (chips, `splitAddresses`, `recipientBlock`). preview.ts `blankHtml`, `promptUses`, `recipientLines`. schema `blankParts`, names "Field: ...". toolbar `GROUPS`, `tooltip`, `Toolbar.placeholder`. commands `imageWidth`. `api.me()`.
+- `button { display }` beats `[hidden]`: the editor has `.editor-page [hidden] { display: none }`. Harness `?external=deny` (seeding stays allow), `?unreadable=`.
+- Edit scripts: scratchpad ed.py (`@@@ path`, `<<<`, `===`, `>>>`) run alone; never chain a heredoc with other commands. Screens: /opt/node-tools/node_modules/playwright via createRequire, dev-web on port 5188.
+- No unsaved-changes guard exists (left for later, needs an app.ts route hook).
 
 ## Conventions
 - Op names follow spec section 6 (`template.*`, `version.*`), not task aliases; record the mapping in the handoff.
