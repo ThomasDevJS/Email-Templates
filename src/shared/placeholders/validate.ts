@@ -316,7 +316,6 @@ function subjectRules(subject: string): Problem[] {
   return problems;
 }
 
-/** The subject as one text run. Names and prompts join the body's, so one label is asked once (spec 5.6). */
 /** Q78 skeleton rule: braces that would join into `{{` once the fields between them are removed. */
 function braceProblems(runs: readonly TextRun[]): Problem[] {
   return joinedBraces(runs).map((offset) => ({
@@ -326,6 +325,7 @@ function braceProblems(runs: readonly TextRun[]): Problem[] {
   }));
 }
 
+/** The subject as one text run. Names and prompts join the body's, so one label is asked once (spec 5.6). */
 function scanSubject(subject: string, into: Collector): void {
   const own: Collector = { ...into, problems: [], warnings: [] };
   for (const segment of parseText(subject)) visit(segment, own);

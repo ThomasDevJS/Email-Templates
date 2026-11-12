@@ -19,7 +19,7 @@ interface Piece {
   readonly offset: number;
 }
 
-const MARKER = "";
+const MARKER = "\uE000";
 
 function skeletonOf(runs: readonly TextRun[]): Piece[] {
   const pieces: Piece[] = [];

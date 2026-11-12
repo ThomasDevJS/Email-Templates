@@ -7,7 +7,6 @@
 
 ## Lessons
 - Always prove the lock file with `rm -rf node_modules && npm ci` before reporting. Slice 1 failed review on that. Run `prettier --write` before every commit.
-- Real runtime uses `Date.now()`; entry tests need `vi.useFakeTimers({ now, toFake: ["Date"] })`.
 - Lint traps: `no-unnecessary-type-parameters` (generic used once), `no-confusing-void-expression` (arrow shorthand returning void), `no-dynamic-delete`, `no-misused-spread` on class instances.
 - Toolchain (slice 1): typescript 6.0.3 (typescript-eslint 8.72.2 peer `<6.1.0`), eslint 10.14.0 `defineConfig`, vitest 5.1.0, @types/node 22.20.5. Pure build helpers in `scripts/lib/*.mjs`, impure in `scripts/tools.mjs`. Prettier skips docs except docs/ops.
 
@@ -146,4 +145,5 @@
 - Slice 21 (D35): render.ts `toAction` sets the load indicator (`INSTANT` = onBack, onOpenLink get NONE); text widget `tone: "error"` -> `<font color=RED>` around escaped text (state cards: first line). Freeze test cardLook.test.ts snapshot; fake CardService needs each new enum. Slice 22 (D36): `tone: "hint"` = DecoratedText, `info` icon, grey via `colored()`; `hint(text)` in spec.ts; `ButtonSpec.icon` (guarded `setMaterialIcon`, missing from typings); Search button under the box. 22b: tone error = DecoratedText + `error` icon alt "Error", no "(!)"; widget kind `columns` (compose search row, `toColumns` with stacked fallback).
 ## Slices 24-25 (2026-11-12)
 - 24: `ui/busy.ts` loader; `pageBusy` in editor/setup.ts. 25 (D38 date field): prompt segment `type` text|date, `dateToken`; `PH_FIELD_TYPE`; shared/placeholders/date.ts `dateText` (UTC day, rounded) and `typedDateMs`; `PromptField.type`; add-on widget kind `date` (`toDate`, text-box fallback `DATE_HINT`), `dateValue` inside `formValue`, `badDates`/`badDateText`; editor attr `type`, `BlankParts.muted`, `usedText(count, type)`, `sampleDate`. Build: `npm run build -- --env dev`.
+- 27: `withIcon` (render.ts) catches icon failures; web test `until` also waits for `[data-blocked]` to clear, transient states use `vi.waitFor(check, NOW)`.
 - 26 (D39 choice, Q78 braces): `choice.ts` (`chosenOption`, `typedPosition`, `optionsProblem`, `TYPED_SUFFIX` "-text"), `skeleton.ts` `joinedBraces`; `fieldValue` in event.ts; widget `select`; `enteredProblem` in prompts.ts; `promptChoice` dialog, `setOptions`. Old-body check: fixture digests written on base (test/fixtures/oldBodies*). Python edits with backslashes: Write a script file, run it alone.

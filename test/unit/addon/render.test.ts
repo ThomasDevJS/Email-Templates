@@ -240,6 +240,38 @@ describe("renderCard", () => {
     },
   );
 
+  it("keeps hint, error and row text when the icon call throws (Q80)", () => {
+    const cards = createRecordingCardService();
+    calls = cards.calls;
+    vi.stubGlobal(
+      "CardService",
+      Object.assign(Object.create(cards.service) as object, {
+        newMaterialIcon: () => {
+          throw new Error("no icons");
+        },
+      }),
+    );
+    renderCard({
+      name: "i",
+      sections: [
+        {
+          widgets: [
+            { kind: "text", text: "Hint", tone: "hint" },
+            { kind: "text", text: "Wrong", tone: "error" },
+            { kind: "item", text: "Row", icon: "folder" },
+          ],
+        },
+      ],
+    });
+    expect(argsOf("newDecoratedText")).toHaveLength(3);
+    expect(argsOf("setText")).toEqual([
+      '<font color="#5f6368">Hint</font>',
+      '<font color="#b32025">Wrong</font>',
+      "Row",
+    ]);
+    expect(argsOf("setStartIcon")).toEqual([]);
+  });
+
   const SELECT: CardSpec = {
     name: "s",
     sections: [

@@ -12,6 +12,8 @@ Migway Templates adds a panel to the Gmail compose window. One click puts a save
 4. Find the template under "Favorites" (star icon), "Recent" (clock icon), "Folders" or "Search templates". Favorites and Recent show only when they hold a template.
 5. Click "Insert" next to it. The text goes in where your cursor was, and the panel closes.
 
+The first time, Google may show a page that asks for access, with one box per permission. Tick every box, then continue. With a box left empty, the panel does not work.
+
 Insert puts the template into the draft at once. Fields you did not fill are left out. Read the draft before you send.
 
 Tap a template's name to see it first and fill in its fields.
