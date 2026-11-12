@@ -1,12 +1,16 @@
 /**
  * Token grammar of ADR-0004, applied to one decoded HTML text node. The regex is the ADR's, character for
- * character: group 1 prompt label, group 2 variable name, group 3 fallback; a bare `\{{` is an escape.
+ * character: group 1 prompt kind, group 2 prompt label, group 3 variable name, group 4 fallback; a bare `\{{` is an
+ * escape.
  */
 export const TOKEN_PATTERN =
-  /\\\{\{|\{\{ *(?:ask: *([^{}|\\<>\r\n]{1,40}?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}/g;
+  /\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}/g;
 
 export const LABEL_MAX = 40;
 export const FALLBACK_MAX = 80;
+
+/** What a prompt asks for: free text (`ask:`) or a date picked in a calendar (`date:`, spec 5.9). */
+export type PromptType = "text" | "date";
 
 export type Segment =
   | { readonly kind: "text"; readonly text: string; readonly offset: number }
@@ -23,15 +27,22 @@ export type Segment =
       readonly kind: "prompt";
       /** Label as written, trimmed. May be empty (a validation error). */
       readonly label: string;
+      readonly type: PromptType;
       readonly raw: string;
       readonly offset: number;
     };
 
 function tokenSegment(match: RegExpExecArray, offset: number): Segment {
-  const [raw, label, name, fallback] = match;
+  const [raw, type, label, name, fallback] = match;
   if (raw === "\\{{") return { kind: "escape", offset };
   if (label !== undefined)
-    return { kind: "prompt", label: label.trim(), raw, offset };
+    return {
+      kind: "prompt",
+      label: label.trim(),
+      type: type === "date" ? "date" : "text",
+      raw,
+      offset,
+    };
   return {
     kind: "variable",
     name: name ?? "",
@@ -71,6 +82,10 @@ export function variableToken(name: string, fallback: string | null): string {
 
 export function promptToken(label: string): string {
   return `{{ask:${label}}}`;
+}
+
+export function dateToken(label: string): string {
+  return `{{date:${label}}}`;
 }
 
 /** Prompt identity (ADR-0004 Apply semantics 1): trimmed, inner whitespace collapsed, case-insensitive. */

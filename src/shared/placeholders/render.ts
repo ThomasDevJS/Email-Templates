@@ -1,5 +1,11 @@
 import { escapeText, escapeValue, mapTextRuns, textRuns } from "../html/escape";
-import { collapse, parseText, promptKey, type Segment } from "./grammar";
+import {
+  collapse,
+  parseText,
+  promptKey,
+  type PromptType,
+  type Segment,
+} from "./grammar";
 import { placeholderInfo } from "./registry";
 import { capSubject, oneLine } from "./subject";
 
@@ -14,6 +20,8 @@ export interface PromptField {
   /** First spelling, whitespace collapsed. */
   readonly label: string;
   readonly implicit: boolean;
+  /** The type of the first token with this identity; implicit prompts are text (spec 5.9). */
+  readonly type: PromptType;
 }
 
 export interface RenderInput {
@@ -46,12 +54,22 @@ function fieldOf(
 ): PromptField | null {
   if (segment.kind === "prompt") {
     const label = collapse(segment.label);
-    return { key: promptKey(label), label, implicit: false };
+    return {
+      key: promptKey(label),
+      label,
+      implicit: false,
+      type: segment.type,
+    };
   }
   if (segment.kind !== "variable") return null;
   if (present(values[segment.name]) || segment.fallback !== null) return null;
   const label = placeholderInfo(segment.name)?.promptLabel ?? segment.name;
-  return { key: implicitKey(segment.name), label, implicit: true };
+  return {
+    key: implicitKey(segment.name),
+    label,
+    implicit: true,
+    type: "text",
+  };
 }
 
 function segmentsOf(html: string): Segment[] {

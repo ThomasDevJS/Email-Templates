@@ -6,6 +6,7 @@ import {
 } from "../shared/model/protocol";
 import type { RecipientField } from "../shared/model/recipients";
 import { domainOf } from "../shared/permissions/principals";
+import { dateText } from "../shared/placeholders/date";
 
 /**
  * The parts of the Gmail add-on event object this add-on reads (developers.google.com/workspace/add-ons/concepts/
@@ -17,7 +18,14 @@ export interface AddonEvent {
   readonly commonEventObject?: {
     readonly parameters?: Readonly<Record<string, string>>;
     readonly formInputs?: Readonly<
-      Record<string, { readonly stringInputs?: { readonly value?: string[] } }>
+      Record<
+        string,
+        {
+          readonly stringInputs?: { readonly value?: string[] };
+          /** A date picker's value (spec 5.9); Gmail's shape is not pinned down, so it is read defensively. */
+          readonly dateInput?: { readonly msSinceEpoch?: unknown };
+        }
+      >
     >;
   };
   readonly draftMetadata?: {
@@ -145,7 +153,25 @@ export function paramsOf(
   return { ...(event?.commonEventObject?.parameters ?? event?.parameters) };
 }
 
+/**
+ * A date picker's day as MM/DD/YYYY: `dateInput.msSinceEpoch` as a number or a numeric string, alone or first in an
+ * array. "" when the picker holds no finite number; null when the input is not a picker (a text box or absent).
+ */
+export function dateValue(
+  event: AddonEvent | undefined,
+  name: string,
+): string | null {
+  const input: unknown =
+    event?.commonEventObject?.formInputs?.[name]?.dateInput;
+  if (typeof input !== "object" || input === null) return null;
+  const raw = (input as { msSinceEpoch?: unknown }).msSinceEpoch;
+  return dateText(Array.isArray(raw) ? (raw as unknown[])[0] : raw);
+}
+
+/** A form input's value: a picked date as MM/DD/YYYY, else the text typed, else "". */
 export function formValue(event: AddonEvent | undefined, name: string): string {
+  const date = dateValue(event, name);
+  if (date !== null) return date;
   const common =
     event?.commonEventObject?.formInputs?.[name]?.stringInputs?.value?.[0];
   return common ?? event?.formInput?.[name] ?? "";

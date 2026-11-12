@@ -7,6 +7,7 @@ import {
   TOKEN_PATTERN,
   parseText,
   promptKey,
+  dateToken,
   promptToken,
   variableToken,
   type Segment,
@@ -105,7 +106,7 @@ const GRAMMAR: readonly [string, string][] = [
 describe("token grammar (ADR-0004 EBNF and regex)", () => {
   it("uses the ADR regex character for character", () => {
     expect(TOKEN_PATTERN.source).toBe(
-      String.raw`\\\{\{|\{\{ *(?:ask: *([^{}|\\<>\r\n]{1,40}?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}`,
+      String.raw`\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}`,
     );
     expect(TOKEN_PATTERN.flags).toBe("g");
   });
@@ -131,7 +132,19 @@ describe("token grammar (ADR-0004 EBNF and regex)", () => {
     expect(variableToken("sender.name", null)).toBe("{{sender.name}}");
     expect(variableToken("sender.name", "there")).toBe("{{sender.name|there}}");
     expect(promptToken("Date")).toBe("{{ask:Date}}");
+    expect(dateToken("Pickup date")).toBe("{{date:Pickup date}}");
     expect(promptKey("  Meeting   DATE ")).toBe("meeting date");
+  });
+
+  it("finds the kind and label of date and text fields (spec 5.9)", () => {
+    const match = [...`{{ date: Pickup date }}`.matchAll(TOKEN_PATTERN)][0];
+    expect(match?.[1]).toBe("date");
+    expect(match?.[2]).toBe("Pickup date");
+    const kinds = parseText("{{ask:A}} {{date:B}} \\{{date:C}}").flatMap(
+      (segment) =>
+        segment.kind === "prompt" ? [`${segment.type}:${segment.label}`] : [],
+    );
+    expect(kinds).toEqual(["text:A", "date:B"]);
   });
 });
 
@@ -240,6 +253,65 @@ describe("validator (every ADR-0004 error code)", () => {
     expect(codes(`${twenty} {{ask:Q20}}`)).toEqual(["PH_TOO_MANY"]);
   });
 
+  it("PH_TOO_MANY counts text and date fields together (15 + 6)", () => {
+    const list = (kind: string, n: number) =>
+      Array.from({ length: n }, (_, i) => `{{${kind}:${kind}${String(i)}}}`);
+    const fifteen = list("ask", 15).join(" ");
+    expect(codes(`${fifteen} ${list("date", 5).join(" ")}`)).toEqual([]);
+    expect(codes(`${fifteen} ${list("date", 6).join(" ")}`)).toEqual([
+      "PH_TOO_MANY",
+    ]);
+  });
+
+  it("date fields: spec 5.9 examples 4 to 8", () => {
+    const four = scanBody("{{date:Pickup}} and {{date: pickup }}");
+    expect(four.problems).toEqual([]);
+    expect(four.prompts).toEqual(["Pickup"]);
+    expect(scanBody("{{ask:Pickup}} on {{date:Pickup}}").problems).toEqual([
+      {
+        code: "PH_FIELD_TYPE",
+        message:
+          'The field "Pickup" is used as text and as a date (at character 19). Rename one of them.',
+        offset: 18,
+      },
+    ]);
+    expect(scanBody("{{Date:Pickup}}").problems[0]?.message).toBe(
+      "Use lower case: date: (at character 1).",
+    );
+    expect(codes("{{DATE:Pickup}}")).toEqual(["PH_CASE"]);
+    expect(scanBody("{{date:Pickup|tomorrow}}").problems[0]?.message).toBe(
+      "A field the sender fills in cannot have default text (at character 1).",
+    );
+    const eight = scanBody("\\{{date:Pickup}}");
+    expect(eight.problems).toEqual([]);
+    expect(eight.prompts).toEqual([]);
+  });
+
+  it("date fields: PH_LABEL, the subject, and one label as text and date", () => {
+    expect(codes("{{date:}}")).toEqual(["PH_LABEL"]);
+    expect(codes(`{{date:${"x".repeat(41)}}}`)).toEqual(["PH_LABEL"]);
+    const subject = scanBody(
+      "<p>On {{date:pickup}}</p>",
+      [],
+      "Ready {{date:Pickup}}",
+    );
+    expect(subject.problems).toEqual([]);
+    expect(subject.prompts).toEqual(["Pickup"]);
+    const mixed = scanBody(
+      "<p>{{ask:PICKUP}}</p>",
+      [],
+      "Ready {{date:Pickup}}",
+    );
+    expect(mixed.problems).toEqual([
+      {
+        code: "PH_FIELD_TYPE",
+        message:
+          'The field "Pickup" is used as text and as a date (at character 1). Rename one of them.',
+        offset: 0,
+      },
+    ]);
+  });
+
   it("warns for recipient.first_name without a fallback", () => {
     const scan = scanBody(
       "<p>Hi {{recipient.first_name}}, {{recipient.first_name|there}}</p>",
@@ -284,7 +356,7 @@ describe("renderer (ADR-0004 apply semantics)", () => {
   it("fills same-name prompts once, case and space insensitive", () => {
     const html = "<p>{{ask:Date}} and {{ask: date }} and {{ask:DATE}}</p>";
     expect(promptsFor(html, values)).toEqual([
-      { key: "date", label: "Date", implicit: false },
+      { key: "date", label: "Date", implicit: false, type: "text" },
     ]);
     const out = renderBody(html, { values, answers: { date: "Monday" } });
     expect(out.html).toBe("<p>Monday and Monday and Monday</p>");
@@ -294,8 +366,18 @@ describe("renderer (ADR-0004 apply semantics)", () => {
     const html =
       "<p>{{sender.phone}} {{sender.title}} {{recipient.first_name|there}}</p>";
     expect(promptsFor(html, values)).toEqual([
-      { key: "{var}sender.phone", label: "Your phone", implicit: true },
-      { key: "{var}sender.title", label: "Your title", implicit: true },
+      {
+        key: "{var}sender.phone",
+        label: "Your phone",
+        implicit: true,
+        type: "text",
+      },
+      {
+        key: "{var}sender.title",
+        label: "Your title",
+        implicit: true,
+        type: "text",
+      },
     ]);
     const blocked = renderBody(html, {
       values,

@@ -1,6 +1,7 @@
 import { recipientCount } from "../../shared/model/recipients";
 import type { SidebarTemplate } from "../../shared/model/sidebar";
 import { atLeast } from "../../shared/permissions/levels";
+import { typedDateMs } from "../../shared/placeholders/date";
 import type { PromptField } from "../../shared/placeholders/render";
 import type { Entry } from "../event";
 import { MAX_FIELDS, inputName, moreFieldsText } from "../prompts";
@@ -83,6 +84,15 @@ function fieldInput(
 ): Widget[] {
   const field = state.fields[index];
   if (field === undefined || index >= MAX_FIELDS) return [];
+  if (field.type === "date")
+    return [
+      {
+        kind: "date",
+        name: inputName(index),
+        title: field.label,
+        valueMs: typedDateMs(state.entered[index] ?? ""),
+      },
+    ];
   return [
     {
       kind: "input",

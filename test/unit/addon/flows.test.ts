@@ -837,3 +837,162 @@ describe("links", () => {
     expect(readView(cache)).toBeNull();
   });
 });
+
+describe("date fields (spec 5.9)", () => {
+  /** 12 Nov 2026 and 5 Jan 2027 at 00:00 UTC (examples 1 and 3). */
+  const NOV_12 = 1794441600000;
+  const JAN_5 = 1799107200000;
+
+  const picked = (inputs: Record<string, unknown>): AddonEvent => ({
+    commonEventObject: {
+      formInputs: Object.fromEntries(
+        Object.entries(inputs).map(([name, ms]) => [
+          name,
+          { dateInput: { msSinceEpoch: ms } },
+        ]),
+      ),
+    },
+  });
+
+  function open(item: Item) {
+    const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
+    return { card, params: card.footer?.primary.action.params ?? {} };
+  }
+
+  const dates = (card: CardSpec) =>
+    widgets(card).flatMap((w) => (w.kind === "date" ? [w] : []));
+
+  it("example 1: a picker in field order, no hint, no start date; the pick inserts as MM/DD/YYYY", () => {
+    const item = create(
+      "Pickup",
+      "<p>{{ask:Driver}} pickup on {{date:Pickup date}}.</p>",
+    );
+    const { card, params } = open(item);
+    expect(
+      widgets(card).flatMap((w) =>
+        w.kind === "input" || w.kind === "date" ? [`${w.kind} ${w.name}`] : [],
+      ),
+    ).toEqual(["input p-1", "date p-2"]);
+    expect(dates(card)).toEqual([
+      { kind: "date", name: "p-2", title: "Pickup date", valueMs: null },
+    ]);
+    expect(
+      htmlOf(promptInsertFlow(ports(), picked({ "p-2": NOV_12 }), params)),
+    ).toBe("<p>pickup on 11/12/2026.</p>");
+  });
+
+  it.each([
+    ["a number", NOV_12, "<p>Pickup on 11/12/2026.</p>"],
+    ["a numeric string", String(NOV_12), "<p>Pickup on 11/12/2026.</p>"],
+    ["an array of a number", [NOV_12], "<p>Pickup on 11/12/2026.</p>"],
+    ["an array of a string", [String(NOV_12)], "<p>Pickup on 11/12/2026.</p>"],
+    ["absent", undefined, "<p>Pickup on.</p>"],
+    ["not a number", "soon", "<p>Pickup on.</p>"],
+    ["an empty array", [], "<p>Pickup on.</p>"],
+  ])("reads msSinceEpoch as %s", (_, ms, html) => {
+    const { params } = open(
+      create("P", "<p>Pickup on {{date:Pickup date}}.</p>"),
+    );
+    expect(
+      htmlOf(promptInsertFlow(ports(), picked({ "p-1": ms }), params)),
+    ).toBe(html);
+  });
+
+  it("an untouched picker that sends no input: the field is removed", () => {
+    const { params } = open(
+      create("P", "<p>Pickup on {{date:Pickup date}}.</p>"),
+    );
+    expect(htmlOf(promptInsertFlow(ports(), formEvent({}), params))).toBe(
+      "<p>Pickup on.</p>",
+    );
+  });
+
+  it("example 2: row Insert removes the date with the gap rules; the row counts it as a field", () => {
+    const item = create("P", "<p>Pickup on {{date:Pickup date}}.</p>");
+    create("Q", "<p>{{ask:Driver}} {{date:Pickup}}</p>");
+    expect(htmlOf(insertFlow(ports(), undefined, { id: item.id }))).toBe(
+      "<p>Pickup on.</p>",
+    );
+    const folder = JSON.stringify(
+      cardOf(folderFlow(ports(), { folderId: sales.id, page: "1" })),
+    );
+    expect(folder).toContain("1 field to fill");
+    expect(folder).toContain("2 fields to fill");
+  });
+
+  it("example 3: the subject gets the picked date as plain text", () => {
+    const item = world.ok<Item>(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "Pickup",
+      subject: "Load ready {{date:Pickup date}}",
+      html: "<p>Hi</p>",
+    });
+    const { card, params } = open(item);
+    expect(widgets(card)).toContainEqual(
+      expect.objectContaining({ bottomLabel: "Load ready [Pickup date]" }),
+    );
+    const event: AddonEvent = {
+      commonEventObject: {
+        formInputs: {
+          "p-1": { dateInput: { msSinceEpoch: JAN_5 } },
+          subj: { stringInputs: { value: ["on"] } },
+        },
+      },
+    };
+    expect(promptInsertFlow(ports(), event, params)).toMatchObject({
+      kind: "insert",
+      subject: "Load ready 01/05/2027",
+    });
+  });
+
+  it("example 4: one label twice is one picker and one value", () => {
+    const { card, params } = open(
+      create("P", "<p>{{date:Pickup}} and {{date: pickup }}</p>"),
+    );
+    expect(dates(card)).toHaveLength(1);
+    const march9 = picked({ "p-1": Date.UTC(2027, 2, 9) });
+    expect(htmlOf(promptInsertFlow(ports(), march9, params))).toBe(
+      "<p>03/09/2027 and 03/09/2027</p>",
+    );
+  });
+
+  it("example 8: an escaped date token inserts as text, no picker", () => {
+    const item = create("P", "<p>\\{{date:Pickup}}</p>");
+    expect(dates(open(item).card)).toEqual([]);
+    expect(htmlOf(insertFlow(ports(), undefined, { id: item.id }))).toBe(
+      "<p>{{date:Pickup}}</p>",
+    );
+  });
+
+  it("a blocked Insert sets the picked date back; the 500-character check skips the date", () => {
+    const { params } = open(
+      create("P", "<p>{{ask:Notes}} {{date:Pickup}}</p>"),
+    );
+    const event: AddonEvent = {
+      commonEventObject: {
+        formInputs: {
+          "p-1": { stringInputs: { value: ["x".repeat(501)] } },
+          "p-2": { dateInput: { msSinceEpoch: NOV_12 } },
+        },
+      },
+    };
+    const card = cardOf(promptInsertFlow(ports(), event, params));
+    expect(texts(card)[0]).toBe("Shorten to 500 characters: Notes");
+    expect(dates(card)).toEqual([
+      { kind: "date", name: "p-2", title: "Pickup", valueMs: NOV_12 },
+    ]);
+  });
+
+  it("text-box fallback: a typed date inserts; a wrong one is refused and the picker comes back empty", () => {
+    const { params } = open(create("P", "<p>On {{date:Pickup date}}</p>"));
+    const typed = (text: string) =>
+      promptInsertFlow(ports(), formEvent({ "p-1": text }), params);
+    expect(htmlOf(typed("2/29/2028"))).toBe("<p>On 02/29/2028</p>");
+    const card = cardOf(typed("02/30/2028"));
+    expect(texts(card)[0]).toBe("Enter a date as MM/DD/YYYY: Pickup date");
+    expect(dates(card)).toEqual([
+      { kind: "date", name: "p-1", title: "Pickup date", valueMs: null },
+    ]);
+    expect(card.footer?.primary.action.params?.["counted"]).toBe("1");
+  });
+});

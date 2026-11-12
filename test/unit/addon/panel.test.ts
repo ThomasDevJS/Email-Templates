@@ -786,3 +786,61 @@ describe("server arguments and logs (AC 15)", () => {
     expect(applies()).toHaveLength(2);
   });
 });
+
+describe("date fields in the side panel (spec 5.9)", () => {
+  let item: Item;
+  beforeEach(() => {
+    item = create({
+      subject: "Load ready {{date:Pickup date}}",
+      html: "<p>Pickup on {{date:Pickup date}}.</p>",
+    });
+  });
+
+  const picked = (ms: unknown): AddonEvent => ({
+    ...inbox,
+    commonEventObject: {
+      formInputs: { "p-1": { dateInput: { msSinceEpoch: ms } } },
+    },
+  });
+
+  it("the card shows a picker with no start date", () => {
+    const card = cardOf(previewFlow(ports("inbox"), inbox, { id: item.id }));
+    expect(card.sections.flatMap((s) => s.widgets)).toContainEqual({
+      kind: "date",
+      name: "p-1",
+      title: "Pickup date",
+      valueMs: null,
+    });
+  });
+
+  it("a picked date fills body and subject; none removes it", () => {
+    const params = detailsParams(item, "inbox", "new");
+    promptComposeFlow(ports(), picked(["1799107200000"]), params);
+    expect(draftCall()?.args).toEqual([
+      "",
+      "Load ready 01/05/2027",
+      "",
+      { htmlBody: "<p>Pickup on 01/05/2027.</p>" },
+    ]);
+    gmailCalls.length = 0;
+    promptComposeFlow(ports(), picked(undefined), params);
+    expect(draftCall()?.args).toEqual([
+      "",
+      "Load ready",
+      "",
+      { htmlBody: "<p>Pickup on.</p>" },
+    ]);
+  });
+
+  it("text-box fallback: a wrong typed date is refused, no draft", () => {
+    const params = detailsParams(item, "inbox", "new");
+    expect(
+      promptComposeFlow(
+        ports(),
+        withForm(inbox, { "p-1": "13/01/2026" }),
+        params,
+      ),
+    ).toEqual(notice("Enter a date as MM/DD/YYYY: Pickup date"));
+    expect(draftCall()).toBeUndefined();
+  });
+});
