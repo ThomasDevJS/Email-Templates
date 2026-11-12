@@ -97,6 +97,7 @@
 - Slice 23 tree collapse by mouse (2026-11-11): FAIL (review on 8101c13). 71 files, 1989 tests, index.html 381.2 KB, Lighthouse 100x16. Must fix: tree.ts:209 render re-expands ancestors on every reload (Duplicate, Admin rename reopen a collapsed ancestor); tree.ts:111 double-click on a closed parent name opens then closes it. Retry 1 FAIL (a26e7f3): `opened` keeps closed parents through redraws, detail>1 ignored; but editor breadcrumb (app.go) to the opened folder leaves it hidden; need reveal on explicit selection only. Retry 2 PASS (8db30c1, 1996 tests): render(..., reveal) from user choices (show, openScope, first route, Admin click/create/delete/move); Back/Forward and reloads keep closed parents.
 - Slice 24 loader D37 (2026-11-11): FAIL (815a0cb). 72 files, 2003 tests, index.html 383.2 KB, Lighthouse 100x16. busy.ts capture guard on main+side, 300 ms bar, 20 s max; itemSaved replaces save reload; Admin grants cache + app.background. Must fix: keys typed during save dropped (base kept, dirty); toast Retry restore x2 = 2 writes (history.ts:173). Retry 1 FAIL (78172c8): typing passes in text fields (TYPING_EVENTS), per-call 20 s, restoring guard; but Ctrl+K and {{ open link dialog/field menu during a call. Retry 2 PASS (ae2ff12, 2008 tests): pageBusy ([data-blocked] ancestor) guards Mod-k and bracesRule.
 - Slice 25 date field D38 (2026-11-12): PASS (a4dc24f). 73 files, 2055 tests (1 flaky admin.test:384 under load), Code.js 377.2 KB, index.html 384.9 KB, Lighthouse 100x16. shared/placeholders/date.ts dateText (round to UTC day) + typedDateMs; addon dateValue/badDates; base vs head fuzz 3,102 bodies 0 diffs.
+- Slice 26 choice field + brace rule D39/D40 (2026-11-12): PASS (f4e0697). 76 files, 2118 tests, Code.js 385.6 KB, index.html 390.3 KB (+5.35 KB: picker, validate, choice). choice.ts chosenOption (positions 1-20 only), typedPosition (p-<n>-text box), skeleton.ts joinedBraces. Flake adminReports.test:434 1/9. Minors: U+E000 literal, cross-paragraph brace refusal.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -127,7 +128,6 @@
 - Entry gating by event fields: verify the field exists on action (click) events too, from live logs, before trusting the classifier.
 - Replace-type writes (Gmail recipient actions): probe missing, non-array and mixed input; "unknown" must never read as "empty".
 - Card Service docs: fetch developers.google.com/apps-script/reference/card-service/<class> with curl; extract <article> text. Unknown MaterialIcon name renders no icon, no error. TextButton unset style = OUTLINED. Labels plain text per add-on widget guide.
-- Behaviour-freeze slices: run one probe script on base and head copies, dump replies with text stripped, diff.
 - Merges: diff test dirs and server dirs against both parents; run computed-style diffs on 3 dev-web servers (merge, each parent via git archive).
 - Harness RPC capture/taint: addInitScript defines a `google` setter, wrap run as wrap(r,h): withSuccessHandler stores h, withFailureHandler(f) wraps r.withFailureHandler(f), rpc calls r.withSuccessHandler(v=>h(taint(op,v))). Replies are {ok,data,...}: mutate env.data.
 - Async UI commands (await before editor.run): probe insert position with keyboard Enter; focus return moves the PM selection.
@@ -142,8 +142,8 @@
 - Run tokens or capabilities: probe other user, other scope, expiry, replay, eviction, and a right revoked between start and page; grep logs, Drive files and errors for the token.
 - Error texts: trace every caught message to properties (job lastError), Admin screens, Cloud Logging (exceptionLogging STACKDRIVER, rethrows), failure emails; probe with a damaged file holding an address.
 - Gmail-action slices: count createDraft* per failure probe with a recording fake; forge action params (values, extra keys) and CR LF; read the message ID source at press time.
-- Card limit probes: build the matrix with real builders and count `addWidget` on the recording Card Service; check where the cut line sits vs collapseAfter.- Doc command checks: run each clasp command from a dir without .clasp.json (`npx clasp <cmd> --help`, then bare); deploy steps that delete .clasp.json break later bare commands.
+- Card limit probes: build the matrix with real builders and count `addWidget` on the recording Card Service; check where the cut line sits vs collapseAfter.
+- Doc command checks: run each clasp command from a dir without .clasp.json (`npx clasp <cmd> --help`, then bare); deploy steps that delete .clasp.json break later bare commands.
 - First-load/error UI: count toasts plus banners per failure, and check focus after the retry button removes itself.
-
 - Toggle UIs: probe double-click (event.detail) and every redraw path (reloads, writes) after a user collapse; state kept in a view must survive its own render.
 - Page blockers: probe typing during a slow save vs base, toast Retry (outside regions) for writes, never-answer and overlap; c24.cjs in scratchpad/20a/p delays one op via window.__delays.
