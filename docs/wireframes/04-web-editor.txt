@@ -53,6 +53,9 @@ browser's own leave prompt.
 Placeholder menu ({{ or toolbar):
   Sender name | Sender title | Sender phone | Sender department | Recipient first name
   Ask the sender... -> dialog "Ask the sender": "Field name the sender sees" (1-40 chars)
+  Ask the sender for a date... -> dialog "Ask the sender for a date", same field (D38, Proposed, spec 5.9);
+    chip [Pickup date (date)], screen reader "Field: Pickup date, a date the sender picks";
+    panel line "Pickup date  date, used once"; "Preview as me" shows today as MM/DD/YYYY
   Add default text... -> dialog "Default text" on a selected chip (0-80 chars)
 
 Conflict dialog (CONFLICT on save), title "This template changed":

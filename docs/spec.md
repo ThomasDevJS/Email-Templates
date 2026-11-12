@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves. D38 run (2026-11-12): date fields (section 5.9, Q85 to Q90; ADR-0004 Amendment 2026-11-12 "date fields"); Proposed until the owner approves.
 Date: 2026-11-09, amended 2026-11-10, 2026-11-11 and 2026-11-12
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D36), docs/research/*.md, ADR-0001 to ADR-0009.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D38), docs/research/*.md, ADR-0001 to ADR-0009.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -349,6 +349,87 @@ Client points: library "New template" (in a folder: shown only where the caller 
 
 Enforcement points of `recipientsExternal` (built in slice 11, `recipientPolicy`): `validateRecipients` policy input on `template.create`, `template.update`, `template.duplicate`, `version.restore`, `import`, before the lock and again inside it (`recheckRecipients`, slice 13, section 5.7); `blocked` in `template.apply` and `template.getBody`; `me`; `config.get`.
 
+### 5.9 Date fields `{{date:Label}}` (D38, added 2026-11-12)
+
+Proposed until the owner approves. Owner request 2026-11-12, after every test on dev-744bd1d passed: a field type that opens a calendar picker and inserts the date as MM/DD/YYYY. Mechanism, options and platform facts: ADR-0004 Amendment 2026-11-12 "date fields". Not built. Open: Q85 to Q90.
+
+Grammar:
+- `{{date:Label}}` asks the sender for a date. Label rule as `{{ask:Label}}`: 1 to 40 characters after trim, none of `{ } | \ < >` or a line break; spaces after `{{`, after `date:` and before `}}` are allowed. No default text. `\{{date:X}}` is the escape and renders as text.
+- One identity per label (`promptKey`: trimmed, inner spaces collapsed, any letter case), shared by subject and body. `{{date:X}}` used twice is one field and one picker.
+- Allowed in the subject and in the body.
+
+Save validation (server through `scanBody`; the editor's Problems list runs the same function):
+
+| Code | Trigger | Text |
+|---|---|---|
+| `PH_FIELD_TYPE` (new) | one identity used as `{{ask:}}` and as `{{date:}}` in one template | 'The field "<label>" is used as text and as a date (at character <n>). Rename one of them.' (`<label>` = first spelling, `<n>` = the later token) |
+| `PH_CASE` | `{{Date:X}}`, `{{DATE:X}}` | "Use lower case: date: (at character <n>)." |
+| `PH_FALLBACK_ASK` | `{{date:X\|y}}` | "A field the sender fills in cannot have default text (at character <n>)." (built text, unchanged) |
+| `PH_LABEL` | empty or over 40 characters | built text, unchanged |
+| `PH_TOO_MANY` | more than 20 fields, text and date together | built text, unchanged |
+
+Editor (wireframe 04):
+- "Insert field" menu, body and subject: one new item after "Ask the sender...": "Ask the sender for a date...". It opens the same dialog as "Ask the sender" with title "Ask the sender for a date", label "Field name the sender sees", hint "1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY." OK inserts the chip (body) or the token text at the caret (subject). The orchestrator's default was a "Text" or "Date" choice inside one dialog; the dialog is `promptText` with one text box (`src/web/ui/dialog.ts`), so a second menu item reuses it unchanged (Q88).
+- Chip: class `ph ask date`, visible text the label, then " (date)" in the muted style of " or ". Screen reader: "Field: <label>, a date the sender picks".
+- Panel "The sender fills in": the label, then "date, used once" or "date, used <n> times"; text fields keep "used once". Empty panel: "Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender or Ask the sender for a date."
+- "Preview as me": the date field shows today's date in the browser's local time as MM/DD/YYYY (a sample); text fields keep `[Label]`. History preview: the chip.
+
+Gmail details card (compose popup and side panel, wireframe 02):
+- A date field is a `DatePicker` (Card Service, date only) named `p-<n>` with the label as title, in the place and order a text box would take. No hint line. It starts with no date (`setValueInMsSinceEpoch` not called; Q85). A re-rendered card sets the picked value back.
+- Reading: `commonEventObject.formInputs["p-<n>"].dateInput.msSinceEpoch`, a number or a numeric string. Missing or not finite: no date.
+- Conversion (`dateText`): round the ms to the nearest whole UTC day, then month, day and year from the UTC getters, as MM/DD/YYYY with leading zeros; a year outside 1000 to 9999 gives no date. Never the script's or the user's time zone. Mechanism and limits: ADR-0004 Amendment 2026-11-12, section 3; Q87.
+- The 500-character check skips date fields. One picker is one widget, in place of one text box.
+
+Rendering:
+- A picked date is the field's value: the text "11/12/2026", escaped like any value.
+- No picked date (row Insert, or picker left empty): the field is removed with the 4 gap rules (D31, section 7.4), as an unfilled `{{ask:}}`.
+- Row hint: "n fields to fill" counts date fields (`item.prompts` lists every field label). `rc`, `rh` and the recipient rules do not concern fields.
+- Add-on text preview and subject preview: `[Label]`, as for text fields.
+- Side panel compose actions: the same reading and render (Q86 decides whether the value reaches the callback).
+
+Examples (input, picked date, result; character numbers count from 1):
+
+| # | Input | Action | Result |
+|---|---|---|---|
+| 1 | Body `Pickup on {{date:Pickup date}}.` | details card, picks 12 Nov 2026 (`msSinceEpoch` 1794441600000) | `Pickup on 11/12/2026.` |
+| 2 | Same body | row Insert, no card | `Pickup on.` (gap rule 2) |
+| 3 | Subject `Load ready {{date:Pickup date}}` | picks 5 Jan 2027 (1799107200000) | subject `Load ready 01/05/2027` |
+| 4 | Body `{{date:Pickup}} and {{date: pickup }}` | one picker; picks 9 Mar 2027 | `03/09/2027 and 03/09/2027` |
+| 5 | Body `{{ask:Pickup}} on {{date:Pickup}}` | save | refused: 'The field "Pickup" is used as text and as a date (at character 19). Rename one of them.' |
+| 6 | Body `{{Date:Pickup}}` | save | refused: "Use lower case: date: (at character 1)." |
+| 7 | Body `{{date:Pickup\|tomorrow}}` | save | refused: "A field the sender fills in cannot have default text (at character 1)." |
+| 8 | Body `\{{date:Pickup}}` | save, insert | saves; inserts the text `{{date:Pickup}}`; no picker |
+| 9 | `msSinceEpoch` 1794409200000 (local midnight of 12 Nov 2026 at UTC+9) | conversion | `11/12/2026`; at UTC+13 (1794394800000) the result is `11/11/2026` (Q87) |
+
+Files an implementer touches:
+- `src/shared/placeholders/grammar.ts`: regex with `(ask|date)`, `type` on the prompt segment, `dateToken(label)`.
+- `src/shared/placeholders/validate.ts`: `PH_FIELD_TYPE`, `date` in the lenient pass (`PH_CASE`, `PH_FALLBACK_ASK`, `PH_LABEL`); shared with the Q78 brace rule.
+- `src/shared/placeholders/render.ts`: `type` on `PromptField`; first spelling and type per identity.
+- `src/shared/placeholders/date.ts` (new): `dateText(raw)`, the conversion.
+- `src/shared/placeholders/preview.ts`: no change expected (prompt segments show `[Label]`); check after the grammar change.
+- `src/web/editor/schema.ts`: atom attribute `type`, `tokenOf`, `placeholderAttrs`, `blankParts`, `chipLabel` for dates.
+- `src/web/editor/picker.ts`: menu item and dialog texts, body and subject.
+- `src/web/editor/load.ts`, `serialize.ts`: carry `type` through `data-ph` (no new logic if `tokenOf` handles it).
+- `src/web/views/preview.ts`: sample date in "Preview as me"; `promptUses` returns the type.
+- `src/web/views/editor.ts`: "date, used ..." in the panel; empty panel text.
+- `src/web/styles.css`: the " (date)" suffix style, if `.ph-or` is not reused.
+- `src/addon/cards/spec.ts`: widget kind `date` (`name`, `title`, `valueMs`).
+- `src/addon/cards/render.ts`: `newDatePicker()` for kind `date`.
+- `src/addon/cards/details.ts`: `fieldInput` returns the date widget for a date field.
+- `src/addon/event.ts`: `dateValue(event, name)` reading `dateInput.msSinceEpoch`.
+- `src/addon/prompts.ts`: `tooLong` skips dates; answers convert dates with `dateText`.
+- `src/addon/flows.ts`, `src/addon/panel.ts`: read each field by its type.
+- `src/server`: no change. Save, duplicate, restore and import already call `scanBody` through `prepareFor`; `item.prompts` already holds every field label.
+- Docs: `docs/design/wording.md` (6 rows), `docs/guide/editor-guide.md` (one section), `docs/guide/user-quick-start.md` (one line: "A date field opens a calendar. Leave it empty to leave the date out."), `docs/ops/test-round-1.md` (Gmail steps for Q85, Q86, Q87).
+
+Tests to add:
+- `test/unit/shared/placeholders.test.ts`: examples 4 to 8; the regex finds kind and label; `{{date:}}` in the subject; `PH_TOO_MANY` with 15 text and 6 date fields.
+- `test/unit/shared/date.test.ts` (new): `dateText` for 1794441600000, a numeric string, local midnight at UTC-8, UTC+9, UTC-11 (12 Nov 2026), UTC+13 (11 Nov), `""`, `"abc"`, `NaN`, year 10000; result never depends on `process.env.TZ` (run under 2 zones).
+- `test/unit/shared/gaps.test.ts`: example 2.
+- Add-on card tests: the date widget in field order, no hint, value set back on re-render; reading `dateInput` as number and as string; missing input = removed; `tooLong` ignores a date; examples 1 and 3 end to end through `rendered`; panel flow with a date.
+- Web editor tests: menu item, dialog, chip text and screen reader name, panel line, round trip load and serialize of `{{date:X}}`, sample date in the preview.
+- Gmail by hand (test round): Q85 empty start in the popup and the side panel; Q86 value reaches `onPromptInsert` and `onPromptCompose`; Q87 the inserted date under 2 account time zones.
+
 ## 6. Server operations
 
 All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
@@ -601,6 +682,7 @@ Texts (new or changed; sentence case, no colon before a button):
 |---|---|
 | Details card, fields line | "Fill in now, or leave blank and type in the draft." |
 | Details card, input title | the label, no asterisk |
+| Details card, date field (D38, Proposed, section 5.9) | a date picker titled with the label, no hint; inserts MM/DD/YYYY |
 | Details card, input hint of the implicit recipient first name | "Leave blank to use the To recipient's first name, when known." |
 | Details card, more than 20 fields | "This template has 23 fields. The first 20 are here. The rest are left out of the draft." |
 | Details card, values over 500 characters | "Shorten to 500 characters: Driver name" |
@@ -847,6 +929,7 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | Spinner on card actions, `primaryColor`, red error lines (D35) (sections 7, 7.4) | 21, done after one fix (5f475cb, dev-a57a5f6) |
 | Hint lines, "Search" button (D36) (sections 4.4, 7.4) | 22, done (dev-5c018b8); follow-up 1: error icon and no "(!)", popup search row in Columns, finish-typing line plain, button icon guard (c1f2719) |
 | Folder tree: arrow toggles a row, second click closes the selected folder (section 8) | 23, in review (retry 1 at a26e7f3) |
+| 5.9 Date fields `{{date:Label}}` (D38): grammar, save checks, editor menu item and chip, Gmail date picker, MM/DD/YYYY | not built; next slice after the owner approves Q85 to Q90 |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -1237,6 +1320,12 @@ Result (owner, test round 1 part G, dev-56bf795, 2026-11-11): steps 2 to 8 pass;
 | Q82 (owner's consent test, 2026-11-11) | The self-install consent page has a checkbox per scope; an unticked scope breaks the add-on | Install by the Workspace admin for every user (phase 2.5b), which grants all scopes with no page. Add one quick-start line for self-installers: "Keep every box ticked on Google's consent page." What a user with an unticked scope sees was not recorded |
 | Q83 (slice 22 follow-up 1 minor 2) | Error lines carry no "(!)" since follow-up 1; the `error` icon is the only cue besides red | Keep the icon. Part L step 3 records whether Gmail draws it; if not, put the "(!) " prefix back |
 | Q84 (slice 20b minor 1) | "A reply adds n recipients." counts a template Cc that is already on the email, so it can be 1 or more too high | Accept for v1 (the press adds the right addresses; only the label is high). Fix later by reading the message headers when the details card opens, or word it "Adds up to n recipients." |
+| Q85 (D38) | Can Gmail draw a `DatePicker` with no date? The Card Service reference does not say; the card JSON names a "Clear" button in the picker | Start empty (do not set a value). Check in the popup and the side panel before the build merges. If Gmail always shows a date, show today's date and insert what the picker shows: the sender sees it before pressing Insert, and a "No date" switch would cost one widget and one click per field (opinion). The row Insert is unaffected: it has no card, so the field is removed |
+| Q86 (D38) | Does Gmail draw the picker in the draft popup and in the side panel, and does `dateInput` reach `onPromptInsert` and the side-panel compose action `onPromptCompose`? Q68 verified text boxes only | Gmail test steps before the merge. Fallback where it fails: a text box titled with the label and the hint "MM/DD/YYYY"; the typed text is inserted as typed |
+| Q87 (D38) | `msSinceEpoch` of a date-only pick: the event page gives no time of day; the card JSON says 00:00:00 UTC | Convert by rounding to the nearest UTC day (spec 5.9). Right for every zone if Gmail sends UTC midnight; right from UTC-11:59 to UTC+11:59 if it sends local midnight. Record the raw value in 2 account time zones (UTC-5 and UTC+9) in the test round |
+| Q88 (D38) | Editor entry: a "Text" or "Date" choice in one dialog (orchestrator default) or a second menu item "Ask the sender for a date..." | Second menu item: the dialog (`promptText`) has one text box, and the menu already lists every field kind. The owner's words ("some checkmark or special type of placeholder") fit both |
+| Q89 (D38) | A rollback (ADR-0005) to a build before date fields inserts `{{date:X}}` as plain text into drafts | Accept. Runbook line: after the first date template is saved, roll back only to a build with date fields, or first replace the date fields in those templates |
+| Q90 (D38) | A library page opened before the deploy shows `{{date:X}}` as plain text with a Problems line; its save still works on the server | Accept: a page reload fixes it. No version check between page and server exists today (`clientVersion` is sent, never compared) |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance
