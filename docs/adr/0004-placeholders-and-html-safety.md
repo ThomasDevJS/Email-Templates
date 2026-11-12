@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)"); braces that join around a field (Proposed 2026-11-12, Q78, not built; see "Amendment 2026-11-12"); date fields D38 (Proposed 2026-11-12, Q85 to Q90, not built; see "Amendment 2026-11-12: date fields"); choice fields D39 (Proposed 2026-11-12, proposal stage, Q91 to Q97; see "Amendment 2026-11-12: choice fields")
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)"); braces that join around a field (Accepted 2026-11-12, D40, built in slice 26; see "Amendment 2026-11-12: braces"); date fields D38 (Accepted 2026-11-12, built in slice 25; see "Amendment 2026-11-12: date fields"); choice fields D39 (Accepted 2026-11-12, built in slice 26; see "Amendment 2026-11-12: choice fields")
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -312,7 +312,7 @@ Consequences: nothing changes on the server: `PH_TOO_MANY` (20 per template) sta
 
 ## Amendment 2026-11-12: braces that join around a field (slice 20b minor 7, Q78)
 
-Status: Proposed (architect, errata run 6). No owner decision exists yet; the owner approves or rejects the rule. Not built.
+Status: Accepted 2026-11-12. Owner decision Q78 and D40 (2026-11-12): option 1, "yes, refuse but if u think there is a better choice please apply it". Built in slice 26 (`src/shared/placeholders/skeleton.ts`, called from `scanBody` for body and subject), review PASS, merged e93a085. [Was: Proposed (architect, errata run 6). No owner decision exists yet; the owner approves or rejects the rule. Not built.] As built and the review's question: see "As built 2026-11-12" at the end of this amendment.
 
 Problem. `{{{ask:N}}{ask:M}}` saves today and puts template syntax into a draft. Cause: the regex finds the token `{{ask:N}}` at character 2, so the text node splits into the literal `{`, the token, and the literal `{ask:M}}`. Neither literal holds `{{`, so the leftover pass finds nothing and the template saves. At insert, N blank gives `{` + "" + `{ask:M}}` = `{{ask:M}}` in the draft; N "7" gives `{7{ask:M}}`. M is never asked. The same happens across inline tags (`<b>{</b>{{ask:N}}{ask:M}}`, because each tag starts a new text run) and when a gap rule removes the space between two braces. The reviewer confirmed the base build behaves the same (docs/reviews/slice-20b.md item 3.8).
 
@@ -353,9 +353,17 @@ Files an implementer touches:
 - `docs/guide/editor-guide.md`: one line next to the `\{{` line (108): "A { right before a field and another after it is refused: delete one of them."
 - No change: `grammar.ts`, `render.ts`, the add-on, server handlers, stored data.
 
+### As built 2026-11-12 (slice 26)
+
+- The pass lives in `skeleton.ts` (`joinedBraces(runs)`), not in `validate.ts`; `validate.ts` calls it and reports `PH_MALFORMED` with the sentence above, word for word. The 7 examples and the gap case pass; 20 ordinary texts gave 0 refusals; an old template with the pattern still opens and inserts, and its next save, duplicate or import is refused.
+- Review minor 3 asked to confirm 2 refusals. Both follow the rule as written, so no correction:
+  - `<p>{</p><p>{</p>` (with or without a field between): runs are joined with nothing between them, so the 2 braces from 2 runs form `{{`. This is the case "a paragraph that ends in `{` followed by one that starts with `{`", accepted above as rare.
+  - `{ {{ask:N}} {`: the token is removed with the spaces right before and after it, so the skeleton is `{{`. This is the cost named above for `{ {{ask:N}} {ask:M}}`; with N blank the draft would read `{ {`, so the refusal is stricter than the render needs. Accepted: the author deletes one brace.
+- Review minors 1 and 2 (the literal U+E000 in `skeleton.ts:22`, a doc comment above the wrong function in `validate.ts:319`) are code tidiness, no rule change.
+
 ## Amendment 2026-11-12: date fields `{{date:Label}}` (D38)
 
-Status: Proposed. The feature is the owner's request of 2026-11-12, made after every test on dev-744bd1d passed: "is it possible to add a type of field that allows to open calendar picker instead of simple text entry field? e.g. in editor have some checkmark or special type of placeholder that would inserts date picker in format MM/DD/YYYY ?" (D38). The mechanism below and the open points Q85 to Q90 stay Proposed until the owner approves. Not built. Spec 5.9 holds the texts, the examples, the files and the tests.
+Status: Accepted 2026-11-12 (owner decision D38; built in slice 25, review PASS, merged; owner test on dev-e93a085: the calendar shows in the draft popup and the side panel, the draft gets the picked day as MM/DD/YYYY, an unpicked date is left out). Still open: Q85 (empty start, no problem seen), Q87 (zones UTC+12 and later), Q89, Q90. [Was: Proposed.] The feature is the owner's request of 2026-11-12, made after every test on dev-744bd1d passed: "is it possible to add a type of field that allows to open calendar picker instead of simple text entry field? e.g. in editor have some checkmark or special type of placeholder that would inserts date picker in format MM/DD/YYYY ?" (D38). [Was: The mechanism below and the open points Q85 to Q90 stay Proposed until the owner approves. Not built.] Spec 5.9 holds the texts as built.
 
 Note on Q78: this amendment and the brace amendment above both change `src/shared/placeholders/validate.ts`. The brace skeleton removes a date token like any token, so the two rules do not conflict. Build them in one slice, or merge the second one with care.
 
@@ -433,9 +441,16 @@ No stored template can hold `{{date:` before this build: today's `scanBody` refu
 - Harder: a second field kind in the parser, the editor, the card and the render; one more Gmail check before prod (Q85, Q86).
 - Revisit if the owner wants another date format: one function and one wording row change.
 
+### As built 2026-11-12 (slice 25)
+
+- `entered` keeps a picked date as MM/DD/YYYY (converted when read) and turns it back into ms for `setValueInMsSinceEpoch` on a re-rendered card; section 3 named the ms string. Same result on screen.
+- Option 3 (text box, hint "MM/DD/YYYY") is built as the fallback when `newDatePicker` is missing or throws. It accepts M/D/YYYY or MM/DD/YYYY of a real day; other text gives "Enter a date as MM/DD/YYYY: <labels>" (compose: error line; side panel: thrown sentence, after `template.apply`, so one use is counted). A Gmail that refuses the picker while drawing the card cannot be caught.
+- `dateValue` reads `msSinceEpoch` as a number, a numeric string or the first element of an array; slice 26 put all field reading behind `fieldValue(event, field, name)` in `src/addon/event.ts`.
+- `PH_FIELD_TYPE` names the kinds in template order since slice 26: "used as a date and as text" when the date comes first.
+
 ## Amendment 2026-11-12: choice fields `{{choice:Label|A|B}}` (D39)
 
-Status: Proposed (proposal stage). Owner idea 2026-11-12: "maybe we can have an option picker placeholder, e.g. we create a template for user that whenever is filling it in has option to choose from one of the options, so we limit him what he can insert (at least once editing the template in the UI). Ideas?" (D39). The owner has not decided to build it. Everything below and Q91 to Q97 stay Proposed. Spec 5.10 holds the texts, the examples, the files and the tests. Builds on the date-field amendment above (slice 25, in build): the field `type`, `PH_FIELD_TYPE` and the field-per-type card code are reused.
+Status: Accepted 2026-11-12 (owner decision D39 to build; Q91 decided by the owner: an unchosen choice is left out, "so user would have to type in manually, we dont give false options"; built in slice 26, review PASS, merged e93a085; owner test on dev-e93a085: the dropdown shows in the draft popup and the side panel, the chosen option reaches the draft, an unchosen field is left out). Still open: Q93 ("Choose..." look, no problem seen), Q96. [Was: Proposed (proposal stage).] Owner idea 2026-11-12: "maybe we can have an option picker placeholder, e.g. we create a template for user that whenever is filling it in has option to choose from one of the options, so we limit him what he can insert (at least once editing the template in the UI). Ideas?" (D39). [Was: The owner has not decided to build it. Everything below and Q91 to Q97 stay Proposed.] Spec 5.10 holds the texts, the examples, the files and the tests. Builds on the date-field amendment above (slice 25, in build): the field `type`, `PH_FIELD_TYPE` and the field-per-type card code are reused.
 
 ### Platform facts (read 2026-11-12)
 
@@ -505,6 +520,15 @@ As the date field: no stored template holds `{{choice:` (today's `scanBody` refu
 - Harder: a third field kind; a dialog with a list in the editor; one more Gmail check (Q92, Q93).
 - The limit holds only at Insert (section 4).
 
+### As built 2026-11-12 (slice 26)
+
+- Section 5: option 1, owner decision Q91.
+- Fallback when `newSelectionInput` is missing or throws: a text box named `p-<n>-text`, hint "One of: A, B, C"; the trimmed text must equal one option as written. The `-text` name keeps a typed "2" from reading as position 2. The dropdown wins when both arrive.
+- `fieldValue` in `src/addon/event.ts` reads the dropdown value as a string, a number, an array or nothing (`chosenOption` in `choice.ts`); section 1's "event.ts no change" did not hold. The reviewer refused 13 forged values with 0 drafts.
+- `{{choice:X}}` with no `|`, and a `}` inside an option, give the generic `PH_CHOICE` sentence (the regex needs at least one `|`).
+- "Edit choices..." edits the field name and the options (`setOptions(pos, label, options)`).
+- Open minors: a typed fallback option with a double space is refused (inner spaces not collapsed, minor 5); a side-panel refusal counts one use (minor 4).
+
 ## Consequences
 
 - Easier: one grammar, one regex, one registry; unresolved values become prompts, so nothing ships empty. Server-side sanitizing keeps the stored body safe for every client.
@@ -514,9 +538,9 @@ As the date field: no stored template holds `{{choice:` (today's `scanBody` refu
 
 ## Open questions
 
-- Q78 (spec section 15, Amendment 2026-11-12): save rule for braces that join around a field. Recommendation: option 1.
-- Q85 to Q90 (spec section 15, Amendment 2026-11-12: date fields): picker with no date, picker in the Gmail surfaces, time of day of the value, editor entry, rollback, old web pages.
-- Q91 to Q97 (spec section 15, Amendment 2026-11-12: choice fields): unchosen field, dropdown in Gmail surfaces, empty value, rendering of a choice in the preview, editing chips, rollout, whether to build at all.
+- Q78: closed 2026-11-12 (owner decision D40, option 1, built in slice 26).
+- Date fields: Q86 and Q88 closed; Q85 and Q87 (other zones) open; Q89, Q90 accepted (spec section 15).
+- Choice fields: Q91, Q92, Q94, Q95, Q97 closed; Q93 open; Q96 accepted (spec section 15).
 - Q20, Q21 (spec section 15): closed 2026-11-10. Q20 by spike S5 (one response, no new scope); Q21 by D24.
 - Q25 (spec section 15): prompts used only in the subject are asked while "Replace the subject" is off. Recommendation: accept in v1.
 

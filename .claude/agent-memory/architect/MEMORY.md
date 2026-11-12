@@ -1,6 +1,6 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-12, D39 choice field proposal on branch architect/choice-field (from 3ce78a0; ADR-0004 Amendment "choice fields", spec 5.10, Q91-Q97). Before: D38 date field spec, merged 51b2a94, slice 25 builds it (branch architect/date-field from 80e4b77; ADR-0004 Amendment "date fields", spec 5.9, Q85-Q90). Before: errata run 6 on branch architect/errata-6 (slices 20a, 20b, 21, 22, 22b as built at 8e82a07, slice 23 in review; commits 1458d3d spec, 2d93595 ADRs, 2ca59cc wireframes, plus handoff and memory; not pushed). Before: errata run 5 (16df87a), S7 run, D31, D32, errata run 4. Repo is the source of truth; this file is a cache.
+Last run: 2026-11-12, errata run 7 on branch architect/errata-7 (from 78e3317): ADR-0004 brace, date, choice amendments Accepted; spec 5.9/5.10 as built (slices 25, 26); spec 7 loader (24), 8 tree (23); Q table + open table at top of spec 15; 22-step org deploy checklist in handoff errata-7. Before: D39 choice spec, D38 date spec, errata 6.
 
 ## Files I own
 - docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed; 0001 D27 and 0004 D26/D31 amendments Accepted 2026-11-11). 0009 Accepted 2026-11-11 (As built section). 0003/0008 D32 Accepted (0003 "As built (slice 16)"). 0006 D31 Accepted except Q77 point. 0007 Amendment 2026-11-11 (D33, failure sentences) Accepted. 0002 Amendment 2026-11-11, slice 19 Proposed. 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Accepted 2026-11-11, section "Acceptance 2026-11-11" A1-A10; [S7] markers on old lines). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
@@ -62,11 +62,11 @@ Last run: 2026-11-12, D39 choice field proposal on branch architect/choice-field
 - ADR-0004 Amendment 2026-11-12 Proposed (Q78): skeleton rule, tokens removed with adjacent U+0020, escapes as marker, runs joined; `{{` across segments -> PH_MALFORMED "The braces at character {n} would show as {{ in the email. Delete one of them." Touch validate.ts, placeholders.test.ts, wording.md, editor-guide.md.
 - Open: Q80 toIcon try/catch, Q83 error icon drawn?, Q84 reply count overstates.
 
-## D39 choice field (proposal 2026-11-12, owner not decided, Q97)
+## D39 choice field (owner decided build; Q91 left out; built slice 26, Accepted)
 - `{{choice:Label|A|B}}`: 2-20 options, 1-100 chars each, no | { } backslash < >, no case-insensitive duplicate, token at most 2,200. Regex group 3 label, group 4 options split in code. New codes PH_CHOICE, PH_CHOICE_MISMATCH; PH_FIELD_TYPE sentence general "used as <kind> and as <kind>".
 - Card: SelectionInput DROPDOWN, "Choose..." value "0" selected, options "1".."20" (formValue reads it). Check in add-on Insert callbacks: answers never reach the web app server. Unchosen = removed (Q91). Build after slice 25.
 
-## D38 date field (owner 2026-11-12, Proposed)
+## D38 date field (built slice 25, Accepted; owner test dev-e93a085 passed; Q86 yes, Q87 own zone only)
 - `{{date:Label}}` sibling of ask; regex `(ask|date)` group; PH_FIELD_TYPE for ask+date same identity; PH_CASE/FALLBACK_ASK extended. Shares validate.ts with Q78.
 - Card: `DatePicker` (Apps Script date-only class, not DateTimePicker), `p-<n>`, starts empty (Q85); read `commonEventObject.formInputs[n].dateInput.msSinceEpoch` (legacy formInput cannot hold it). dateText = round(ms/86400000) days, UTC getters, MM/DD/YYYY; card JSON says DATE_ONLY = 00:00 UTC [A46]; local-midnight fallback ok UTC-11:59..+11:59 (Q87).
 - Editor: menu item "Ask the sender for a date..." (Q88), chip " (date)", "date, used once"; preview today's date. Unpicked = removed (gap rules). No server change; no migration (old scanBody refuses date tokens). Q89 rollback, Q90 old page.
@@ -104,8 +104,12 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - 637ce77 (after 4b): add-on no server call 1.1-2.7 s; apply one server call 2.2-5.2 s, handler 0.2-0.6 s.
 - 32a446c: warm save 4.2-5.2 s, Drive writes 2.0-2.7 s.
 
+## Errata run 7 facts
+- Brace rule in skeleton.ts (joinedBraces); review minor 3 (cross-paragraph braces, `{ {{ask:N}} {`) confirmed as ADR-accepted costs. Date fallback text box hint MM/DD/YYYY, "Enter a date as MM/DD/YYYY: <labels>"; entered keeps MM/DD/YYYY. Choice fallback p-<n>-text hint "One of: ...". fieldValue in event.ts. PH_FIELD_TYPE kinds in template order.
+- Loader busy.ts: guard events, text fields keep typing, 300 ms bar, 20 s/call; save 1 call; held access rows. Tree: reveal only on user choice.
+
 ## Slice plan
-- Slices 1-22 with 22b done, on dev (8e82a07); 23 (tree collapse) in review retry 1 at a26e7f3. v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27), minors of 13.5.
+- Slices 1-26 done, on dev (dev-e93a085); 27 (6 minors before org deploy) in build. Next: 2.5b org deploy. origin/main at 5ee45c2 (584 behind): prod deploy needs main. v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27).
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
@@ -118,7 +122,7 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A47]. Question IDs global Q1-Q97; next free Q98. Next free slice 26. ADR next free 0010. Spikes S2, S2b, S4, S5, S6, S7 closed (fresh consent open by hand, Q55; S7 step 9 form inputs not run, Q68).
+- External sources [A1]..[A47]. Question IDs global Q1-Q97; next free Q98. Next free slice 28. ADR next free 0010. Spikes closed. Still open for owner: D1, D2, D7, Q18, Q22, Q83, Q85, Q87, Q93, logo owner.
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls

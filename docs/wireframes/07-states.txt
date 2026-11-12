@@ -62,6 +62,14 @@ E. Web app loading (skeleton, aria-busy="true")
 | ... 8 rows                                              |
 +---------------------------------------------------------+
 
+E3. Web app loader (D37, slice 24): any call but search.body and profile.me
+  +---------------------------------------------------------+
+  |=====>                                                   |  3 px bar after 300 ms (#2a3c49 light,
+  |  page as it was; clicks and keys dropped, text fields   |  #dfe6eb dark), aria-busy="true",
+  |  keep typing; dialogs and toasts work                   |  one polite "Loading"
+  +---------------------------------------------------------+
+  Ends when the last call settles, or 20 s per call; the call keeps its own error path.
+
 E2. Web app first load (slice 20a)
   First paint: "Loading..." (role="status") in main, then the skeleton of E.
   No answer in 15 s, or the first folder.list or template.list fails (library, editor, Trash only):
