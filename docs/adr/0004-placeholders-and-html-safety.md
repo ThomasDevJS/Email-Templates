@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)"); braces that join around a field (Proposed 2026-11-12, Q78, not built; see "Amendment 2026-11-12")
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)"); braces that join around a field (Proposed 2026-11-12, Q78, not built; see "Amendment 2026-11-12"); date fields D38 (Proposed 2026-11-12, Q85 to Q90, not built; see "Amendment 2026-11-12: date fields")
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -353,6 +353,86 @@ Files an implementer touches:
 - `docs/guide/editor-guide.md`: one line next to the `\{{` line (108): "A { right before a field and another after it is refused: delete one of them."
 - No change: `grammar.ts`, `render.ts`, the add-on, server handlers, stored data.
 
+## Amendment 2026-11-12: date fields `{{date:Label}}` (D38)
+
+Status: Proposed. The feature is the owner's request of 2026-11-12, made after every test on dev-744bd1d passed: "is it possible to add a type of field that allows to open calendar picker instead of simple text entry field? e.g. in editor have some checkmark or special type of placeholder that would inserts date picker in format MM/DD/YYYY ?" (D38). The mechanism below and the open points Q85 to Q90 stay Proposed until the owner approves. Not built. Spec 5.9 holds the texts, the examples, the files and the tests.
+
+Note on Q78: this amendment and the brace amendment above both change `src/shared/placeholders/validate.ts`. The brace skeleton removes a date token like any token, so the two rules do not conflict. Build them in one slice, or merge the second one with care.
+
+### Platform facts (read 2026-11-12)
+
+| Fact | Source |
+|---|---|
+| Apps Script has 3 picker classes: `DatePicker` (date only), `DateTimePicker` (date and time), `TimePicker`. `DatePicker`: "An input field that allows inputing a date." "Available for Google Workspace add-ons and Google Chat apps." Methods: `setFieldName`, `setTitle`, `setValueInMsSinceEpoch`, `setOnChangeAction`. `setValueInMsSinceEpoch`: "Only the date of the epoch time is used, and the time of the epoch time is discarded." The page says nothing about an empty value or a time zone | [A45] |
+| Event object: "A date-only picker: a DateInput object", at `e.commonEventObject.formInputs.<name>.dateInput`; `msSinceEpoch` is "The time selected by the user, in milliseconds since epoch (00:00:00 UTC on 1 January 1970)." Legacy `formInput` and `formInputs`: "Date and time picker widget values can't be read from this field." The page does not say which time of day a date-only value carries | [A13], re-read 2026-11-12 |
+| Card JSON `DateTimePicker`: `valueMsEpoch` for `DATE_ONLY` is "a calendar date at 00:00:00 UTC"; `timezoneOffsetDate` "If unset, the value defaults to the user's time zone setting"; `onChangeAction` is "Triggered when the user clicks Save or Clear". Availability: "Google Chat apps and Google Workspace add-ons"; Gmail is not named for the picker | [A46] |
+| The user's time zone reaches the event only with `useLocaleFromApp: true` and the scope `script.locale` (an 11th scope; not wanted) | [A13] |
+| Not stated in any page read: whether the picker can show no date; whether it works in Gmail's draft popup and in the side panel; whether its value reaches a compose-action callback (Q68 verified text boxes only); how it counts toward the 100-widget limit (assumed one widget, like a `TextInput`) | Q85, Q86 |
+
+### 1. Syntax
+
+Options:
+1. `{{date:Label}}`, a sibling of `{{ask:Label}}`: the same label rule (1 to 40 characters, none of `{ } | \ < >`, `LABEL_MAX`), the same escape, no default text. One more regex alternative.
+2. A flag after the label, `{{ask:Label|date}}`. Collides with `PH_FALLBACK_ASK` (a field takes no `|`) and reads as default text "date".
+3. A setting per field stored outside the token, in item metadata. Export, import, history and version restore would each have to carry it.
+
+Decision: option 1. Regex, alternatives in this order (group 1 the kind, 2 the label, 3 a variable name, 4 a fallback):
+
+```
+/\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}/g
+```
+
+The `prompt` segment gains `type: "text" | "date"`. Identity is unchanged: `promptKey(label)`, shared by subject and body. Implicit prompts (a variable with no value) stay text.
+
+### 2. Save validation
+
+- One label used as a text field and as a date in one template (subject and body together): refused, new code `PH_FIELD_TYPE`, at the offset of the later token. Rejected alternative: the first type wins, which would silently change what the later token asks.
+- `{{date:X}}` twice, in any letter case or spacing: one field, one picker.
+- `{{Date:X}}`: `PH_CASE`. `{{date:X|y}}`: `PH_FALLBACK_ASK`. An empty or long label: `PH_LABEL`. The lenient pass recognizes `date` wherever it recognizes `ask`.
+- `PH_TOO_MANY` counts text and date fields together (20 at most).
+
+### 3. Gmail details card
+
+Options for the widget:
+1. `CardService.newDatePicker()`, field name `p-<n>`, the label as title, in the place a text box would sit, in template field order.
+2. `newDateTimePicker()`. It asks for a time the template does not use. The orchestrator's default named `DateTimePicker` for "date only"; in Apps Script that class is `DatePicker` [A45], so option 1 follows the default's intent.
+3. A text box with the hint "MM/DD/YYYY". No calendar, which the owner asked for. Kept as the fallback if Q86 fails.
+
+Decision: option 1. Reading: `dateInput.msSinceEpoch` from `commonEventObject.formInputs["p-<n>"]`, a number or a numeric string; both are accepted. No entry, or no finite number: no date. The card keeps the picked value as its ms string in `entered`; a re-rendered card sets it back with `setValueInMsSinceEpoch`.
+
+Conversion to MM/DD/YYYY, one shared function `dateText(raw)`:
+1. `n = Number(raw)`. Not finite: "".
+2. `day = Math.round(n / 86_400_000)`; `d = new Date(day * 86_400_000)`.
+3. `MM = d.getUTCMonth() + 1`, `DD = d.getUTCDate()`, `YYYY = d.getUTCFullYear()`, with leading zeros to 2, 2 and 4 digits, joined by "/". A year outside 1000 to 9999: "".
+
+Why the picked day is the day written in every time zone: the card reference says a date-only value is that date at 00:00:00 UTC [A46], and UTC getters read that date back unchanged, whatever the script time zone (`appsscript.json`: America/New_York) or the user's zone. The rounding also covers a Gmail that sends local midnight instead: it gives the picked day for zones from UTC-11:59 to UTC+11:59 (the Americas, Europe, Africa, most of Asia). For UTC+12 and later (New Zealand, Fiji, Tonga) it would give the day before (Q87). The code never uses `getDate()`, `getMonth()`, `Utilities.formatDate` with `Session.getScriptTimeZone()`, or the event's `timeZone`.
+
+### 4. Unpicked date and one-click insert
+
+A date field with no picked date is a field without a value: it is removed with the 4 gap rules of Amendment 2026-11-11, on the row Insert and on the details card (D31). If Gmail cannot draw a picker with no date (Q85), an untouched picker inserts the date it shows. Recommendation in Q85.
+
+### 5. Counting and limits
+
+- The row hint "n fields to fill" counts date fields: `item.prompts` holds every field label.
+- The 500-character check (`tooLong`) skips date fields. `rc` and `rh` concern recipients, not fields.
+- Widgets: one picker per date field, in place of one text box. Card totals stay as measured (details card worst 52).
+
+### 6. Subject
+
+Allowed, as `{{ask:}}` is. The subject gets the date as plain text.
+
+### 7. Rollout and old builds
+
+No stored template can hold `{{date:` before this build: today's `scanBody` refuses it as `PH_MALFORMED`, on save and on import. So nothing is migrated. The add-on, the server and the web app ship in one Apps Script version (D15), so the add-on never meets an older server. Two old clients remain:
+- A web page loaded before the deploy keeps its old bundle. Its editor shows `{{date:X}}` as plain text with the Problems line "The field at character n is not valid. Delete it and use Insert field."; its save still reaches the new server, which accepts the unchanged token. No data is lost. No version check exists: `clientVersion` is sent and never compared (Q90).
+- A rollback below this build (ADR-0005) brings back a renderer that treats `{{date:X}}` as plain text, so drafts get the token as text (Q89).
+
+### Consequences of the amendment
+
+- Easier: a calendar on the card, one format, no mistyped dates.
+- Harder: a second field kind in the parser, the editor, the card and the render; one more Gmail check before prod (Q85, Q86).
+- Revisit if the owner wants another date format: one function and one wording row change.
+
 ## Consequences
 
 - Easier: one grammar, one regex, one registry; unresolved values become prompts, so nothing ships empty. Server-side sanitizing keeps the stored body safe for every client.
@@ -363,6 +443,7 @@ Files an implementer touches:
 ## Open questions
 
 - Q78 (spec section 15, Amendment 2026-11-12): save rule for braces that join around a field. Recommendation: option 1.
+- Q85 to Q90 (spec section 15, Amendment 2026-11-12: date fields): picker with no date, picker in the Gmail surfaces, time of day of the value, editor entry, rollback, old web pages.
 - Q20, Q21 (spec section 15): closed 2026-11-10. Q20 by spike S5 (one response, no new scope); Q21 by D24.
 - Q25 (spec section 15): prompts used only in the subject are asked while "Replace the subject" is off. Recommendation: accept in v1.
 
@@ -372,6 +453,9 @@ Files an implementer touches:
 
 ## Sources
 
+- [A45] https://developers.google.com/apps-script/reference/card-service/date-picker, read 2026-11-12.
+- [A46] https://developers.google.com/workspace/add-ons/reference/rpc/google.apps.card.v1 (`DateTimePicker`, `DateTimePickerType`, Columns), read 2026-11-12.
+- [A13] re-read 2026-11-12 for `DateInput`, the legacy `formInput` note and `timeZone`.
 - [R1 S24], [R2 S8, S16, lessons], [R3 S4, S12, S26], [R4 S3 to S5b, S8, S18, S26, S28, S29, S35, S36, S65, S78], read 2026-11-09.
 - [A5] https://developers.google.com/workspace/add-ons/concepts/event-objects, read 2026-11-09.
 - [A6] https://developers.google.com/workspace/admin/directory/v1/guides/manage-users (domain_public, contact sharing, fields not listed), read 2026-11-09.

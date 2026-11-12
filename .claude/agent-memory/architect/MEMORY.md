@@ -1,6 +1,6 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-12, errata run 6 on branch architect/errata-6 (slices 20a, 20b, 21, 22, 22b as built at 8e82a07, slice 23 in review; commits 1458d3d spec, 2d93595 ADRs, 2ca59cc wireframes, plus handoff and memory; not pushed). Before: errata run 5 (16df87a), S7 run, D31, D32, errata run 4. Repo is the source of truth; this file is a cache.
+Last run: 2026-11-12, D38 date field spec on branch architect/date-field (from 80e4b77; ADR-0004 Amendment "date fields", spec 5.9, Q85-Q90). Before: errata run 6 on branch architect/errata-6 (slices 20a, 20b, 21, 22, 22b as built at 8e82a07, slice 23 in review; commits 1458d3d spec, 2d93595 ADRs, 2ca59cc wireframes, plus handoff and memory; not pushed). Before: errata run 5 (16df87a), S7 run, D31, D32, errata run 4. Repo is the source of truth; this file is a cache.
 
 ## Files I own
 - docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed; 0001 D27 and 0004 D26/D31 amendments Accepted 2026-11-11). 0009 Accepted 2026-11-11 (As built section). 0003/0008 D32 Accepted (0003 "As built (slice 16)"). 0006 D31 Accepted except Q77 point. 0007 Amendment 2026-11-11 (D33, failure sentences) Accepted. 0002 Amendment 2026-11-11, slice 19 Proposed. 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Accepted 2026-11-11, section "Acceptance 2026-11-11" A1-A10; [S7] markers on old lines). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
@@ -62,6 +62,11 @@ Last run: 2026-11-12, errata run 6 on branch architect/errata-6 (slices 20a, 20b
 - ADR-0004 Amendment 2026-11-12 Proposed (Q78): skeleton rule, tokens removed with adjacent U+0020, escapes as marker, runs joined; `{{` across segments -> PH_MALFORMED "The braces at character {n} would show as {{ in the email. Delete one of them." Touch validate.ts, placeholders.test.ts, wording.md, editor-guide.md.
 - Open: Q80 toIcon try/catch, Q83 error icon drawn?, Q84 reply count overstates.
 
+## D38 date field (owner 2026-11-12, Proposed)
+- `{{date:Label}}` sibling of ask; regex `(ask|date)` group; PH_FIELD_TYPE for ask+date same identity; PH_CASE/FALLBACK_ASK extended. Shares validate.ts with Q78.
+- Card: `DatePicker` (Apps Script date-only class, not DateTimePicker), `p-<n>`, starts empty (Q85); read `commonEventObject.formInputs[n].dateInput.msSinceEpoch` (legacy formInput cannot hold it). dateText = round(ms/86400000) days, UTC getters, MM/DD/YYYY; card JSON says DATE_ONLY = 00:00 UTC [A46]; local-midnight fallback ok UTC-11:59..+11:59 (Q87).
+- Editor: menu item "Ask the sender for a date..." (Q88), chip " (date)", "date, used once"; preview today's date. Unpicked = removed (gap rules). No server change; no migration (old scanBody refuses date tokens). Q89 rollback, Q90 old page.
+
 ## D31 (owner 2026-11-11): one-click insert, slice 15 (spec 7.4, 13.9, ADR-0009)
 - Every compose row "Insert" one click. Unfilled field REMOVED (owner decision, no marker): value order typed > value > fallback > "", then 4 gap rules (U+0020 only, per text run and subject): space both sides drop after; space before + `,.;:!?` drop before; run start drop space after; run end drop space before. Left alone: across inline tags, nbsp, empty blocks (smoke 13). 8 test pairs in ADR-0004 Amendment 2026-11-11.
 - Platform: UpdateDraftActionResponse has no notification [A15]; ActionResponse has no draft action [A44]; card closes after insert (S6 step 0, undocumented). FixedFooter primary must be FILLED [A40]; manifest secondaryColor default blue #2196F3 [A42]; DecoratedText one button or switch or end icon + onClick [A43]. A40-A44 in ADR-0009.
@@ -109,7 +114,7 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A44]. Question IDs global Q1-Q84; next free Q85. Next free slice 24. ADR next free 0010. Spikes S2, S2b, S4, S5, S6, S7 closed (fresh consent open by hand, Q55; S7 step 9 form inputs not run, Q68).
+- External sources [A1]..[A46]. Question IDs global Q1-Q90; next free Q91. Next free slice 25. ADR next free 0010. Spikes S2, S2b, S4, S5, S6, S7 closed (fresh consent open by hand, Q55; S7 step 9 form inputs not run, Q68).
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls
