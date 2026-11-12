@@ -1,0 +1,24 @@
+Screen 5: Web app version history (/exec?view=history&id=...)
+Slice 3 (built). Subject line slice 5. Level edit or higher.
+
++----------------------------------------------------------------------------------+
+| < Editor   Price quote 2026 - History                                            |
++--------------------------------+-------------------------------------------------+
+| VERSIONS                       | Version 5   2026-10-28 09:12   Ben             |
+|  8  2026-11-05  Ben  current   |-------------------------------------------------|
+|  7  2026-11-02  Ana            | Subject: Quote for (Ask: Product name)          |  slice 5, D21
+| Rendered preview (sanitized HTML, placeholders  |
+|  6  2026-11-01  Ana            | shown as chips)                                 |
+|> 5  2026-10-28  Ben  <         |                                                 |
+|  4  2026-10-20  Ana  restored  | Hi (Recipient first name | there), ...          |
+|     from 2                     |                                                 |
+|  3  ...                        |                                                 |
+|  [Load older]                  |-------------------------------------------------|
+|                                | [Restore this version]                          |
+|                                |  -> confirm: "Create version 9 from version 5?" |
++--------------------------------+-------------------------------------------------+
+
+Rules
+- Restore creates a new version (linear history) and an audit row. No version is deleted. It copies subject and body of the chosen version.
+- Diff view is out of v1 (summary.md section 2).
+- Keyboard: arrows move in the list, Enter previews, R restores (with confirm).

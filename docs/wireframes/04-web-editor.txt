@@ -1,0 +1,130 @@
+Screen 4: Web app editor (/exec?view=editor&id=...)
+Slice 3. Subject field slice 5 (D21). Layout as built in slice 8b, design direction A
+(docs/design/design-system.md, screens in docs/design/screens/8b). Verified at 6374b7b.
+
++------------------------------------------------------------------------------------------------+
+| Dispatch > Rate confirmations > Rate confirmation    v Saved as version 4, 2:05 PM  (History) [Save] |
++---------------------------------------------------------------------+--------------------------+
+| (undo)(redo) | Paragraph v  Normal v  Font v | B I U S (color)(highl.) | DETAILS                  |
+| (align)(bullets)(numbers)(quote) | (link)(image)(table)(line)  [{} Insert field] | Title             |
+|---------------------------------------------------------------------| [ Rate confirmation    ] |
+|   Subject   Rate confirmation for load {{ask:Load number}}  46/200  | Folder                   |
+|             (optional)                                              | [ Dispatch / Rate co. v] |
+|   Reads as  Rate confirmation for load [Load number]                | Tags  (rates x)(carrier x)|
+|   ---------------------------------------------------------------   | [______] [Add tag]       |
+|   Hi [Recipient first name or there],                               | Up to 10 tags.           |
+|   Thank you for covering load [Load number]. Please confirm the     | To  [dispatch@... x]     |
+|   rate below for pickup on [Pickup date].                           | Cc  [safety@... x]       |
+|   +------+-----------+------+                                       | Bcc [records@... x]      |
+|   | Lane | Equipment | Rate |                                       |     outside example.com  |
+|   +------+-----------+------+                                       | (Bcc help, group help)   |
+|   [Sender name]                                                     |--------------------------|
+|   [Sender title]                                                    | THE SENDER FILLS IN      |
+|   sheet 680 px over the canvas, body 15 px / 1.6                    | Load number  used 2 times|
+|                                                                     | Pickup date  used once   |
+|                                                                     |--------------------------|
+|                                                                     | [Preview as me] Problems 0|
+|                                                                     | To dispatch@example.com  |
++---------------------------------------------------------------------+--------------------------+
+
+Header: folder path as buttons that open the folder in the library, then the title (h1). Saved state
+(role="status"): "Saved as version 4, 2:05 PM" (date added when not today), "Unsaved changes", "Saving...",
+"Not saved yet". History is a ghost button, Save is primary, Ctrl+S saves.
+Toolbar: 5 groups with separators; every button has a name and a tooltip with its shortcut ("Bold (Ctrl+B)");
+toggles carry aria-pressed, menus aria-haspopup; one tab stop with arrows, Home, End. "Font" picker names its
+value ("Font: Georgia"). "Insert field" sits at the right end.
+Blanks: value placeholders amber with a dotted line; asked fields in a dashed box; fallback reads
+"<name> or <fallback>". Atomic, contenteditable=false. aria-label "Field: Sender name",
+"Field: Recipient first name, default text there", "Field: Load number, the sender fills it in" (slice 14).
+"Reads as" line under the Subject only while the subject holds a placeholder.
+Right panel 340 px: Details, "The sender fills in" (each asked field, "used once" / "used n times"; empty:
+"Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender."), tabs "Preview as me" and
+"Problems n" (live errors plus the last save's problems; a refused save opens Problems; each problem with a
+field is a button that focuses it).
+Under 860 px: the panel moves below the sheet; each section collapses with its heading button (aria-expanded).
+Read only (use holders): no toolbar, Save or History; inputs read only; chips without x; note "You can use this
+template but not change it. To change it, ask a folder manager for edit access." While personal templates are
+off, a private template shows "Personal templates are turned off by your admin. You can still insert this template."
+Leave guard: with unsaved changes every exit (library links, folder tree, breadcrumb, History, Back, Forward)
+asks "Leave without saving?" ("Your changes to this template are not saved. They are lost if you leave now.")
+[Keep editing] (focused) [Discard changes] [Save and leave]. One question at a time. A page reload gets the
+browser's own leave prompt.
+
+Placeholder menu ({{ or toolbar):
+  Sender name | Sender title | Sender phone | Sender department | Recipient first name
+  Ask the sender... -> dialog "Ask the sender": "Field name the sender sees" (1-40 chars)
+  Ask the sender for a date... -> dialog "Ask the sender for a date", same field (D38, built slice 25, spec 5.9);
+    chip [Pickup date (date)], screen reader "Field: Pickup date, a date the sender picks";
+    panel line "Pickup date  date, used once"; "Preview as me" shows today as MM/DD/YYYY
+  Ask the sender to choose... -> dialog "Ask the sender to choose" (D39, built slice 26, spec 5.10):
+    "Field name the sender sees" + "Options, one per line" (2-20, each up to 100 chars) [Insert] [Cancel];
+    chip [Load status (choice)]; on a selected choice chip: Edit choices...;
+    panel line "Load status  choice: ready, late, used once"; "Preview as me" shows the first option
+  Add default text... -> dialog "Default text" on a selected chip (0-80 chars)
+
+Save and loader (D37, slice 24): Save (or Ctrl+S) sends 1 call, template.update; its answer updates the
+library list. While it runs, clicks are dropped and the bar shows after 300 ms; typing, Backspace, paste and
+undo in Title, Subject, the address boxes and the text are kept, and the header then says "Unsaved changes".
+Ctrl+K and {{ open no dialog during a call. A second save cannot start while one runs.
+
+Conflict dialog (CONFLICT on save), title "This template changed":
+  "Ben saved version 8 at 2:05 PM while you edited."
+  [Open their version]  [Copy my text]  [Cancel]
+  "Opening their version..." then "Opened their version. Your changes were discarded."
+  Copy: "Copied your text. Open their version and paste it where needed."
+
+Subject field (D21, spec 5.6):
+  Single-line <input> on top of the sheet, label "Subject", optional, counter "n/200 (optional)". Plain text: tokens are typed
+  as text, no chips. Placeholder menu inserts token text at the cursor when the subject has
+  focus. Enter does not add a line. Paste of a line break becomes one space in the input; the
+  server still rejects line breaks with SUBJ_LINEBREAK.
+  Problems name the field: "Subject: Unknown field sender.nmae at character 3. ..." (slice 14 text)
+  Empty subject = the draft subject is not touched on Insert.
+
+Recipients (D26, ADR-0006). Built in slice 8b in the Details panel of design direction A (right panel
+340 px). Slice 9 built no editor fields; its planned placement under Subject below was never built.
+
+Slice 9 placement (planned, not built):
+| Subject [ Driver leaving: {{ask:Driver name}} ]  31/200   (optional)                |
+| To  [ payroll@migway.com x ] [______________________ ]                              |
+| Cc  [ safety@migway.com x ] [_______________________ ]                              |
+| Bcc [ records@partner.com  outside migway.com x ] [__ ]                             |
+|     Added to the draft when someone inserts this template. Users see every          |
+|     address before it is added.                                                     |
+
+Slice 8b, Details panel (right panel, as built; labels above full-width controls):
++--------------------------------------+
+| Details                              |  panel heading, 13 px
+| Title                                |
+| [ Driver leaving               ]     |
+| Folder                               |
+| [ HR / Drivers                 v ]   |  shows the path; two folders may share a name
+| Tags                                 |
+| ( leaving x ) [________] [Add tag]   |
+|                                      |
+| To                                   |  label above input
+| [ payroll@migway.com x ][________ ]  |  chip per address, tag style (radius 10, --select)
+| Cc                                   |
+| [ safety@migway.com x ][_________ ]  |
+| Bcc                                  |
+| [ records@partner.com x ]            |
+|   outside migway.com                 |  12 px --ink-3 marker under the chip; --warn icon
+| Hidden from the other recipients of  |  Bcc help, 12 px --ink-3
+| the email.                           |
+| Added to the draft when someone      |  group help, 12 px --ink-3
+| inserts this template. Users see     |
+| every address before it is added.    |
++--------------------------------------+
+
+Rules
+- Enter, comma, semicolon, space, a pasted list and leaving the field turn the typed text into chips (trim,
+  lower case, repeats dropped). Backspace in an empty input removes the last chip (slice 8b). Chip remove
+  button aria-label "Remove safety@migway.com from Cc". The status line announces "Added <addresses> to Cc"
+  and "Removed <address> from Cc".
+- Client checks with the shared validateRecipients for inline hints; the server result is authoritative.
+- Outside marker: domain part differs from the caller's domain (from `me`). With `me.recipientsExternal`
+  = deny the chip has the error style (--red border) and the RCPT_EXTERNAL text under the field.
+- Errors under the field (chips named by a problem get the error style) and in Problems, texts of spec 7.1, for example
+  "Cc, address 2 is not an email address. Use the form name@company.com."
+- Preview as me shows To, Cc, Bcc lines above the rendered subject. use holders see the lists read only; an
+  empty field reads "None". Save always sends to, cc, bcc.

@@ -1,0 +1,226 @@
+Screen 6: Admin (/exec?view=admin)
+Slice 6. Tabs as built since slice 14: Folders and access | Groups | Audit log | Usage | Export and import |
+Settings and backups (before slice 14: Folders and grants, Memberships, Config).
+Split 2026-11-10 (spec 13.3): 6a builds the shell, Folders and access, Groups and the Trash view; 6b builds Audit log, Usage, Export and import, Settings and backups.
+Admins see all tabs. manage holders see Folders and access (their subtrees) and Export and import (Export folder only).
+As built 2026-11-10 (slices 6a bb53d6c, 6b f6b567f): routes #/admin, #/admin/memberships, #/admin/audit, #/admin/usage,
+#/admin/transfer, #/admin/config, and #/trash (link under the library tree). Tablist: Left, Right, Home, End, wrap.
+Texts as built at 8e82a07 (slice 14 wording pass, slice 16 Admins, slice 20a; docs/design/wording.md).
+One folder list (slice 20a, spec 6): Admin loads admin.folders once; every tab reads it. A folder write or an
+import refreshes it with one call; "Export and import" shows the change on its next open with no call of its own;
+a tab opened during the refresh waits for the new list. The tree: same mouse behavior as the library (slice 23,
+merged; wireframe 03); create, delete or move of the selected folder reveals it. "Who has access" (slice 24, D37):
+a folder seen before shows its held rows at once and reads grant.list in the background, redrawing only when
+the answer differs; Give access and Remove drop that folder's held rows. The page loader of wireframe 03 applies.
+Entry: the server op admin.folders decides. Anyone else gets a full page:
+  "You don't have access to Admin. It is for admins and folder managers."  [Back to the library]
+
+Inline errors (status line under a form or table, smoke 6b defect A): the error message as one sentence ending
+with a period, no "Back to the library" link. Example: "Group missing@example.com was not found or its members are
+not visible. Check the address." The full-page banner, the admin no-access page and Trash keep the link. A toast
+with the request ID replaces the line on SERVER errors; QUOTA keeps Retry disabled for 60 s. A DENIED on an
+admin-only action reads "You are no longer an admin, so nothing was changed. Ask an admin if you need access."
+
+Tab: Folders and access
++---------------------------------------------------------------------------------------------------+
+| Folders and access | Groups | Audit log | Usage | Export and import | Settings and backups         |
++--------------------------+------------------------------------------------------------------------+
+| v Sales                  | Sales / Quotes        [New subfolder] [Rename...] [Move...] [Delete...] |
+|    Onboarding            |------------------------------------------------------------------------|
+|  > Quotes <              | Who has access                                                         |
+|                          |  Who                       Access      Set on                          |
+| > Support                |  sales@migway.com          Can edit    Sales (parent folder)           |
+| > HR                     |  all@migway.com            Can use     this folder        [Remove]     |
+| [New top-level folder]   |  /Field                    Can use     this folder                     |
+|                          |    "Not active yet. Org units do not give access in this version." (Q4)|
+|                          |  (a manager who cannot see Sales reads "a parent folder")              |
+|                          |------------------------------------------------------------------------|
+|                          | Give access                                                            |
+|                          | Type [Group v]  Give access to [ email__________ ]  Access [Can use v] |
+|                          | [Give access]   status "Giving access..." then                          |
+|                          |                 "Gave access to sales@migway.com: Can use."            |
+|                          | No entries: "Only admins can see this folder. Give access to share it."|
+|                          | Personal folder: "Personal folder of <owner>. Personal folders cannot  |
+|                          | be shared, moved or deleted."; no Subfolder, Move, Delete or form      |
++--------------------------+------------------------------------------------------------------------+
+  Remove: "Removing access..." then "Removed access for <who>." Move with no target: "Not moved. A folder can
+  move only into another folder you manage." Delete dialog: 'Delete the folder "<name>"? Only an empty folder can
+  be deleted. Access given on this folder ends.'
+
+Tab: Groups
+  Members are read from Google (direct members only). Last refresh: <time>.   [Refresh groups]
+  Groups the app reads
+  Group                    Members   Groups inside   Status
+  admins@migway.com        3         0               OK
+  sales@migway.com         28        1               OK
+    "Warning: members of emea-sales@migway.com get no access through sales@migway.com. Add them to
+     sales@migway.com directly."
+  Status "Refreshing groups..." then "Refreshed 2 groups."  A group that fails reads "Could not be read".
+  Empty: "No groups yet. A group shows here once it has access to a folder or is the admin group."
+
+Tab: Audit log
+  Month [2026-11 v]  Date from [ ]  Date to [ ]  User [ ]  Action [All actions v]  Result [All results v]
+  Template or folder [ ]   [Filter]
+  "Refused actions and inserts can take up to 5 minutes to show here. An export entry records the start of an
+   export, not that the file was downloaded."
+  Audit entries of 2026-11
+  Time              User           Action            Template or folder     Result
+  2026-11-09 14:03  ana@migway.com Template updated  Sales/Quotes/Price...  OK      [Details]
+  Entry details drawer: action, template or folder, result, duration, request ID, app version; "Technical
+  details": internal name, internal ID, raw data before and after. [Close]
+  "Page 1: entries 1 to 50 of 70."  [Previous page] [Next page]
+  Empty: "No audit entries in 2026-11 match these filters. Change the filters and press Filter."
+  Month files are read raw since slice 19 (ADR-0002 Amendment 2026-11-11, slice 19).
+
+Tab: Usage
+  "Inserts counted since <date>. A new insert can take up to 5 minutes to show."
+  Usage per template
+  Template            Folder          Inserts, 30 days   Last inserted
+  Price quote 2026    Sales/Quotes    112                2026-11-09
+  Empty: "No templates yet. Insert counts show here once the library has templates."
+
+Tab: Export and import
+  Export
+  What to export: (o) Whole library (shared folders)  ( ) One folder and its subfolders   Folder [Sales v]
+  "Downloads the templates, folders and access of the whole library or of one folder as one file, without the
+   trash, older versions, favorites, insert counts or the audit log. A whole-library export leaves out personal
+   folders (each user's My templates)."   [Export]   (manage holder: heading "Export folder", [Export folder])
+  Status: "Exporting 40 of 120 templates..."  then  "Exported 120 templates to migway-templates-library-2026-11-10.json."
+  Slice 13: one start call (one audit entry, run token), then pages; the file downloads after the last page.
+  No answer after 4 tries: "The export stopped after 40 of 120 templates: the server did not answer after 4 tries.
+  No file was downloaded, so wait a few minutes and export again." Audit row: "Library export started, 120 templates".
+  Import
+  "Adds the templates of an export file (up to 5 MB, 200 templates) to a shared folder as new templates. Access
+   from the file is not imported, and a template whose title is already in its folder is skipped."
+  Export file [Choose file]   Import into [ Imports v ] (shared folders only)   [Check file]  [Import]
+  "Check file changes nothing. It shows what Import would do."
+  Status: "Checking file..." / "Importing..."
+  Result: "Checked. Import would create ..." or "Imported ..."; table "Check result" or "Import result":
+          Templates, Skipped, Failed, New folders, Existing folders.
+          Table "Skipped and failed templates and folders": Type, name, Result, Reason
+          ("A template with this title is already in this folder.").
+
+Tab: Settings and backups (named Config before slice 14)
+Amended 2026-11-10 (D29, ADR-0008, slice 11): a Settings section on top, admins only; the rest stays read only.
+The tab is admin only (manage holders never see it); config.get and config.set answer DENIED to anyone else.
+
+  Settings
+  +--------------------------------------------------------------------------------+
+  | Personal templates                                                  (legend)   |
+  | Users can create their own templates in My templates. When off, users keep and |
+  | can insert the personal templates they have, but cannot create, change or      |
+  | delete them.                                                                   |
+  |   ( ) On    (o) Off                                         (radio group)      |
+  |   Default, never changed.         or  Last change: ana on Nov 10, 2:05 PM.     |
+  |   [Save]   (disabled while the choice equals the current value)                |
+  |--------------------------------------------------------------------------------|
+  | Outside recipients                                                             |
+  | Templates can add addresses outside migway.com to To, Cc and Bcc. With         |
+  | "migway.com only", a template with an outside address cannot be saved and     |
+  | Insert skips the address.                                                      |
+  |   (o) Allowed    ( ) migway.com only                                           |
+  |   Last change: ben on Nov 9, 4:10 PM.                                          |
+  |   [Save]                                                                       |
+  +--------------------------------------------------------------------------------+
+  Status under the setting: "Saving..." then "Saved. Personal templates are off for every user from their next action."
+  Conflict (another admin changed it): "ana changed this setting on Nov 10, 2:05 PM. The page now shows the current
+  value." The radio group shows the current value; nothing was written. Focus moves to the status line (slice 13).
+  config.set sends baseAt and baseBy (the last change shown); a tab older than slice 13 gets "This page is out of
+  date. Reload it and save again."
+
+  Confirm dialog, only when Save takes something away (On -> Off, Allowed -> migway.com only); Cancel has focus:
+  +--------------------------------------------------------------------------------+
+  | Turn off personal templates?                                                   |
+  | Users can no longer create, change or delete templates in My templates.        |
+  | Nothing is deleted: their templates stay, can still be inserted, and can be    |
+  | changed again when you turn this on.                                           |
+  |                                                  [Turn off]  [Cancel]          |
+  +--------------------------------------------------------------------------------+
+  +--------------------------------------------------------------------------------+
+  | Allow only migway.com recipients?                                              |
+  | Templates keep their outside addresses, but Insert no longer adds them. A      |
+  | template with an outside address cannot be saved until the address is removed. |
+  |                                       [Allow only migway.com]  [Cancel]        |
+  +--------------------------------------------------------------------------------+
+  Off -> On and migway.com only -> Allowed save with no dialog.
+  Each change writes one audit event (config.set, before and after); the Audit log tab shows it.
+
+  Admins (D32, built in slice 16; spec 5.8, 7.3; ADR-0003 and ADR-0008 Amendments 2026-11-11, Accepted)
+  +--------------------------------------------------------------------------------+
+  | Admins                                                                         |  fieldset legend
+  | Admins manage every shared folder, its access, settings, imports and backups.  |
+  | Add people by their migway.com address.                                        |
+  |                                                                                |
+  | person-a@migway.com                                               [Remove]     |  in-app list (index.json admins)
+  |   Added by owner on 11 Nov 2026, 14:05.                                        |
+  | person-b@migway.com                                                            |  caller's own row: no Remove
+  |   Added by person-a on 10 Nov 2026, 09:12.                                     |
+  | Set by the owner: owner@migway.com. These cannot be removed here.              |  ADMIN_EMAILS, read only
+  | Members of admins@migway.com.                                                  |  ADMIN_GROUP, only when set
+  |                                                                                |
+  | Email address                                                                  |
+  | [ ______________________________ ]  [Add admin]                                |  busy "Adding..."
+  | Status: "person-c@migway.com is now an admin."                                 |  role="status"; errors inline
+  +--------------------------------------------------------------------------------+
+  Empty list: "No admins added here yet." At 20: the add answers "The list holds 20 admins. Remove one first."
+  Directory failure: "The address could not be checked. Try again." in the status line, no toast.
+  Explanation text as built since slice 20a ("grants" became "its access", docs/design/wording.md).
+
+  Remove dialog (Cancel has focus):
+  +--------------------------------------------------------------------------------+
+  | Remove person-a@migway.com as admin?                                           |
+  | They lose admin access at their next action. Their templates and folders stay. |
+  |                                               [Remove admin]  [Cancel]         |
+  +--------------------------------------------------------------------------------+
+  Busy "Removing...", then "person-a@migway.com is no longer an admin." or "... is not in the list."
+  Each add and remove writes one audit event (admin.add, admin.remove, target the address); the Audit log shows
+  "Admin added" and "Admin removed".
+
+  Technical details (read only)
+  Domain, ADMIN_GROUP, MEMBERSHIP_RESOLVER, CALLER_IDENTITY, INDEX_REV, App version,
+  Library data size (0.85 MB (the app warns at 3 MB)).
+  Background jobs
+  Job                                      Schedule                      Last good run      Status
+  Save insert counts and refused actions   Every 5 minutes               2026-11-09 14:05   OK
+    tick (raw name, small type)
+  Refresh groups                           Every 15 minutes              2026-11-09 14:00   OK
+    refreshMembers
+  Nightly backup and cleanup               Every night, 02:00 to 03:00   2026-11-09 02:01   OK
+    daily
+  (a job late by more than 2 intervals shows "Late", one never run "Never ran", with the last error:
+   "<time> <code> <error name>" or "<time> daily steps failed: <step> (<code>)"; never a platform message, slice 19)
+  (while TRIGGERS_VERSION is stale: "The background jobs could not be set up again: <error>")
+  Backups: "14 nightly backups. The app keeps the last 14." Rows newest first, each with [Restore] (admin only,
+  writes an audit entry).
+  Empty: "No backups yet. The app makes one each night and keeps the last 14."
+
+  Restore dialog (Cancel has focus):
+  +--------------------------------------------------------------------------------+
+  | Restore the backup of 2026-11-09?                                              |
+  | Everything goes back to 2026-11-09: templates, versions, folders, access,      |
+  | favorites and insert counts. Changes made after that day are lost, and         |
+  | templates emptied from the trash after 2026-11-09 cannot come back.            |
+  |                                         [Restore 2026-11-09]  [Cancel]         |
+  +--------------------------------------------------------------------------------+
+  Status: "Restoring the backup of 2026-11-09..."  then  "Restored the backup of 2026-11-09."
+  The Admins list and the settings stay as they are now.
+  Refusals: "This backup cannot be read: index.json is damaged: folders must be a list."
+            "Not restored. 2 templates in the backup of 2026-11-09 were deleted for good after that day and would
+             not open. Pick a newer backup."
+
+Trash view (#/trash, see also wireframe 07 H; edit holders see templates of folders they can edit; admins see all)
+  Deleted templates stay here 30 days. After that they are deleted for good.
+  Template           Folder          Deleted            By               Days left   Actions
+  Old price quote    Sales/Quotes    2026-11-08 10:12   ana@migway.com   28          [Restore]
+  [Empty trash now...]   (admin only)
+  Restore: in place when the folder is live and editable, else a dialog:
+    "Restore template"  "The folder Sales/Old was deleted." | "You cannot edit Sales/Quotes any more."
+    Restore "Old price quote" to [ folder v ]   [Restore] [Cancel]
+    No editable folder: "Not restored. You have no folder you can edit. Ask a folder manager for access."
+  Status: 'Restoring "Old price quote"...'  then  'Restored "Old price quote" to Sales/Quotes.'
+  Empty trash dialog: "Empty the trash? All 3 templates in it are deleted for good, and so are deleted folders.
+  This cannot be undone." For 1: "The 1 template in it is deleted for good". Cancel has focus. The result counts
+  come from trash.purge (templates, folders), slice 13.
+    "Emptying the trash..." then "Emptied the trash: 3 templates deleted for good." (with folders: "... 3 templates
+    and 1 deleted folder deleted for good.") (+ " The stored versions of N of them are deleted tonight.")
+  Empty: "Trash is empty. Deleted templates stay here for 30 days."

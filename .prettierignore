@@ -1,0 +1,10 @@
+dist/
+coverage/
+node_modules/
+package-lock.json
+# Docs and agent files outside docs/ops are written by other roles and keep their own table layout.
+docs/*
+!docs/ops/
+.claude/
+PLAN.md
+test/fixtures/sanitizer/

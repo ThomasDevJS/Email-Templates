@@ -1,0 +1,83 @@
+{
+  "timeZone": "America/New_York",
+  "runtimeVersion": "V8",
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.addons.current.action.compose",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.metadata",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/script.projects.readonly",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/groups",
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
+    "https://www.googleapis.com/auth/script.scriptapp"
+  ],
+  "urlFetchWhitelist": [
+    "https://script.google.com/macros/s/",
+    "https://script.google.com/a/macros/",
+    "https://script.googleusercontent.com/",
+    "https://www.googleapis.com/drive/v3/",
+    "https://www.googleapis.com/upload/drive/v3/"
+  ],
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "DOMAIN"
+  },
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Drive",
+        "serviceId": "drive",
+        "version": "v3"
+      },
+      {
+        "userSymbol": "AdminDirectory",
+        "serviceId": "admin",
+        "version": "directory_v1"
+      }
+    ]
+  },
+  "addOns": {
+    "common": {
+      "name": "Migway Templates",
+      "logoUrl": "https://lh3.googleusercontent.com/d/1xtieglQMEZSrptPfMCPBFg5tS07bN3tf",
+      "layoutProperties": {
+        "primaryColor": "#2a3c49",
+        "secondaryColor": "#2a3c49"
+      },
+      "homepageTrigger": {
+        "runFunction": "onHomepage",
+        "enabled": true
+      },
+      "universalActions": [
+        {
+          "label": "Open library",
+          "runFunction": "onOpenLibrary"
+        }
+      ],
+      "openLinkUrlPrefixes": [
+        "https://script.google.com/macros/s/",
+        "https://script.google.com/a/macros/"
+      ]
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onMessageOpen"
+        }
+      ],
+      "composeTrigger": {
+        "selectActions": [
+          {
+            "text": "Migway Templates",
+            "runFunction": "onComposeOpen"
+          }
+        ],
+        "draftAccess": "METADATA"
+      }
+    }
+  }
+}

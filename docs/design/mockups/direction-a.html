@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Migway Templates: design direction A</title>
+    <style>
+      /* Design direction A. System fonts only (the app loads nothing from outside Google). */
+      :root {
+        --ink: #1c262e;
+        --ink-2: #48555f;
+        --ink-3: #66727b;
+        --slate: #2a3c49;
+        --slate-dark: #1f2d37;
+        --paper: #ffffff;
+        --canvas: #f4f5f6;
+        --line: #e2e6e9;
+        --line-strong: #c8cfd4;
+        --select: #e8edf1;
+        --red: #b32025;
+        --blank-bg: #fdf2d0;
+        --blank-line: #a9770a;
+        --ok: #1d6b45;
+        --radius: 6px;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+      }
+      .screen {
+        display: grid;
+        grid-template-columns: 248px 1fr;
+        height: 900px;
+        border-bottom: 1px solid var(--line);
+      }
+      svg.i {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+      }
+
+      /* Sidebar */
+      .side {
+        background: var(--canvas);
+        border-right: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        padding: 16px 12px 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        padding: 2px 8px 18px;
+      }
+      .brand img {
+        width: 104px;
+        display: block;
+      }
+      .brand span {
+        font-size: 13px;
+        color: var(--ink-2);
+        padding-bottom: 5px;
+        border-left: 1px solid var(--line-strong);
+        padding-left: 10px;
+      }
+      .nav a,
+      .tree a {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        height: 30px;
+        padding: 0 8px;
+        border-radius: var(--radius);
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .nav a:hover,
+      .tree a:hover {
+        background: #eaedef;
+      }
+      .nav a[aria-current],
+      .tree a[aria-current] {
+        background: var(--select);
+        font-weight: 600;
+      }
+      .nav svg,
+      .tree svg {
+        color: var(--ink-3);
+      }
+      .side h2 {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-3);
+        margin: 20px 8px 6px;
+      }
+      .tree .n {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+      .tree .sub {
+        padding-left: 25px;
+      }
+      .tree .owner {
+        color: var(--ink-3);
+        font-size: 12px;
+        margin-left: 2px;
+      }
+      .side .foot {
+        margin-top: auto;
+        padding: 10px 8px 0;
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        color: var(--ink-3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--slate);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: grid;
+        place-items: center;
+        flex: none;
+      }
+      .foot b {
+        display: block;
+        color: var(--ink);
+        font-weight: 500;
+        font-size: 13px;
+      }
+
+      /* Main */
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 28px 14px;
+      }
+      .head h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+      .head .count {
+        color: var(--ink-3);
+      }
+      .grow {
+        flex: 1;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 300px;
+        height: 32px;
+        padding: 0 10px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        color: var(--ink-3);
+        background: var(--paper);
+      }
+      .search span {
+        flex: 1;
+      }
+      kbd {
+        font: inherit;
+        font-size: 11px;
+        border: 1px solid var(--line-strong);
+        border-radius: 4px;
+        padding: 0 5px;
+        color: var(--ink-3);
+        background: var(--canvas);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line-strong);
+        background: var(--paper);
+        color: var(--ink);
+        font: inherit;
+        font-weight: 500;
+      }
+      .btn.primary {
+        background: var(--slate);
+        border-color: var(--slate);
+        color: #fff;
+      }
+      .btn.ghost {
+        border-color: transparent;
+        color: var(--ink-2);
+      }
+      .iconbtn {
+        width: 28px;
+        height: 28px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: var(--radius);
+        color: var(--ink-2);
+      }
+      .iconbtn:hover,
+      .iconbtn.on {
+        background: var(--select);
+        color: var(--ink);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .list {
+        padding: 0 28px;
+      }
+      th {
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-3);
+        height: 32px;
+        border-bottom: 1px solid var(--line-strong);
+        padding: 0 10px;
+      }
+      td {
+        height: 52px;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+      }
+      tr.hover td {
+        background: var(--canvas);
+      }
+      td.star,
+      th.star {
+        width: 36px;
+        padding-right: 0;
+      }
+      .star svg {
+        color: var(--line-strong);
+      }
+      .star.on svg {
+        color: #c58a00;
+        fill: #e6a700;
+        stroke: #c58a00;
+      }
+      .title b {
+        font-weight: 600;
+        display: block;
+      }
+      .title small {
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+      .path {
+        color: var(--ink-2);
+      }
+      .path i {
+        font-style: normal;
+        color: var(--line-strong);
+        padding: 0 4px;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 12px;
+        padding: 1px 8px;
+        border-radius: 10px;
+        background: var(--select);
+        color: var(--ink-2);
+        margin-right: 4px;
+      }
+      .who {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink-2);
+      }
+      .who .avatar {
+        width: 22px;
+        height: 22px;
+        font-size: 10px;
+        background: #7b8992;
+      }
+      td.act {
+        width: 44px;
+        text-align: right;
+      }
+      .date {
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      .hint {
+        padding: 14px 38px;
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+
+      /* Editor */
+      .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .crumbs b {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .saved {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .saved svg {
+        color: var(--ok);
+      }
+      .ed-head {
+        padding: 12px 28px;
+        border-bottom: 1px solid var(--line);
+      }
+      .work {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        flex: 1;
+        min-height: 0;
+      }
+      .doc {
+        background: var(--canvas);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 28px;
+        background: var(--paper);
+        border-bottom: 1px solid var(--line);
+      }
+      .bar .sep {
+        width: 1px;
+        height: 18px;
+        background: var(--line);
+        margin: 0 6px;
+      }
+      .bar .pick {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: var(--radius);
+        color: var(--ink-2);
+      }
+      .bar .letter {
+        font-weight: 700;
+        font-size: 14px;
+      }
+      .bar .field {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: var(--radius);
+        background: var(--blank-bg);
+        border: 1px solid #e9cf86;
+        color: #5c4300;
+        font-weight: 500;
+      }
+      .sheet {
+        width: 680px;
+        max-width: calc(100% - 56px);
+        margin: 24px auto;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(28, 38, 46, 0.06);
+        flex: 1;
+      }
+      .sheet .subj {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        padding: 14px 28px;
+        border-bottom: 1px solid var(--line);
+      }
+      .sheet .subj label {
+        color: var(--ink-3);
+        font-size: 13px;
+        width: 54px;
+      }
+      .sheet .subj div {
+        font-weight: 600;
+      }
+      .sheet .body {
+        padding: 22px 28px;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      .sheet .body p {
+        margin: 0 0 14px;
+      }
+      /* The signature element: a placeholder reads as a blank on a form. */
+      .blank {
+        background: var(--blank-bg);
+        border-bottom: 1.5px dotted var(--blank-line);
+        padding: 1px 5px;
+        border-radius: 3px 3px 0 0;
+        white-space: nowrap;
+      }
+      .blank.ask {
+        background: var(--paper);
+        border: 1.5px dashed var(--blank-line);
+        border-radius: 4px;
+        color: #5c4300;
+      }
+      .blank em {
+        font-style: normal;
+        color: var(--ink-3);
+      }
+      .rates {
+        border-collapse: collapse;
+        width: auto;
+        margin: 4px 0 18px;
+        font-size: 14px;
+      }
+      .rates th,
+      .rates td {
+        border: 1px solid var(--line-strong);
+        height: 32px;
+        padding: 0 12px;
+        color: var(--ink);
+        font-size: 14px;
+      }
+      .rates th {
+        background: var(--canvas);
+      }
+      .insp {
+        border-left: 1px solid var(--line);
+        padding: 18px 20px;
+        overflow: hidden;
+      }
+      .insp h3 {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink-3);
+        margin: 0 0 8px;
+      }
+      .insp section {
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+      .insp section:last-child {
+        border: 0;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 30px;
+      }
+      .row label {
+        width: 64px;
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .sel {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 30px;
+        padding: 0 9px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+      }
+      .asks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .asks li {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+      }
+      .asks span:last-child {
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .preview {
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--ink-2);
+      }
+      .preview b {
+        color: var(--ink);
+      }
+      .preview p {
+        margin: 0 0 8px;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      .tabs span {
+        padding: 4px 10px;
+        border-radius: var(--radius);
+        color: var(--ink-2);
+        font-size: 13px;
+      }
+      .tabs .on {
+        background: var(--select);
+        color: var(--ink);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute">
+      <defs>
+        <symbol id="files" viewBox="0 0 16 16"><path d="M3 2.5h6l4 4V13a.5.5 0 0 1-.5.5h-9A.5.5 0 0 1 3 13z" /><path d="M9 2.5v4h4" /></symbol>
+        <symbol id="star" viewBox="0 0 16 16"><path d="m8 2 1.8 3.8 4.2.6-3 2.9.7 4.1L8 11.4l-3.7 2 .7-4.1-3-2.9 4.2-.6z" /></symbol>
+        <symbol id="clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" /><path d="M8 5v3.2l2 1.3" /></symbol>
+        <symbol id="trash" viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5" /></symbol>
+        <symbol id="gear" viewBox="0 0 16 16"><path d="M2.5 5h6M11.5 5h2M2.5 11h2M7.5 11h6" /><circle cx="10" cy="5" r="1.5" /><circle cx="6" cy="11" r="1.5" /></symbol>
+        <symbol id="folder" viewBox="0 0 16 16"><path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" /></symbol>
+        <symbol id="chev" viewBox="0 0 16 16"><path d="m6 4 4 4-4 4" /></symbol>
+        <symbol id="down" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" /></symbol>
+        <symbol id="search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5" /><path d="m10.5 10.5 3 3" /></symbol>
+        <symbol id="plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" /></symbol>
+        <symbol id="more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r=".6" /><circle cx="8" cy="8" r=".6" /><circle cx="12.5" cy="8" r=".6" /></symbol>
+        <symbol id="check" viewBox="0 0 16 16"><path d="m3.5 8.5 3 3 6-7" /></symbol>
+        <symbol id="undo" viewBox="0 0 16 16"><path d="M5.5 3 2.5 6l3 3" /><path d="M2.5 6h7a4 4 0 0 1 0 8H7" /></symbol>
+        <symbol id="redo" viewBox="0 0 16 16"><path d="m10.5 3 3 3-3 3" /><path d="M13.5 6h-7a4 4 0 0 0 0 8H9" /></symbol>
+        <symbol id="ul" viewBox="0 0 16 16"><path d="M6 4h8M6 8h8M6 12h8" /><circle cx="2.8" cy="4" r=".5" /><circle cx="2.8" cy="8" r=".5" /><circle cx="2.8" cy="12" r=".5" /></symbol>
+        <symbol id="ol" viewBox="0 0 16 16"><path d="M7 4h7M7 8h7M7 12h7M2.5 3h1v3M2.3 10h1.6l-1.7 2.5h1.9" /></symbol>
+        <symbol id="quote" viewBox="0 0 16 16"><path d="M3 3v10M6.5 5h7M6.5 8h7M6.5 11h4" /></symbol>
+        <symbol id="link" viewBox="0 0 16 16"><path d="M6.8 9.2a3 3 0 0 0 4.2 0l2-2a3 3 0 0 0-4.200-4.2l-.8.8" /><path d="M9.200 6.800a3 3 0 0 0-4.200 0l-2 2a3 3 0 0 0 4.200 4.2l.8-.8" /></symbol>
+        <symbol id="image" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.200" /><circle cx="5.800" cy="6.500" r="1" /><path d="m3 12 3.500-3.500 2.500 2.500 2-2 2.500 2.500" /></symbol>
+        <symbol id="table" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.200" /><path d="M2 6.500h12M2 9.800h12M6.500 3v10" /></symbol>
+        <symbol id="align" viewBox="0 0 16 16"><path d="M2.500 4h11M2.500 8h7M2.500 12h9" /></symbol>
+        <symbol id="rule" viewBox="0 0 16 16"><path d="M2 8h12" /></symbol>
+        <symbol id="field" viewBox="0 0 16 16"><path d="M5.500 3C4 3 4 4.500 4 5.500S3.500 8 2.500 8C3.500 8 4 9.500 4 10.500S4 13 5.500 13M10.500 3C12 3 12 4.500 12 5.500S12.500 8 13.500 8c-1 0-1.500 1.500-1.500 2.500S12 13 10.500 13" /></symbol>
+        <symbol id="drop" viewBox="0 0 16 16"><path d="M8 2.500c2 2.500 3.500 4.300 3.500 6.300a3.500 3.500 0 0 1-7 0c0-2 1.500-3.800 3.500-6.300z" /></symbol>
+      </defs>
+    </svg>
+
+    <!-- Screen 1: library -->
+    <div class="screen" id="library">
+      <aside class="side">
+        <div class="brand"><img src="../migway-logo.svg" alt="Migway" /><span>Templates</span></div>
+        <nav class="nav">
+          <a href="#" aria-current="page"><svg class="i"><use href="#files" /></svg>All templates</a>
+          <a href="#"><svg class="i"><use href="#star" /></svg>Favorites</a>
+          <a href="#"><svg class="i"><use href="#clock" /></svg>Recently used</a>
+        </nav>
+        <h2>Folders</h2>
+        <nav class="tree">
+          <a href="#"><svg class="i"><use href="#down" /></svg>Dispatch<span class="n">18</span></a>
+          <a href="#" class="sub"><svg class="i"><use href="#folder" /></svg>Rate confirmations<span class="n">7</span></a>
+          <a href="#" class="sub"><svg class="i"><use href="#folder" /></svg>Delays and updates<span class="n">11</span></a>
+          <a href="#"><svg class="i"><use href="#chev" /></svg>Carrier relations<span class="n">9</span></a>
+          <a href="#"><svg class="i"><use href="#chev" /></svg>Billing<span class="n">12</span></a>
+          <a href="#"><svg class="i"><use href="#folder" /></svg>HR<span class="n">4</span></a>
+          <a href="#"><svg class="i"><use href="#folder" /></svg>My templates<span class="n">3</span></a>
+        </nav>
+        <h2>Manage</h2>
+        <nav class="nav">
+          <a href="#"><svg class="i"><use href="#trash" /></svg>Trash</a>
+          <a href="#"><svg class="i"><use href="#gear" /></svg>Admin</a>
+        </nav>
+        <div class="foot">
+          <span class="avatar">TO</span>
+          <span><b>Thomas O.</b>Admin</span>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="head">
+          <h1>All templates</h1>
+          <span class="count">46</span>
+          <span class="grow"></span>
+          <div class="search"><svg class="i"><use href="#search" /></svg><span>Search templates</span><kbd>/</kbd></div>
+          <button class="btn primary"><svg class="i"><use href="#plus" /></svg>New template</button>
+        </div>
+        <div class="list">
+          <table>
+            <thead>
+              <tr>
+                <th class="star"></th>
+                <th>Template</th>
+                <th>Folder</th>
+                <th>Tags</th>
+                <th>Updated</th>
+                <th>By</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="star on"><svg class="i"><use href="#star" /></svg></td>
+                <td class="title"><b>Rate confirmation</b><small>Rate confirmation for load [Load number]</small></td>
+                <td class="path">Dispatch<i>/</i>Rate confirmations</td>
+                <td><span class="tag">rates</span><span class="tag">carrier</span></td>
+                <td class="date">Nov 9, 2:05 PM</td>
+                <td><span class="who"><span class="avatar">BK</span>Ben K.</span></td>
+                <td class="act"><span class="iconbtn"><svg class="i"><use href="#more" /></svg></span></td>
+              </tr>
+              <tr class="hover">
+                <td class="star"><svg class="i"><use href="#star" /></svg></td>
+                <td class="title"><b>Delivery delay notice</b><small>Update on your delivery [Load number]</small></td>
+                <td class="path">Dispatch<i>/</i>Delays and updates</td>
+                <td><span class="tag">customer</span></td>
+                <td class="date">Nov 9, 11:40 AM</td>
+                <td><span class="who"><span class="avatar">TO</span>Thomas O.</span></td>
+                <td class="act"><span class="iconbtn on"><svg class="i"><use href="#more" /></svg></span></td>
+              </tr>
+              <tr>
+                <td class="star on"><svg class="i"><use href="#star" /></svg></td>
+                <td class="title"><b>Proof of delivery request</b><small>POD needed for load [Load number]</small></td>
+                <td class="path">Billing</td>
+                <td><span class="tag">pod</span><span class="tag">carrier</span></td>
+                <td class="date">Nov 8, 4:12 PM</td>
+                <td><span class="who"><span class="avatar">AM</span>Ana M.</span></td>
+                <td class="act"><span class="iconbtn"><svg class="i"><use href="#more" /></svg></span></td>
+              </tr>
+              <tr>
+                <td class="star"><svg class="i"><use href="#star" /></svg></td>
+                <td class="title"><b>Carrier onboarding welcome</b><small>Welcome to the Migway carrier network</small></td>
+                <td class="path">Carrier relations</td>
+                <td><span class="tag">onboarding</span></td>
+                <td class="date">Nov 7, 9:30 AM</td>
+                <td><span class="who"><span class="avatar">BK</span>Ben K.</span></td>
+                <td class="act"><span class="iconbtn"><svg class="i"><use href="#more" /></svg></span></td>
+              </tr>
+              <tr>
+                <td class="star"><svg class="i"><use href="#star" /></svg></td>
+                <td class="title"><b>Invoice follow-up</b><small>Invoice [Invoice number] is past due</small></td>
+                <td class="path">Billing</td>
+                <td><span class="tag">invoice</span></td>
+                <td class="date">Nov 6, 3:55 PM</td>
+                <td><span class="who"><span class="avatar">AM</span>Ana M.</span></td>
+                <td class="act"><span class="iconbtn"><svg class="i"><use href="#more" /></svg></span></td>
+              </tr>
+              <tr>
+                <td class="star"><svg class="i"><use href="#star" /></svg></td>
+                <td class="title"><b>Pickup appointment confirmed</b><small>Pickup confirmed for [Pickup date]</small></td>
+                <td class="path">Dispatch<i>/</i>Delays and updates</td>
+                <td><span class="tag">customer</span><span class="tag">pickup</span></td>
+                <td class="date">Nov 5, 10:18 AM</td>
+                <td><span class="who"><span class="avatar">TO</span>Thomas O.</span></td>
+                <td class="act"><span class="iconbtn"><svg class="i"><use href="#more" /></svg></span></td>
+              </tr>
+              <tr>
+                <td class="star"><svg class="i"><use href="#star" /></svg></td>
+                <td class="title"><b>Detention charge notice</b><small>Detention at [Facility] on [Date]</small></td>
+                <td class="path">Billing</td>
+                <td><span class="tag">detention</span></td>
+                <td class="date">Nov 4, 1:02 PM</td>
+                <td><span class="who"><span class="avatar">AM</span>Ana M.</span></td>
+                <td class="act"><span class="iconbtn"><svg class="i"><use href="#more" /></svg></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="hint">Showing 7 of 46. Press <kbd>/</kbd> to search, <kbd>Enter</kbd> to open, <kbd>Shift</kbd> <kbd>F10</kbd> for row actions.</div>
+      </main>
+    </div>
+
+    <!-- Screen 2: editor -->
+    <div class="screen" id="editor">
+      <aside class="side">
+        <div class="brand"><img src="../migway-logo.svg" alt="Migway" /><span>Templates</span></div>
+        <nav class="nav">
+          <a href="#"><svg class="i"><use href="#files" /></svg>All templates</a>
+          <a href="#"><svg class="i"><use href="#star" /></svg>Favorites</a>
+          <a href="#"><svg class="i"><use href="#clock" /></svg>Recently used</a>
+        </nav>
+        <h2>Folders</h2>
+        <nav class="tree">
+          <a href="#"><svg class="i"><use href="#down" /></svg>Dispatch<span class="n">18</span></a>
+          <a href="#" class="sub" aria-current="page"><svg class="i"><use href="#folder" /></svg>Rate confirmations<span class="n">7</span></a>
+          <a href="#" class="sub"><svg class="i"><use href="#folder" /></svg>Delays and updates<span class="n">11</span></a>
+          <a href="#"><svg class="i"><use href="#chev" /></svg>Carrier relations<span class="n">9</span></a>
+          <a href="#"><svg class="i"><use href="#chev" /></svg>Billing<span class="n">12</span></a>
+          <a href="#"><svg class="i"><use href="#folder" /></svg>HR<span class="n">4</span></a>
+          <a href="#"><svg class="i"><use href="#folder" /></svg>My templates<span class="n">3</span></a>
+        </nav>
+        <h2>Manage</h2>
+        <nav class="nav">
+          <a href="#"><svg class="i"><use href="#trash" /></svg>Trash</a>
+          <a href="#"><svg class="i"><use href="#gear" /></svg>Admin</a>
+        </nav>
+        <div class="foot">
+          <span class="avatar">TO</span>
+          <span><b>Thomas O.</b>Admin</span>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="head ed-head">
+          <div class="crumbs">Dispatch<svg class="i"><use href="#chev" /></svg>Rate confirmations<svg class="i"><use href="#chev" /></svg><b>Rate confirmation</b></div>
+          <span class="grow"></span>
+          <span class="saved"><svg class="i"><use href="#check" /></svg>Saved as version 4, 2:05 PM</span>
+          <button class="btn ghost"><svg class="i"><use href="#clock" /></svg>History</button>
+          <button class="btn primary">Save</button>
+        </div>
+        <div class="work">
+          <div class="doc">
+            <div class="bar">
+              <span class="iconbtn"><svg class="i"><use href="#undo" /></svg></span>
+              <span class="iconbtn"><svg class="i"><use href="#redo" /></svg></span>
+              <span class="sep"></span>
+              <span class="pick">Paragraph<svg class="i"><use href="#down" /></svg></span>
+              <span class="pick">14<svg class="i"><use href="#down" /></svg></span>
+              <span class="sep"></span>
+              <span class="iconbtn on letter">B</span>
+              <span class="iconbtn letter" style="font-style: italic; font-weight: 500">I</span>
+              <span class="iconbtn letter" style="text-decoration: underline; font-weight: 500">U</span>
+              <span class="iconbtn letter" style="text-decoration: line-through; font-weight: 500">S</span>
+              <span class="iconbtn"><svg class="i"><use href="#drop" /></svg></span>
+              <span class="sep"></span>
+              <span class="iconbtn"><svg class="i"><use href="#align" /></svg></span>
+              <span class="iconbtn"><svg class="i"><use href="#ul" /></svg></span>
+              <span class="iconbtn"><svg class="i"><use href="#ol" /></svg></span>
+              <span class="iconbtn"><svg class="i"><use href="#quote" /></svg></span>
+              <span class="sep"></span>
+              <span class="iconbtn"><svg class="i"><use href="#link" /></svg></span>
+              <span class="iconbtn"><svg class="i"><use href="#image" /></svg></span>
+              <span class="iconbtn"><svg class="i"><use href="#table" /></svg></span>
+              <span class="iconbtn"><svg class="i"><use href="#rule" /></svg></span>
+              <span class="field"><svg class="i"><use href="#field" /></svg>Insert field</span>
+            </div>
+            <div class="sheet">
+              <div class="subj">
+                <label>Subject</label>
+                <div>Rate confirmation for load <span class="blank ask">Load number</span></div>
+              </div>
+              <div class="body">
+                <p>Hi <span class="blank">Recipient first name <em>or</em> there</span>,</p>
+                <p>
+                  Thank you for covering load <span class="blank ask">Load number</span>. Please confirm the rate below for pickup on
+                  <span class="blank ask">Pickup date</span>.
+                </p>
+                <table class="rates">
+                  <tr>
+                    <th>Lane</th>
+                    <th>Equipment</th>
+                    <th>Rate</th>
+                  </tr>
+                  <tr>
+                    <td><span class="blank ask">Lane</span></td>
+                    <td>53' dry van</td>
+                    <td><span class="blank ask">Rate</span></td>
+                  </tr>
+                </table>
+                <p>Reply to this email to accept. Our dispatch desk answers at <span class="blank">Sender phone</span>.</p>
+                <p><b><span class="blank">Sender name</span></b><br /><span class="blank">Sender title</span></p>
+              </div>
+            </div>
+          </div>
+          <aside class="insp">
+            <section>
+              <h3>Details</h3>
+              <div class="row"><label>Title</label><div class="sel">Rate confirmation</div></div>
+              <div class="row"><label>Folder</label><div class="sel">Rate confirmations<svg class="i"><use href="#down" /></svg></div></div>
+              <div class="row"><label>Tags</label><div><span class="tag">rates</span><span class="tag">carrier</span></div></div>
+            </section>
+            <section>
+              <h3>The sender fills in</h3>
+              <ul class="asks">
+                <li><span>Load number</span><span>used 2 times</span></li>
+                <li><span>Pickup date</span><span>used once</span></li>
+                <li><span>Lane</span><span>used once</span></li>
+                <li><span>Rate</span><span>used once</span></li>
+              </ul>
+            </section>
+            <section>
+              <div class="tabs"><span class="on">Preview as me</span><span>Problems 0</span></div>
+              <div class="preview">
+                <p><b>Rate confirmation for load [Load number]</b></p>
+                <p>Hi there,</p>
+                <p>Thank you for covering load [Load number]. Please confirm the rate below for pickup on [Pickup date].</p>
+                <p>Reply to this email to accept. Our dispatch desk answers at 555 0142.</p>
+                <p><b>Thomas O.</b><br />Operations Manager</p>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

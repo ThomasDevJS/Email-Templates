@@ -1,0 +1,47 @@
+Screen 3: Web app library (/exec, default view)
+Slice 3 (search and favorites in 5). Desktop width 1280 px; usable down to 1024 px.
+First load (slice 20a, spec 7 Loading states): "Loading..." from the first paint, then skeleton rows; no answer in
+15 s or a failure: one banner "Templates could not be loaded. Press Reload to try again." [Reload], no toast.
+Look since slice 8a: docs/design/design-system.md and docs/design/screens/8a (sidebar with All templates,
+Favorites, folder tree, Trash, Admin; no top bar). The layout below shows content and behavior only.
+Slice 13: "New template" also on All templates and Favorites when the caller can edit some folder; it opens a
+dialog "New template" with "Create the template in" (folders the caller can edit, last used preselected),
+[Create] [Cancel]. Search also matches To, Cc, Bcc addresses (local part or full address prefix, weight 1).
+
++----------------------------------------------------------------------------------+
+| Migway Templates                         Signed in as user@migway.com   [?]      |
++----------+-----------------------------------------------------------------------+
+| Library  | [ Search: folder:Sales tag:pricing quote________ ] [x]  [ * Favorites ] |
+| Admin    |------------------------------------------------------------------------|
+|          | FOLDERS (tree)        | Sales / Quotes                  [+ New template]|
+|          |  v Sales              |------------------------------------------------|
+|          |     Onboarding        | *  Title              Updated      By    Uses  |
+|          |   > Quotes  <         | *  Price quote 2026   2026-11-02   Ana    112  |
+|          |  > Support            |    Discount approval  2026-10-20   Ben     34  |
+|          |  > HR                 |    Renewal reminder   2026-09-14   Ana     12  |
+|          |  My templates         |                                                |
+|          |  Trash                | Row actions (menu, keyboard: Enter, Shift+F10):|
+|          |                       |  Edit | Duplicate | Move | History | Delete    |
+|          | [+ New folder]        |  (shown only when level allows)                |
+|          |  (manage or admin)    |                                                |
+|          |                       | 1-20 of 24             [< Prev] [Next >]       |
++----------+-----------------------+------------------------------------------------+
+
+Keyboard
+- "/" focuses search. Tree: arrows move, Right expands, Enter opens. Grid: arrows move rows, Enter opens editor.
+- Tree by mouse (slice 23, merged; spec 8): the arrow (v, >) opens or closes its row, opens no folder and
+  sends no call; a click on the name of the selected open folder closes it; a click on another name opens that
+  folder and expands it. A double-click acts once. Parents open only when the user picks a folder (row,
+  sidebar, Favorites, All templates, breadcrumb, a link); a reload, Duplicate, save, rename and browser Back
+  or Forward keep a parent the user closed closed (Back into a closed parent shows the page, no selected row).
+  Same tree in Admin "Folders and access".
+- Star toggles favorite (aria-label "Add to favorites: <title>").
+
+Loader (D37, slice 24; spec 7 Loading states): while a call runs, clicks and keys in the page and the sidebar
+are dropped (text fields keep typing); after 300 ms a 3 px slate bar at the top, aria-busy and one polite
+"Loading". Duplicate, Move, Delete and restore still reload the library (2 calls).
+
+Notes
+- Title, folder, tag filtering runs in the browser on the loaded index (under 50 ms).
+- Body matches arrive from server op search.body and append under "Matches in text".
+- Uses column = applyCount from usage (admin and edit levels only).

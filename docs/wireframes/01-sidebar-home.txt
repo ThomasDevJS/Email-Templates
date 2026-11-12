@@ -1,0 +1,147 @@
+Screen 1: Sidebar home (Gmail compose, Card Service)
+As built at 8e82a07: slice 15 (D31, spec 7.4, ADR-0009, Accepted 2026-11-11), side panel slice 18 with D33;
+list caps slice 20b; spinner and colors slice 21 (D35); hints and Search button slice 22 with follow-up 1 (D36).
+Slice 12 layout: git show 2f6eae3:docs/wireframes/01-sidebar-home.txt.
+Width about 300 px. Widgets per card under 100 [R4 S9]. [Insert] is a filled slate button on every row.
+Icons: * star, @ clock, = document, # folder. Card Service limits per row (DecoratedText): one button,
+a row onClick, a start icon, a top and a bottom label [A43].
+
++--------------------------------------+
+| Search templates                     |  no CardHeader: Gmail's bar names the add-on (bar #2a3c49, primaryColor)
+| [ quote______________ ] (Q Search)   |  TextInput onChange + OUTLINED "Search" button, search icon,
+|                                      |  alt "Search templates"; both onSearch (D36). One row
+|                                      |  (Columns) in the compose popup; stacked if it cannot be built
+|--------------------------------------|
+| FAVORITES                            |  only with rows; max 10; 5 shown, rest collapsed
+|  * Welcome email          [Insert]   |  DecoratedText + TextButton (FILLED, slate)
+|    Sales / Onboarding                |  label: recipient hint, fields hint, path, " · "
+|  * Price quote 2026       [Insert]   |  one click: unfilled fields are left out (D31)
+|    2 fields to fill · Sales / Quotes |
+|--------------------------------------|
+| RECENT                               |  last used by me, minus every Favorite; hidden when empty
+|  @ Driver leaving         [Insert]   |  one click adds Cc and Bcc (D31); Insert carries rc=0,1,1
+|    Adds Cc 1, Bcc 1 · HR             |  recipient hint first: survives a cut label
+|  @ Out of office reply    [Insert]   |
+|--------------------------------------|
+| FOLDERS                              |  5 shown, rest collapsed
+|  # Sales                             |  DecoratedText, onClick -> folder card
+|    24 templates                      |
+|  # Support                           |
+|    41 templates                      |
+|  # My templates                      |  personal folder (D11); while personal templates are off (D29) only if it already exists
+|    3 templates                       |
+|  ...                                 |  at most 40 folders, then the hint line:
+| (i) Showing 40 of 200 folders. Use   |  grey #5f6368, info icon (slice 20b cap, D36 look);
+|     Search or Open library for the   |  Favorites 10, Recent 5, results 20 likewise
+|     rest.                            |  ("favorites", "recent templates", "results")
+|--------------------------------------|
+| [Open library]                       |  fixed footer, primary FILLED #2a3c49 (API: primary must be FILLED);
++--------------------------------------+  OpenLink OVERLAY, RELOAD_ADD_ON
+
+Empty home (no visible templates; wireframe 07 A): "No templates shared with you yet." 'Your folder "My templates"
+is ready. Open the library to create a template.' [Open library]; no footer. Personal templates off (A2): "No templates
+shared with you yet. Ask your admin for access to a folder." No button.
+
+Folder card (pushed on tap):
++--------------------------------------+
+| Sales / Quotes                       |  CardHeader: folder path
+|--------------------------------------|
+|  # Discounts                         |  subfolders first
+|    3 templates                       |
+|  = Price quote 2026       [Insert]   |
+|    2 fields to fill                  |  hints only (the header shows the path); no label when none
+|  = Driver leaving         [Insert]   |
+|    Adds Cc 1, Bcc 1                  |
+|  ... 20 per page                     |
+|--------------------------------------|
+| [Previous]   Page 1 of 3   [Next]    |
+|--------------------------------------|
+| [Open library]                       |
++--------------------------------------+
+
+Search card: the input and "Search" button with the query, RESULTS with = rows (each template once, at most 20), or
+'No templates match "zzz". Try fewer words, or remove folder: and tag: from the search.'
+(query cut at 60 characters, then "..."). Footer [Open library].
+
+Tap on a row (not the button) pushes the details card: docs/wireframes/02-sidebar-prompt.txt.
+
+Behavior (compose, slice 15; look slices 21 and 22)
+- Every action except Back and Open library shows Gmail's spinner while it runs (D35, toAction).
+- Pressing "Search" right after typing may run the search twice (box loses focus, then the button): Q79.
+- Insert on any row: one template.apply call, then one UpdateDraftActionResponse. The card closes (spike S6 step 0;
+  owner's test round 1 part B).
+- Fields without a value: default text when the variable has one, else removed, with the 4 space rules of
+  ADR-0004 Amendment 2026-11-11, in body and subject. "Hi {{ask:Name}}, thanks" -> "Hi, thanks".
+- Subject: D24, set only into an empty draft subject.
+- Recipients: added by spec 5.7 (add, never remove; To only into an empty To). rc on the button must equal the
+  counts template.apply returns; else the details card opens with the change line and nothing is inserted.
+- A template address in a draft field the event does not give as a list: details card, nothing inserted.
+- No notification after the insert: an insert response cannot carry one [A15, A44]. The draft is the result.
+- Open library (footer) and Edit in library (details card): clear the add-on cache, open /exec (or
+  /exec?view=editor&id=...) with OpenAs.OVERLAY and OnClose.RELOAD_ADD_ON. Gmail web opens a new Chrome window
+  (owner, test round 1); the reload on close is unverified.
+- In a narrow draft Gmail moves the add-on icon into the draft toolbar's "⋮" menu (test round 1 part B).
+
+Side-panel variant (D27, slice 18; ADR-0007 Accepted 2026-11-11, spec 4.1a and 7.2)
+Opened from Gmail's right side panel. Same cards, data and row labels as above; only the row buttons and the
+hint differ. Entry decided by entryOf(event) in every callback. As built at 16df87a (slice 18, follow-ups 1 and 2).
+
+No message open (entry inbox, homepage trigger onHomepage):
++--------------------------------------+
+| Search templates                     |  same TextInput as compose; no line above it
+| [ ____________________________ ]     |  box, then the "Search" button under it: no Columns
+| (Q Search)                           |  in the side panel (slice 22 follow-up 1)
+|--------------------------------------|
+| FAVORITES                            |
+|  * Welcome email       [New email]   |  FILLED slate; setComposeAction STANDALONE_DRAFT;
+|    Sales / Onboarding                |  onCompose {id, as: new, rc?}; alt "New email from <title>"
+|  * Price quote 2026    [New email]   |  one click: unfilled fields removed, as compose
+|    2 fields to fill · Sales / Quotes |
+|--------------------------------------|
+| RECENT                               |
+|  @ Driver leaving      [New email]   |  To, Cc, Bcc of the template go into the new email
+|    Adds To 1, Cc 1 · HR              |
+|--------------------------------------|
+| FOLDERS                              |  same as compose
+|--------------------------------------|
+| (i) To insert a template into an     |  hint line, last section: sidePanelHint(entry);
+|     email you are already writing,   |  DecoratedText, info icon, grey #5f6368 (D36)
+|     use the Migway Templates button  |
+|     in that email's toolbar.         |
+|--------------------------------------|
+| [Open library]                       |  fixed footer as compose
++--------------------------------------+
+
+Message open (entry message, contextual trigger unconditional, onMessageOpen):
++--------------------------------------+
+| Search templates  ...                |
+|--------------------------------------|
+| FAVORITES                            |
+|  * Welcome email                     |  DecoratedText, no button; tap opens the details card
+|    Sales / Onboarding                |
+|    [Reply]  (Reply all)              |  ButtonSet under the row (D33): Reply FILLED slate,
+|  @ Driver leaving                    |  Reply all OUTLINED; both REPLY_AS_DRAFT, onCompose
+|    Adds To 1, Cc 1 · HR              |  {id, as: reply | replyAll, rc?}; alt "Reply with <title>",
+|    [Reply]  (Reply all)              |  "Reply all with <title>"
+|  ...                                 |  2 widgets per row; a section collapses after 5 rows
+|--------------------------------------|
+| (hint, as above)                     |
+| [Open library]                       |
++--------------------------------------+
+Folder and search cards: the same rows, the hint last, footer [Open library].
+
+Behavior (side panel)
+- A row button makes one new draft and Gmail opens it: New email in a new window, Reply inline in the
+  conversation. Nothing changes a draft that is already open (S7 result 6).
+- One template.apply (one use), render as compose, then GmailApp.createDraft / createDraftReply.
+- New email: subject = template subject; To, Cc, Bcc = template lists. Reply: no subject option ("Re:" kept),
+  Cc and Bcc only, minus addresses already in the message.
+- Reply: To = sender, template Cc and Bcc added. Reply all: Gmail's To and Cc kept, template Cc and Bcc added.
+- rc differs: "The recipients of this template changed. Tap its name to see them.", no draft.
+- Errors: the callback throws one plain sentence (spec 7.2). Gmail shows its own error card: "Error with the
+  add-on. Run time error.", the sentence, "[line: n, function: panelAnswer, file: Code]" (owner, dev,
+  2026-11-11; Q75 closed, accepted as is). A notification from a compose action is not shown (part J step 11).
+  No add-on card, no draft, no request ID.
+- Gmail adds the signature below the text of a reply, and none to a new email.
+- Widgets: with an email open each row is 2 widgets; Gmail's limit is 100 per card. Slice 20b caps every list
+  (Folders 40, Favorites 10, Recent 5, results 20); worst card 84 widgets (folder card, email open).
