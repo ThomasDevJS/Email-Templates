@@ -9,7 +9,9 @@ import {
   type PromptType,
   type Segment,
 } from "./grammar";
+import { invalidChoiceText, optionsProblem } from "./choice";
 import { PLACEHOLDER_NAMES, isKnownName } from "./registry";
+import { joinedBraces, type TextRun } from "./skeleton";
 import { SUBJECT_MAX, controlIndex } from "./subject";
 
 /**
@@ -24,8 +26,12 @@ export type ProblemCode =
   | "PH_FALLBACK_ASK"
   | "PH_ATTR"
   | "PH_TOO_MANY"
-  /** One prompt identity used as `{{ask:}}` and as `{{date:}}` (spec 5.9). */
+  /** One prompt identity used in two kinds: text, date, choice (spec 5.9, 5.10). */
   | "PH_FIELD_TYPE"
+  /** A choice token breaks an option rule (spec 5.10). */
+  | "PH_CHOICE"
+  /** One choice label with two different option lists (spec 5.10). */
+  | "PH_CHOICE_MISMATCH"
   /** Editor only: a `\` typed right before a chip would turn the token into the `\{{` escape. */
   | "PH_BACKSLASH"
   /** Subject only (spec 5.6). */
@@ -83,8 +89,31 @@ function unknownName(name: string, offset: number): Problem {
   };
 }
 
+/** A closed `{{choice:...}}` the strict regex did not take (lenient pass). */
+function choiceLeftover(body: string, offset: number): Problem {
+  if (!/^choice *:/.test(body))
+    return {
+      code: "PH_CASE",
+      message: `Use lower case: choice: (${at(offset)}).`,
+      offset,
+    };
+  const [head = "", ...options] = body.slice(body.indexOf(":") + 1).split("|");
+  const label = collapse(head);
+  if (
+    options.length > 0 &&
+    (label.length < 1 || label.length > LABEL_MAX || /[{}\\<>]/.test(label))
+  )
+    return {
+      code: "PH_LABEL",
+      message: `${LABEL_RULE} (${at(offset)}).`,
+      offset,
+    };
+  return { code: "PH_CHOICE", message: invalidChoiceText(at(offset)), offset };
+}
+
 function classifyClosed(inner: string, offset: number): Problem {
   const body = inner.trim();
+  if (/^choice *:/i.test(body)) return choiceLeftover(body, offset);
   const kind = /^(ask|date) *:/i.exec(body)?.[1];
   if (kind !== undefined) {
     if (kind !== kind.toLowerCase())
@@ -134,7 +163,10 @@ function leftoverProblems(text: string, base: number): Problem[] {
     LENIENT.lastIndex = from;
     const match = LENIENT.exec(text);
     const offset = base + from;
-    const closed = match?.[0].endsWith("}}") === true;
+    // A `}` inside a choice's options cuts the lenient match short; the token still closes later (spec 5.10).
+    const choiceBrace =
+      /^ *choice *:/i.test(match?.[1] ?? "") && text.includes("}}", from);
+    const closed = match?.[0].endsWith("}}") === true || choiceBrace;
     problems.push(
       match !== null && closed
         ? classifyClosed(match[1] ?? "", offset)
@@ -149,10 +181,43 @@ function leftoverProblems(text: string, base: number): Problem[] {
   return problems;
 }
 
+interface FirstUse {
+  readonly label: string;
+  readonly type: PromptType;
+  readonly options: readonly string[];
+}
+
+const KIND_WORD: Readonly<Record<PromptType, string>> = {
+  text: "text",
+  date: "a date",
+  choice: "a choice",
+};
+
+/** `PH_FIELD_TYPE` or `PH_CHOICE_MISMATCH` for a later token of a known identity, or null when it matches. */
+function sameIdentity(
+  first: FirstUse,
+  segment: Extract<Segment, { kind: "prompt" }>,
+): Problem | null {
+  const offset = segment.offset;
+  if (first.type !== segment.type)
+    return {
+      code: "PH_FIELD_TYPE",
+      message: `The field "${first.label}" is used as ${KIND_WORD[first.type]} and as ${KIND_WORD[segment.type]} (${at(offset)}). Rename one of them.`,
+      offset,
+    };
+  if (first.options.join("|") !== segment.options.join("|"))
+    return {
+      code: "PH_CHOICE_MISMATCH",
+      message: `The field "${first.label}" lists other options ${at(offset)}. Use the same options, or rename one of them.`,
+      offset,
+    };
+  return null;
+}
+
 interface Collector {
   readonly names: Set<string>;
-  /** First spelling and type per prompt identity. */
-  readonly prompts: Map<string, { label: string; type: PromptType }>;
+  /** First spelling, type and options per prompt identity. */
+  readonly prompts: Map<string, FirstUse>;
   readonly problems: Problem[];
   readonly warnings: Warning[];
 }
@@ -180,15 +245,31 @@ function visitPrompt(
     });
     return;
   }
-  const first = into.prompts.get(promptKey(label));
-  if (first === undefined)
-    into.prompts.set(promptKey(label), { label, type: segment.type });
-  else if (first.type !== segment.type)
+  const choice =
+    segment.type === "choice"
+      ? optionsProblem(
+          label,
+          segment.options,
+          segment.raw.length,
+          at(segment.offset),
+        )
+      : null;
+  if (choice !== null) {
     into.problems.push({
-      code: "PH_FIELD_TYPE",
-      message: `The field "${first.label}" is used as text and as a date (${at(segment.offset)}). Rename one of them.`,
+      code: "PH_CHOICE",
+      message: choice,
       offset: segment.offset,
     });
+    return;
+  }
+  const first = into.prompts.get(promptKey(label));
+  const { type, options } = segment;
+  if (first === undefined)
+    into.prompts.set(promptKey(label), { label, type, options });
+  else {
+    const problem = sameIdentity(first, segment);
+    if (problem !== null) into.problems.push(problem);
+  }
 }
 
 function visitVariable(
@@ -236,12 +317,22 @@ function subjectRules(subject: string): Problem[] {
 }
 
 /** The subject as one text run. Names and prompts join the body's, so one label is asked once (spec 5.6). */
+/** Q78 skeleton rule: braces that would join into `{{` once the fields between them are removed. */
+function braceProblems(runs: readonly TextRun[]): Problem[] {
+  return joinedBraces(runs).map((offset) => ({
+    code: "PH_MALFORMED",
+    message: `The braces ${at(offset)} would show as {{ in the email. Delete one of them.`,
+    offset,
+  }));
+}
+
 function scanSubject(subject: string, into: Collector): void {
   const own: Collector = { ...into, problems: [], warnings: [] };
   for (const segment of parseText(subject)) visit(segment, own);
   const field: Field = "subject";
+  const braces = braceProblems([{ text: subject, base: 0 }]);
   into.problems.push(
-    ...[...subjectRules(subject), ...own.problems].map((p) => ({
+    ...[...subjectRules(subject), ...own.problems, ...braces].map((p) => ({
       ...p,
       field,
     })),
@@ -265,12 +356,14 @@ export function scanBody(
     warnings: [],
   };
   scanSubject(subject, into);
+  const runs: TextRun[] = [];
   let base = 0;
   for (const run of textRuns(html)) {
     for (const segment of parseText(run.text, base)) visit(segment, into);
+    runs.push({ text: run.text, base });
     base += run.text.length;
   }
-  into.problems.push(...attrTokens.map(attrProblem));
+  into.problems.push(...braceProblems(runs), ...attrTokens.map(attrProblem));
   if (into.prompts.size > PROMPTS_MAX)
     into.problems.push({
       code: "PH_TOO_MANY",

@@ -52,6 +52,7 @@ import {
 } from "./client/serverClient";
 import {
   draftRecipients,
+  fieldValue,
   formValue,
   internalRecipient,
   draftHasSubject,
@@ -61,12 +62,9 @@ import {
 } from "./event";
 import {
   answersByKey,
-  badDateText,
-  badDates,
   displayOrder,
+  enteredProblem,
   inputName,
-  shortenText,
-  tooLong,
 } from "./prompts";
 import {
   clearView,
@@ -490,13 +488,13 @@ export function promptInsertFlow(
   const values = mergedValues(cardValues, result);
   // The inputs on screen came from the card values.
   const fields = cardFields(body, cardValues);
-  const entered = fields.map((_, n) => formValue(event, inputName(n)));
-  const long = tooLong(entered, fields);
-  const bad = badDates(fields, entered);
-  const flagged = long.length > 0 ? long : bad;
+  const read = fields.map((field, n) => fieldValue(event, field, inputName(n)));
+  // A refused choice comes back at "Choose..." (spec 5.10).
+  const entered = read.map((value) => value ?? "");
+  const issue = enteredProblem(fields, read);
   const changed = result.version !== version;
   const listsChanged = params["rh"] !== rhOf(ports, lists);
-  if (!changed && !listsChanged && flagged.length === 0) {
+  if (!changed && !listsChanged && issue === null) {
     const { html, subject } = rendered(body, {
       values,
       answers: answersByKey(fields, entered),
@@ -515,12 +513,10 @@ export function promptInsertFlow(
       ? VERSION_CHANGED
       : listsChanged
         ? RECIPIENTS_CHANGED
-        : long.length > 0
-          ? shortenText(fields, long)
-          : badDateText(fields, bad),
+        : (issue?.text ?? ""),
     counted: true,
     entered,
-    flagged: changed ? [] : flagged,
+    flagged: changed ? [] : (issue?.flagged ?? []),
     // A changed template shows the switches at their defaults (D24 for the subject).
     ...(changed ? {} : { replaceSubject }),
     addRecipients: addRecipients || changed || listsChanged,

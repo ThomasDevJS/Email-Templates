@@ -1,16 +1,19 @@
 /**
  * Token grammar of ADR-0004, applied to one decoded HTML text node. The regex is the ADR's, character for
- * character: group 1 prompt kind, group 2 prompt label, group 3 variable name, group 4 fallback; a bare `\{{` is an
- * escape.
+ * character: group 1 kind of `ask`/`date`, group 2 its label, group 3 choice label, group 4 choice options text,
+ * group 5 variable name, group 6 fallback; a bare `\{{` is an escape.
  */
 export const TOKEN_PATTERN =
-  /\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}/g;
+  /\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|choice: *([^{}|\\<>\r\n]{1,40}?) *\|([^{}\\<>\r\n]*?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}/g;
 
 export const LABEL_MAX = 40;
 export const FALLBACK_MAX = 80;
 
-/** What a prompt asks for: free text (`ask:`) or a date picked in a calendar (`date:`, spec 5.9). */
-export type PromptType = "text" | "date";
+/**
+ * What a prompt asks for: free text (`ask:`), a date picked in a calendar (`date:`, spec 5.9), or one of the
+ * template's options (`choice:`, spec 5.10).
+ */
+export type PromptType = "text" | "date" | "choice";
 
 export type Segment =
   | { readonly kind: "text"; readonly text: string; readonly offset: number }
@@ -28,18 +31,30 @@ export type Segment =
       /** Label as written, trimmed. May be empty (a validation error). */
       readonly label: string;
       readonly type: PromptType;
+      /** A choice's options as written, each trimmed and collapsed, empty ones kept for the save check; else []. */
+      readonly options: readonly string[];
       readonly raw: string;
       readonly offset: number;
     };
 
 function tokenSegment(match: RegExpExecArray, offset: number): Segment {
-  const [raw, type, label, name, fallback] = match;
+  const [raw, type, label, choice, options, name, fallback] = match;
   if (raw === "\\{{") return { kind: "escape", offset };
   if (label !== undefined)
     return {
       kind: "prompt",
       label: label.trim(),
       type: type === "date" ? "date" : "text",
+      options: [],
+      raw,
+      offset,
+    };
+  if (choice !== undefined)
+    return {
+      kind: "prompt",
+      label: choice.trim(),
+      type: "choice",
+      options: (options ?? "").split("|").map(collapse),
       raw,
       offset,
     };
@@ -86,6 +101,10 @@ export function promptToken(label: string): string {
 
 export function dateToken(label: string): string {
   return `{{date:${label}}}`;
+}
+
+export function choiceToken(label: string, options: readonly string[]): string {
+  return `{{choice:${label}|${options.join("|")}}}`;
 }
 
 /** Prompt identity (ADR-0004 Apply semantics 1): trimmed, inner whitespace collapsed, case-insensitive. */

@@ -8,6 +8,7 @@ import {
   parseText,
   promptKey,
   dateToken,
+  choiceToken,
   promptToken,
   variableToken,
   type Segment,
@@ -24,6 +25,7 @@ import {
 } from "../../../src/shared/placeholders/render";
 import { scanBody } from "../../../src/shared/placeholders/validate";
 import { sanitize } from "../../../src/shared/sanitize/sanitize";
+import { textRuns } from "../../../src/shared/html/escape";
 
 /** Compact form of a segment list: T(text) E V(name) V(name|fallback) P(label). */
 function shape(segments: readonly Segment[]): string {
@@ -106,7 +108,7 @@ const GRAMMAR: readonly [string, string][] = [
 describe("token grammar (ADR-0004 EBNF and regex)", () => {
   it("uses the ADR regex character for character", () => {
     expect(TOKEN_PATTERN.source).toBe(
-      String.raw`\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}`,
+      String.raw`\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|choice: *([^{}|\\<>\r\n]{1,40}?) *\|([^{}\\<>\r\n]*?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}`,
     );
     expect(TOKEN_PATTERN.flags).toBe("g");
   });
@@ -287,7 +289,7 @@ describe("validator (every ADR-0004 error code)", () => {
     expect(eight.prompts).toEqual([]);
   });
 
-  it("date fields: PH_LABEL, the subject, and one label as text and date", () => {
+  it("date fields: PH_LABEL, the subject, and one label as text and date, kinds in template order", () => {
     expect(codes("{{date:}}")).toEqual(["PH_LABEL"]);
     expect(codes(`{{date:${"x".repeat(41)}}}`)).toEqual(["PH_LABEL"]);
     const subject = scanBody(
@@ -306,7 +308,7 @@ describe("validator (every ADR-0004 error code)", () => {
       {
         code: "PH_FIELD_TYPE",
         message:
-          'The field "Pickup" is used as text and as a date (at character 1). Rename one of them.',
+          'The field "Pickup" is used as a date and as text (at character 1). Rename one of them.',
         offset: 0,
       },
     ]);
@@ -356,7 +358,13 @@ describe("renderer (ADR-0004 apply semantics)", () => {
   it("fills same-name prompts once, case and space insensitive", () => {
     const html = "<p>{{ask:Date}} and {{ask: date }} and {{ask:DATE}}</p>";
     expect(promptsFor(html, values)).toEqual([
-      { key: "date", label: "Date", implicit: false, type: "text" },
+      {
+        key: "date",
+        label: "Date",
+        implicit: false,
+        type: "text",
+        options: [],
+      },
     ]);
     const out = renderBody(html, { values, answers: { date: "Monday" } });
     expect(out.html).toBe("<p>Monday and Monday and Monday</p>");
@@ -371,12 +379,14 @@ describe("renderer (ADR-0004 apply semantics)", () => {
         label: "Your phone",
         implicit: true,
         type: "text",
+        options: [],
       },
       {
         key: "{var}sender.title",
         label: "Your title",
         implicit: true,
         type: "text",
+        options: [],
       },
     ]);
     const blocked = renderBody(html, {
@@ -470,7 +480,11 @@ describe("property: render(parse(x)) equals x without tokens", () => {
         () => PIECES[next() % PIECES.length] ?? "",
       ).join("");
       const html = sanitize(raw);
-      if (html.includes("{{")) continue;
+      // Braces in two runs that join are the Q78 rule's, tested on their own.
+      const joined = textRuns(html)
+        .map((run) => run.text)
+        .join("");
+      if (joined.includes("{{")) continue;
       expect(renderBody(html, { values: {}, answers: {} })).toEqual({
         html,
       });
@@ -478,5 +492,174 @@ describe("property: render(parse(x)) equals x without tokens", () => {
       checked += 1;
     }
     expect(checked).toBeGreaterThan(250);
+  });
+});
+
+describe("choice fields (spec 5.10)", () => {
+  const problems = (html: string, subject = "") =>
+    scanBody(html, [], subject).problems.map((p) => p.message);
+
+  it("parses kind, label and options; spaces around | are dropped; a fallback with | parses as before", () => {
+    const [choice] = parseText("{{ choice: Size | S |  M  L |L }}");
+    expect(choice).toMatchObject({
+      kind: "prompt",
+      type: "choice",
+      label: "Size",
+      options: ["S", "M L", "L"],
+    });
+    expect(shape(parseText("{{sender.name|a|b}}"))).toBe("V(sender.name|a|b)");
+    expect(shape(parseText("\\{{choice:Size|S|M}}"))).toBe(
+      "E T(choice:Size|S|M}})",
+    );
+    expect(choiceToken("Size", ["S", "M"])).toBe("{{choice:Size|S|M}}");
+  });
+
+  it("examples 4 to 8 and 10", () => {
+    const four = scanBody(
+      "<p>{{choice:Size|S|M|L}} and {{choice: size | S | M | L }}</p>",
+    );
+    expect(four.problems).toEqual([]);
+    expect(four.prompts).toEqual(["Size"]);
+    expect(
+      scanBody("<p>{{choice:Size|S|M}} {{choice:Size|S|M|L}}</p>").problems,
+    ).toEqual([
+      {
+        code: "PH_CHOICE_MISMATCH",
+        message:
+          'The field "Size" lists other options at character 21. Use the same options, or rename one of them.',
+        offset: 20,
+      },
+    ]);
+    expect(codes("{{choice:Size|M|S}} {{choice:Size|S|M}}")).toEqual([
+      "PH_CHOICE_MISMATCH",
+    ]);
+    expect(problems("<p>{{choice:Size|S}}</p>")).toEqual([
+      'The field "Size" needs at least 2 options (at character 1).',
+    ]);
+    expect(problems("<p>{{choice:Size|S|s}}</p>")).toEqual([
+      'The field "Size" lists "S" twice (at character 1).',
+    ]);
+    expect(problems("<p>{{ask:Size}} {{choice:Size|S|M}}</p>")).toEqual([
+      'The field "Size" is used as text and as a choice (at character 14). Rename one of them.',
+    ]);
+    expect(
+      problems("<p>Hi &amp; {{choice:Tone|&lt;b&gt;bold&lt;/b&gt;|plain}}</p>"),
+    ).toEqual([
+      "The field at character 6 is not a valid choice. Options cannot contain { } | \\ < >, and a field holds at most 20 options of 100 characters.",
+    ]);
+  });
+
+  it("the 7 PH_CHOICE triggers", () => {
+    const options = (n: number) =>
+      Array.from({ length: n }, (_, i) => `O${String(i)}`);
+    expect(problems(`{{choice:Size|${options(21).join("|")}}}`)).toEqual([
+      'The field "Size" has 21 options. Use at most 20 (at character 1).',
+    ]);
+    expect(codes(`{{choice:Size|${options(20).join("|")}}}`)).toEqual([]);
+    expect(problems("{{choice:Size|S||M}}")).toEqual([
+      'The field "Size" has an empty option (at character 1). Remove the extra |.',
+    ]);
+    expect(problems("{{choice:Size|S|M|}}")[0]).toContain("an empty option");
+    expect(problems(`{{choice:Size|S|${"m".repeat(101)}}}`)).toEqual([
+      'An option of "Size" is longer than 100 characters (at character 1).',
+    ]);
+    expect(codes(`{{choice:Size|S|${"m".repeat(100)}}}`)).toEqual([]);
+    expect(codes("{{choice:Size|S|a\\b}}")).toEqual(["PH_CHOICE"]);
+    expect(codes("{{choice:Size|S|a}b}}")).toEqual(["PH_CHOICE"]);
+    expect(codes("{{choice:Size|S|a{b}}")).toEqual(["PH_CHOICE"]);
+    expect(codes("{{choice:Size|S|a<b}}")).toEqual(["PH_CHOICE"]);
+    const long = `{{choice:Size|${options(20)
+      .map((o) => `${o}${"x".repeat(100 - o.length)}`)
+      .join(" | ")}${" ".repeat(200)}}}`;
+    expect(long.length).toBeGreaterThan(2200);
+    expect(problems(long)[0]).toContain("is not a valid choice");
+    expect(codes("{{choice:Size}}")).toEqual(["PH_CHOICE"]);
+  });
+
+  it("PH_CASE, PH_LABEL, the subject, PH_TOO_MANY over 3 kinds", () => {
+    expect(problems("{{Choice:Size|S|M}}")).toEqual([
+      "Use lower case: choice: (at character 1).",
+    ]);
+    expect(codes(`{{choice:${"x".repeat(41)}|S|M}}`)).toEqual(["PH_LABEL"]);
+    expect(codes("{{choice:  |S|M}}")).toEqual(["PH_LABEL"]);
+    const subject = scanBody(
+      "<p>{{choice:status|ready|late}}</p>",
+      [],
+      "Load {{choice:Status|ready|late}}",
+    );
+    expect(subject.problems).toEqual([]);
+    expect(subject.prompts).toEqual(["Status"]);
+    const kinds = [
+      ...Array.from({ length: 7 }, (_, i) => `{{ask:A${String(i)}}}`),
+      ...Array.from({ length: 7 }, (_, i) => `{{date:D${String(i)}}}`),
+      ...Array.from({ length: 7 }, (_, i) => `{{choice:C${String(i)}|x|y}}`),
+    ];
+    expect(codes(kinds.slice(0, 20).join(" "))).toEqual([]);
+    expect(codes(kinds.join(" "))).toEqual(["PH_TOO_MANY"]);
+  });
+
+  it("renders the chosen option escaped in the body and plain in the subject; one field per identity", () => {
+    const values = {};
+    const html =
+      "<p>{{choice:Tone|a &amp; b|c}} / {{choice:tone|a &amp; b|c}}</p>";
+    expect(promptsFor(html, values)).toEqual([
+      {
+        key: "tone",
+        label: "Tone",
+        implicit: false,
+        type: "choice",
+        options: ["a & b", "c"],
+      },
+    ]);
+    expect(renderBody(html, { values, answers: { tone: "a & b" } }).html).toBe(
+      "<p>a &amp; b / a &amp; b</p>",
+    );
+  });
+});
+
+describe("braces that join around a field (ADR-0004 Amendment 2026-11-12, Q78)", () => {
+  const braces = (html: string, subject = "") =>
+    scanBody(html, [], subject).problems;
+
+  it.each([
+    ["<p>{{{ask:N}}{ask:M}}</p>", 0],
+    ["<p><b>{</b>{{ask:N}}{ask:M}}</p>", 0],
+    ["<p><b>{ {{ask:N}}</b>{ask:M}}</p>", 0],
+    ["<p>{ {{ask:N}} {ask:M}}</p>", 0],
+    ["<p>x{</p><p>{ask:M}}</p>", 1],
+  ])("refuses %s at offset %i", (html, offset) => {
+    expect(braces(html)).toEqual([
+      {
+        code: "PH_MALFORMED",
+        message: `The braces at character ${String(offset + 1)} would show as {{ in the email. Delete one of them.`,
+        offset,
+      },
+    ]);
+  });
+
+  it("refuses the subject at character 6", () => {
+    expect(braces("<p>x</p>", "Load {{{ask:N}}{ask:M}}")).toEqual([
+      {
+        code: "PH_MALFORMED",
+        message:
+          "The braces at character 6 would show as {{ in the email. Delete one of them.",
+        offset: 5,
+        field: "subject",
+      },
+    ]);
+  });
+
+  it.each([
+    "<p>{{{ask:N}}</p>",
+    "<p>\\{{ask:N}}</p>",
+    "<p>{{{sender.name}}{{ask:M}}}</p>",
+    "<p>{{ask:N}}{ask:M}}</p>",
+    "<p>{\\{{ask:N}}</p>",
+  ])("saves %s unchanged", (html) => {
+    expect(braces(html)).toEqual([]);
+  });
+
+  it("reports a {{ inside one literal once, by the leftover pass", () => {
+    expect(codes("<p>{{ask:N}} {{x</p>")).toEqual(["PH_MALFORMED"]);
   });
 });

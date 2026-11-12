@@ -188,6 +188,7 @@ describe("hints look like hints (D36)", () => {
       label: "Date",
       implicit: false,
       type: "text" as const,
+      options: [],
     };
     const hints = [
       homeCard(many, "inbox"),

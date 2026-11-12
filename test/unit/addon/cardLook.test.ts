@@ -27,6 +27,8 @@ function look(widget: Widget): string {
       return `input: ${widget.title}`;
     case "date":
       return `date: ${widget.title}`;
+    case "select":
+      return `select: ${widget.title}`;
     case "columns":
       return `columns: ${look(widget.fill)} | ${look(widget.fit)}`;
   }

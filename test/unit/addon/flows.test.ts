@@ -996,3 +996,198 @@ describe("date fields (spec 5.9)", () => {
     expect(card.footer?.primary.action.params?.["counted"]).toBe("1");
   });
 });
+
+describe("choice fields (spec 5.10)", () => {
+  const STATUS = "<p>Status: {{choice:Status|Approved|Rejected|On hold}}</p>";
+
+  const chosen = (inputs: Record<string, unknown>): AddonEvent => ({
+    commonEventObject: {
+      formInputs: Object.fromEntries(
+        Object.entries(inputs).map(([name, value]) => [
+          name,
+          { stringInputs: { value: value as string[] } },
+        ]),
+      ),
+    },
+  });
+
+  function open(item: Item) {
+    const card = cardOf(previewFlow(ports(), undefined, { id: item.id }));
+    return { card, params: card.footer?.primary.action.params ?? {} };
+  }
+
+  const selects = (card: CardSpec) =>
+    widgets(card).flatMap((w) => (w.kind === "select" ? [w] : []));
+
+  it("a dropdown in field order: Choose... (0) selected, then the options as positions", () => {
+    const { card } = open(
+      create("S", "<p>{{ask:Driver}} {{choice:Status|ready|late}}</p>"),
+    );
+    expect(
+      widgets(card).flatMap((w) =>
+        w.kind === "input" || w.kind === "select"
+          ? [`${w.kind} ${w.name}`]
+          : [],
+      ),
+    ).toEqual(["input p-1", "select p-2"]);
+    expect(selects(card)).toEqual([
+      {
+        kind: "select",
+        name: "p-2",
+        title: "Status",
+        items: [
+          { text: "Choose...", value: "0" },
+          { text: "ready", value: "1" },
+          { text: "late", value: "2" },
+        ],
+        selected: "0",
+      },
+    ]);
+  });
+
+  it.each([
+    ["a string in an array", ["2"], "<p>Status: Rejected</p>"],
+    ["a bare string", "2", "<p>Status: Rejected</p>"],
+    ["a number", 2, "<p>Status: Rejected</p>"],
+    ["absent", undefined, "<p>Status:</p>"],
+    ["Choose...", ["0"], "<p>Status:</p>"],
+  ])("example 1: reads the value as %s", (_, value, html) => {
+    const { params } = open(create("S", STATUS));
+    const event =
+      value === undefined ? formEvent({}) : chosen({ "p-1": value });
+    expect(htmlOf(promptInsertFlow(ports(), event, params))).toBe(html);
+  });
+
+  it("example 9: a forged value inserts nothing; the dropdown comes back at Choose...", () => {
+    const { params } = open(create("S", STATUS));
+    for (const forged of ["7", "-1", "1.5", "Rejected"]) {
+      const card = cardOf(
+        promptInsertFlow(ports(), chosen({ "p-1": [forged] }), params),
+      );
+      expect(texts(card)[0]).toBe("Choose again from the list: Status.");
+      expect(selects(card)[0]?.selected).toBe("0");
+      expect(card.footer?.primary.action.params?.["counted"]).toBe("1");
+    }
+  });
+
+  it("example 3: the subject gets the option as plain text; the body escapes it", () => {
+    const item = world.ok<Item>(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "S",
+      subject: "Load {{choice:Status|ready & go|late}}",
+      html: '<p>{{choice:status|ready & go|late}} "x"</p>',
+    });
+    const { params } = open(item);
+    const event: AddonEvent = {
+      commonEventObject: {
+        formInputs: {
+          "p-1": { stringInputs: { value: ["1"] } },
+          subj: { stringInputs: { value: ["on"] } },
+        },
+      },
+    };
+    expect(promptInsertFlow(ports(), event, params)).toMatchObject({
+      kind: "insert",
+      html: '<p>ready &amp; go "x"</p>',
+      subject: "Load ready & go",
+    });
+  });
+
+  it("example 2 and the row hint: row Insert leaves the choice out; the row counts it", () => {
+    const item = create(
+      "S",
+      "<p>Load is {{choice:Status|ready|late}} today.</p>",
+    );
+    expect(htmlOf(insertFlow(ports(), undefined, { id: item.id }))).toBe(
+      "<p>Load is today.</p>",
+    );
+    expect(
+      JSON.stringify(
+        cardOf(folderFlow(ports(), { folderId: sales.id, page: "1" })),
+      ),
+    ).toContain("1 field to fill");
+  });
+
+  it("a blocked Insert keeps the chosen option selected", () => {
+    const { params } = open(
+      create("S", "<p>{{ask:Notes}} {{choice:Size|S|M|L}}</p>"),
+    );
+    const card = cardOf(
+      promptInsertFlow(
+        ports(),
+        chosen({ "p-1": ["x".repeat(501)], "p-2": ["3"] }),
+        params,
+      ),
+    );
+    expect(texts(card)[0]).toBe("Shorten to 500 characters: Notes");
+    expect(selects(card)[0]?.selected).toBe("3");
+  });
+
+  it("text-box fallback: the typed option as written inserts; other text is refused", () => {
+    const { params } = open(create("S", STATUS));
+    const typed = (text: string) =>
+      promptInsertFlow(ports(), formEvent({ "p-1-text": text }), params);
+    expect(htmlOf(typed(" On hold "))).toBe("<p>Status: On hold</p>");
+    expect(htmlOf(typed(""))).toBe("<p>Status:</p>");
+    expect(texts(cardOf(typed("on hold")))[0]).toBe(
+      "Choose again from the list: Status.",
+    );
+    expect(texts(cardOf(typed("2")))[0]).toBe(
+      "Choose again from the list: Status.",
+    );
+  });
+
+  it("options changed between the card and Insert: the template changed line, nothing inserted", () => {
+    const item = create("S", STATUS);
+    const { params } = open(item);
+    world.ok(OWNER, "template.update", {
+      id: item.id,
+      baseVersion: 1,
+      title: "S",
+      html: "<p>Status: {{choice:Status|Approved|Rejected}}</p>",
+    });
+    const card = cardOf(
+      promptInsertFlow(ports(), chosen({ "p-1": ["3"] }), params),
+    );
+    expect(texts(card)[0]).toBe(
+      "The template changed. Check the fields and press Insert again.",
+    );
+    expect(selects(card)[0]?.items).toHaveLength(3);
+  });
+
+  it.each([
+    ["<", "{{choice:T|a<b|c}}"],
+    [">", "{{choice:T|a>b|c}}"],
+    ["a script tag", "{{choice:T|<script>x</script>|c}}"],
+    ["101 characters", `{{choice:T|${"a".repeat(101)}|c}}`],
+    ["a duplicate after trimming", "{{choice:T| c |c}}"],
+    ["1 option", "{{choice:T|c}}"],
+    [
+      "21 options",
+      `{{choice:T|${Array.from({ length: 21 }, (_, n) => `o${String(n)}`).join("|")}}}`,
+    ],
+  ])("save refuses an option with %s", (_, token) => {
+    const response = world.call(OWNER, "template.create", {
+      folderId: sales.id,
+      title: "Bad",
+      html: `<p>${token.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`,
+    });
+    expect(response).toMatchObject({
+      ok: false,
+      error: { code: "VALIDATION" },
+    });
+  });
+
+  it("& and quotes in options are escaped like any value; 20 choice fields stay under 100 widgets", () => {
+    const tokens = Array.from(
+      { length: 20 },
+      (_, n) => `{{choice:C${String(n)}|a & "b"|c}}`,
+    );
+    const { card, params } = open(create("S", `<p>${tokens.join(" ")}</p>`));
+    expect(selects(card)).toHaveLength(20);
+    expect(widgets(card).length).toBeLessThan(100);
+    expect(
+      htmlOf(promptInsertFlow(ports(), chosen({ "p-1": ["1"] }), params)),
+    ).toBe("<p>a &amp; &quot;b&quot;</p>");
+  });
+});
