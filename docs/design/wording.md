@@ -398,3 +398,24 @@ New texts. Paths are relative to `src/`.
 | `shared/placeholders/validate.ts` | The field "{field name}" is used as text and as a date (at character {n}). Rename one of them. (`PH_FIELD_TYPE`); Use lower case: date: (at character {n}). (`PH_CASE`) |
 | `addon/cards/render.ts` | MM/DD/YYYY (hint of the text box that stands in for the date picker when Card Service has no `newDatePicker`) |
 | `addon/prompts.ts` | Enter a date as MM/DD/YYYY: {field names} (details card error line and side-panel refusal for a wrongly typed date in the text-box fallback; spec 5.9 has no text, so it follows "Shorten to 500 characters: {field names}") |
+
+## Choice fields and braces (slice 26, D39, Q78)
+
+New texts. Paths are relative to `src/`.
+
+| Where | Text |
+|---|---|
+| `web/editor/picker.ts` | Ask the sender to choose... (Insert field menu, body and subject, after "Ask the sender for a date...") |
+| `web/editor/picker.ts` | Ask the sender to choose (dialog title); Field name the sender sees, 1 to 40 characters, for example Load status. (label, hint); Options, one per line, 2 to 20 options, each up to 100 characters. The sender picks one; the first is not chosen for them. (text area, hint); Insert, Cancel (buttons) |
+| `web/editor/picker.ts` | Enter 2 to 20 options, one per line. / Each option can be up to 100 characters. / An option cannot contain \| { } \ < >. / The option "{option}" is listed twice. (dialog errors, one at a time) |
+| `web/editor/picker.ts` | Edit choices... (menu item on a selected choice chip); Edit choices (dialog title), Save (button) |
+| `web/editor/schema.ts` | {field name} (choice) (chip text, " (choice)" muted); Field: {field name}, the sender chooses from {count} options (screen reader) |
+| `web/views/preview.ts` | choice: {option 1}, {option 2}, ..., used once / used {n} times (panel line; options cut to 60 characters and "...") |
+| `web/views/editor.ts` | Nothing yet. To add a field the sender fills in, choose Insert field, then one of the Ask the sender items. (replaces the slice 25 text) |
+| `shared/placeholders/choice.ts` | The field "{field name}" needs at least 2 options (at character {n}). / The field "{field name}" has {count} options. Use at most 20 (at character {n}). / The field "{field name}" has an empty option (at character {n}). Remove the extra \|. / An option of "{field name}" is longer than 100 characters (at character {n}). / The field "{field name}" lists "{option}" twice (at character {n}). / The field at character {n} is not a valid choice. Options cannot contain { } \| \ < >, and a field holds at most 20 options of 100 characters. (`PH_CHOICE`) |
+| `shared/placeholders/validate.ts` | The field "{field name}" lists other options at character {n}. Use the same options, or rename one of them. (`PH_CHOICE_MISMATCH`); The field "{field name}" is used as {text / a date / a choice} and as {...} (at character {n}). Rename one of them. (`PH_FIELD_TYPE`, kinds in template order); Use lower case: choice: (at character {n}). (`PH_CASE`) |
+| `shared/placeholders/validate.ts` | The braces at character {n} would show as {{ in the email. Delete one of them. (`PH_MALFORMED`, Q78) |
+| `addon/cards/details.ts` | Choose... (first dropdown item, value "0") |
+| `addon/cards/render.ts` | One of: {option 1}, {option 2}, ... (hint of the text box that stands in for the dropdown) |
+| `addon/prompts.ts` | Choose again from the list: {field names}. (details card error line) |
+| `addon/panel.ts` | A choice is not in the template's list. Go back and open it again. (side-panel refusal) |

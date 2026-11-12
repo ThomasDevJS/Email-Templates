@@ -87,7 +87,7 @@ The toolbar is one Tab stop. Arrow keys move between its buttons; Home and End j
 - Fields work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`; while it holds a field, the line "Reads as" under it shows the subject with blanks, as the reader sees it.
 ## Fields and default text
 
-The "Insert field" menu lists 5 values, "Ask the sender..." and "Ask the sender for a date...".
+The "Insert field" menu lists 5 values, "Ask the sender...", "Ask the sender for a date..." and "Ask the sender to choose...".
 
 | Menu item | Text form | Filled with |
 |---|---|---|
@@ -98,6 +98,7 @@ The "Insert field" menu lists 5 values, "Ask the sender..." and "Ask the sender 
 | "Recipient first name" | `{{recipient.first_name}}` | First name of the To recipient, only with exactly one To address inside Migway |
 | "Ask the sender..." | `{{ask:Meeting date}}` | What the user types in the panel |
 | "Ask the sender for a date..." | `{{date:Pickup date}}` | The date the sender picks in a calendar, as MM/DD/YYYY |
+| "Ask the sender to choose..." | `{{choice:Load status\|Ready\|Late}}` | The option the sender picks from a list |
 
 - Default text: select a blank, open "Insert field", "Add default text...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
 - A value with no directory entry and no default text becomes a field the sender fills in. In Gmail, "Insert" on the row leaves every field without a value out of the draft, with the space next to it: "Hi [Driver name], thanks" becomes "Hi, thanks". An empty paragraph stays. The sender fills fields first by tapping the template's name, or types the words in the draft. Give a value default text when a sentence must never read with a hole.
@@ -109,10 +110,18 @@ The "Insert field" menu lists 5 values, "Ask the sender..." and "Ask the sender 
 - A date left empty is left out, like an empty text field. "Preview as me" shows today's date.
 - One field name is either text or a date: `{{ask:Pickup}}` and `{{date:Pickup}}` in one template fail the save. Date fields count toward the 20.
 
+### Choice fields
+
+- "Ask the sender to choose..." asks for a field name and 2 to 20 options, one per line, each up to 100 characters, without `| { } \ < >`. The chip reads "Load status (choice)".
+- In Gmail the sender picks from a list that starts at "Choose...". Left there, or on a row "Insert", the field is left out, like an empty text field.
+- To change the options, select the chip, then "Insert field", "Edit choices...". "Preview as me" shows the first option.
+- One field name used twice needs the same options in the same order. Choice fields count toward the 20.
+
 - At most 20 fields the sender fills in per template, subject and text together. The panel shows at most 20 boxes; with more, the rest are left out of the draft.
 - Fields work in text only, never inside a link or image address.
 - One field must keep one format. Bolding a whole blank works; bolding half of a typed `{{...}}` is an error.
 - `\{{` writes literal double braces.
+- A `{` right before a field and another after it is refused: delete one of them. Older templates with it still insert as before; their next save asks for the fix.
 - An unknown name fails the save with a hint, for example "Unknown field sender.nmae at character 7. Did you mean sender.name?".
 
 ## The Subject field
