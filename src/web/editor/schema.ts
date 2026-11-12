@@ -13,6 +13,7 @@ import { bulletList, listItem, orderedList } from "prosemirror-schema-list";
 import { placeholderInfo } from "../../shared/placeholders/registry";
 import {
   collapse,
+  choiceToken,
   dateToken,
   parseText,
   promptToken,
@@ -178,6 +179,8 @@ export interface PlaceholderAttrs {
   readonly fallback: string | null;
   /** A prompt's type (spec 5.9); absent means text. */
   readonly type?: PromptType;
+  /** A choice's options (spec 5.10); absent for other kinds. */
+  readonly options?: readonly string[];
 }
 
 /** Attributes of the single token in `token`, or null when `token` is not exactly one token. */
@@ -193,12 +196,15 @@ export function placeholderAttrs(token: string): PlaceholderAttrs | null {
       label: collapse(only.label),
       fallback: null,
       type: only.type,
+      ...(only.type === "choice" ? { options: only.options } : {}),
     };
   return null;
 }
 
 export function tokenOf(attrs: PlaceholderAttrs): string {
   if (attrs.name !== "") return variableToken(attrs.name, attrs.fallback);
+  if (attrs.type === "choice")
+    return choiceToken(attrs.label, attrs.options ?? []);
   return attrs.type === "date"
     ? dateToken(attrs.label)
     : promptToken(attrs.label);
@@ -206,22 +212,22 @@ export function tokenOf(attrs: PlaceholderAttrs): string {
 
 /**
  * A placeholder drawn as a blank (design system "Placeholder"): its class, its label, then muted text and what
- * follows it: " or " and the fallback, or " (date)" for a date field (spec 5.9).
+ * follows it: " or " and the fallback, " (date)" for a date field (spec 5.9), " (choice)" for a choice (spec 5.10).
  */
 export interface BlankParts {
-  readonly className: "ph" | "ph ask" | "ph ask date";
+  readonly className: "ph" | "ph ask" | "ph ask date" | "ph ask choice";
   readonly label: string;
   readonly fallback: string | null;
   readonly muted: string | null;
 }
 
 export function blankParts(attrs: PlaceholderAttrs): BlankParts {
-  if (attrs.name === "" && attrs.type === "date")
+  if (attrs.name === "" && (attrs.type === "date" || attrs.type === "choice"))
     return {
-      className: "ph ask date",
+      className: `ph ask ${attrs.type}`,
       label: attrs.label,
       fallback: null,
-      muted: " (date)",
+      muted: ` (${attrs.type})`,
     };
   if (attrs.name === "")
     return {
@@ -240,10 +246,12 @@ export function blankParts(attrs: PlaceholderAttrs): BlankParts {
 
 /**
  * Accessible name: "Field: Load number, the sender fills it in", "Field: Pickup date, a date the sender picks",
- * "Field: Recipient first name, default text there".
+ * "Field: Status, the sender chooses from 3 options", "Field: Recipient first name, default text there".
  */
 export function chipLabel(attrs: PlaceholderAttrs): string {
   const { label, fallback } = blankParts(attrs);
+  if (attrs.name === "" && attrs.type === "choice")
+    return `Field: ${label}, the sender chooses from ${String(attrs.options?.length ?? 0)} options`;
   if (attrs.name === "" && attrs.type === "date")
     return `Field: ${label}, a date the sender picks`;
   if (attrs.name === "") return `Field: ${label}, the sender fills it in`;
@@ -263,6 +271,7 @@ const placeholder: NodeSpec = {
     label: { default: "" },
     fallback: { default: null },
     type: { default: "text" },
+    options: { default: [] },
   },
   parseDOM: [
     {

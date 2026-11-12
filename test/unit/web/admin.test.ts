@@ -392,6 +392,8 @@ describe("folders and grants", () => {
     await until(() => {
       expect(status()).toContain("Gave access to pat@example.com: Can use.");
     });
+    // The grant list read after the change blocks clicks until it answers (slice 25 review minor).
+    await idle();
     (document.querySelector("[data-nav=library]") as HTMLElement).click();
     await until(() => {
       expect(folderLists()).toBe(1);

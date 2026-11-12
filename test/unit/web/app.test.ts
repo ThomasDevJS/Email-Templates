@@ -874,6 +874,7 @@ describe("editor (screen 4, flow 4.2)", () => {
     key(menu, "End");
     key(menu, "ArrowUp");
     key(menu, "ArrowUp");
+    key(menu, "ArrowUp");
     key(menu, "Enter");
     await until(() => {
       expect(main().querySelector(".ph")?.textContent).toBe(
