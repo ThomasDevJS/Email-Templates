@@ -516,6 +516,7 @@ describe("schema helpers and picker rules", () => {
       "Recipient first name",
       "Ask the sender...",
       "Ask the sender for a date...",
+      "Ask the sender to choose...",
     ]);
     ed.view.dispatch(
       ed.view.state.tr.setSelection(
@@ -630,13 +631,107 @@ describe("held selection for dialog inserts (slice 8b retry 1)", () => {
     document.body.append(input);
     input.value = "Load ready ";
     const items = subjectPickerItems(input);
-    expect(items.map((item) => item.label).slice(-2)).toEqual([
+    expect(items.map((item) => item.label).slice(-3)).toEqual([
       "Ask the sender...",
       "Ask the sender for a date...",
+      "Ask the sender to choose...",
     ]);
-    items.at(-1)?.run();
+    items.at(-2)?.run();
     await answer("Pickup date");
     expect(input.value).toBe("Load ready {{date:Pickup date}}");
+    input.remove();
+  });
+  /** Fills the choice dialog and presses its primary button; returns the error line, "" when it closed. */
+  async function answerChoice(
+    label: string,
+    list: string,
+    button: string,
+  ): Promise<string> {
+    const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+    (dialog.querySelector("input") as HTMLInputElement).value = label;
+    (dialog.querySelector("textarea") as HTMLTextAreaElement).value = list;
+    [...dialog.querySelectorAll("button")]
+      .find((b) => b.textContent === button)
+      ?.click();
+    const error = dialog.querySelector(".error")?.textContent ?? "";
+    if (error !== "") return error;
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+    return "";
+  }
+
+  it("Ask the sender to choose: dialog texts and checks, a choice chip, then Edit choices round trip (spec 5.10)", async () => {
+    const ed = open("<p>Status x</p>");
+    caret(ed, 8);
+    pickerItems(ed)
+      .find((item) => item.label === "Ask the sender to choose...")
+      ?.run();
+    const dialog = document.querySelector('[role="dialog"]');
+    for (const text of [
+      "Ask the sender to choose",
+      "Field name the sender sees",
+      "1 to 40 characters, for example Load status.",
+      "Options, one per line",
+      "2 to 20 options, each up to 100 characters. The sender picks one; the first is not chosen for them.",
+    ])
+      expect(dialog?.textContent).toContain(text);
+    expect(await answerChoice("Status", "only one", "Insert")).toBe(
+      "Enter 2 to 20 options, one per line.",
+    );
+    expect(
+      await answerChoice("Status", `a\n${"b".repeat(101)}`, "Insert"),
+    ).toBe("Each option can be up to 100 characters.");
+    expect(await answerChoice("Status", "a|b\nc", "Insert")).toBe(
+      "An option cannot contain | { } \\ < >.",
+    );
+    expect(await answerChoice("Status", "Ready\n ready ", "Insert")).toBe(
+      'The option "ready" is listed twice.',
+    );
+    expect(await answerChoice("Sta|tus", "a\nb", "Insert")).toBe(
+      "The field name cannot contain { } | \\ < >.",
+    );
+    expect(
+      await answerChoice(
+        " Load  status ",
+        "Ready\n\n  On   hold \nLate",
+        "Insert",
+      ),
+    ).toBe("");
+    expect(ed.html()).toBe(
+      "<p>Status {{choice:Load status|Ready|On hold|Late}}x</p>",
+    );
+    const chip = ed.view.dom.querySelector(".ph");
+    expect(chip?.className).toBe("ph ask choice");
+    expect(chip?.textContent).toBe("Load status (choice)");
+    expect(chip?.getAttribute("aria-label")).toBe(
+      "Field: Load status, the sender chooses from 3 options",
+    );
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        NodeSelection.create(ed.view.state.doc, chipPos(ed)),
+      ),
+    );
+    const items = pickerItems(ed).map((item) => item.label);
+    expect(items.at(-1)).toBe("Edit choices...");
+    expect(items).not.toContain("Add default text...");
+    pickerItems(ed).at(-1)?.run();
+    const edit = document.querySelector('[role="dialog"]') as HTMLElement;
+    expect(edit.textContent).toContain("Edit choices");
+    expect(edit.querySelector("input")?.value).toBe("Load status");
+    expect(edit.querySelector("textarea")?.value).toBe("Ready\nOn hold\nLate");
+    expect(await answerChoice("Load status", "Ready\nLate", "Save")).toBe("");
+    expect(ed.html()).toBe("<p>Status {{choice:Load status|Ready|Late}}x</p>");
+    expect(open(ed.html()).html()).toBe(ed.html());
+  });
+
+  it("the subject picker inserts a choice token at the caret", async () => {
+    const input = document.createElement("input");
+    document.body.append(input);
+    input.value = "Load ";
+    subjectPickerItems(input).at(-1)?.run();
+    expect(await answerChoice("Status", "ready\nlate", "Insert")).toBe("");
+    expect(input.value).toBe("Load {{choice:Status|ready|late}}");
     input.remove();
   });
 

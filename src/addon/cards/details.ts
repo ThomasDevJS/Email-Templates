@@ -1,6 +1,7 @@
 import { recipientCount } from "../../shared/model/recipients";
 import type { SidebarTemplate } from "../../shared/model/sidebar";
 import { atLeast } from "../../shared/permissions/levels";
+import { NOT_CHOSEN } from "../../shared/placeholders/choice";
 import { typedDateMs } from "../../shared/placeholders/date";
 import type { PromptField } from "../../shared/placeholders/render";
 import type { Entry } from "../event";
@@ -37,6 +38,8 @@ export const SIGNATURE_LINE =
 export const VERSION_CHANGED =
   "The template changed. Check the fields and press Insert again.";
 const FIRST_NAME_KEY = "{var}recipient.first_name";
+/** First item of every choice dropdown, value "0": not chosen (spec 5.10, Q93). */
+export const CHOOSE = "Choose...";
 
 /** What every details card shows: the template, its text, its subject and its recipients (spec 7.4 Flow B). */
 export interface DetailsView {
@@ -84,6 +87,19 @@ function fieldInput(
 ): Widget[] {
   const field = state.fields[index];
   if (field === undefined || index >= MAX_FIELDS) return [];
+  if (field.type === "choice")
+    return [
+      {
+        kind: "select",
+        name: inputName(index),
+        title: field.label,
+        items: [
+          { text: CHOOSE, value: NOT_CHOSEN },
+          ...field.options.map((text, n) => ({ text, value: String(n + 1) })),
+        ],
+        selected: String(field.options.indexOf(state.entered[index] ?? "") + 1),
+      },
+    ];
   if (field.type === "date")
     return [
       {

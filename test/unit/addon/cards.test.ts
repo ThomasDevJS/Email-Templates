@@ -387,12 +387,14 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
       label: "Meeting date",
       implicit: false,
       type: "text" as const,
+      options: [],
     },
     {
       key: "{var}recipient.first_name",
       label: "Recipient first name",
       implicit: true,
       type: "text" as const,
+      options: [],
     },
   ];
 
@@ -468,6 +470,7 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
       label: `F${String(n)}`,
       implicit: false,
       type: "text" as const,
+      options: [],
     }));
     const card = detailsCard(
       details({
@@ -597,12 +600,19 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
     label: "Recipient first name",
     implicit: true,
     type: "text" as const,
+    options: [],
   };
   const state = details({
     template: template("T1", { level: "edit" }),
     subject: "Quote",
     fields: [
-      { key: "Date", label: "Date", implicit: false, type: "text" as const },
+      {
+        key: "Date",
+        label: "Date",
+        implicit: false,
+        type: "text" as const,
+        options: [],
+      },
       firstName,
     ],
     entered: ["", ""],

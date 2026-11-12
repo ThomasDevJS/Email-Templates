@@ -160,7 +160,7 @@ export function openDialog(options: DialogOptions): OpenDialog {
 /** A labelled text input for dialogs; `hint` is linked with `aria-describedby`. */
 export function field(
   label: string,
-  input: HTMLInputElement,
+  input: HTMLInputElement | HTMLTextAreaElement,
   hint = "",
 ): HTMLElement {
   const id = uid("field");
@@ -209,6 +209,70 @@ export function promptText(options: {
       ),
       actions: [
         { label: "OK", primary: true, run: submit },
+        {
+          label: "Cancel",
+          run: () => {
+            resolve(null);
+            return true;
+          },
+        },
+      ],
+      onCancel: () => {
+        resolve(null);
+      },
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (submit()) dialog.close();
+      }
+    });
+    input.focus();
+  });
+}
+
+/**
+ * Asks for a field name and a list, one item per line (spec 5.10 "Ask the sender to choose"). Resolves the trimmed
+ * name and the raw list text, or null on Cancel. `check` returns one error message or "".
+ */
+export function promptChoice(options: {
+  title: string;
+  ok: string;
+  label: string;
+  labelHint: string;
+  listLabel: string;
+  listHint: string;
+  value?: { label: string; list: string };
+  maxLength: number;
+  check: (label: string, list: string) => string;
+}): Promise<{ label: string; list: string } | null> {
+  return new Promise((resolve) => {
+    const input = h("input", {
+      type: "text",
+      value: options.value?.label ?? "",
+      maxlength: options.maxLength,
+    });
+    const list = h("textarea", { rows: 6 });
+    list.value = options.value?.list ?? "";
+    const error = h("p", { class: "error", role: "alert" });
+    const submit = (): boolean => {
+      const problem = options.check(input.value, list.value);
+      error.textContent = problem;
+      if (problem !== "") return false;
+      resolve({ label: input.value.trim(), list: list.value });
+      return true;
+    };
+    const dialog = openDialog({
+      title: options.title,
+      body: h(
+        "div",
+        {},
+        field(options.label, input, options.labelHint),
+        field(options.listLabel, list, options.listHint),
+        error,
+      ),
+      actions: [
+        { label: options.ok, primary: true, run: submit },
         {
           label: "Cancel",
           run: () => {

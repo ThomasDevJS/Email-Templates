@@ -22,6 +22,8 @@ export interface PromptField {
   readonly implicit: boolean;
   /** The type of the first token with this identity; implicit prompts are text (spec 5.9). */
   readonly type: PromptType;
+  /** A choice's options, as written in the first token with this identity; [] for other types (spec 5.10). */
+  readonly options: readonly string[];
 }
 
 export interface RenderInput {
@@ -59,6 +61,7 @@ function fieldOf(
       label,
       implicit: false,
       type: segment.type,
+      options: segment.options,
     };
   }
   if (segment.kind !== "variable") return null;
@@ -69,6 +72,7 @@ function fieldOf(
     label,
     implicit: true,
     type: "text",
+    options: [],
   };
 }
 

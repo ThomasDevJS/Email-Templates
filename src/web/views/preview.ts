@@ -49,14 +49,16 @@ export function sampleDate(now = new Date()): string {
   return `${pad(now.getMonth() + 1)}/${pad(now.getDate())}/${String(now.getFullYear())}`;
 }
 
-/** Preview answers: a date field shows today's date, every other field `[Label]`. */
+/** A field's sample in "Preview as me": today for a date, the first option for a choice, else `[Label]`. */
+function sample(field: PromptField): string {
+  if (field.type === "date") return sampleDate();
+  return field.type === "choice"
+    ? (field.options[0] ?? `[${field.label}]`)
+    : `[${field.label}]`;
+}
+
 function sampleAnswers(fields: readonly PromptField[]): Record<string, string> {
-  return Object.fromEntries(
-    fields.map((field) => [
-      field.key,
-      field.type === "date" ? sampleDate() : `[${field.label}]`,
-    ]),
-  );
+  return Object.fromEntries(fields.map((field) => [field.key, sample(field)]));
 }
 
 /** Body rendered with the caller's sender values; prompts and unknown values show as `[Label]`, dates as today. */
@@ -96,18 +98,19 @@ export function withChips(html: string): string {
   );
 }
 
+export interface PromptUse {
+  label: string;
+  count: number;
+  readonly type: PromptType;
+  readonly options: readonly string[];
+}
+
 /**
  * "The sender fills in": each prompt of subject and body (by identity, first spelling and type) and how often it
  * is used.
  */
-export function promptUses(
-  html: string,
-  subject: string,
-): { label: string; count: number; type: PromptType }[] {
-  const uses = new Map<
-    string,
-    { label: string; count: number; type: PromptType }
-  >();
+export function promptUses(html: string, subject: string): PromptUse[] {
+  const uses = new Map<string, PromptUse>();
   const texts = [subject, ...textRuns(html).map((run) => run.text)];
   for (const segment of texts.flatMap((text) => parseText(text))) {
     if (segment.kind !== "prompt") continue;
@@ -118,16 +121,31 @@ export function promptUses(
         label: collapse(segment.label),
         count: 1,
         type: segment.type,
+        options: segment.options,
       });
     else found.count += 1;
   }
   return [...uses.values()];
 }
 
-/** "used once", "used 3 times"; a date field adds "date, " in front (spec 5.9). */
-export function usedText(count: number, type: PromptType = "text"): string {
+const OPTIONS_SHOWN = 60;
+
+/**
+ * "used once", "used 3 times"; a date adds "date, " in front (spec 5.9), a choice "choice: A, B, " with the options
+ * cut to 60 characters and "..." (spec 5.10).
+ */
+export function usedText(
+  count: number,
+  type: PromptType = "text",
+  options: readonly string[] = [],
+): string {
   const used = count === 1 ? "used once" : `used ${String(count)} times`;
-  return type === "date" ? `date, ${used}` : used;
+  if (type === "date") return `date, ${used}`;
+  if (type !== "choice") return used;
+  const list = options.join(", ");
+  const shown =
+    list.length > OPTIONS_SHOWN ? `${list.slice(0, OPTIONS_SHOWN)}...` : list;
+  return `choice: ${shown}, ${used}`;
 }
 
 /** One line per field with addresses ("To", "a@x.com, b@x.com"), for previews and the history sheet. */

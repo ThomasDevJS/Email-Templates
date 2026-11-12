@@ -1,4 +1,5 @@
 import { escapeText } from "../../shared/html/escape";
+import { NOT_CHOSEN, TYPED_SUFFIX } from "../../shared/placeholders/choice";
 import { dateText } from "../../shared/placeholders/date";
 import type { RecipientActions } from "./recipients";
 import {
@@ -179,6 +180,36 @@ function toDate(spec: Extract<Widget, { kind: "date" }>): CardWidget {
   }
 }
 
+/**
+ * A choice field's dropdown (spec 5.10). shortcut: a build without `newSelectionInput` or `DROPDOWN`, or one that
+ * throws, gets a text box `<name>-text` with the hint "One of: A, B, C" (spec Q92 fallback 2); a Gmail that refuses
+ * the dropdown while drawing the card cannot be caught here (Q92).
+ */
+function toSelect(spec: Extract<Widget, { kind: "select" }>): CardWidget {
+  try {
+    const type = enumValue(CardService.SelectionInputType, "DROPDOWN");
+    return spec.items.reduce(
+      (input, item) =>
+        input.addItem(item.text, item.value, item.value === spec.selected),
+      CardService.newSelectionInput()
+        .setType(type as GoogleAppsScript.Card_Service.SelectionInputType)
+        .setFieldName(spec.name)
+        .setTitle(spec.title),
+    );
+  } catch {
+    const options = spec.items.filter((item) => item.value !== NOT_CHOSEN);
+    const chosen = options.find((item) => item.value === spec.selected);
+    return toInput({
+      kind: "input",
+      name: `${spec.name}${TYPED_SUFFIX}`,
+      title: spec.title,
+      value: chosen?.text ?? "",
+      multiline: false,
+      hint: `One of: ${options.map((item) => item.text).join(", ")}`,
+    });
+  }
+}
+
 /** The part of Card Service Columns this file uses. */
 interface ColumnsApi {
   newColumns(): {
@@ -243,6 +274,8 @@ function toWidget(spec: Single): CardWidget {
       return toInput(spec);
     case "date":
       return toDate(spec);
+    case "select":
+      return toSelect(spec);
   }
 }
 

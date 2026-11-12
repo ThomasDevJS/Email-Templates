@@ -16,6 +16,7 @@ import {
   type Ports,
 } from "../../../src/addon/flows";
 import {
+  CHOICE_REFUSED,
   COUNTS_CHANGED,
   DRAFT_NOT_OPENED,
   LISTS_CHANGED,
@@ -841,6 +842,60 @@ describe("date fields in the side panel (spec 5.9)", () => {
         params,
       ),
     ).toEqual(notice("Enter a date as MM/DD/YYYY: Pickup date"));
+    expect(draftCall()).toBeUndefined();
+  });
+});
+
+describe("choice fields in the side panel (spec 5.10)", () => {
+  let item: Item;
+  beforeEach(() => {
+    item = create({
+      subject: "Load {{choice:Status|ready|late}}",
+      html: "<p>Load is {{choice:Status|ready|late}} today.</p>",
+    });
+  });
+
+  const chosen = (value: unknown): AddonEvent => ({
+    ...inbox,
+    commonEventObject: {
+      formInputs: { "p-1": { stringInputs: { value: value as string[] } } },
+    },
+  });
+
+  it("a chosen option fills body and subject; Choose... leaves it out", () => {
+    const params = detailsParams(item, "inbox", "new");
+    promptComposeFlow(ports(), chosen(["2"]), params);
+    expect(draftCall()?.args).toEqual([
+      "",
+      "Load late",
+      "",
+      { htmlBody: "<p>Load is late today.</p>" },
+    ]);
+    gmailCalls.length = 0;
+    promptComposeFlow(ports(), chosen(["0"]), params);
+    expect(draftCall()?.args).toEqual([
+      "",
+      "Load",
+      "",
+      { htmlBody: "<p>Load is today.</p>" },
+    ]);
+  });
+
+  it("a value outside the list: the refusal sentence, no draft", () => {
+    const params = detailsParams(item, "inbox", "new");
+    expect(promptComposeFlow(ports(), chosen(["3"]), params)).toEqual(
+      notice(CHOICE_REFUSED),
+    );
+    expect(
+      promptComposeFlow(
+        ports(),
+        withForm(inbox, { "p-1-text": "Late" }),
+        params,
+      ),
+    ).toEqual(notice(CHOICE_REFUSED));
+    expect(CHOICE_REFUSED).toBe(
+      "A choice is not in the template's list. Go back and open it again.",
+    );
     expect(draftCall()).toBeUndefined();
   });
 });

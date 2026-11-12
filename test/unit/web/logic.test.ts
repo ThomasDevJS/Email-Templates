@@ -511,6 +511,36 @@ describe("previews", () => {
     ).toBe("<p>Ana &lt;A&gt;, [Your title], [Date], there</p>");
   });
 
+  it("shows a choice as its first option in Preview as me, a chip in history, its options on the panel (spec 5.10)", () => {
+    expect(
+      previewAsMe(
+        "<p>{{choice:Status|a &amp; b|late}} {{ask:Notes}}</p>",
+        profile,
+      ),
+    ).toBe("<p>a &amp; b [Notes]</p>");
+    expect(subjectAsMe("Load {{choice:Status|ready|late}}", profile)).toBe(
+      "Load ready",
+    );
+    expect(withChips("<p>{{choice:Status|ready|late}}</p>")).toBe(
+      '<p><span class="ph ask choice" role="img" aria-label="Field: Status, the sender chooses from 2 options">Status<span class="ph-or"> (choice)</span></span></p>',
+    );
+    expect(
+      promptUses(
+        "<p>{{choice:Status|ready|late}} {{choice:status|ready|late}}</p>",
+        "",
+      ),
+    ).toEqual([
+      { label: "Status", count: 2, type: "choice", options: ["ready", "late"] },
+    ]);
+    expect(usedText(1, "choice", ["ready", "late"])).toBe(
+      "choice: ready, late, used once",
+    );
+    const long = Array.from({ length: 8 }, (_, n) => `Option ${String(n)}`);
+    expect(usedText(2, "choice", long)).toBe(
+      `choice: ${long.join(", ").slice(0, 60)}..., used 2 times`,
+    );
+  });
+
   it("shows a date field as today's local date in Preview as me, a chip in history (spec 5.9)", () => {
     const today = sampleDate();
     expect(today).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
@@ -549,14 +579,14 @@ describe("previews", () => {
         "Load {{ask:Load number}}",
       ),
     ).toEqual([
-      { label: "Load number", count: 3, type: "text" },
-      { label: "Date", count: 1, type: "text" },
+      { label: "Load number", count: 3, type: "text", options: [] },
+      { label: "Date", count: 1, type: "text", options: [] },
     ]);
     expect(promptUses("<p>\\{{ask:X}}</p>", "")).toEqual([]);
     expect(usedText(1)).toBe("used once");
     expect(usedText(2)).toBe("used 2 times");
     expect(promptUses("<p>{{date:Pickup}} {{date:pickup}}</p>", "")).toEqual([
-      { label: "Pickup", count: 2, type: "date" },
+      { label: "Pickup", count: 2, type: "date", options: [] },
     ]);
     expect(usedText(1, "date")).toBe("date, used once");
     expect(usedText(3, "date")).toBe("date, used 3 times");

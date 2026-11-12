@@ -46,6 +46,15 @@ describe("an unpicked date field (spec 5.9 example 2)", () => {
   });
 });
 
+describe("an unchosen choice field (spec 5.10 example 2)", () => {
+  it("is removed with the gap rules", () => {
+    expect(body("<p>Load is {{choice:Status|ready|late}} today.</p>")).toBe(
+      "<p>Load is today.</p>",
+    );
+    expect(subject("Load {{choice:Status|ready|late}}")).toBe("Load");
+  });
+});
+
 describe("left alone on purpose (ADR-0004 Amendment 2026-11-11)", () => {
   it("spaces across inline tags", () => {
     expect(body("<p>Hi <b>{{ask:Name}}</b>, thanks</p>")).toBe(

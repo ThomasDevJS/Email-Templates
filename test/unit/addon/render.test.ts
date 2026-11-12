@@ -240,6 +240,68 @@ describe("renderCard", () => {
     },
   );
 
+  const SELECT: CardSpec = {
+    name: "s",
+    sections: [
+      {
+        widgets: [
+          {
+            kind: "select",
+            name: "p-1",
+            title: "Status",
+            items: [
+              { text: "Choose...", value: "0" },
+              { text: "ready & go", value: "1" },
+              { text: "late", value: "2" },
+            ],
+            selected: "2",
+          },
+        ],
+      },
+    ],
+  };
+
+  it("renders a choice as a DROPDOWN with Choose... first and the chosen position selected", () => {
+    renderCard(SELECT);
+    expect(argsOf("setType")).toEqual(["DROPDOWN"]);
+    expect(argsOf("setFieldName")).toEqual(["p-1"]);
+    expect(
+      calls.filter((c) => c.method === "addItem").map((c) => c.args),
+    ).toEqual([
+      ["Choose...", "0", false],
+      ["ready & go", "1", false],
+      ["late", "2", true],
+    ]);
+    expect(argsOf("setHint")).toEqual([]);
+  });
+
+  it.each([
+    ["missing", undefined],
+    [
+      "throwing",
+      () => {
+        throw new Error("no dropdown");
+      },
+    ],
+  ])(
+    "falls back to a text box p-1-text listing the options when newSelectionInput is %s",
+    (_, builder) => {
+      const cards = createRecordingCardService();
+      calls = cards.calls;
+      vi.stubGlobal(
+        "CardService",
+        Object.assign(Object.create(cards.service) as object, {
+          newSelectionInput: builder,
+        }),
+      );
+      renderCard(SELECT);
+      expect(argsOf("newTextInput")).toHaveLength(1);
+      expect(argsOf("setFieldName")).toEqual(["p-1-text"]);
+      expect(argsOf("setValue")).toEqual(["late"]);
+      expect(argsOf("setHint")).toEqual(["One of: ready & go, late"]);
+    },
+  );
+
   it("renders a footer without a secondary button", () => {
     renderCard({
       ...CARD,

@@ -112,6 +112,20 @@ export type Widget =
       readonly valueMs: number | null;
     }
   | {
+      /**
+       * A choice field (spec 5.10): a dropdown of `items`, the one whose value is `selected` selected. If no
+       * dropdown can be built, a text box named `<name>-text` (`TYPED_SUFFIX`) stands in for it.
+       */
+      readonly kind: "select";
+      readonly name: string;
+      readonly title: string;
+      readonly items: readonly {
+        readonly text: string;
+        readonly value: string;
+      }[];
+      readonly selected: string;
+    }
+  | {
       /** One row of two (Card Service Columns, compose dialog only): `fill` takes the space, `fit` the minimum. */
       readonly kind: "columns";
       readonly fill: Single;

@@ -337,3 +337,21 @@ Web app and Gmail web, owner, a person (not the browser agent), about 15 minutes
 | 4    | the 1st written as picked (y/n); the text seen                   |        |
 | 6    | calendar in the side panel (y/n); date in text and subject (y/n) |        |
 | 7    | other time zone: date written as picked (y/n)                    |        |
+
+## Part O: choice fields and braces (D39, Q78)
+
+Web app and Gmail web, owner, a person (not the browser agent), about 15 minutes. Answers Q92 and Q93. Discard every draft when its step ends.
+
+1. Library, "Smoke 6a", "New template", title `T10 choice`. In "Subject" type `Load `, then "Insert field", "Ask the sender to choose...", name `Status`, options `ready` and `late` on two lines, "Insert". In the text type `Load is `, the same menu item, name and options, then ` today.`. Save. Expect: the chip reads "Status (choice)"; "The sender fills in" reads "Status" and "choice: ready, late, used 2 times"; "Preview as me" shows "ready".
+2. In the text type `{` before the second chip and `{` after it, without spaces. Expect: Problems shows "The braces at character ... would show as {{ in the email. Delete one of them." and the save is refused. Delete both braces and save.
+3. New draft, open the add-on from the draft's toolbar, click the name "T10 choice". Record (Q92): a list shows for "Status" (y/n), or a text box with the hint "One of: ready, late". Record (Q93): the list shows "Choose..." before you touch it (y/n).
+4. Choose "late", turn "Replace the subject" on, click "Insert". Expect: the text "Load is late today." and the subject "Load late". Record (Q92): the chosen word reached the draft (y/n).
+5. New draft, as step 3, leave "Choose...", "Insert". Expect: "Load is today." Then row Insert of "T10 choice" in a new draft. Expect: the same text; the row read "1 field to fill".
+6. Inbox, no message open, open the add-on in the side panel, click "T10 choice", choose "ready", click "New email". Record (Q92): the list shows in the side panel (y/n); the new draft reads "Load is ready today." with the subject "Load ready" (y/n).
+7. Open "T10 choice" in the editor, select the first chip, "Insert field", "Edit choices...". Expect: the dialog "Edit choices" lists ready and late. Add `on hold` on a third line, "Save", then save the template. Expect: "The field "Status" lists other options at character ..." until the second chip gets the same options.
+
+| Step | Record                                                         | Result |
+| ---- | -------------------------------------------------------------- | ------ |
+| 3    | list shown (y/n) or text box; "Choose..." shown first (y/n)    |        |
+| 4    | chosen word in the draft (y/n)                                 |        |
+| 6    | list in the side panel (y/n); text and subject as chosen (y/n) |        |

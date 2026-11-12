@@ -16,13 +16,15 @@ export function inputName(index: number): string {
 const isDate = (fields: readonly PromptField[], index: number): boolean =>
   fields[index]?.type === "date";
 
-/** Field indexes with a value over 500 characters; date fields are skipped (spec 5.9). */
+/** Field indexes with a value over 500 characters; date and choice fields are skipped (spec 5.9, 5.10). */
 export function tooLong(
   entered: readonly string[],
   fields: readonly PromptField[] = [],
 ): number[] {
   return entered.flatMap((value, index) =>
-    value.length > MAX_VALUE_CHARS && !isDate(fields, index) ? [index] : [],
+    value.length > MAX_VALUE_CHARS && (fields[index]?.type ?? "text") === "text"
+      ? [index]
+      : [],
   );
 }
 
@@ -57,6 +59,37 @@ export function badDateText(
   indexes: readonly number[],
 ): string {
   return `Enter a date as MM/DD/YYYY: ${labelsOf(fields, indexes)}`;
+}
+
+/** "Choose again from the list: Status." (spec 5.10): a choice value that is not a position of the token. */
+export function chooseAgainText(
+  fields: readonly PromptField[],
+  indexes: readonly number[],
+): string {
+  return `Choose again from the list: ${labelsOf(fields, indexes)}.`;
+}
+
+/**
+ * What stops a details Insert, in this order: a refused choice (`fieldValue` null), a value over 500 characters, a
+ * wrongly typed date. `flagged` are the field indexes shown first; null when nothing stops it.
+ */
+export function enteredProblem(
+  fields: readonly PromptField[],
+  read: readonly (string | null)[],
+): { flagged: number[]; text: string } | null {
+  const refused = read.flatMap((value, index) =>
+    value === null ? [index] : [],
+  );
+  if (refused.length > 0)
+    return { flagged: refused, text: chooseAgainText(fields, refused) };
+  const entered = read.map((value) => value ?? "");
+  const long = tooLong(entered, fields);
+  if (long.length > 0)
+    return { flagged: long, text: shortenText(fields, long) };
+  const bad = badDates(fields, entered);
+  return bad.length > 0
+    ? { flagged: bad, text: badDateText(fields, bad) }
+    : null;
 }
 
 /** "This template has 23 fields. The first 20 are here. The rest are left out of the draft." */

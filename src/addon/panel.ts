@@ -10,6 +10,7 @@ import type { Failure } from "./client/serverClient";
 import {
   addressesOf,
   mailboxesOf,
+  fieldValue,
   formValue,
   internalAddress,
   messageIdOf,
@@ -52,6 +53,9 @@ export const NO_MESSAGE =
 export const UNREADABLE =
   "This email can no longer be read. Open it again, or use New email.";
 export const TOO_LONG = `Each box takes up to ${String(MAX_VALUE_CHARS)} characters. Shorten the long one and try again.`;
+/** A choice value that is not a position of the template's token (spec 5.10). */
+export const CHOICE_REFUSED =
+  "A choice is not in the template's list. Go back and open it again.";
 export const TEMPLATE_CHANGED =
   "This template changed. Go back and open it again.";
 export const LISTS_CHANGED =
@@ -271,11 +275,14 @@ export function promptComposeFlow(
   if (params["rh"] !== rhOf(ports, lists)) return notify(LISTS_CHANGED);
   const cardValues = parseValues(params["values"] ?? "{}");
   const fields = cardFields(body, cardValues);
-  const bad = badDates(fields, boxes);
+  const read = fields.map((field, n) => fieldValue(event, field, inputName(n)));
+  if (read.includes(null)) return notify(CHOICE_REFUSED);
+  const entered = read.map((value) => value ?? "");
+  const bad = badDates(fields, entered);
   if (bad.length > 0) return notify(badDateText(fields, bad));
   const parts = rendered(body, {
     values: mergedValues(cardValues, result),
-    answers: answersByKey(fields, boxes),
+    answers: answersByKey(fields, entered),
   });
   const add = formValue(event, RECIPIENT_SWITCH) === SWITCH_ON;
   return draftOf(

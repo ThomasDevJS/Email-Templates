@@ -6,7 +6,13 @@ import {
 } from "../shared/model/protocol";
 import type { RecipientField } from "../shared/model/recipients";
 import { domainOf } from "../shared/permissions/principals";
+import {
+  TYPED_SUFFIX,
+  chosenOption,
+  typedPosition,
+} from "../shared/placeholders/choice";
 import { dateText } from "../shared/placeholders/date";
+import type { PromptField } from "../shared/placeholders/render";
 
 /**
  * The parts of the Gmail add-on event object this add-on reads (developers.google.com/workspace/add-ons/concepts/
@@ -175,6 +181,38 @@ export function formValue(event: AddonEvent | undefined, name: string): string {
   const common =
     event?.commonEventObject?.formInputs?.[name]?.stringInputs?.value?.[0];
   return common ?? event?.formInput?.[name] ?? "";
+}
+
+/**
+ * A choice field's answer (spec 5.10): the option, "" when not chosen, null when refused. The dropdown's value may
+ * arrive as a string, a number, an array or not at all (`chosenOption`). With no dropdown value, the text box that
+ * stands in for it (`<name>-text`) must hold one option as written.
+ */
+function choiceValue(
+  event: AddonEvent | undefined,
+  name: string,
+  options: readonly string[],
+): string | null {
+  const input = event?.commonEventObject?.formInputs?.[name];
+  const raw: unknown =
+    input === undefined ? event?.formInput?.[name] : input.stringInputs?.value;
+  if (raw !== undefined) return chosenOption(raw, options);
+  const position = typedPosition(
+    formValue(event, `${name}${TYPED_SUFFIX}`),
+    options,
+  );
+  return position === null ? null : chosenOption(position, options);
+}
+
+/** The value of one details-card field by its type; null only for a refused choice. */
+export function fieldValue(
+  event: AddonEvent | undefined,
+  field: PromptField,
+  name: string,
+): string | null {
+  return field.type === "choice"
+    ? choiceValue(event, name, field.options)
+    : formValue(event, name);
 }
 
 /** `address` trimmed and lower case when its domain is the caller's, else "": outside addresses never leave the add-on. */

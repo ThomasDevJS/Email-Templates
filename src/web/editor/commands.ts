@@ -166,14 +166,31 @@ export function selectedPlaceholder(
   };
 }
 
-export function setFallback(pos: number, fallback: string | null): Command {
+/** Changes some attributes of the chip at `pos`. */
+function updatePlaceholder(
+  pos: number,
+  patch: Partial<PlaceholderAttrs>,
+): Command {
   return (state, dispatch) => {
     const node = state.doc.nodeAt(pos);
     if (node?.type !== schema.nodes["placeholder"]) return false;
     if (dispatch !== undefined)
       dispatch(
-        state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, fallback }),
+        state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...patch }),
       );
     return true;
   };
+}
+
+export function setFallback(pos: number, fallback: string | null): Command {
+  return updatePlaceholder(pos, { fallback });
+}
+
+/** "Edit choices..." (spec 5.10, Q94): a choice chip's field name and options. */
+export function setOptions(
+  pos: number,
+  label: string,
+  options: readonly string[],
+): Command {
+  return updatePlaceholder(pos, { label, options });
 }

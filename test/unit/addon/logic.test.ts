@@ -31,13 +31,26 @@ import { FakeCache } from "../../fakes/cache";
 import { template, view } from "./fixtures";
 
 const FIELDS = [
-  { key: "a", label: "Alpha", implicit: false, type: "text" as const },
-  { key: "b", label: "Beta", implicit: false, type: "text" as const },
+  {
+    key: "a",
+    label: "Alpha",
+    implicit: false,
+    type: "text" as const,
+    options: [],
+  },
+  {
+    key: "b",
+    label: "Beta",
+    implicit: false,
+    type: "text" as const,
+    options: [],
+  },
   {
     key: "{var}sender.phone",
     label: "Your phone",
     implicit: true,
     type: "text" as const,
+    options: [],
   },
 ];
 
@@ -75,8 +88,20 @@ describe("prompt rules (wireframe 02)", () => {
   });
 
   const WITH_DATE = [
-    { key: "a", label: "Alpha", implicit: false, type: "text" as const },
-    { key: "d", label: "Pickup", implicit: false, type: "date" as const },
+    {
+      key: "a",
+      label: "Alpha",
+      implicit: false,
+      type: "text" as const,
+      options: [],
+    },
+    {
+      key: "d",
+      label: "Pickup",
+      implicit: false,
+      type: "date" as const,
+      options: [],
+    },
   ];
 
   it("date fields: tooLong skips them, a wrong typed date is flagged, answers are MM/DD/YYYY (spec 5.9)", () => {

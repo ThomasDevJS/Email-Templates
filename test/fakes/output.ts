@@ -155,6 +155,11 @@ export function createRecordingCardService(): {
     },
     VerticalAlignment: { CENTER: "CENTER", TOP: "TOP", BOTTOM: "BOTTOM" },
     SwitchControlType: { SWITCH: "SWITCH", CHECK_BOX: "CHECK_BOX" },
+    SelectionInputType: {
+      CHECK_BOX: "CHECK_BOX",
+      RADIO_BUTTON: "RADIO_BUTTON",
+      DROPDOWN: "DROPDOWN",
+    },
     ComposedEmailType: {
       REPLY_AS_DRAFT: "REPLY_AS_DRAFT",
       STANDALONE_DRAFT: "STANDALONE_DRAFT",
