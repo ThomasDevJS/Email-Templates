@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves. D38 run (2026-11-12): date fields (section 5.9, Q85 to Q90; ADR-0004 Amendment 2026-11-12 "date fields"); Proposed until the owner approves.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves. D38 run (2026-11-12): date fields (section 5.9, Q85 to Q90; ADR-0004 Amendment 2026-11-12 "date fields"); Proposed until the owner approves. D39 run (2026-11-12, proposal): choice fields (section 5.10, Q91 to Q97; ADR-0004 Amendment 2026-11-12 "choice fields"); Proposed.
 Date: 2026-11-09, amended 2026-11-10, 2026-11-11 and 2026-11-12
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D38), docs/research/*.md, ADR-0001 to ADR-0009.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D39), docs/research/*.md, ADR-0001 to ADR-0009.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -430,6 +430,96 @@ Tests to add:
 - Web editor tests: menu item, dialog, chip text and screen reader name, panel line, round trip load and serialize of `{{date:X}}`, sample date in the preview.
 - Gmail by hand (test round): Q85 empty start in the popup and the side panel; Q86 value reaches `onPromptInsert` and `onPromptCompose`; Q87 the inserted date under 2 account time zones.
 
+### 5.10 Choice fields `{{choice:Label|A|B}}` (D39, proposal, added 2026-11-12)
+
+Proposed, proposal stage: the owner asked for ideas and has not decided to build (Q97). Owner idea 2026-11-12: a field where the sender picks one of the options the template author set. Mechanism, options and platform facts: ADR-0004 Amendment 2026-11-12 "choice fields". Builds on section 5.9 (slice 25, in build). Open: Q91 to Q97.
+
+Grammar:
+- `{{choice:Label|Option 1|Option 2}}`. Label rule as `{{ask:}}` and `{{date:}}` (1 to 40 characters, none of `{ } | \ < >` or a line break). Then 2 to 20 options, each after `|`, each trimmed and inner spaces collapsed, 1 to 100 characters, none of `| { } \ < >` or a line break, no two equal ignoring letter case. The whole token at most 2,200 characters. No default text. Spaces around `|` are allowed and dropped.
+- No escape inside a token exists, so `|`, `{` and `}` cannot be part of an option. `\{{choice:...}}` is the text escape and renders as text.
+- One identity per label (`promptKey`), shared by subject and body, one kind per identity. The same label twice with the same options: one field, one dropdown.
+- Allowed in the subject and in the body.
+
+Save checks (server through `scanBody`; the editor's Problems list runs the same function). `<label>` = first spelling, `<n>` = character of the token:
+
+| Code | Trigger | Text |
+|---|---|---|
+| `PH_CHOICE` | fewer than 2 options | 'The field "<label>" needs at least 2 options (at character <n>).' |
+| `PH_CHOICE` | more than 20 | 'The field "<label>" has <count> options. Use at most 20 (at character <n>).' |
+| `PH_CHOICE` | an empty option (`\|\|`, or `\|` at the end) | 'The field "<label>" has an empty option (at character <n>). Remove the extra \|.' |
+| `PH_CHOICE` | an option over 100 characters | 'An option of "<label>" is longer than 100 characters (at character <n>).' |
+| `PH_CHOICE` | two equal options | 'The field "<label>" lists "<option>" twice (at character <n>).' (`<option>` = first spelling) |
+| `PH_CHOICE` | `{ } \ < >` in an option, or the token over 2,200 characters (the lenient pass sees `choice:`) | 'The field at character <n> is not a valid choice. Options cannot contain { } \| \\ < >, and a field holds at most 20 options of 100 characters.' |
+| `PH_CHOICE_MISMATCH` (new) | the same choice label with other options, or another order | 'The field "<label>" lists other options at character <n>. Use the same options, or rename one of them.' |
+| `PH_FIELD_TYPE` | one label in two kinds | 'The field "<label>" is used as <kind> and as <kind> (at character <n>). Rename one of them.' with kinds "text", "a date", "a choice", in template order. For text and date this gives the sentence of section 5.9 word for word |
+| `PH_CASE` | `{{Choice:X\|A\|B}}` | "Use lower case: choice: (at character <n>)." |
+| `PH_LABEL`, `PH_TOO_MANY` | as today; `PH_TOO_MANY` counts every kind | built texts |
+
+Editor (wireframe 04):
+- "Insert field" menu, body and subject: new item after "Ask the sender for a date...": "Ask the sender to choose...". Dialog title "Ask the sender to choose". Fields: "Field name the sender sees" (hint "1 to 40 characters, for example Load status."), "Options, one per line" (a text area; hint "2 to 20 options, each up to 100 characters. The sender picks one; the first is not chosen for them."). Buttons "Insert" and "Cancel". Errors in the dialog, one at a time: "Enter 2 to 20 options, one per line.", "Each option can be up to 100 characters.", "An option cannot contain | { } \ < >.", 'The option "<option>" is listed twice.' Blank lines are dropped.
+- On a selected choice chip the menu shows "Edit choices..." (as "Edit default text..." on a variable chip); it opens the same dialog filled in, title "Edit choices", button "Save" (Q94).
+- Chip: class `ph ask choice`, visible text the label, then " (choice)" in the muted style of " or ". Screen reader: "Field: <label>, the sender chooses from <count> options".
+- Panel "The sender fills in": the label, then "choice: <option 1>, <option 2>, ..., used once" (options cut to 60 characters with "..."). Empty panel: "Nothing yet. To add a field the sender fills in, choose Insert field, then one of the Ask the sender items."
+- "Preview as me": the first option (a sample); history preview: the chip.
+- The subject input takes the token text at the caret, as for the other kinds.
+
+Gmail details card (wireframe 02):
+- A choice field is a `SelectionInput` of type `DROPDOWN`, field name `p-<n>`, title the label, no hint, in the place and order a text box would take. Items: "Choose..." (value "0", selected), then each option as written in the token (value its position "1" to "20"). A re-rendered card selects the chosen position again.
+- Reading: `formValue(event, "p-<n>")` (`stringInputs.value[0]`).
+- Check in `onPromptInsert` and `onPromptCompose` against the token of the body of the version the same `template.apply` call returned: "0" or nothing = not chosen; an integer 1 to the option count = that option; anything else = refused. Compose: nothing inserted, the card re-renders with the error line "Choose again from the list: <labels>." and those dropdowns reset to "Choose...". Side panel: throws "A choice is not in the template's list. Go back and open it again." The web app server never sees the answer (section 4.1); ADR-0004 Amendment "choice fields" section 4.
+- The 500-character check skips choice fields. One dropdown is one widget, in place of one text box (assumed; Q92).
+- The insert is the only enforced limit. The sender can change the word in the draft before sending.
+
+Rendering:
+- A chosen option is the field's value: its text, escaped like any value in the body (`formatValue`), plain in the subject.
+- Not chosen (row Insert, or "Choose..." left): removed with the 4 gap rules (D31), as an unfilled `{{ask:}}` (Q91 holds the alternative "insert the first option").
+- Row hint "n fields to fill" counts choice fields. Add-on text and subject previews: `[Label]`.
+
+Examples:
+
+| # | Input | Action | Result |
+|---|---|---|---|
+| 1 | Body `Status: {{choice:Status\|Approved\|Rejected\|On hold}}` | details card, picks "Rejected" (value "2") | `Status: Rejected` |
+| 2 | Body `Load is {{choice:Status\|ready\|late}} today.` | row Insert, no card | `Load is today.` (gap rule 1) |
+| 3 | Subject `Load {{choice:Status\|ready\|late}}` | picks "late" | subject `Load late` |
+| 4 | Body `{{choice:Size\|S\|M\|L}} and {{choice: size \| S \| M \| L }}` | one dropdown, picks "M" | `M and M` |
+| 5 | Body `{{choice:Size\|S\|M}} {{choice:Size\|S\|M\|L}}` | save | refused: 'The field "Size" lists other options at character 21. Use the same options, or rename one of them.' |
+| 6 | Body `{{choice:Size\|S}}` | save | refused: 'The field "Size" needs at least 2 options (at character 1).' |
+| 7 | Body `{{choice:Size\|S\|s}}` | save | refused: 'The field "Size" lists "S" twice (at character 1).' |
+| 8 | Body `{{ask:Size}} {{choice:Size\|S\|M}}` | save | refused: 'The field "Size" is used as text and as a choice (at character 14). Rename one of them.' |
+| 9 | Body of example 1, event value "7" (forged) | Insert | nothing inserted; card line "Choose again from the list: Status." |
+| 10 | Body `Hi & {{choice:Tone\|<b>bold</b>\|plain}}` | save | refused (the `<` in an option: the last `PH_CHOICE` text); the dialog refuses it before |
+
+Files an implementer touches. Every file but `date.ts` is also changed by slice 25 (`slice/25-date-field`): build after slice 25 merges and extend its `type` field from "text" and "date" to "choice".
+- `src/shared/placeholders/grammar.ts`: the `choice` alternative and groups 3 and 4; `options` on the prompt segment; `choiceToken(label, options)`.
+- `src/shared/placeholders/validate.ts`: `PH_CHOICE`, `PH_CHOICE_MISMATCH`, general `PH_FIELD_TYPE` sentence, `choice` in the lenient pass. Also changed by Q78 and slice 25.
+- `src/shared/placeholders/render.ts`: `type: "choice"` and `options` on `PromptField`; one field per identity.
+- `src/shared/placeholders/choice.ts` (new): `chosenOption(raw, options)`: "" for not chosen, the option for 1 to n, `null` for refused.
+- `src/web/editor/schema.ts`: atom attribute `options`, `tokenOf`, `placeholderAttrs`, `blankParts`, `chipLabel`.
+- `src/web/editor/picker.ts`: the menu item, "Edit choices...", subject item.
+- `src/web/ui/dialog.ts`: a dialog with a text box and a text area (`promptChoice`), or `promptText` extended by one optional text area.
+- `src/web/editor/commands.ts`: `setOptions(pos, options)` like `setFallback`.
+- `src/web/editor/load.ts`, `serialize.ts`: carry `options` through `data-ph` (no new logic if `tokenOf` handles it).
+- `src/web/views/preview.ts`: first option in "Preview as me"; `promptUses` returns kind and options.
+- `src/web/views/editor.ts`: panel line and empty text.
+- `src/web/styles.css`: " (choice)" suffix if `.ph-or` is not reused.
+- `src/addon/cards/spec.ts`: widget kind `select` (`name`, `title`, `items`, `selected`).
+- `src/addon/cards/render.ts`: `newSelectionInput().setType(DROPDOWN)` for kind `select`.
+- `src/addon/cards/details.ts`: `fieldInput` returns the dropdown for a choice field.
+- `src/addon/prompts.ts`: `tooLong` skips choices; answers map positions to options; the "Choose again" line.
+- `src/addon/flows.ts`, `src/addon/panel.ts`: the position check and the refusal.
+- `src/addon/event.ts`: no change (`formValue` reads it).
+- `src/server`: no change. Writes already call `scanBody` through `prepareFor`; `item.prompts` holds every label; answers never reach the server.
+- Docs: `docs/design/wording.md` (every text above), `docs/guide/editor-guide.md` (one section), `docs/guide/user-quick-start.md` ("A choice field opens a list. Leave it at Choose... to leave it out."), `docs/ops/test-round-1.md` (Gmail steps for Q92, Q93).
+
+Tests to add:
+- `test/unit/shared/placeholders.test.ts`: examples 4 to 8 and 10; the 7 `PH_CHOICE` triggers; spaces around `|`; the 2,200-character limit; `\{{choice:...}}`; a choice in the subject; `PH_TOO_MANY` over 3 kinds; a variable fallback with `|` still parses as before.
+- `test/unit/shared/choice.test.ts` (new): `chosenOption` for "0", "", "1", "20", "21", "-1", "1.5", "01", "abc".
+- `test/unit/shared/gaps.test.ts`: example 2.
+- Add-on card tests: the dropdown in field order with "Choose..." selected; re-render keeps the choice; examples 1, 3 and 9 through `rendered`; panel flow refusal sentence; widget count of a card with 20 choice fields.
+- Web editor tests: dialog checks, chip text and screen reader name, "Edit choices..." round trip, load and serialize of a choice token, panel line, preview first option.
+- Gmail by hand: Q92 dropdown in the popup and the side panel and its value in `onPromptInsert` and `onPromptCompose`; Q93 "Choose..." shown selected.
+
 ## 6. Server operations
 
 All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
@@ -683,6 +773,7 @@ Texts (new or changed; sentence case, no colon before a button):
 | Details card, fields line | "Fill in now, or leave blank and type in the draft." |
 | Details card, input title | the label, no asterisk |
 | Details card, date field (D38, Proposed, section 5.9) | a date picker titled with the label, no hint; inserts MM/DD/YYYY |
+| Details card, choice field (D39, proposal, section 5.10) | a dropdown titled with the label, first item "Choose..."; inserts the chosen option |
 | Details card, input hint of the implicit recipient first name | "Leave blank to use the To recipient's first name, when known." |
 | Details card, more than 20 fields | "This template has 23 fields. The first 20 are here. The rest are left out of the draft." |
 | Details card, values over 500 characters | "Shorten to 500 characters: Driver name" |
@@ -930,6 +1021,7 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | Hint lines, "Search" button (D36) (sections 4.4, 7.4) | 22, done (dev-5c018b8); follow-up 1: error icon and no "(!)", popup search row in Columns, finish-typing line plain, button icon guard (c1f2719) |
 | Folder tree: arrow toggles a row, second click closes the selected folder (section 8) | 23, in review (retry 1 at a26e7f3) |
 | 5.9 Date fields `{{date:Label}}` (D38): grammar, save checks, editor menu item and chip, Gmail date picker, MM/DD/YYYY | not built; next slice after the owner approves Q85 to Q90 |
+| 5.10 Choice fields `{{choice:Label\|A\|B}}` (D39, proposal): grammar, save checks, editor dialog and chip, Gmail dropdown, Insert check | not decided (Q97); after slice 25 |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -1326,6 +1418,13 @@ Result (owner, test round 1 part G, dev-56bf795, 2026-11-11): steps 2 to 8 pass;
 | Q88 (D38) | Editor entry: a "Text" or "Date" choice in one dialog (orchestrator default) or a second menu item "Ask the sender for a date..." | Second menu item: the dialog (`promptText`) has one text box, and the menu already lists every field kind. The owner's words ("some checkmark or special type of placeholder") fit both |
 | Q89 (D38) | A rollback (ADR-0005) to a build before date fields inserts `{{date:X}}` as plain text into drafts | Accept. Runbook line: after the first date template is saved, roll back only to a build with date fields, or first replace the date fields in those templates |
 | Q90 (D38) | A library page opened before the deploy shows `{{date:X}}` as plain text with a Problems line; its save still works on the server | Accept: a page reload fixes it. No version check between page and server exists today (`clientVersion` is sent, never compared) |
+| Q91 (D39) | A choice left at "Choose...", and every choice on a one-click row Insert: removed (as D31), or the first option inserted | Removed. A row Insert would otherwise always write option 1, which the sender may not have read ("Approved" where "Rejected" was meant). The row hint "n fields to fill" warns before the click |
+| Q92 (D39) | Does Gmail draw a `DROPDOWN` `SelectionInput` in the draft popup and in the side panel, and does its value reach `onPromptInsert` and the compose action `onPromptCompose`? The references name add-ons, not Gmail | Gmail test steps before a build merges. Fallback 1: `RADIO_BUTTON`. Fallback 2: a text box with the hint "One of: A, B, C" and the same position check by text |
+| Q93 (D39) | Does Gmail show "Choose..." as the selected first item, and may an item carry the value ""? The reference is silent | Use value "0" for "Choose..." (needs no answer on ""), mark it selected, and record in the Gmail test whether it shows |
+| Q94 (D39) | Editing the options of a chip already in the text | "Edit choices..." on a selected choice chip, the same dialog filled in, as "Edit default text..." works for variables today |
+| Q95 (D39) | The limit holds only at Insert: the draft stays editable, and the web app server never sees the answer | Accept. The check runs in the add-on's Insert callbacks (Apps Script on Google's servers), which the sender cannot change; sending answers to the server would add data to requests and logs for no stronger limit |
+| Q96 (D39) | Old builds during a deploy, as Q89 and Q90: an open old page shows the token as text; a rollback inserts it as text | Accept, same runbook line as Q89 |
+| Q97 (D39) | Build the choice field now, after slice 25, or later | After slice 25 passes Q85 to Q87 on dev: it reuses the field kind, the card code and the test steps; about the size of slice 25 (opinion) |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance

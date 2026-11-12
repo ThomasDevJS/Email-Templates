@@ -56,6 +56,10 @@ Placeholder menu ({{ or toolbar):
   Ask the sender for a date... -> dialog "Ask the sender for a date", same field (D38, Proposed, spec 5.9);
     chip [Pickup date (date)], screen reader "Field: Pickup date, a date the sender picks";
     panel line "Pickup date  date, used once"; "Preview as me" shows today as MM/DD/YYYY
+  Ask the sender to choose... -> dialog "Ask the sender to choose" (D39, proposal, spec 5.10):
+    "Field name the sender sees" + "Options, one per line" (2-20, each up to 100 chars) [Insert] [Cancel];
+    chip [Load status (choice)]; on a selected choice chip: Edit choices...;
+    panel line "Load status  choice: ready, late, used once"; "Preview as me" shows the first option
   Add default text... -> dialog "Default text" on a selected chip (0-80 chars)
 
 Conflict dialog (CONFLICT on save), title "This template changed":

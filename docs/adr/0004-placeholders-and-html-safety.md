@@ -1,6 +1,6 @@
 # ADR-0004: Placeholders and HTML safety
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)"); braces that join around a field (Proposed 2026-11-12, Q78, not built; see "Amendment 2026-11-12"); date fields D38 (Proposed 2026-11-12, Q85 to Q90, not built; see "Amendment 2026-11-12: date fields")
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed). Amendments 2026-11-10 at the end: errata and spike S4 (facts), subject (Accepted 2026-11-10 with the D24 rule, see "Amendment 2026-11-10: subject rule D24 and spike S5"); recipients D26 (Accepted 2026-11-11 with ADR-0006); one-click insert D31 (Accepted 2026-11-11, owner decision D31, built in slice 15; see "Amendment 2026-11-11: fields the sender fills, on one-click insert (D31)"); braces that join around a field (Proposed 2026-11-12, Q78, not built; see "Amendment 2026-11-12"); date fields D38 (Proposed 2026-11-12, Q85 to Q90, not built; see "Amendment 2026-11-12: date fields"); choice fields D39 (Proposed 2026-11-12, proposal stage, Q91 to Q97; see "Amendment 2026-11-12: choice fields")
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -433,6 +433,78 @@ No stored template can hold `{{date:` before this build: today's `scanBody` refu
 - Harder: a second field kind in the parser, the editor, the card and the render; one more Gmail check before prod (Q85, Q86).
 - Revisit if the owner wants another date format: one function and one wording row change.
 
+## Amendment 2026-11-12: choice fields `{{choice:Label|A|B}}` (D39)
+
+Status: Proposed (proposal stage). Owner idea 2026-11-12: "maybe we can have an option picker placeholder, e.g. we create a template for user that whenever is filling it in has option to choose from one of the options, so we limit him what he can insert (at least once editing the template in the UI). Ideas?" (D39). The owner has not decided to build it. Everything below and Q91 to Q97 stay Proposed. Spec 5.10 holds the texts, the examples, the files and the tests. Builds on the date-field amendment above (slice 25, in build): the field `type`, `PH_FIELD_TYPE` and the field-per-type card code are reused.
+
+### Platform facts (read 2026-11-12)
+
+| Fact | Source |
+|---|---|
+| `SelectionInput`: "An input field that allows choosing between a set of predefined options." "Available for Google Workspace add-ons and Google Chat apps." `addItem(text, value, selected)`: value is "The form input value that is sent via the callback"; `selected` set on one item only for a single-value input. `setType` defaults to `CHECKBOX`. The page states no item limit, no text length, nothing on an empty value, nothing on unique values | [A47] |
+| Card JSON `SelectionInput`: `items[]` "Supports up to 100 items." `DROPDOWN`: "A dropdown menu. Users can select one item from the menu." Available for "Google Chat apps and Google Workspace add-ons"; Gmail is not named. Required-widget validation exists "for dropdown and multiselect menus only" | [A46] |
+| Event object: single-value widgets arrive "as arrays with a single element" under `commonEventObject.formInputs.<name>.stringInputs.value`, the path `formValue` (`src/addon/event.ts`) already reads | [A13] |
+| Not stated: dropdown support in Gmail's draft popup and side panel; whether an item may carry the value ""; whether the value reaches a compose-action callback (Q68 verified text boxes only); widget count (assumed one, like a text box) | Q92, Q93 |
+
+### 1. Syntax
+
+Options:
+1. Options inside the token: `{{choice:Label|Option 1|Option 2}}`. The template is self-contained; export, import, history and restore carry it with no change.
+2. Options in item metadata, the token only `{{choice:Label}}`. Every write path, export format and version file would need a new field.
+3. Options in a shared list ("Statuses") managed by admins. A new data type, admin screen and permission rule; out of proportion for a proposal.
+
+Decision: option 1. The grammar has no escape inside a token (`\{{` works only in text), so an option cannot hold `|`, `{`, `}`, `\`, `<`, `>` or a line break; the editor dialog refuses them, the save check refuses them. The variable fallback's `|` is untouched: a choice token starts with `choice:`, a variable with `name.name`.
+
+Regex, alternatives in this order (group 1 kind of `ask`/`date`, 2 its label, 3 choice label, 4 choice options text, 5 variable name, 6 fallback):
+
+```
+/\\\{\{|\{\{ *(?:(ask|date): *([^{}|\\<>\r\n]{1,40}?)|choice: *([^{}|\\<>\r\n]{1,40}?) *\|([^{}\\<>\r\n]*?)|([a-z][a-z_]*\.[a-z][a-z_]*)(?: *\|([^{}\\<>\r\n]{0,80}?))?) *\}\}/g
+```
+
+Group 4 is split on `|` in code, each option trimmed and inner spaces collapsed. Count, length and duplicate rules are checked in `validate.ts`, so the regex has no nested quantifier and the messages are exact.
+
+Limits: 2 to 20 options (the details card shows at most 20 fields; Gmail allows 100 items, so 21 entries with "Choose..." fit); each option 1 to 100 characters; no two options equal after trim, collapse and lower case; the whole token at most 2,200 characters (20 x 100 plus separators and spaces).
+
+### 2. Save checks
+
+- New code `PH_CHOICE` for the option rules (fewer than 2, more than 20, an empty option, an option over 100 characters, a duplicate, a forbidden character, a token over 2,200 characters).
+- One identity, one kind: `PH_FIELD_TYPE` covers text, date and choice. Its sentence becomes general (spec 5.10); the date sentence of spec 5.9 is one case of it.
+- The same label twice as a choice with the same options (same order after trim and collapse): one field, one dropdown. With different options: refused, new code `PH_CHOICE_MISMATCH`. Rejected alternative: the first list wins, which hides the second list from the author.
+- Subject: allowed. `PH_TOO_MANY` counts every field kind (20).
+
+### 3. Gmail details card
+
+Options:
+1. `SelectionInput` type `DROPDOWN`, field name `p-<n>`, title the label; first item "Choose..." with value "0" and selected; then each option with value its position "1" to "20".
+2. `RADIO_BUTTON`. Shows every option at once; 20 options make a long card. Same widget count (assumed).
+3. Option text as the value. The value would carry user text through the event and need its own escaping and length care.
+
+Decision: option 1 with position values (option 3 rejected). The "Choose..." value is "0" because the reference does not say an empty value is allowed (Q93). A re-rendered card selects the chosen position again.
+
+### 4. Where the limit is enforced
+
+The answers of a details card never reach the web app server: `template.apply` takes `{ id, knownVersion, recipientEmailIfInternal, followUp }` (spec 4.1) and the add-on renders the draft itself. So the orchestrator's default "the server accepts only an option of the token" changes place: the check runs in the add-on's Insert callbacks (`onPromptInsert`, `onPromptCompose`), which run as Apps Script code on Google's servers, not in the browser or Gmail's card. The callback reads the body of the version the same `template.apply` call returned, parses the token, and accepts a value only if it is an integer from 1 to the number of options; "0" or no value means not chosen. Anything else: nothing is inserted; compose re-renders the card with an error line, the side panel throws one sentence. A stale card is caught first by the existing version check ("The template changed. Check the fields and press Insert again.").
+
+This is the only enforced limit. After the insert the draft is plain text in Gmail; the sender can change the chosen word by hand before sending. The feature limits what Insert writes, not what is sent.
+
+### 5. Unchosen field and one-click insert
+
+Options:
+1. Removed with the 4 gap rules (D31), on the row Insert and when "Choose..." stays selected. Same as `{{ask:}}` and `{{date:}}`.
+2. The first option is inserted. A one-click row Insert then always writes option 1, which the sender may never have read ("Approved" in place of "Rejected").
+
+Recommendation: option 1 (Q91). The row hint "n fields to fill" warns before the click.
+
+### 6. Rollout
+
+As the date field: no stored template holds `{{choice:` (today's `scanBody` refuses it), so nothing is migrated; an old open web page shows the token as text and its save still works (as Q90); a rollback below the build inserts the token as text (as Q89). Q96.
+
+### Consequences of the amendment
+
+- Easier: a template fixes the wording of a status, size or answer; the sender picks instead of typing.
+- Harder: a third field kind; a dialog with a list in the editor; one more Gmail check (Q92, Q93).
+- The limit holds only at Insert (section 4).
+
 ## Consequences
 
 - Easier: one grammar, one regex, one registry; unresolved values become prompts, so nothing ships empty. Server-side sanitizing keeps the stored body safe for every client.
@@ -444,6 +516,7 @@ No stored template can hold `{{date:` before this build: today's `scanBody` refu
 
 - Q78 (spec section 15, Amendment 2026-11-12): save rule for braces that join around a field. Recommendation: option 1.
 - Q85 to Q90 (spec section 15, Amendment 2026-11-12: date fields): picker with no date, picker in the Gmail surfaces, time of day of the value, editor entry, rollback, old web pages.
+- Q91 to Q97 (spec section 15, Amendment 2026-11-12: choice fields): unchosen field, dropdown in Gmail surfaces, empty value, rendering of a choice in the preview, editing chips, rollout, whether to build at all.
 - Q20, Q21 (spec section 15): closed 2026-11-10. Q20 by spike S5 (one response, no new scope); Q21 by D24.
 - Q25 (spec section 15): prompts used only in the subject are asked while "Replace the subject" is off. Recommendation: accept in v1.
 
@@ -453,6 +526,7 @@ No stored template can hold `{{date:` before this build: today's `scanBody` refu
 
 ## Sources
 
+- [A47] https://developers.google.com/apps-script/reference/card-service/selection-input, read 2026-11-12.
 - [A45] https://developers.google.com/apps-script/reference/card-service/date-picker, read 2026-11-12.
 - [A46] https://developers.google.com/workspace/add-ons/reference/rpc/google.apps.card.v1 (`DateTimePicker`, `DateTimePickerType`, Columns), read 2026-11-12.
 - [A13] re-read 2026-11-12 for `DateInput`, the legacy `formInput` note and `timeZone`.

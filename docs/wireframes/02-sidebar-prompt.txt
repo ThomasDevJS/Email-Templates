@@ -46,6 +46,10 @@ Details card, new draft (To and subject empty), template with fields and recipie
 Date field (D38, Proposed, spec 5.9): in the field's place, a DatePicker titled with the label, starting empty (Q85):
 | Pickup date                          |  DatePicker p-<n>, date only, no hint
 | [ MM/DD/YYYY            ] [cal]      |  picked 12 Nov 2026 -> "11/12/2026" in the draft; none -> removed
+Choice field (D39, proposal, spec 5.10): in the field's place, a dropdown titled with the label:
+| Load status                          |  SelectionInput DROPDOWN p-<n>, no hint
+| [ Choose...                     v ]  |  items: Choose... (value 0, selected), ready (1), late (2);
+|                                      |  chosen -> its text in the draft; Choose... -> removed
 More than 20 fields: 20 inputs, then "This template has 23 fields. The first 20 are here. The rest are left
 out of the draft."
 No fields: no Fields section. No subject: no subject switch. No recipients: no Recipients section.
