@@ -22,6 +22,7 @@ import {
   fallbackProblem,
   labelProblem,
   pickerItems,
+  subjectPickerItems,
 } from "../../../src/web/editor/picker";
 import {
   FONT_FAMILIES,
@@ -30,6 +31,7 @@ import {
   placeholderAttrs,
   schema,
   styleProperty,
+  tokenOf,
 } from "../../../src/web/editor/schema";
 import {
   backslashProblems,
@@ -100,6 +102,21 @@ describe("placeholder atom in the editor", () => {
     expect(ed.html()).toBe(
       "<p>{{ask:Load number}} {{recipient.first_name|there}}</p>",
     );
+  });
+
+  it("draws a date field as the label and a muted (date); load and save keep {{date:}} (spec 5.9)", () => {
+    const ed = open("<p>On {{ date: Pickup  date }} and {{ask:Pickup}}</p>");
+    const [date, ask] = [...ed.view.dom.querySelectorAll(".ph")];
+    expect(date?.className).toBe("ph ask date");
+    expect(date?.textContent).toBe("Pickup date (date)");
+    expect(date?.querySelector(".ph-or")?.textContent).toBe(" (date)");
+    expect(date?.getAttribute("aria-label")).toBe(
+      "Field: Pickup date, a date the sender picks",
+    );
+    expect(date?.getAttribute("data-ph")).toBe("{{date:Pickup date}}");
+    expect(ask?.className).toBe("ph ask");
+    expect(ed.html()).toBe("<p>On {{date:Pickup date}} and {{ask:Pickup}}</p>");
+    expect(open(ed.html()).html()).toBe(ed.html());
   });
 
   it("bold across a token yields <strong>{{sender.name}}</strong>", () => {
@@ -422,6 +439,13 @@ describe("schema helpers and picker rules", () => {
       name: "",
       label: "Date",
       fallback: null,
+      type: "text",
+    });
+    expect(placeholderAttrs("{{ date: Pickup  date }}")).toEqual({
+      name: "",
+      label: "Pickup date",
+      fallback: null,
+      type: "date",
     });
     expect(placeholderAttrs("x {{sender.name}}")).toBeNull();
     expect(placeholderAttrs("\\{{")).toBeNull();
@@ -429,15 +453,36 @@ describe("schema helpers and picker rules", () => {
       className: "ph",
       label: "foo.bar",
       fallback: null,
+      muted: null,
     });
     expect(blankParts({ name: "", label: "Date", fallback: null })).toEqual({
       className: "ph ask",
       label: "Date",
       fallback: null,
+      muted: null,
     });
     expect(
       blankParts({ name: "sender.phone", label: "", fallback: "n/a" }),
-    ).toEqual({ className: "ph", label: "Sender phone", fallback: "n/a" });
+    ).toEqual({
+      className: "ph",
+      label: "Sender phone",
+      fallback: "n/a",
+      muted: " or ",
+    });
+    const pickup = {
+      name: "",
+      label: "Pickup",
+      fallback: null,
+      type: "date",
+    } as const;
+    expect(blankParts(pickup)).toEqual({
+      className: "ph ask date",
+      label: "Pickup",
+      fallback: null,
+      muted: " (date)",
+    });
+    expect(chipLabel(pickup)).toBe("Field: Pickup, a date the sender picks");
+    expect(tokenOf(pickup)).toBe("{{date:Pickup}}");
     expect(chipLabel({ name: "", label: "Date", fallback: null })).toBe(
       "Field: Date, the sender fills it in",
     );
@@ -461,7 +506,7 @@ describe("schema helpers and picker rules", () => {
     expect(fallbackProblem("there")).toBe("");
   });
 
-  it("lists the 5 names, Ask the sender and, on a selected variable, Add default text", () => {
+  it("lists the 5 names, Ask the sender, Ask the sender for a date and, on a selected variable, Add default text", () => {
     const ed = open("<p>{{sender.name}}</p>");
     expect(pickerItems(ed).map((item) => item.label)).toEqual([
       "Sender name",
@@ -470,6 +515,7 @@ describe("schema helpers and picker rules", () => {
       "Sender department",
       "Recipient first name",
       "Ask the sender...",
+      "Ask the sender for a date...",
     ]);
     ed.view.dispatch(
       ed.view.state.tr.setSelection(
@@ -560,6 +606,38 @@ describe("held selection for dialog inserts (slice 8b retry 1)", () => {
     caret(ed, 1);
     await answer("Load number");
     expect(ed.html()).toBe("<p>Hello{{ask:Load number}} world</p>");
+  });
+
+  it("Ask the sender for a date: its dialog texts, then a date chip at the held caret", async () => {
+    const ed = open("<p>Hello world</p>");
+    caret(ed, 6);
+    pickerItems(ed)
+      .find((item) => item.label === "Ask the sender for a date...")
+      ?.run();
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog?.textContent).toContain("Ask the sender for a date");
+    expect(dialog?.textContent).toContain("Field name the sender sees");
+    expect(dialog?.textContent).toContain(
+      "1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY.",
+    );
+    caret(ed, 1);
+    await answer("Pickup  date");
+    expect(ed.html()).toBe("<p>Hello{{date:Pickup date}} world</p>");
+  });
+
+  it("the subject picker inserts {{date:Label}} at the caret", async () => {
+    const input = document.createElement("input");
+    document.body.append(input);
+    input.value = "Load ready ";
+    const items = subjectPickerItems(input);
+    expect(items.map((item) => item.label).slice(-2)).toEqual([
+      "Ask the sender...",
+      "Ask the sender for a date...",
+    ]);
+    items.at(-1)?.run();
+    await answer("Pickup date");
+    expect(input.value).toBe("Load ready {{date:Pickup date}}");
+    input.remove();
   });
 
   it("sets the fallback on the chip that was selected when the dialog opened", async () => {

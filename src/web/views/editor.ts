@@ -509,7 +509,7 @@ export function editorView(
             { class: "hint" },
             readOnly
               ? "None."
-              : "Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender.",
+              : "Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender or Ask the sender for a date.",
           )
         : h(
             "ul",
@@ -519,7 +519,11 @@ export function editorView(
                 "li",
                 {},
                 h("span", {}, use.label),
-                h("span", { class: "ask-count" }, usedText(use.count)),
+                h(
+                  "span",
+                  { class: "ask-count" },
+                  usedText(use.count, use.type),
+                ),
               ),
             ),
           ),

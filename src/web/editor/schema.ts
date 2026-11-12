@@ -13,9 +13,11 @@ import { bulletList, listItem, orderedList } from "prosemirror-schema-list";
 import { placeholderInfo } from "../../shared/placeholders/registry";
 import {
   collapse,
+  dateToken,
   parseText,
   promptToken,
   variableToken,
+  type PromptType,
 } from "../../shared/placeholders/grammar";
 
 /**
@@ -169,11 +171,13 @@ const tableCell: NodeSpec = {
   toDOM: (node) => [node.attrs["header"] === true ? "th" : "td", 0],
 };
 
-/** Attributes of the placeholder atom. `name` is empty for an `ask:` prompt. */
+/** Attributes of the placeholder atom. `name` is empty for an `ask:` or `date:` prompt. */
 export interface PlaceholderAttrs {
   readonly name: string;
   readonly label: string;
   readonly fallback: string | null;
+  /** A prompt's type (spec 5.9); absent means text. */
+  readonly type?: PromptType;
 }
 
 /** Attributes of the single token in `token`, or null when `token` is not exactly one token. */
@@ -184,36 +188,64 @@ export function placeholderAttrs(token: string): PlaceholderAttrs | null {
   if (only.kind === "variable")
     return { name: only.name, label: "", fallback: only.fallback };
   if (only.kind === "prompt")
-    return { name: "", label: collapse(only.label), fallback: null };
+    return {
+      name: "",
+      label: collapse(only.label),
+      fallback: null,
+      type: only.type,
+    };
   return null;
 }
 
 export function tokenOf(attrs: PlaceholderAttrs): string {
-  return attrs.name === ""
-    ? promptToken(attrs.label)
-    : variableToken(attrs.name, attrs.fallback);
+  if (attrs.name !== "") return variableToken(attrs.name, attrs.fallback);
+  return attrs.type === "date"
+    ? dateToken(attrs.label)
+    : promptToken(attrs.label);
 }
 
-/** A placeholder drawn as a blank (design system "Placeholder"): its class, its label and its fallback. */
+/**
+ * A placeholder drawn as a blank (design system "Placeholder"): its class, its label, then muted text and what
+ * follows it: " or " and the fallback, or " (date)" for a date field (spec 5.9).
+ */
 export interface BlankParts {
-  readonly className: "ph" | "ph ask";
+  readonly className: "ph" | "ph ask" | "ph ask date";
   readonly label: string;
   readonly fallback: string | null;
+  readonly muted: string | null;
 }
 
 export function blankParts(attrs: PlaceholderAttrs): BlankParts {
+  if (attrs.name === "" && attrs.type === "date")
+    return {
+      className: "ph ask date",
+      label: attrs.label,
+      fallback: null,
+      muted: " (date)",
+    };
   if (attrs.name === "")
-    return { className: "ph ask", label: attrs.label, fallback: null };
+    return {
+      className: "ph ask",
+      label: attrs.label,
+      fallback: null,
+      muted: null,
+    };
   return {
     className: "ph",
     label: placeholderInfo(attrs.name)?.label ?? attrs.name,
     fallback: attrs.fallback,
+    muted: attrs.fallback === null ? null : " or ",
   };
 }
 
-/** Accessible name: "Field: Load number, the sender fills it in", "Field: Recipient first name, default text there". */
+/**
+ * Accessible name: "Field: Load number, the sender fills it in", "Field: Pickup date, a date the sender picks",
+ * "Field: Recipient first name, default text there".
+ */
 export function chipLabel(attrs: PlaceholderAttrs): string {
   const { label, fallback } = blankParts(attrs);
+  if (attrs.name === "" && attrs.type === "date")
+    return `Field: ${label}, a date the sender picks`;
   if (attrs.name === "") return `Field: ${label}, the sender fills it in`;
   return fallback === null
     ? `Field: ${label}`
@@ -230,6 +262,7 @@ const placeholder: NodeSpec = {
     name: { default: "" },
     label: { default: "" },
     fallback: { default: null },
+    type: { default: "text" },
   },
   parseDOM: [
     {
@@ -240,7 +273,7 @@ const placeholder: NodeSpec = {
   ],
   toDOM: (node): DOMOutputSpec => {
     const attrs = node.attrs as PlaceholderAttrs;
-    const { className, label, fallback } = blankParts(attrs);
+    const { className, label, fallback, muted } = blankParts(attrs);
     return [
       "span",
       {
@@ -251,10 +284,9 @@ const placeholder: NodeSpec = {
         "aria-label": chipLabel(attrs),
       },
       label,
-      ...(fallback === null
-        ? []
-        : [["span", { class: "ph-or" }, " or "] as DOMOutputSpec, fallback]),
-    ];
+      ...(muted === null ? [] : [["span", { class: "ph-or" }, muted]]),
+      ...(fallback === null ? [] : [fallback]),
+    ] as DOMOutputSpec;
   },
 };
 
