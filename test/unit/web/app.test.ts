@@ -66,8 +66,22 @@ const titleOf = (element: Element | null | undefined) =>
 const sideTree = () =>
   document.querySelector('#side [role="tree"]') as HTMLElement;
 
+/**
+ * Waits for `check`, then for the page to take clicks again: a call still running after the awaited state (a
+ * follow-up read, a background refresh) would drop the next click (D37 loader). Use `vi.waitFor` for a state that
+ * only exists during a call.
+ */
+/** `vi.waitFor` at the pace of `until`, for a state that only exists during a call. */
+const NOW = { timeout: 2000, interval: 5 };
+
 async function until(check: () => void): Promise<void> {
   await vi.waitFor(check, { timeout: 2000, interval: 5 });
+  await vi.waitFor(
+    () => {
+      expect(document.querySelector("[data-blocked]")).toBeNull();
+    },
+    { timeout: 2000, interval: 5 },
+  );
 }
 
 function key(
@@ -120,9 +134,9 @@ function otherTabSave(id: string, base: number): Promise<{ ok: boolean }> {
 describe("library (screen 3)", () => {
   it("shows 8 skeleton rows with aria-busy, then the grid, header and tree", async () => {
     await boot("/?latency=30#/library");
-    await until(() => {
+    await vi.waitFor(() => {
       expect(main().querySelectorAll(".skeleton-row")).toHaveLength(8);
-    });
+    }, NOW);
     expect(main().querySelector(".list")?.getAttribute("aria-busy")).toBe(
       "true",
     );

@@ -37,8 +37,22 @@ const status = () =>
     .map((node) => node.textContent)
     .join(" ");
 
+/**
+ * Waits for `check`, then for the page to take clicks again: a call still running after the awaited state (a
+ * follow-up read, a background refresh) would drop the next click (D37 loader). Use `vi.waitFor` for a state that
+ * only exists during a call.
+ */
+/** `vi.waitFor` at the pace of `until`, for a state that only exists during a call. */
+const NOW = { timeout: 2000, interval: 5 };
+
 async function until(check: () => void): Promise<void> {
   await vi.waitFor(check, { timeout: 2000, interval: 5 });
+  await vi.waitFor(
+    () => {
+      expect(document.querySelector("[data-blocked]")).toBeNull();
+    },
+    { timeout: 2000, interval: 5 },
+  );
 }
 
 function key(target: Element, name: string): void {
@@ -524,9 +538,9 @@ describe("folders and grants", () => {
     button("New top-level folder").click();
     (dialog().querySelector("input") as HTMLInputElement).value = "Legal";
     button("OK", dialog()).click();
-    await until(() => {
+    await vi.waitFor(() => {
       expect(status()).toContain("Creating folder...");
-    });
+    }, NOW);
     // D37: the page takes no clicks while the write runs.
     button("Export and import").click();
     expect(button("Export and import").getAttribute("aria-selected")).toBe(

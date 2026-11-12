@@ -42,8 +42,19 @@ const status = () =>
     .map((node) => node.textContent)
     .join(" ");
 
+/**
+ * Waits for `check`, then for the page to take clicks again: a call still running after the awaited state (a
+ * follow-up read, a background refresh) would drop the next click (D37 loader). Use `vi.waitFor` for a state that
+ * only exists during a call.
+ */
 async function until(check: () => void): Promise<void> {
   await vi.waitFor(check, { timeout: 2000, interval: 5 });
+  await vi.waitFor(
+    () => {
+      expect(document.querySelector("[data-blocked]")).toBeNull();
+    },
+    { timeout: 2000, interval: 5 },
+  );
 }
 
 function button(label: string, root: ParentNode = document): HTMLButtonElement {
@@ -374,13 +385,16 @@ describe("export and import tab", () => {
     button("Export").click();
     return { clicks, createUrl };
   };
-  const waitStatus = (part: string | RegExp) =>
-    vi.waitFor(
+  // Waits for the status, then for the page to take clicks again (slice 27: the second Export click was dropped).
+  const waitStatus = async (part: string | RegExp) => {
+    await vi.waitFor(
       () => {
         expect(status()).toMatch(part);
       },
       { timeout: 4000, interval: 10 },
     );
+    await until(() => undefined);
+  };
 
   it("retries a start answered BUSY and then downloads the whole file", async () => {
     const { clicks } = await exportWith("fail=BUSY&failTimes=2");

@@ -40,8 +40,22 @@ async function boot(url: string): Promise<void> {
 const main = () => document.getElementById("main") as HTMLElement;
 const byId = (id: string) => document.getElementById(id) as HTMLInputElement;
 
+/**
+ * Waits for `check`, then for the page to take clicks again: a call still running after the awaited state (a
+ * follow-up read, a background refresh) would drop the next click (D37 loader). Use `vi.waitFor` for a state that
+ * only exists during a call.
+ */
+/** `vi.waitFor` at the pace of `until`, for a state that only exists during a call. */
+const NOW = { timeout: 2000, interval: 5 };
+
 async function until(check: () => void): Promise<void> {
   await vi.waitFor(check, { timeout: 2000, interval: 5 });
+  await vi.waitFor(
+    () => {
+      expect(document.querySelector("[data-blocked]")).toBeNull();
+    },
+    { timeout: 2000, interval: 5 },
+  );
 }
 
 function key(target: Element, name: string, init: KeyboardEventInit = {}) {
@@ -144,11 +158,11 @@ describe("editor texts", () => {
 describe("editor layout (slice 8b)", () => {
   it("shows a skeleton while loading, then the folder path, the saved state and the panel", async () => {
     await boot("/?latency=30#/edit/T-QUOTE");
-    await until(() => {
+    await vi.waitFor(() => {
       expect(
         main().querySelector(".editor-slot")?.getAttribute("aria-busy"),
       ).toBe("true");
-    });
+    }, NOW);
     expect(
       main().querySelectorAll(".editor-slot .bone").length,
     ).toBeGreaterThan(5);

@@ -43,5 +43,8 @@ describe("typedPosition (the text-box fallback)", () => {
     expect(typedPosition("rejected", ["Approved", "Rejected"])).toBeNull();
     expect(typedPosition("2", ["Approved", "Rejected"])).toBeNull();
     expect(typedPosition("2", ["1", "2"])).toBe("2");
+    expect(typedPosition(" Option  1 ", ["Option 1", "Option 2"])).toBe("1");
+    expect(typedPosition("Option\t 2", ["Option 1", "Option  2"])).toBe("2");
+    expect(typedPosition("option 1", ["Option 1"])).toBeNull();
   });
 });

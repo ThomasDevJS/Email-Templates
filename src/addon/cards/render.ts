@@ -97,14 +97,22 @@ function toButton(spec: ButtonSpec): GoogleAppsScript.Card_Service.TextButton {
   return button;
 }
 
-function toIcon(
+type DecoratedText = GoogleAppsScript.Card_Service.DecoratedText;
+
+/** `text` with a start icon; a runtime that refuses the icon keeps the text, without the icon (Q80). */
+function withIcon(
+  text: DecoratedText,
   name: IconName,
   alt?: string,
-): GoogleAppsScript.Card_Service.IconImage {
-  const icon = CardService.newIconImage().setMaterialIcon(
-    CardService.newMaterialIcon().setName(name),
-  );
-  return alt === undefined ? icon : icon.setAltText(alt);
+): DecoratedText {
+  try {
+    const icon = CardService.newIconImage().setMaterialIcon(
+      CardService.newMaterialIcon().setName(name),
+    );
+    return text.setStartIcon(alt === undefined ? icon : icon.setAltText(alt));
+  } catch {
+    return text;
+  }
 }
 
 /** Hint and error lines (D36): a wrapped DecoratedText, the tone's icon at the start, the escaped text in its color. */
@@ -119,7 +127,7 @@ function toItem(spec: Extract<Widget, { kind: "item" }>) {
   let item = CardService.newDecoratedText()
     .setText(markup(spec.text))
     .setWrapText(true);
-  if (spec.icon !== undefined) item = item.setStartIcon(toIcon(spec.icon));
+  if (spec.icon !== undefined) item = withIcon(item, spec.icon);
   if (spec.topLabel !== undefined)
     item = item.setTopLabel(escapeText(spec.topLabel));
   if (spec.bottomLabel !== undefined)
@@ -259,10 +267,13 @@ function toWidget(spec: Single): CardWidget {
     case "text":
       if (spec.tone === undefined)
         return CardService.newTextParagraph().setText(markup(spec.text));
-      return CardService.newDecoratedText()
-        .setText(colored(TONES[spec.tone].color, spec.text))
-        .setWrapText(true)
-        .setStartIcon(toIcon(TONES[spec.tone].icon, TONES[spec.tone].alt));
+      return withIcon(
+        CardService.newDecoratedText()
+          .setText(colored(TONES[spec.tone].color, spec.text))
+          .setWrapText(true),
+        TONES[spec.tone].icon,
+        TONES[spec.tone].alt,
+      );
     case "item":
       return toItem(spec);
     case "buttons":

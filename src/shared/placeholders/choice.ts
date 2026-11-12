@@ -1,3 +1,5 @@
+import { collapse } from "./grammar";
+
 /**
  * A dropdown answer of a choice field (spec 5.10, ADR-0004 Amendment 2026-11-12 "choice fields" section 4). `raw` is
  * the item value Gmail sends: a position as a string or a number, alone or first in an array, or nothing. "0" and
@@ -60,15 +62,16 @@ export function chosenOption(
 }
 
 /**
- * The position of a typed option (the text box that stands in for a dropdown): the trimmed text must equal one
- * option as written. "" gives "0" (not chosen); any other text gives null (refused).
+ * The position of a typed option (the text box that stands in for a dropdown): the text, trimmed with inner spaces
+ * collapsed, must equal one option collapsed the same way, letter case as written. "" gives "0" (not chosen); any
+ * other text gives null (refused).
  */
 export function typedPosition(
   text: string,
   options: readonly string[],
 ): string | null {
-  const typed = text.trim();
+  const typed = collapse(text);
   if (typed === "") return NOT_CHOSEN;
-  const index = options.indexOf(typed);
+  const index = options.findIndex((option) => collapse(option) === typed);
   return index === -1 ? null : String(index + 1);
 }
