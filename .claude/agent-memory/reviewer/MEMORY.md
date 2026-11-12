@@ -98,6 +98,7 @@
 - Slice 24 loader D37 (2026-11-11): FAIL (815a0cb). 72 files, 2003 tests, index.html 383.2 KB, Lighthouse 100x16. busy.ts capture guard on main+side, 300 ms bar, 20 s max; itemSaved replaces save reload; Admin grants cache + app.background. Must fix: keys typed during save dropped (base kept, dirty); toast Retry restore x2 = 2 writes (history.ts:173). Retry 1 FAIL (78172c8): typing passes in text fields (TYPING_EVENTS), per-call 20 s, restoring guard; but Ctrl+K and {{ open link dialog/field menu during a call. Retry 2 PASS (ae2ff12, 2008 tests): pageBusy ([data-blocked] ancestor) guards Mod-k and bracesRule.
 - Slice 25 date field D38 (2026-11-12): PASS (a4dc24f). 73 files, 2055 tests (1 flaky admin.test:384 under load), Code.js 377.2 KB, index.html 384.9 KB, Lighthouse 100x16. shared/placeholders/date.ts dateText (round to UTC day) + typedDateMs; addon dateValue/badDates; base vs head fuzz 3,102 bodies 0 diffs.
 - Slice 26 choice field + brace rule D39/D40 (2026-11-12): PASS (f4e0697). 76 files, 2118 tests, Code.js 385.6 KB, index.html 390.3 KB (+5.35 KB: picker, validate, choice). choice.ts chosenOption (positions 1-20 only), typedPosition (p-<n>-text box), skeleton.ts joinedBraces. Flake adminReports.test:434 1/9. Minors: U+E000 literal, cross-paragraph brace refusal.
+- Slice 27 six minors (2026-11-12): PASS (449ad4b). 2119 tests, Code.js 385.8 KB, index.html 390.3 KB. render.ts withIcon try/catch; MARKER "\uE000"; typedPosition uses collapse(). Web `until` waits for [data-blocked] to clear. Minor: until doc comment stacked above NOW in 3 web tests.
 ## Check next
 - Admin can duplicate others' private templates (D11, open since 4b). UNKNOWN_OP reply quotes the op back. Spec 11 lacks calls/timing fields.
 
@@ -106,7 +107,7 @@
 - Read the Accepted ADR before calling an admin right a defect (ADR-0003 C: admin = manage everywhere, private included).
 - Handler-level DENIED (list ops) bypasses dispatch recordDenied; check the audit row for every DENIED path.
 - Check length bounds on every stored client string (principal keys had none for 4 slices).
-- Probe files: never use Python splitlines() on files with U+2028; split on the newline character.
+- Probe files: never use Python splitlines() on files with U+2028. Invisible-char scan: python unicodedata Cf/Co + PUA (grep -P cannot take \x{E000}). Commit memory in the worktree only; never copy to the main checkout.
 - Side files under a rev property: check missing-property behaviour on old data and the writer order (file, then property).
 - Server props are a per-request snapshot since 4b (runtime.ts snapshotProps, triggers live). Any read-check-write across executions under a lock must read live.
 - Log fields from clients (requestId, op, timing): check format and length on the server, both surfaces.
