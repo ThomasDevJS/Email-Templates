@@ -43,10 +43,12 @@ Details card, new draft (To and subject empty), template with fields and recipie
 | [Insert]          (Edit in library)  |  FixedFooter: primary FILLED #2a3c49; secondary OUTLINED,
 +--------------------------------------+  only at edit or manage level
 
-Date field (D38, Proposed, spec 5.9): in the field's place, a DatePicker titled with the label, starting empty (Q85):
+Date field (D38, built slice 25, spec 5.9; owner saw it in popup and side panel): a DatePicker titled with the label,
+starting empty (Q85). Fallback when the picker cannot be built: a text box, hint "MM/DD/YYYY":
 | Pickup date                          |  DatePicker p-<n>, date only, no hint
 | [ MM/DD/YYYY            ] [cal]      |  picked 12 Nov 2026 -> "11/12/2026" in the draft; none -> removed
-Choice field (D39, proposal, spec 5.10): in the field's place, a dropdown titled with the label:
+Choice field (D39, built slice 26, spec 5.10; owner saw it in popup and side panel): a dropdown titled with the label.
+Fallback when it cannot be built: a text box p-<n>-text, hint "One of: ready, late":
 | Load status                          |  SelectionInput DROPDOWN p-<n>, no hint
 | [ Choose...                     v ]  |  items: Choose... (value 0, selected), ready (1), late (2);
 |                                      |  chosen -> its text in the draft; Choose... -> removed

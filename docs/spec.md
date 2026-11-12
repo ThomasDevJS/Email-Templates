@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves. D38 run (2026-11-12): date fields (section 5.9, Q85 to Q90; ADR-0004 Amendment 2026-11-12 "date fields"); Proposed until the owner approves. D39 run (2026-11-12, proposal): choice fields (section 5.10, Q91 to Q97; ADR-0004 Amendment 2026-11-12 "choice fields"); Proposed.
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves. D38 run (2026-11-12): date fields (section 5.9, Q85 to Q90; ADR-0004 Amendment 2026-11-12 "date fields"); Proposed until the owner approves. D39 run (2026-11-12, proposal): choice fields (section 5.10, Q91 to Q97; ADR-0004 Amendment 2026-11-12 "choice fields"); Proposed. Errata run 7 (2026-11-12): slices 23 to 26 as built at 78e3317; sections 5.9 and 5.10 and the three ADR-0004 amendments of 2026-11-12 Accepted (owner decisions D38, D39, D40, Q78, Q91); sections 7, 8, 13, 15 updated.
 Date: 2026-11-09, amended 2026-11-10, 2026-11-11 and 2026-11-12
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D39), docs/research/*.md, ADR-0001 to ADR-0009.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D40), docs/research/*.md, ADR-0001 to ADR-0009.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -351,7 +351,7 @@ Enforcement points of `recipientsExternal` (built in slice 11, `recipientPolicy`
 
 ### 5.9 Date fields `{{date:Label}}` (D38, added 2026-11-12)
 
-Proposed until the owner approves. Owner request 2026-11-12, after every test on dev-744bd1d passed: a field type that opens a calendar picker and inserts the date as MM/DD/YYYY. Mechanism, options and platform facts: ADR-0004 Amendment 2026-11-12 "date fields". Not built. Open: Q85 to Q90.
+Accepted 2026-11-12 (owner decision D38; built in slice 25, review PASS, merged; owner test on dev-e93a085 passed, see Q86 and Q87). Owner request 2026-11-12, after every test on dev-744bd1d passed: a field type that opens a calendar picker and inserts the date as MM/DD/YYYY. Mechanism, options and platform facts: ADR-0004 Amendment 2026-11-12 "date fields". Texts below as built at e93a085. Still open: Q85, Q87 (other time zones), Q89, Q90.
 
 Grammar:
 - `{{date:Label}}` asks the sender for a date. Label rule as `{{ask:Label}}`: 1 to 40 characters after trim, none of `{ } | \ < >` or a line break; spaces after `{{`, after `date:` and before `}}` are allowed. No default text. `\{{date:X}}` is the escape and renders as text.
@@ -362,7 +362,7 @@ Save validation (server through `scanBody`; the editor's Problems list runs the 
 
 | Code | Trigger | Text |
 |---|---|---|
-| `PH_FIELD_TYPE` (new) | one identity used as `{{ask:}}` and as `{{date:}}` in one template | 'The field "<label>" is used as text and as a date (at character <n>). Rename one of them.' (`<label>` = first spelling, `<n>` = the later token) |
+| `PH_FIELD_TYPE` (new) | one identity used as `{{ask:}}` and as `{{date:}}` in one template | 'The field "<label>" is used as <kind> and as <kind> (at character <n>). Rename one of them.' Kinds "text", "a date", "a choice" in template order (slice 26): "used as text and as a date" when the text field comes first, "used as a date and as text" when the date comes first. `<label>` = first spelling, `<n>` = the later token |
 | `PH_CASE` | `{{Date:X}}`, `{{DATE:X}}` | "Use lower case: date: (at character <n>)." |
 | `PH_FALLBACK_ASK` | `{{date:X\|y}}` | "A field the sender fills in cannot have default text (at character <n>)." (built text, unchanged) |
 | `PH_LABEL` | empty or over 40 characters | built text, unchanged |
@@ -375,9 +375,11 @@ Editor (wireframe 04):
 - "Preview as me": the date field shows today's date in the browser's local time as MM/DD/YYYY (a sample); text fields keep `[Label]`. History preview: the chip.
 
 Gmail details card (compose popup and side panel, wireframe 02):
-- A date field is a `DatePicker` (Card Service, date only) named `p-<n>` with the label as title, in the place and order a text box would take. No hint line. It starts with no date (`setValueInMsSinceEpoch` not called; Q85). A re-rendered card sets the picked value back.
-- Reading: `commonEventObject.formInputs["p-<n>"].dateInput.msSinceEpoch`, a number or a numeric string. Missing or not finite: no date.
-- Conversion (`dateText`): round the ms to the nearest whole UTC day, then month, day and year from the UTC getters, as MM/DD/YYYY with leading zeros; a year outside 1000 to 9999 gives no date. Never the script's or the user's time zone. Mechanism and limits: ADR-0004 Amendment 2026-11-12, section 3; Q87.
+- A date field is a `DatePicker` (Card Service, date only) named `p-<n>` with the label as title, in the place and order a text box would take. No hint line. It starts with no date (`setValueInMsSinceEpoch` not called; Q85). The owner saw it in the draft popup and the side panel (dev-e93a085, Q86 yes).
+- Kept value (slice 25): the card keeps a picked date as MM/DD/YYYY in `entered` (converted when read) and turns it back into ms for `setValueInMsSinceEpoch` on a re-rendered card. The ADR text named the ms string; the screen result is the same.
+- Fallback (slice 25, ADR option 3): when `newDatePicker` is missing or throws, the card draws a text box `p-<n>` titled with the label and the hint "MM/DD/YYYY". It accepts M/D/YYYY or MM/DD/YYYY of a real day (`typedDateMs`); "" leaves the field out. Anything else is refused with "Enter a date as MM/DD/YYYY: <labels>" (compose: an error line on the re-rendered card; side panel: the thrown sentence, after `template.apply`, so it counts one use). A Gmail that refuses the picker while drawing the card cannot be caught.
+- Reading (`src/addon/event.ts`): `dateValue` reads `commonEventObject.formInputs["p-<n>"].dateInput.msSinceEpoch` as a number, a numeric string or the first element of an array; missing or not finite: no date. `formValue` tries it first, then the text value; `fieldValue(event, field, name)` sends choice fields to their own reader (section 5.10).
+- Conversion (`dateText` in `src/shared/placeholders/date.ts`): round the ms to the nearest whole UTC day, then month, day and year from the UTC getters, as MM/DD/YYYY with leading zeros; a year outside 1000 to 9999 gives no date. Never the script's or the user's time zone. Tests run under the New York and Auckland zones. The owner's pick came back as the same day in the draft (dev-e93a085, the owner's time zone only; Q87). Mechanism and limits: ADR-0004 Amendment 2026-11-12, section 3.
 - The 500-character check skips date fields. One picker is one widget, in place of one text box.
 
 Rendering:
@@ -385,7 +387,7 @@ Rendering:
 - No picked date (row Insert, or picker left empty): the field is removed with the 4 gap rules (D31, section 7.4), as an unfilled `{{ask:}}`.
 - Row hint: "n fields to fill" counts date fields (`item.prompts` lists every field label). `rc`, `rh` and the recipient rules do not concern fields.
 - Add-on text preview and subject preview: `[Label]`, as for text fields.
-- Side panel compose actions: the same reading and render (Q86 decides whether the value reaches the callback).
+- Side panel compose actions: the same reading and render; the value reaches `onPromptCompose` (owner test, Q86 yes).
 
 Examples (input, picked date, result; character numbers count from 1):
 
@@ -401,38 +403,16 @@ Examples (input, picked date, result; character numbers count from 1):
 | 8 | Body `\{{date:Pickup}}` | save, insert | saves; inserts the text `{{date:Pickup}}`; no picker |
 | 9 | `msSinceEpoch` 1794409200000 (local midnight of 12 Nov 2026 at UTC+9) | conversion | `11/12/2026`; at UTC+13 (1794394800000) the result is `11/11/2026` (Q87) |
 
-Files an implementer touches:
-- `src/shared/placeholders/grammar.ts`: regex with `(ask|date)`, `type` on the prompt segment, `dateToken(label)`.
-- `src/shared/placeholders/validate.ts`: `PH_FIELD_TYPE`, `date` in the lenient pass (`PH_CASE`, `PH_FALLBACK_ASK`, `PH_LABEL`); shared with the Q78 brace rule.
-- `src/shared/placeholders/render.ts`: `type` on `PromptField`; first spelling and type per identity.
-- `src/shared/placeholders/date.ts` (new): `dateText(raw)`, the conversion.
-- `src/shared/placeholders/preview.ts`: no change expected (prompt segments show `[Label]`); check after the grammar change.
-- `src/web/editor/schema.ts`: atom attribute `type`, `tokenOf`, `placeholderAttrs`, `blankParts`, `chipLabel` for dates.
-- `src/web/editor/picker.ts`: menu item and dialog texts, body and subject.
-- `src/web/editor/load.ts`, `serialize.ts`: carry `type` through `data-ph` (no new logic if `tokenOf` handles it).
-- `src/web/views/preview.ts`: sample date in "Preview as me"; `promptUses` returns the type.
-- `src/web/views/editor.ts`: "date, used ..." in the panel; empty panel text.
-- `src/web/styles.css`: the " (date)" suffix style, if `.ph-or` is not reused.
-- `src/addon/cards/spec.ts`: widget kind `date` (`name`, `title`, `valueMs`).
-- `src/addon/cards/render.ts`: `newDatePicker()` for kind `date`.
-- `src/addon/cards/details.ts`: `fieldInput` returns the date widget for a date field.
-- `src/addon/event.ts`: `dateValue(event, name)` reading `dateInput.msSinceEpoch`.
-- `src/addon/prompts.ts`: `tooLong` skips dates; answers convert dates with `dateText`.
-- `src/addon/flows.ts`, `src/addon/panel.ts`: read each field by its type.
-- `src/server`: no change. Save, duplicate, restore and import already call `scanBody` through `prepareFor`; `item.prompts` already holds every field label.
-- Docs: `docs/design/wording.md` (6 rows), `docs/guide/editor-guide.md` (one section), `docs/guide/user-quick-start.md` (one line: "A date field opens a calendar. Leave it empty to leave the date out."), `docs/ops/test-round-1.md` (Gmail steps for Q85, Q86, Q87).
+As built (slice 25, merged; docs/handoffs/2026-11-12-implementer-to-reviewer-slice-25.md, docs/reviews/slice-25.md):
+- Files: `src/shared/placeholders/{grammar,validate,render,date}.ts`; `src/addon/{event,prompts,flows,panel}.ts`; `src/addon/cards/{spec,render,details}.ts`; `src/web/editor/{schema,picker}.ts`; `src/web/views/{preview,editor}.ts`. `load.ts`, `serialize.ts`, `styles.css` (`.ph-or` reused) and `src/server` unchanged.
+- Editor texts as specified above (menu item, dialog, chip, screen reader name, panel line, empty panel text, "Preview as me" today's local date in body and subject).
+- Tests: examples 1 to 9; `date.test.ts` under 2 zones; `dateInput` as number, string, array, empty array, absent; the fallback missing and throwing; side panel picked, empty and wrong typed. 2,055 tests at merge.
+- Test round part N (7 steps) holds the Gmail checks. Owner result on dev-e93a085: picker shown in popup and side panel, picked day written, nothing picked leaves the field out.
+- Open minors: labels accept control characters such as U+0000 (as `ask:` always did); a pasted `{{date:X}}` stays text until the template is opened again (as `ask:`); part N has no re-render step.
 
-Tests to add:
-- `test/unit/shared/placeholders.test.ts`: examples 4 to 8; the regex finds kind and label; `{{date:}}` in the subject; `PH_TOO_MANY` with 15 text and 6 date fields.
-- `test/unit/shared/date.test.ts` (new): `dateText` for 1794441600000, a numeric string, local midnight at UTC-8, UTC+9, UTC-11 (12 Nov 2026), UTC+13 (11 Nov), `""`, `"abc"`, `NaN`, year 10000; result never depends on `process.env.TZ` (run under 2 zones).
-- `test/unit/shared/gaps.test.ts`: example 2.
-- Add-on card tests: the date widget in field order, no hint, value set back on re-render; reading `dateInput` as number and as string; missing input = removed; `tooLong` ignores a date; examples 1 and 3 end to end through `rendered`; panel flow with a date.
-- Web editor tests: menu item, dialog, chip text and screen reader name, panel line, round trip load and serialize of `{{date:X}}`, sample date in the preview.
-- Gmail by hand (test round): Q85 empty start in the popup and the side panel; Q86 value reaches `onPromptInsert` and `onPromptCompose`; Q87 the inserted date under 2 account time zones.
+### 5.10 Choice fields `{{choice:Label|A|B}}` (D39, added 2026-11-12)
 
-### 5.10 Choice fields `{{choice:Label|A|B}}` (D39, proposal, added 2026-11-12)
-
-Proposed, proposal stage: the owner asked for ideas and has not decided to build (Q97). Owner idea 2026-11-12: a field where the sender picks one of the options the template author set. Mechanism, options and platform facts: ADR-0004 Amendment 2026-11-12 "choice fields". Builds on section 5.9 (slice 25, in build). Open: Q91 to Q97.
+Accepted 2026-11-12 (owner decision D39 to build; Q91 decided by the owner: an unchosen choice is left out, "so user would have to type in manually, we dont give false options"; built in slice 26, review PASS, merged e93a085; owner test on dev-e93a085 passed, Q92 yes). Owner idea 2026-11-12: a field where the sender picks one of the options the template author set. Mechanism, options and platform facts: ADR-0004 Amendment 2026-11-12 "choice fields". Texts below as built. Still open: Q93, Q96.
 
 Grammar:
 - `{{choice:Label|Option 1|Option 2}}`. Label rule as `{{ask:}}` and `{{date:}}` (1 to 40 characters, none of `{ } | \ < >` or a line break). Then 2 to 20 options, each after `|`, each trimmed and inner spaces collapsed, 1 to 100 characters, none of `| { } \ < >` or a line break, no two equal ignoring letter case. The whole token at most 2,200 characters. No default text. Spaces around `|` are allowed and dropped.
@@ -449,15 +429,15 @@ Save checks (server through `scanBody`; the editor's Problems list runs the same
 | `PH_CHOICE` | an empty option (`\|\|`, or `\|` at the end) | 'The field "<label>" has an empty option (at character <n>). Remove the extra \|.' |
 | `PH_CHOICE` | an option over 100 characters | 'An option of "<label>" is longer than 100 characters (at character <n>).' |
 | `PH_CHOICE` | two equal options | 'The field "<label>" lists "<option>" twice (at character <n>).' (`<option>` = first spelling) |
-| `PH_CHOICE` | `{ } \ < >` in an option, or the token over 2,200 characters (the lenient pass sees `choice:`) | 'The field at character <n> is not a valid choice. Options cannot contain { } \| \\ < >, and a field holds at most 20 options of 100 characters.' |
+| `PH_CHOICE` | `{ } \ < >` in an option, `{{choice:X}}` with no `\|`, a `}` inside an option, or the token over 2,200 characters (the lenient pass sees `choice:`; slice 26) | 'The field at character <n> is not a valid choice. Options cannot contain { } \| \\ < >, and a field holds at most 20 options of 100 characters.' |
 | `PH_CHOICE_MISMATCH` (new) | the same choice label with other options, or another order | 'The field "<label>" lists other options at character <n>. Use the same options, or rename one of them.' |
-| `PH_FIELD_TYPE` | one label in two kinds | 'The field "<label>" is used as <kind> and as <kind> (at character <n>). Rename one of them.' with kinds "text", "a date", "a choice", in template order. For text and date this gives the sentence of section 5.9 word for word |
+| `PH_FIELD_TYPE` | one label in two kinds | 'The field "<label>" is used as <kind> and as <kind> (at character <n>). Rename one of them.' with kinds "text", "a date", "a choice", in template order (as built in slice 26; a date before a text field reads "used as a date and as text") |
 | `PH_CASE` | `{{Choice:X\|A\|B}}` | "Use lower case: choice: (at character <n>)." |
 | `PH_LABEL`, `PH_TOO_MANY` | as today; `PH_TOO_MANY` counts every kind | built texts |
 
 Editor (wireframe 04):
 - "Insert field" menu, body and subject: new item after "Ask the sender for a date...": "Ask the sender to choose...". Dialog title "Ask the sender to choose". Fields: "Field name the sender sees" (hint "1 to 40 characters, for example Load status."), "Options, one per line" (a text area; hint "2 to 20 options, each up to 100 characters. The sender picks one; the first is not chosen for them."). Buttons "Insert" and "Cancel". Errors in the dialog, one at a time: "Enter 2 to 20 options, one per line.", "Each option can be up to 100 characters.", "An option cannot contain | { } \ < >.", 'The option "<option>" is listed twice.' Blank lines are dropped.
-- On a selected choice chip the menu shows "Edit choices..." (as "Edit default text..." on a variable chip); it opens the same dialog filled in, title "Edit choices", button "Save" (Q94).
+- On a selected choice chip the menu shows "Edit choices..." (as "Edit default text..." on a variable chip); it opens the same dialog filled in, title "Edit choices", button "Save" (Q94, built in slice 26). It edits the field name and the options (`setOptions(pos, label, options)` in `commands.ts`).
 - Chip: class `ph ask choice`, visible text the label, then " (choice)" in the muted style of " or ". Screen reader: "Field: <label>, the sender chooses from <count> options".
 - Panel "The sender fills in": the label, then "choice: <option 1>, <option 2>, ..., used once" (options cut to 60 characters with "..."). Empty panel: "Nothing yet. To add a field the sender fills in, choose Insert field, then one of the Ask the sender items."
 - "Preview as me": the first option (a sample); history preview: the chip.
@@ -465,14 +445,14 @@ Editor (wireframe 04):
 
 Gmail details card (wireframe 02):
 - A choice field is a `SelectionInput` of type `DROPDOWN`, field name `p-<n>`, title the label, no hint, in the place and order a text box would take. Items: "Choose..." (value "0", selected), then each option as written in the token (value its position "1" to "20"). A re-rendered card selects the chosen position again.
-- Reading: `formValue(event, "p-<n>")` (`stringInputs.value[0]`).
+- Reading (slice 26, `fieldValue` in `src/addon/event.ts`): the dropdown value arrives as a string, a number, an array (its first element) or not at all; `chosenOption` maps "0", "" and none to not chosen, "1" to the option count to that option, anything else ("21", "-1", "1.5", "01", option text, an object) to refused. Fallback: when `newSelectionInput` is missing or throws, a text box `p-<n>-text` titled with the label, hint "One of: A, B, C" (Q92 fallback 2); the trimmed text must equal one option as written ("" = not chosen, other text = refused; inner double spaces are not collapsed, slice 26 minor 5). The `-text` name keeps a typed "2" from reading as position 2. The dropdown wins when both arrive.
 - Check in `onPromptInsert` and `onPromptCompose` against the token of the body of the version the same `template.apply` call returned: "0" or nothing = not chosen; an integer 1 to the option count = that option; anything else = refused. Compose: nothing inserted, the card re-renders with the error line "Choose again from the list: <labels>." and those dropdowns reset to "Choose...". Side panel: throws "A choice is not in the template's list. Go back and open it again." The web app server never sees the answer (section 4.1); ADR-0004 Amendment "choice fields" section 4.
-- The 500-character check skips choice fields. One dropdown is one widget, in place of one text box (assumed; Q92).
+- The 500-character check skips choice fields. One dropdown is one widget, in place of one text box: a card with 20 choice fields stays under 100 widgets (slice 26 test). The owner saw the dropdown in the draft popup and the side panel, and the chosen option arrived (dev-e93a085, Q92 yes). A side-panel refusal comes after `template.apply`, so it counts one use.
 - The insert is the only enforced limit. The sender can change the word in the draft before sending.
 
 Rendering:
 - A chosen option is the field's value: its text, escaped like any value in the body (`formatValue`), plain in the subject.
-- Not chosen (row Insert, or "Choose..." left): removed with the 4 gap rules (D31), as an unfilled `{{ask:}}` (Q91 holds the alternative "insert the first option").
+- Not chosen (row Insert, or "Choose..." left): removed with the 4 gap rules (D31), as an unfilled `{{ask:}}`. Owner decision Q91 (2026-11-12): left out, the first option is never inserted for the sender.
 - Row hint "n fields to fill" counts choice fields. Add-on text and subject previews: `[Label]`.
 
 Examples:
@@ -490,35 +470,12 @@ Examples:
 | 9 | Body of example 1, event value "7" (forged) | Insert | nothing inserted; card line "Choose again from the list: Status." |
 | 10 | Body `Hi & {{choice:Tone\|<b>bold</b>\|plain}}` | save | refused (the `<` in an option: the last `PH_CHOICE` text); the dialog refuses it before |
 
-Files an implementer touches. Every file but `date.ts` is also changed by slice 25 (`slice/25-date-field`): build after slice 25 merges and extend its `type` field from "text" and "date" to "choice".
-- `src/shared/placeholders/grammar.ts`: the `choice` alternative and groups 3 and 4; `options` on the prompt segment; `choiceToken(label, options)`.
-- `src/shared/placeholders/validate.ts`: `PH_CHOICE`, `PH_CHOICE_MISMATCH`, general `PH_FIELD_TYPE` sentence, `choice` in the lenient pass. Also changed by Q78 and slice 25.
-- `src/shared/placeholders/render.ts`: `type: "choice"` and `options` on `PromptField`; one field per identity.
-- `src/shared/placeholders/choice.ts` (new): `chosenOption(raw, options)`: "" for not chosen, the option for 1 to n, `null` for refused.
-- `src/web/editor/schema.ts`: atom attribute `options`, `tokenOf`, `placeholderAttrs`, `blankParts`, `chipLabel`.
-- `src/web/editor/picker.ts`: the menu item, "Edit choices...", subject item.
-- `src/web/ui/dialog.ts`: a dialog with a text box and a text area (`promptChoice`), or `promptText` extended by one optional text area.
-- `src/web/editor/commands.ts`: `setOptions(pos, options)` like `setFallback`.
-- `src/web/editor/load.ts`, `serialize.ts`: carry `options` through `data-ph` (no new logic if `tokenOf` handles it).
-- `src/web/views/preview.ts`: first option in "Preview as me"; `promptUses` returns kind and options.
-- `src/web/views/editor.ts`: panel line and empty text.
-- `src/web/styles.css`: " (choice)" suffix if `.ph-or` is not reused.
-- `src/addon/cards/spec.ts`: widget kind `select` (`name`, `title`, `items`, `selected`).
-- `src/addon/cards/render.ts`: `newSelectionInput().setType(DROPDOWN)` for kind `select`.
-- `src/addon/cards/details.ts`: `fieldInput` returns the dropdown for a choice field.
-- `src/addon/prompts.ts`: `tooLong` skips choices; answers map positions to options; the "Choose again" line.
-- `src/addon/flows.ts`, `src/addon/panel.ts`: the position check and the refusal.
-- `src/addon/event.ts`: no change (`formValue` reads it).
-- `src/server`: no change. Writes already call `scanBody` through `prepareFor`; `item.prompts` holds every label; answers never reach the server.
-- Docs: `docs/design/wording.md` (every text above), `docs/guide/editor-guide.md` (one section), `docs/guide/user-quick-start.md` ("A choice field opens a list. Leave it at Choose... to leave it out."), `docs/ops/test-round-1.md` (Gmail steps for Q92, Q93).
-
-Tests to add:
-- `test/unit/shared/placeholders.test.ts`: examples 4 to 8 and 10; the 7 `PH_CHOICE` triggers; spaces around `|`; the 2,200-character limit; `\{{choice:...}}`; a choice in the subject; `PH_TOO_MANY` over 3 kinds; a variable fallback with `|` still parses as before.
-- `test/unit/shared/choice.test.ts` (new): `chosenOption` for "0", "", "1", "20", "21", "-1", "1.5", "01", "abc".
-- `test/unit/shared/gaps.test.ts`: example 2.
-- Add-on card tests: the dropdown in field order with "Choose..." selected; re-render keeps the choice; examples 1, 3 and 9 through `rendered`; panel flow refusal sentence; widget count of a card with 20 choice fields.
-- Web editor tests: dialog checks, chip text and screen reader name, "Edit choices..." round trip, load and serialize of a choice token, panel line, preview first option.
-- Gmail by hand: Q92 dropdown in the popup and the side panel and its value in `onPromptInsert` and `onPromptCompose`; Q93 "Choose..." shown selected.
+As built (slice 26, merged e93a085; docs/handoffs/2026-11-12-implementer-to-reviewer-slice-26.md, docs/reviews/slice-26.md):
+- Files: `src/shared/placeholders/{grammar,validate,render,choice,skeleton}.ts`; `src/addon/{event,prompts,flows,panel}.ts`; `src/addon/cards/{spec,render,details}.ts`; `src/web/editor/{schema,picker,commands}.ts`; `src/web/ui/dialog.ts` (`promptChoice`); `src/web/views/{preview,editor}.ts`. `src/server` unchanged. `event.ts` changed, where this section first said no change.
+- Old bodies: 91 stored bodies give the same segments, renders and scans before and after (`test/fixtures/oldBodies.expected.json`); the reviewer ran 3,102 bodies with 0 differences.
+- Tests: examples 1 to 10; the 7 `PH_CHOICE` triggers; 5 value shapes; forged values (reviewer: 13 kinds, 0 drafts); options changed between card and Insert give the version line; 2,118 tests at merge.
+- Test round part O (7 steps) holds the Gmail checks.
+- Open minors: a typed fallback option with a double space is refused (minor 5); a side-panel refusal counts one use (minor 4).
 
 ## 6. Server operations
 
@@ -681,6 +638,8 @@ Loading states:
 - Sidebar: every card action sets `LoadIndicator.SPINNER` except "Back" (`onBack`) and the library links (`onOpenLink`), which answer at once with no server or Gmail call (D35, slice 21, `toAction` in `src/addon/cards/render.ts`, the one place that builds actions). Covered: row and footer buttons, row taps, the search box and the "Search" button, the side-panel compose buttons. The owner saw the spinner on compose Insert, search and side-panel actions (dev, 2026-11-11). The server keeps a card under the 3 s budget. No partial cards.
 - Web app, first paint (slice 20a): the page HTML holds "Loading..." (`role="status"`) in `main`, so the first paint shows it before any script runs. The script swaps it for the skeleton. If the first `folder.list` and `template.list` fail, or give no answer within 15 s (`FIRST_LOAD_MS`), `main` shows one banner (`role="alert"`) "Templates could not be loaded. Press Reload to try again." with the button "Reload", and no toast; focus stays on `main`. "Reload" shows "Loading..." and tries again. A late answer replaces the banner with the page. The banner replaces only the first view, and only the library, the editor or Trash (`WAITS_FOR_LOAD`); Admin and History keep their page and show the usual toast. Not set up: the banner says "Migway Templates is not set up yet. Ask your admin to finish setup." plus one toast (Q81).
 - Web app: skeleton rows for the list (8 rows), skeleton blocks for editor and history, `aria-busy="true"` on the region. Save button shows "Saving..." and is disabled; status text in a live region: "Saved as version 7, 2:05 PM" (local time; the date for an older save).
+- Web app loader (D37, slice 24, merged after retry 2; `src/web/ui/busy.ts` `createBusy([main, side])`): while any tracked call runs, a capture-phase guard drops click, dblclick, mousedown, pointerdown, keydown, beforeinput, paste, drop, contextmenu and submit inside the page and the sidebar. Text fields (text area, text-like input, `contenteditable`) keep keydown, beforeinput, paste and drop, so typing, Backspace, paste and undo during a save are kept and the header then says "Unsaved changes"; clicks into another field stay blocked, Tab still moves focus. In the editor Ctrl+K and `{{` open no dialog during a call. Focus never moves; dialogs and toasts sit outside both regions and keep working. Untracked: `search.body` (typing) and `profile.me` (account name), and `app.background` reads. After 300 ms (`BUSY_SHOW_MS`): a 3 px bar at the top (#2a3c49 in light mode, the dark `--slate` #dfe6eb in dark mode, still under reduced motion), `aria-busy="true"` on both regions, one polite "Loading" in a `role="status"`. Waits under 300 ms show nothing. The block ends when the last call settles, or for each call after 20 s (`BUSY_MAX_MS`); the call keeps its own error path. A second save cannot start while one runs (`saving`); a toast "Retry" cannot start a second restore (`restoring`).
+- Calls per step since slice 24: a save is 1 call (`template.update`; its answer updates the loaded list) where it was 3 in 2 rounds; Admin "Who has access" shows a folder's held rows at once on a revisit and reads `grant.list` in the background, redrawing only when the answer differs; a grant write drops that folder's held rows. First load stays 3 parallel calls (`folder.list`, `template.list`, `profile.me`). Still 2 calls: Duplicate, Move, Delete, history restore (they reload the library); Admin tab revisits, Give access and folder create or delete read again. Open: a call that never answers frees the page at 20 s and leaves its busy text, for example "Duplicating..." (slice 24 minor 1).
 
 ### 7.3 Settings texts (D29, added 2026-11-10)
 
@@ -821,7 +780,7 @@ Smoke "Slice 15" (Gmail web, compose toolbar, dev build; the implementer copies 
 - Status changes (saved, restored, error) use `role="status"` or `role="alert"`.
 - Editor toolbar buttons use `aria-pressed` for toggles. Toolbar is one tab stop with arrow-key navigation.
 - Sidebar: buttons name the target ("Insert Welcome email"), not "Go". Card Service renders native controls. Error lines carry the `error` icon with alt text "Error", so the error is not shown by color alone (slice 22 follow-up 1); hint lines carry the `info` icon. The "Search" button has the screen reader text "Search templates" (D36).
-- Folder tree by pointer (slice 23, in review on `slice/23-tree-collapse`, a26e7f3; not on the main line): the arrow at the start of a row opens or closes that row and opens no folder; a click on the name of the selected open folder closes it; a click on any other row opens that folder and expands it. The second click of a double-click is ignored. Parents of the selected folder open only when the selection changes, so a redraw after a write keeps a parent the user closed. Keyboard behavior is unchanged. Library tree and Admin "Folders and access" tree alike (`src/web/views/tree.ts`).
+- Folder tree by pointer (slice 23, merged after retry 2; owner test passed on dev-744bd1d; `src/web/views/tree.ts`): the arrow at the start of a row opens or closes that row, opens no folder, sends no call and focuses the row; a click on the name of the selected open folder closes it; a click on any other name opens that folder and expands it. The second click of a double-click is ignored on the name and on the arrow, so a double-click acts once (on the selected open row it closes it once). `render(folders, selected, counts, reveal)`: `reveal` is true only for a choice by the user (a route opened with `app.go`, the first render and a deep link once the folders load, sidebar items, Favorites, All templates, tree rows, the editor breadcrumb, Admin tree clicks, and Admin writes that create, delete or move the selected folder); then the parents of that folder open. Every other render keeps closed parents closed: library reload, Duplicate, save, rename, idle refresh, browser Back and Forward. So Back to a folder inside a parent the user closed shows that folder's page with no selected row in the tree (slice 23 minor A). Keyboard unchanged. The arrow is `aria-hidden`, has no tab stop, and a 24 by 24 px target. Library tree and Admin "Folders and access" tree alike.
 - Target: Lighthouse accessibility 90 or higher on library, editor, history, admin (BRIEF 9).
 
 ## 9. OAuth scopes
@@ -1019,9 +978,12 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | Fix round, add-on: list caps and cut line (section 7.4), Reply-To with several addresses, "A reply adds n recipients." (section 7.2), rendered subject cap, panel NOT_CONFIGURED sentence | 20b, done (dev deployed) |
 | Spinner on card actions, `primaryColor`, red error lines (D35) (sections 7, 7.4) | 21, done after one fix (5f475cb, dev-a57a5f6) |
 | Hint lines, "Search" button (D36) (sections 4.4, 7.4) | 22, done (dev-5c018b8); follow-up 1: error icon and no "(!)", popup search row in Columns, finish-typing line plain, button icon guard (c1f2719) |
-| Folder tree: arrow toggles a row, second click closes the selected folder (section 8) | 23, in review (retry 1 at a26e7f3) |
-| 5.9 Date fields `{{date:Label}}` (D38): grammar, save checks, editor menu item and chip, Gmail date picker, MM/DD/YYYY | not built; next slice after the owner approves Q85 to Q90 |
-| 5.10 Choice fields `{{choice:Label\|A\|B}}` (D39, proposal): grammar, save checks, editor dialog and chip, Gmail dropdown, Insert check | not decided (Q97); after slice 25 |
+| Folder tree: arrow toggles a row, second click closes the selected folder, `reveal` only for a user choice (section 8) | 23, done after retry 2 |
+| Web loader, 1-call save, held access rows (D37, section 7 Loading states) | 24, done after retry 2 (dev-744bd1d) |
+| 5.9 Date fields `{{date:Label}}` (D38): grammar, save checks, editor menu item and chip, Gmail date picker, MM/DD/YYYY | 25, done (owner test passed on dev-e93a085) |
+| 5.10 Choice fields `{{choice:Label\|A\|B}}` (D39): grammar, save checks, editor dialog and chip, "Edit choices...", Gmail dropdown, Insert check | 26, done (merged e93a085; owner test passed) |
+| Brace rule at save (D40, Q78; ADR-0004 Amendment "braces that join around a field") | 26, done (`skeleton.ts`) |
+| Open minors before the org deploy | 27, in build |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -1327,6 +1289,27 @@ Result (owner, test round 1 part G, dev-56bf795, 2026-11-11): steps 2 to 8 pass;
 
 ## 15. Open questions for the owner
 
+Still open after errata run 7 (2026-11-12). Every other row below is closed or has its default built.
+
+| ID | Question | Default in force | Who answers |
+|---|---|---|---|
+| D1 | Who performs the Workspace admin steps of 2.5b | The owner's Workspace admin | owner |
+| D2 | User count, pilot group | Under 500 users, one pilot Google Group | owner |
+| D7, Q1 | Workspace edition, nested groups, admin API limits | Business Standard or lower, flat groups | owner or Workspace admin |
+| Q22 (D23) | Apply speed target | 3 s p95 accepted for v1; measure on prod `/exec` | owner |
+| Q18 | Prod data in My Drive or a shared drive | The dedicated owner account's My Drive | owner |
+| Q25 | Subject-only fields asked while "Replace the subject" is off | Accept | owner |
+| Q27, Q28, Q29 | Owner-change tooling (B2 pull, tests V1 to V4, versions moved) | v1.1; V1 to V4 in the 2.5b dry run | owner, orchestrator |
+| Q30 | Dev templates to prod | Prod starts empty; interim runbook if data must move | owner |
+| Q31 | Owner-run `restoreBackup(date)` | Manual runbook of section 16.2 | orchestrator (slice) |
+| Q76, Q77, Q79, Q84 | Gap rule 2 ASCII only; no notice on a row Insert; double search run; reply count high | Accept for v1 | owner |
+| Q80, Q81 | `toIcon` try/catch; toast before `setup()` | Fix in a minor slice (Q80), accept (Q81) | orchestrator (slice 27 may hold them) |
+| Q82 | Per-scope consent checkboxes on self-install | Admin install for every user, which grants all scopes with no page | Workspace admin |
+| Q83 | Error icon the only cue besides red | Keep the icon | owner (look in Gmail) |
+| Q85, Q93 | Empty date picker; "Choose..." shown first | Start empty; "Choose..." selected | owner (look in Gmail) |
+| Q87 | Date for UTC+12 and later | Accept for v1 | owner |
+| Q89, Q90, Q96 | Rollback and old open pages | Accept; runbook line | orchestrator |
+
 | ID | Question | Recommendation |
 |---|---|---|
 | Q1 (D7) | Edition, nested role groups, admin API restrictions | Keep `groupsapp_direct` and flat role groups until answered |
@@ -1405,26 +1388,26 @@ Result (owner, test round 1 part G, dev-56bf795, 2026-11-11): steps 2 to 8 pass;
 | Q75 (slice 18 follow-up 1) | How Gmail shows the sentence thrown by a failed side-panel action (error bar look, a prefix such as "Exception:", footer button same as row) | Closed 2026-11-11 (owner on dev): Gmail's own error card, "Error with the add-on. Run time error.", the sentence, "[line: n, function: panelAnswer, file: Code]". Accepted as is (section 4.1a step 7) |
 | Q76 (slice 15 minor 3) | Gap rule 2 removes the space before ASCII `, . ; : ! ?` only; full-width and Arabic marks and Spanish `¡` keep the space | Accept for v1. Migway writes in English. Extend the list when a template in another script is reported |
 | Q77 (test round 1 part B step 6, slice 17 note) | A row Insert gives no notice when it leaves out an outside address (`deny`) or skips the template To because the draft has one; the details card names both | Accept for v1. An insert response cannot carry a notice [A15, A44]; the row hint counts only the addresses that are added. Owner's judgment; the alternative is to open the details card in those cases, one more click |
-| Q78 (slice 20b minor 7, errata run 6) | `{{{ask:N}}{ask:M}}` saves today; with N blank the draft gets the text `{{ask:M}}`, and M is never asked | Add the save rule of ADR-0004 Amendment 2026-11-12 (Proposed): refuse a body or subject where the text left after removing every field holds `{{`. Templates already stored keep rendering as today until someone saves them |
+| Q78 (slice 20b minor 7, errata run 6) | `{{{ask:N}}{ask:M}}` saved and put the text `{{ask:M}}` into a draft | Closed 2026-11-12: owner decision D40, option 1 ("yes, refuse but if u think there is a better choice please apply it"). Built in slice 26 (`skeleton.ts`). No better choice found: errata run 7 confirms the two refusals the review named (`<p>{</p><p>{</p>` and `{ {{ask:N}} {`) are the costs the ADR accepted |
 | Q79 (slice 22 review item 3) | One press of "Search" right after typing can run `onSearch` twice (the box loses focus, then the button fires) | Accept for v1. `search` only reads; the worst case is 2 server calls and the same card drawn twice. Record the run count in part L step 2 (Executions); fix only if users notice a flicker |
 | Q80 (slice 22 follow-up 1 minor 1) | `toIcon` has no try/catch (`src/addon/cards/render.ts:98`): a throwing `setMaterialIcon`, `setAltText` or `setStartIcon` breaks every card with a hint or error line | Fix in the next add-on slice: build the icon in a try/catch and call `setStartIcon` only when it built, as `toButton` does. Low risk today: Gmail has drawn start icons since slice 12, and the owner saw the hint icons on dev |
 | Q81 (slice 20a re-review minors A and B) | Before `setup()` the first load shows the banner and one toast with the same sentence (`profile.me` in `src/web/app.ts:389` uses `app.fail`); with Trash as the first page its own `template.list` adds a toast under the banner | Accept for v1: only an admin sees it, once, before setup. Cheap fix for a later web slice: skip the toast when the first-load banner shows the same code |
 | Q82 (owner's consent test, 2026-11-11) | The self-install consent page has a checkbox per scope; an unticked scope breaks the add-on | Install by the Workspace admin for every user (phase 2.5b), which grants all scopes with no page. Add one quick-start line for self-installers: "Keep every box ticked on Google's consent page." What a user with an unticked scope sees was not recorded |
 | Q83 (slice 22 follow-up 1 minor 2) | Error lines carry no "(!)" since follow-up 1; the `error` icon is the only cue besides red | Keep the icon. Part L step 3 records whether Gmail draws it; if not, put the "(!) " prefix back |
 | Q84 (slice 20b minor 1) | "A reply adds n recipients." counts a template Cc that is already on the email, so it can be 1 or more too high | Accept for v1 (the press adds the right addresses; only the label is high). Fix later by reading the message headers when the details card opens, or word it "Adds up to n recipients." |
-| Q85 (D38) | Can Gmail draw a `DatePicker` with no date? The Card Service reference does not say; the card JSON names a "Clear" button in the picker | Start empty (do not set a value). Check in the popup and the side panel before the build merges. If Gmail always shows a date, show today's date and insert what the picker shows: the sender sees it before pressing Insert, and a "No date" switch would cost one widget and one click per field (opinion). The row Insert is unaffected: it has no card, so the field is removed |
-| Q86 (D38) | Does Gmail draw the picker in the draft popup and in the side panel, and does `dateInput` reach `onPromptInsert` and the side-panel compose action `onPromptCompose`? Q68 verified text boxes only | Gmail test steps before the merge. Fallback where it fails: a text box titled with the label and the hint "MM/DD/YYYY"; the typed text is inserted as typed |
-| Q87 (D38) | `msSinceEpoch` of a date-only pick: the event page gives no time of day; the card JSON says 00:00:00 UTC | Convert by rounding to the nearest UTC day (spec 5.9). Right for every zone if Gmail sends UTC midnight; right from UTC-11:59 to UTC+11:59 if it sends local midnight. Record the raw value in 2 account time zones (UTC-5 and UTC+9) in the test round |
-| Q88 (D38) | Editor entry: a "Text" or "Date" choice in one dialog (orchestrator default) or a second menu item "Ask the sender for a date..." | Second menu item: the dialog (`promptText`) has one text box, and the menu already lists every field kind. The owner's words ("some checkmark or special type of placeholder") fit both |
-| Q89 (D38) | A rollback (ADR-0005) to a build before date fields inserts `{{date:X}}` as plain text into drafts | Accept. Runbook line: after the first date template is saved, roll back only to a build with date fields, or first replace the date fields in those templates |
-| Q90 (D38) | A library page opened before the deploy shows `{{date:X}}` as plain text with a Problems line; its save still works on the server | Accept: a page reload fixes it. No version check between page and server exists today (`clientVersion` is sent, never compared) |
-| Q91 (D39) | A choice left at "Choose...", and every choice on a one-click row Insert: removed (as D31), or the first option inserted | Removed. A row Insert would otherwise always write option 1, which the sender may not have read ("Approved" where "Rejected" was meant). The row hint "n fields to fill" warns before the click |
-| Q92 (D39) | Does Gmail draw a `DROPDOWN` `SelectionInput` in the draft popup and in the side panel, and does its value reach `onPromptInsert` and the compose action `onPromptCompose`? The references name add-ons, not Gmail | Gmail test steps before a build merges. Fallback 1: `RADIO_BUTTON`. Fallback 2: a text box with the hint "One of: A, B, C" and the same position check by text |
-| Q93 (D39) | Does Gmail show "Choose..." as the selected first item, and may an item carry the value ""? The reference is silent | Use value "0" for "Choose..." (needs no answer on ""), mark it selected, and record in the Gmail test whether it shows |
-| Q94 (D39) | Editing the options of a chip already in the text | "Edit choices..." on a selected choice chip, the same dialog filled in, as "Edit default text..." works for variables today |
-| Q95 (D39) | The limit holds only at Insert: the draft stays editable, and the web app server never sees the answer | Accept. The check runs in the add-on's Insert callbacks (Apps Script on Google's servers), which the sender cannot change; sending answers to the server would add data to requests and logs for no stronger limit |
-| Q96 (D39) | Old builds during a deploy, as Q89 and Q90: an open old page shows the token as text; a rollback inserts it as text | Accept, same runbook line as Q89 |
-| Q97 (D39) | Build the choice field now, after slice 25, or later | After slice 25 passes Q85 to Q87 on dev: it reuses the field kind, the card code and the test steps; about the size of slice 25 (opinion) |
+| Q85 (D38) | Can Gmail draw a `DatePicker` with no date? | Open, no problem seen: the owner's test (dev-e93a085) left a date unpicked and the field was left out; whether the picker showed empty was not reported. Default in force: start empty. Part N step records it |
+| Q86 (D38) | Picker in the draft popup and the side panel; `dateInput` in `onPromptInsert` and `onPromptCompose` | Closed 2026-11-12: yes, owner on dev-e93a085 (calendar shown in both, the picked day in the draft) |
+| Q87 (D38) | `msSinceEpoch` of a date-only pick: time of day not documented | Partly answered: the owner's pick came back as the same day in the owner's time zone (dev-e93a085). Open for other zones: UTC+12 and later get the day before if Gmail sends local midnight. Default: accept for v1 (Migway staff are not in those zones, opinion); recheck if a user there reports it |
+| Q88 (D38) | Editor entry: one dialog with a type choice, or a second menu item | Closed: built as the menu item "Ask the sender for a date..." (slice 25); the owner tested it without remark |
+| Q89 (D38) | A rollback below the date build inserts `{{date:X}}` (and since slice 26 `{{choice:...}}`) as plain text | Accept. Runbook line: after the first date or choice template is saved, roll back only to e93a085 or later, or first replace those fields |
+| Q90 (D38) | A library page opened before the deploy shows a date or choice token as plain text with a Problems line; its save still works | Accept: a page reload fixes it |
+| Q91 (D39) | A choice left at "Choose...", and a choice on a row Insert | Closed 2026-11-12, owner: left out, "so user would have to type in manually, we dont give false options". Built in slice 26 |
+| Q92 (D39) | Dropdown in the draft popup and the side panel; value in the Insert callbacks | Closed 2026-11-12: yes, owner on dev-e93a085 (dropdown shown in both, the chosen option in the draft) |
+| Q93 (D39) | Does Gmail show "Choose..." as the selected first item? | Open, no problem seen: an unchosen field was left out in the owner's test; the look of the first item was not reported. Default: value "0", selected. Part O step records it |
+| Q94 (D39) | Editing the options of a chip already in the text | Closed: built in slice 26, "Edit choices..." edits the field name and the options |
+| Q95 (D39) | The limit holds only at Insert; the draft stays editable; the web app server never sees the answer | Closed: built as recommended; the owner's idea said "at least once editing the template in the UI" |
+| Q96 (D39) | Old builds during a deploy | Accept, as Q89 and Q90 |
+| Q97 (D39) | Build the choice field now or later | Closed 2026-11-12: built in slice 26 on the owner's decision |
 | Q31 | A damaged live `index.json` blocks every op, `backup.restore` included | Owner-run editor function `restoreBackup(date)` with the `setup()` guard, before 2.5b if possible; until then the manual runbook of section 16 |
 
 ## 16. Operations and maintenance

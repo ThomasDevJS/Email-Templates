@@ -29,11 +29,17 @@ dialog "New template" with "Create the template in" (folders the caller can edit
 
 Keyboard
 - "/" focuses search. Tree: arrows move, Right expands, Enter opens. Grid: arrows move rows, Enter opens editor.
-- Tree by mouse (slice 23, in review at a26e7f3, not on the main line; spec 8): the arrow (v, >) opens or
-  closes its row and opens no folder; a click on the name of the selected open folder closes it; a click on
-  another name opens that folder and expands it. A double-click acts once. A redraw after a write keeps a
-  parent the user closed; parents open only for a new selection. Same tree in Admin "Folders and access".
+- Tree by mouse (slice 23, merged; spec 8): the arrow (v, >) opens or closes its row, opens no folder and
+  sends no call; a click on the name of the selected open folder closes it; a click on another name opens that
+  folder and expands it. A double-click acts once. Parents open only when the user picks a folder (row,
+  sidebar, Favorites, All templates, breadcrumb, a link); a reload, Duplicate, save, rename and browser Back
+  or Forward keep a parent the user closed closed (Back into a closed parent shows the page, no selected row).
+  Same tree in Admin "Folders and access".
 - Star toggles favorite (aria-label "Add to favorites: <title>").
+
+Loader (D37, slice 24; spec 7 Loading states): while a call runs, clicks and keys in the page and the sidebar
+are dropped (text fields keep typing); after 300 ms a 3 px slate bar at the top, aria-busy and one polite
+"Loading". Duplicate, Move, Delete and restore still reload the library (2 calls).
 
 Notes
 - Title, folder, tag filtering runs in the browser on the loaded index (under 50 ms).
