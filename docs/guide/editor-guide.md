@@ -87,7 +87,7 @@ The toolbar is one Tab stop. Arrow keys move between its buttons; Home and End j
 - Fields work here too. With the cursor in "Subject", "Insert field" types the text form at the cursor. The subject shows the text form, for example `{{ask:Load number}}`; while it holds a field, the line "Reads as" under it shows the subject with blanks, as the reader sees it.
 ## Fields and default text
 
-The "Insert field" menu lists 5 values and "Ask the sender...".
+The "Insert field" menu lists 5 values, "Ask the sender..." and "Ask the sender for a date...".
 
 | Menu item | Text form | Filled with |
 |---|---|---|
@@ -97,11 +97,18 @@ The "Insert field" menu lists 5 values and "Ask the sender...".
 | "Sender department" | `{{sender.department}}` | Department |
 | "Recipient first name" | `{{recipient.first_name}}` | First name of the To recipient, only with exactly one To address inside Migway |
 | "Ask the sender..." | `{{ask:Meeting date}}` | What the user types in the panel |
+| "Ask the sender for a date..." | `{{date:Pickup date}}` | The date the sender picks in a calendar, as MM/DD/YYYY |
 
 - Default text: select a blank, open "Insert field", "Add default text...". The text form is `{{recipient.first_name|there}}`. Up to 80 characters.
 - A value with no directory entry and no default text becomes a field the sender fills in. In Gmail, "Insert" on the row leaves every field without a value out of the draft, with the space next to it: "Hi [Driver name], thanks" becomes "Hi, thanks". An empty paragraph stays. The sender fills fields first by tapping the template's name, or types the words in the draft. Give a value default text when a sentence must never read with a hole.
 - Saving warns about "Recipient first name" without default text: "The sender is asked for it when it is unknown."
 - "Ask the sender..." takes a field name of 1 to 40 characters. The same field name used several times is asked once. A field the sender fills in takes no default text.
+### Date fields
+
+- A date field shows as "Pickup date (date)". In Gmail the sender picks the day in a calendar; the draft gets it as MM/DD/YYYY, for example 11/12/2026.
+- A date left empty is left out, like an empty text field. "Preview as me" shows today's date.
+- One field name is either text or a date: `{{ask:Pickup}}` and `{{date:Pickup}}` in one template fail the save. Date fields count toward the 20.
+
 - At most 20 fields the sender fills in per template, subject and text together. The panel shows at most 20 boxes; with more, the rest are left out of the draft.
 - Fields work in text only, never inside a link or image address.
 - One field must keep one format. Bolding a whole blank works; bolding half of a typed `{{...}}` is an error.

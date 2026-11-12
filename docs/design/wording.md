@@ -383,3 +383,18 @@ New texts. Paths are relative to `src/`.
 | Where | Text |
 |---|---|
 | `web/ui/busy.ts` | Loading (screen reader only, after 300 ms) |
+
+## Date fields (slice 25, D38)
+
+New texts. Paths are relative to `src/`.
+
+| Where | Text |
+|---|---|
+| `web/editor/picker.ts` | Ask the sender for a date... (Insert field menu, body and subject, after "Ask the sender...") |
+| `web/editor/picker.ts` | Ask the sender for a date (dialog title); Field name the sender sees (label); 1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY. (hint) |
+| `web/editor/schema.ts` | {field name} (date) (chip text, " (date)" in the muted style of " or "); Field: {field name}, a date the sender picks (screen reader) |
+| `web/views/preview.ts` | date, used once / date, used {n} times ("The sender fills in" panel line of a date field) |
+| `web/views/editor.ts` | Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender or Ask the sender for a date. (replaces the slice 14 text) |
+| `shared/placeholders/validate.ts` | The field "{field name}" is used as text and as a date (at character {n}). Rename one of them. (`PH_FIELD_TYPE`); Use lower case: date: (at character {n}). (`PH_CASE`) |
+| `addon/cards/render.ts` | MM/DD/YYYY (hint of the text box that stands in for the date picker when Card Service has no `newDatePicker`) |
+| `addon/prompts.ts` | Enter a date as MM/DD/YYYY: {field names} (details card error line and side-panel refusal for a wrongly typed date in the text-box fallback; spec 5.9 has no text, so it follows "Shorten to 500 characters: {field names}") |
