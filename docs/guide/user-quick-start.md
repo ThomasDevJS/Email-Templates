@@ -35,6 +35,7 @@ Some templates have fields, for example a driver name. Their row says "2 fields 
 - "Insert" on the row leaves those fields out: "Hi [Driver name], thanks" becomes "Hi, thanks". Type the missing words in the draft.
 - To fill them first, tap the template's name. The panel shows "Fill in now, or leave blank and type in the draft.", one box per field, the subject, the recipients and the start of the text.
 - Fill the boxes you want (plain text, up to 500 characters) and click "Insert". A box left blank is left out of the draft.
+- A date field opens a calendar. Leave it empty to leave the date out.
 - A value over 500 characters stops the insert and shows the red line "Shorten to 500 characters: ...". Your draft stays unchanged.
 - Gmail's back arrow goes back to the list without inserting.
 

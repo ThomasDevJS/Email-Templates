@@ -25,6 +25,8 @@ function look(widget: Widget): string {
       return `buttons: ${widget.buttons.map((b) => b.text).join(", ")}`;
     case "input":
       return `input: ${widget.title}`;
+    case "date":
+      return `date: ${widget.title}`;
     case "columns":
       return `columns: ${look(widget.fill)} | ${look(widget.fit)}`;
   }

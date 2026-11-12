@@ -317,3 +317,23 @@ Web app, owner, a second browser window signed in as the same account. About 10 
 | Step | Record                 | Result |
 | ---- | ---------------------- | ------ |
 | 6    | seconds the bar showed |        |
+
+## Part N: date fields (D38)
+
+Web app and Gmail web, owner, a person (not the browser agent), about 15 minutes. Answers Q85, Q86 and Q87. Discard every draft when its step ends.
+
+1. Library, "Smoke 6a", "New template", title `T9 date`. In "Subject" type `Ready `, then "Insert field", "Ask the sender for a date...", type `Pickup date`, OK. In the text type `Pickup on `, the same menu item and name, then `.`. Save. Expect: the chip reads "Pickup date (date)"; "The sender fills in" reads "Pickup date" and "date, used 2 times"; "Preview as me" shows today's date as MM/DD/YYYY.
+2. New draft, open the add-on from the draft's toolbar, click the name "T9 date". Record (Q85): the date box starts empty (y/n), or the date it shows. Record (Q86): a calendar opens from it (y/n), or a text box with the hint "MM/DD/YYYY".
+3. Pick today, turn "Replace the subject" on, click "Insert". Expect: the text "Pickup on " and today as MM/DD/YYYY, then "."; the subject "Ready " and the same date. Record (Q87): the date written equals the day picked (y/n).
+4. New draft, as step 2, pick the 1st of next month, "Insert". Record (Q87): the date written is that 1st (y/n), and the date text you saw.
+5. New draft, as step 2, pick nothing, "Insert". Expect: "Pickup on." and no date. Then row Insert of "T9 date" in a new draft. Expect: the same text; the row read "1 field to fill".
+6. Inbox, no message open, open the add-on in the side panel, click "T9 date", pick today, click "New email". Record (Q86): the calendar shows in the side panel (y/n); the new draft has today's date in text and subject (y/n).
+7. Gmail, Settings (gear), "See all settings", "General", "Time zone": choose one at least 9 hours from the current one (for example Tokyo against New York), save. Repeat step 3, then set the old time zone back. Record (Q87): the date written equals the day picked (y/n).
+
+| Step | Record                                                           | Result |
+| ---- | ---------------------------------------------------------------- | ------ |
+| 2    | starts empty (y/n) or the date shown; calendar or text box       |        |
+| 3    | today written as picked (y/n)                                    |        |
+| 4    | the 1st written as picked (y/n); the text seen                   |        |
+| 6    | calendar in the side panel (y/n); date in text and subject (y/n) |        |
+| 7    | other time zone: date written as picked (y/n)                    |        |

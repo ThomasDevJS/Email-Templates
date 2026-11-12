@@ -198,6 +198,26 @@ describe("editor layout (slice 8b)", () => {
     expect(main().querySelector("h1")?.textContent).toBe("Price quote 2027");
   });
 
+  it("names both Ask items when nothing is asked, and lists a date field as date, used once (spec 5.9)", async () => {
+    await openEditor("/?latency=0#/new?folder=F-QUOTES");
+    await until(() => {
+      expect(main().querySelector(".ask-list")).toBeNull();
+      expect(main().textContent).toContain(
+        "Nothing yet. To add a field the sender fills in, choose Insert field, then Ask the sender or Ask the sender for a date.",
+      );
+    });
+    const subject = byId("subject");
+    subject.value = "Ready {{date:Pickup}}";
+    subject.dispatchEvent(new Event("input"));
+    await until(() => {
+      expect(
+        [...main().querySelectorAll(".ask-list li span")].map(
+          (span) => span.textContent,
+        ),
+      ).toEqual(["Pickup", "date, used once"]);
+    });
+  });
+
   it("lists what the sender fills in with how often, and counts problems on their tab", async () => {
     await openEditor("/?latency=0#/edit/T-QUOTE");
     await until(() => {

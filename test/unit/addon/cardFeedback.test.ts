@@ -183,7 +183,12 @@ describe("hints look like hints (D36)", () => {
       notAdded: [],
       unknown: { to: [], cc: [], bcc: [] },
     };
-    const field = { key: "date", label: "Date", implicit: false };
+    const field = {
+      key: "date",
+      label: "Date",
+      implicit: false,
+      type: "text" as const,
+    };
     const hints = [
       homeCard(many, "inbox"),
       detailsCard(details({ plan, fields: [field], order: [0] })),

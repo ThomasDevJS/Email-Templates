@@ -382,11 +382,17 @@ describe("folder card (wireframe 01)", () => {
 
 describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
   const fields = [
-    { key: "meeting date", label: "Meeting date", implicit: false },
+    {
+      key: "meeting date",
+      label: "Meeting date",
+      implicit: false,
+      type: "text" as const,
+    },
     {
       key: "{var}recipient.first_name",
       label: "Recipient first name",
       implicit: true,
+      type: "text" as const,
     },
   ];
 
@@ -461,6 +467,7 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
       key: `f${String(n)}`,
       label: `F${String(n)}`,
       implicit: false,
+      type: "text" as const,
     }));
     const card = detailsCard(
       details({
@@ -589,11 +596,15 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
     key: "{var}recipient.first_name",
     label: "Recipient first name",
     implicit: true,
+    type: "text" as const,
   };
   const state = details({
     template: template("T1", { level: "edit" }),
     subject: "Quote",
-    fields: [{ key: "Date", label: "Date", implicit: false }, firstName],
+    fields: [
+      { key: "Date", label: "Date", implicit: false, type: "text" as const },
+      firstName,
+    ],
     entered: ["", ""],
     order: [0, 1],
     values: { "sender.name": "Ana" },

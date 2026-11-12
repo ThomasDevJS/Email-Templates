@@ -6,6 +6,7 @@ import {
   collapse,
   parseText,
   promptKey,
+  type PromptType,
   type Segment,
 } from "./grammar";
 import { PLACEHOLDER_NAMES, isKnownName } from "./registry";
@@ -23,6 +24,8 @@ export type ProblemCode =
   | "PH_FALLBACK_ASK"
   | "PH_ATTR"
   | "PH_TOO_MANY"
+  /** One prompt identity used as `{{ask:}}` and as `{{date:}}` (spec 5.9). */
+  | "PH_FIELD_TYPE"
   /** Editor only: a `\` typed right before a chip would turn the token into the `\{{` escape. */
   | "PH_BACKSLASH"
   /** Subject only (spec 5.6). */
@@ -82,11 +85,12 @@ function unknownName(name: string, offset: number): Problem {
 
 function classifyClosed(inner: string, offset: number): Problem {
   const body = inner.trim();
-  if (/^ask *:/i.test(body)) {
-    if (!/^ask *:/.test(body))
+  const kind = /^(ask|date) *:/i.exec(body)?.[1];
+  if (kind !== undefined) {
+    if (kind !== kind.toLowerCase())
       return {
         code: "PH_CASE",
-        message: `Use lower case: ask: (${at(offset)}).`,
+        message: `Use lower case: ${kind.toLowerCase()}: (${at(offset)}).`,
         offset,
       };
     if (body.includes("|"))
@@ -147,7 +151,8 @@ function leftoverProblems(text: string, base: number): Problem[] {
 
 interface Collector {
   readonly names: Set<string>;
-  readonly prompts: Map<string, string>;
+  /** First spelling and type per prompt identity. */
+  readonly prompts: Map<string, { label: string; type: PromptType }>;
   readonly problems: Problem[];
   readonly warnings: Warning[];
 }
@@ -158,16 +163,32 @@ function visit(segment: Segment, into: Collector): void {
   } else if (segment.kind === "variable") {
     visitVariable(segment, into);
   } else if (segment.kind === "prompt") {
-    const label = collapse(segment.label);
-    if (label.length < 1 || label.length > LABEL_MAX)
-      into.problems.push({
-        code: "PH_LABEL",
-        message: `${LABEL_RULE} (${at(segment.offset)}).`,
-        offset: segment.offset,
-      });
-    else if (!into.prompts.has(promptKey(label)))
-      into.prompts.set(promptKey(label), label);
+    visitPrompt(segment, into);
   }
+}
+
+function visitPrompt(
+  segment: Extract<Segment, { kind: "prompt" }>,
+  into: Collector,
+): void {
+  const label = collapse(segment.label);
+  if (label.length < 1 || label.length > LABEL_MAX) {
+    into.problems.push({
+      code: "PH_LABEL",
+      message: `${LABEL_RULE} (${at(segment.offset)}).`,
+      offset: segment.offset,
+    });
+    return;
+  }
+  const first = into.prompts.get(promptKey(label));
+  if (first === undefined)
+    into.prompts.set(promptKey(label), { label, type: segment.type });
+  else if (first.type !== segment.type)
+    into.problems.push({
+      code: "PH_FIELD_TYPE",
+      message: `The field "${first.label}" is used as text and as a date (${at(segment.offset)}). Rename one of them.`,
+      offset: segment.offset,
+    });
 }
 
 function visitVariable(
@@ -258,7 +279,7 @@ export function scanBody(
     });
   return {
     placeholders: [...into.names],
-    prompts: [...into.prompts.values()],
+    prompts: [...into.prompts.values()].map((prompt) => prompt.label),
     problems: into.problems,
     warnings: into.warnings,
   };

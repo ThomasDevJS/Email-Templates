@@ -105,6 +105,13 @@ export type Widget =
       readonly onChange?: ActionSpec;
     }
   | {
+      /** A date field (spec 5.9): a calendar picker, no hint; `valueMs` null starts it with no date. */
+      readonly kind: "date";
+      readonly name: string;
+      readonly title: string;
+      readonly valueMs: number | null;
+    }
+  | {
       /** One row of two (Card Service Columns, compose dialog only): `fill` takes the space, `fit` the minimum. */
       readonly kind: "columns";
       readonly fill: Single;

@@ -37,6 +37,15 @@ describe("the 8 test pairs of ADR-0004 Amendment 2026-11-11", () => {
   });
 });
 
+describe("an unpicked date field (spec 5.9 example 2)", () => {
+  it("is removed with the gap rules, as an unfilled ask field", () => {
+    expect(body("<p>Pickup on {{date:Pickup date}}.</p>")).toBe(
+      "<p>Pickup on.</p>",
+    );
+    expect(subject("Load ready {{date:Pickup date}}")).toBe("Load ready");
+  });
+});
+
 describe("left alone on purpose (ADR-0004 Amendment 2026-11-11)", () => {
   it("spaces across inline tags", () => {
     expect(body("<p>Hi <b>{{ask:Name}}</b>, thanks</p>")).toBe(

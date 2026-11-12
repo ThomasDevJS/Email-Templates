@@ -61,6 +61,8 @@ import {
 } from "./event";
 import {
   answersByKey,
+  badDateText,
+  badDates,
   displayOrder,
   inputName,
   shortenText,
@@ -489,10 +491,12 @@ export function promptInsertFlow(
   // The inputs on screen came from the card values.
   const fields = cardFields(body, cardValues);
   const entered = fields.map((_, n) => formValue(event, inputName(n)));
-  const long = tooLong(entered);
+  const long = tooLong(entered, fields);
+  const bad = badDates(fields, entered);
+  const flagged = long.length > 0 ? long : bad;
   const changed = result.version !== version;
   const listsChanged = params["rh"] !== rhOf(ports, lists);
-  if (!changed && !listsChanged && long.length === 0) {
+  if (!changed && !listsChanged && flagged.length === 0) {
     const { html, subject } = rendered(body, {
       values,
       answers: answersByKey(fields, entered),
@@ -511,10 +515,12 @@ export function promptInsertFlow(
       ? VERSION_CHANGED
       : listsChanged
         ? RECIPIENTS_CHANGED
-        : shortenText(fields, long),
+        : long.length > 0
+          ? shortenText(fields, long)
+          : badDateText(fields, bad),
     counted: true,
     entered,
-    flagged: changed ? [] : long,
+    flagged: changed ? [] : flagged,
     // A changed template shows the switches at their defaults (D24 for the subject).
     ...(changed ? {} : { replaceSubject }),
     addRecipients: addRecipients || changed || listsChanged,

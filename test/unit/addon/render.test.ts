@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  DATE_HINT,
   SLATE,
   renderCard,
   renderReply,
@@ -188,6 +189,56 @@ describe("renderCard", () => {
     expect(argsOf("setControlType")).toEqual(["SWITCH"]);
     expect(argsOf("setSwitchControl")).toHaveLength(1);
   });
+
+  const DATES: CardSpec = {
+    name: "d",
+    sections: [
+      {
+        widgets: [
+          { kind: "date", name: "p-1", title: "Pickup", valueMs: null },
+          { kind: "date", name: "p-2", title: "Drop", valueMs: 1794441600000 },
+        ],
+      },
+    ],
+  };
+
+  it("renders a date picker: no start value when none was picked, the picked value set back, no hint", () => {
+    renderCard(DATES);
+    expect(calls.filter((c) => c.method === "newDatePicker")).toHaveLength(2);
+    expect(argsOf("setFieldName")).toEqual(["p-1", "p-2"]);
+    expect(argsOf("setTitle")).toEqual(["Pickup", "Drop"]);
+    expect(argsOf("setValueInMsSinceEpoch")).toEqual([1794441600000]);
+    expect(argsOf("setHint")).toEqual([]);
+    expect(argsOf("newTextInput")).toEqual([]);
+  });
+
+  it.each([
+    ["missing", undefined],
+    [
+      "throwing",
+      () => {
+        throw new Error("no picker");
+      },
+    ],
+  ])(
+    "falls back to a text box with the hint MM/DD/YYYY when newDatePicker is %s",
+    (_, picker) => {
+      const cards = createRecordingCardService();
+      calls = cards.calls;
+      vi.stubGlobal(
+        "CardService",
+        Object.assign(Object.create(cards.service) as object, {
+          newDatePicker: picker,
+        }),
+      );
+      renderCard(DATES);
+      expect(argsOf("newTextInput")).toHaveLength(2);
+      expect(argsOf("setFieldName")).toEqual(["p-1", "p-2"]);
+      expect(argsOf("setValue")).toEqual(["", "11/12/2026"]);
+      expect(argsOf("setHint")).toEqual([DATE_HINT, DATE_HINT]);
+      expect(DATE_HINT).toBe("MM/DD/YYYY");
+    },
+  );
 
   it("renders a footer without a secondary button", () => {
     renderCard({

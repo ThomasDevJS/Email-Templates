@@ -30,8 +30,6 @@
 - `src/web/`: app.ts (`startApp(host)`), host.ts (google.script wrapper), router.ts, rpc/{client,api}.ts, editor/{schema,load,serialize,setup,commands,toolbar,picker}.ts, ui/{dom,dialog,menu,status}.ts, views/{library,tree,grid,editor,history,preview,problems,tags,context}.ts, dev-harness.ts.
 - scripts/web.mjs (`webPage({harness})`, `servePage`, `DEV_PAGE_VALUES`), dev-web.mjs, lighthouse.mjs. build.mjs uses webPage.
 - Tests: test/unit/web/* (jsdom per file, `stubLayout` for ProseMirror), app.test.ts boots harness + app via dynamic import and `vi.resetModules`.
-
-
 ## Code map (after slice 4)
 - `src/addon/`: entry.ts (12 callbacks, `respond` = guard, QUOTA `notBefore` wait, flow, render), flows.ts (`Ports` = call, User Cache, nowMs, userEmail, execUrl; home, folder, preview, insert, promptInsert, openLink, spike flows), view.ts (`view:*` chunks 600 s, `body:<id>`), event.ts (params, formInputs, `internalRecipient`), prompts.ts (p-n names, 20 fields, 500 chars).
 - `src/addon/cards/`: spec.ts (`CardSpec`, `Reply`, `CALLBACKS`), render.ts (only Card Service code, escapes all text), home, folder (20 per page), details (slice 15; preview and prompt cards gone), states (`stateCard`, `waitSeconds`).
@@ -122,7 +120,7 @@
 - Not verified against Google: `getActiveUser` in triggers, triggerUid values, 5 MB `google.script.run` arg, drift check.
 ## Slice 20a (fix round, 2026-11-11)
 - Admin `AdminFolders { current, refresh }` shared by tabs. app.ts `firstLoad` (15 s, Reload), first history entry stamped, held Discard uses `go(moved)`. `hold().run` clears the DOM selection (Chromium caret). Export `run` key -> `exps:<run>` 60 s. `newId` from sha256(getUuid). `NOT_SET_UP_TEXT` in shared/errors/codes.ts.
-- Fail-before check: scratchpad script `git diff src > p; git checkout -- src; vitest -t; git apply p` (guard rejects it chained inline). jsdom history is shared across tests in a file: assert history state directly, or wait for both popstates.
+- Fail-before check: scratchpad script `git diff src > p; git checkout -- src; vitest -t; git apply p` (guard rejects it chained inline). jsdom history is shared across tests in a file. Appending test blocks: Write to scratchpad, then `cat a >> b` alone.
 ## Slice 13 (fix round, 2026-11-11)
 - `config.set { name, value, baseAt, baseBy }` (last change marker, not `from`); client `conflictEntry` applies CONFLICT `details`; Save uses `aria-disabled` while busy, focus to the status line.
 - `recheckRecipients` (body.ts) inside every write commit; `problemsError` shared with `prepareBody`. `trash.purge` returns `templates`, `folders`.
@@ -147,3 +145,5 @@
 ## Slice 20b (add-on fix round, 2026-11-11)
 - cards/folder.ts `LIST_MAX` (favorites 10, recent 5, folders 40, results 20) + `capped(rows, max, noun)` ends a cut list with "Showing ... Use Search or Open library for the rest."; test/unit/addon/cardLimit.test.ts counts widgets (< 100) for 3 entries. event.ts `mailboxesOf` (first Reply-To answers). `addsLine(plan, reply)`. subject.ts `capSubject` in `renderSubject`. vitest hides console output here: probe via assertions, not logs.
 - Slice 21 (D35): render.ts `toAction` sets the load indicator (`INSTANT` = onBack, onOpenLink get NONE); text widget `tone: "error"` -> `<font color=RED>` around escaped text (state cards: first line). Freeze test cardLook.test.ts snapshot; fake CardService needs each new enum. Slice 22 (D36): `tone: "hint"` = DecoratedText, `info` icon, grey via `colored()`; `hint(text)` in spec.ts; `ButtonSpec.icon` (guarded `setMaterialIcon`, missing from typings); Search button under the box. 22b: tone error = DecoratedText + `error` icon alt "Error", no "(!)"; widget kind `columns` (compose search row, `toColumns` with stacked fallback).
+## Slices 24-25 (2026-11-12)
+- 24: `ui/busy.ts` loader; `pageBusy` in editor/setup.ts. 25 (D38 date field): prompt segment `type` text|date, `dateToken`; `PH_FIELD_TYPE`; shared/placeholders/date.ts `dateText` (UTC day, rounded) and `typedDateMs`; `PromptField.type`; add-on widget kind `date` (`toDate`, text-box fallback `DATE_HINT`), `dateValue` inside `formValue`, `badDates`/`badDateText`; editor attr `type`, `BlankParts.muted`, `usedText(count, type)`, `sampleDate`. Build: `npm run build -- --env dev`.

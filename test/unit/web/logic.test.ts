@@ -38,7 +38,9 @@ import {
   previewAsMe,
   promptUses,
   recipientLines,
+  sampleDate,
   senderValues,
+  subjectAsMe,
   usedText,
   withChips,
 } from "../../../src/web/views/preview";
@@ -509,6 +511,22 @@ describe("previews", () => {
     ).toBe("<p>Ana &lt;A&gt;, [Your title], [Date], there</p>");
   });
 
+  it("shows a date field as today's local date in Preview as me, a chip in history (spec 5.9)", () => {
+    const today = sampleDate();
+    expect(today).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(sampleDate(new Date(2028, 1, 29, 23, 59))).toBe("02/29/2028");
+    expect(sampleDate(new Date(2027, 0, 1, 0, 0))).toBe("01/01/2027");
+    expect(previewAsMe("<p>{{date:Pickup}} {{ask:Notes}}</p>", profile)).toBe(
+      `<p>${today} [Notes]</p>`,
+    );
+    expect(subjectAsMe("Ready {{date:Pickup}}", profile)).toBe(
+      `Ready ${today}`,
+    );
+    expect(withChips("<p>{{date:Pickup}}</p>")).toBe(
+      '<p><span class="ph ask date" role="img" aria-label="Field: Pickup, a date the sender picks">Pickup<span class="ph-or"> (date)</span></span></p>',
+    );
+  });
+
   it("gives prompts the ask look in history", () => {
     expect(withChips("<p>{{ask:Load number}}</p>")).toBe(
       '<p><span class="ph ask" role="img" aria-label="Field: Load number, the sender fills it in">Load number</span></p>',
@@ -531,12 +549,17 @@ describe("previews", () => {
         "Load {{ask:Load number}}",
       ),
     ).toEqual([
-      { label: "Load number", count: 3 },
-      { label: "Date", count: 1 },
+      { label: "Load number", count: 3, type: "text" },
+      { label: "Date", count: 1, type: "text" },
     ]);
     expect(promptUses("<p>\\{{ask:X}}</p>", "")).toEqual([]);
     expect(usedText(1)).toBe("used once");
     expect(usedText(2)).toBe("used 2 times");
+    expect(promptUses("<p>{{date:Pickup}} {{date:pickup}}</p>", "")).toEqual([
+      { label: "Pickup", count: 2, type: "date" },
+    ]);
+    expect(usedText(1, "date")).toBe("date, used once");
+    expect(usedText(3, "date")).toBe("date, used 3 times");
   });
 
   it("lists recipients per field with addresses", () => {

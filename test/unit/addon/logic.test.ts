@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { replacesSubject } from "../../../src/addon/cards/spec";
 import {
+  dateValue,
   draftInfo,
   formValue,
   internalRecipient,
@@ -10,6 +11,8 @@ import {
 } from "../../../src/addon/event";
 import {
   answersByKey,
+  badDateText,
+  badDates,
   displayOrder,
   inputName,
   moreFieldsText,
@@ -28,9 +31,14 @@ import { FakeCache } from "../../fakes/cache";
 import { template, view } from "./fixtures";
 
 const FIELDS = [
-  { key: "a", label: "Alpha", implicit: false },
-  { key: "b", label: "Beta", implicit: false },
-  { key: "{var}sender.phone", label: "Your phone", implicit: true },
+  { key: "a", label: "Alpha", implicit: false, type: "text" as const },
+  { key: "b", label: "Beta", implicit: false, type: "text" as const },
+  {
+    key: "{var}sender.phone",
+    label: "Your phone",
+    implicit: true,
+    type: "text" as const,
+  },
 ];
 
 describe("prompt rules (wireframe 02)", () => {
@@ -64,6 +72,52 @@ describe("prompt rules (wireframe 02)", () => {
       b: "2",
       "{var}sender.phone": "",
     });
+  });
+
+  const WITH_DATE = [
+    { key: "a", label: "Alpha", implicit: false, type: "text" as const },
+    { key: "d", label: "Pickup", implicit: false, type: "date" as const },
+  ];
+
+  it("date fields: tooLong skips them, a wrong typed date is flagged, answers are MM/DD/YYYY (spec 5.9)", () => {
+    expect(tooLong(["x", "9".repeat(501)], WITH_DATE)).toEqual([]);
+    expect(badDates(WITH_DATE, ["not a date", "11/12/2026"])).toEqual([]);
+    expect(badDates(WITH_DATE, ["x", "02/30/2028"])).toEqual([1]);
+    expect(badDates(WITH_DATE, ["x", " "])).toEqual([]);
+    expect(badDateText(WITH_DATE, [1])).toBe(
+      "Enter a date as MM/DD/YYYY: Pickup",
+    );
+    expect(answersByKey(WITH_DATE, ["1/2/2027", "2/9/2027"])).toEqual({
+      a: "1/2/2027",
+      d: "02/09/2027",
+    });
+    expect(answersByKey(WITH_DATE, ["", "soon"])).toEqual({ a: "", d: "" });
+  });
+});
+
+describe("date picker input (spec 5.9)", () => {
+  const event = (input: object): AddonEvent => ({
+    commonEventObject: { formInputs: { "p-1": input } },
+  });
+
+  it.each([
+    ["a number", 1794441600000, "11/12/2026"],
+    ["a numeric string", "1794441600000", "11/12/2026"],
+    ["an array", [1794441600000], "11/12/2026"],
+    ["absent", undefined, ""],
+    ["not finite", "Infinity", ""],
+  ])("reads msSinceEpoch as %s", (_, ms, text) => {
+    const read = event({ dateInput: { msSinceEpoch: ms } });
+    expect(dateValue(read, "p-1")).toBe(text);
+    expect(formValue(read, "p-1")).toBe(text);
+  });
+
+  it("is null without a picker, and a text box is read as text", () => {
+    const typed = event({ stringInputs: { value: ["11/12/2026"] } });
+    expect(dateValue(typed, "p-1")).toBeNull();
+    expect(formValue(typed, "p-1")).toBe("11/12/2026");
+    expect(dateValue(event({ dateInput: null }), "p-1")).toBeNull();
+    expect(dateValue(undefined, "p-1")).toBeNull();
   });
 });
 

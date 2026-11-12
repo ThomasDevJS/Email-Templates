@@ -35,6 +35,8 @@ import {
   MAX_FIELDS,
   MAX_VALUE_CHARS,
   answersByKey,
+  badDateText,
+  badDates,
   inputName,
   tooLong,
 } from "./prompts";
@@ -268,9 +270,12 @@ export function promptComposeFlow(
     return notify(TEMPLATE_CHANGED);
   if (params["rh"] !== rhOf(ports, lists)) return notify(LISTS_CHANGED);
   const cardValues = parseValues(params["values"] ?? "{}");
+  const fields = cardFields(body, cardValues);
+  const bad = badDates(fields, boxes);
+  if (bad.length > 0) return notify(badDateText(fields, bad));
   const parts = rendered(body, {
     values: mergedValues(cardValues, result),
-    answers: answersByKey(cardFields(body, cardValues), boxes),
+    answers: answersByKey(fields, boxes),
   });
   const add = formValue(event, RECIPIENT_SWITCH) === SWITCH_ON;
   return draftOf(

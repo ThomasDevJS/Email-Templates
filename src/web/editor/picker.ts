@@ -2,8 +2,10 @@ import {
   FALLBACK_MAX,
   LABEL_MAX,
   collapse,
+  dateToken,
   promptToken,
   variableToken,
+  type PromptType,
 } from "../../shared/placeholders/grammar";
 import { REGISTRY } from "../../shared/placeholders/registry";
 import { promptText } from "../ui/dialog";
@@ -16,8 +18,9 @@ import {
 import type { Editor } from "./setup";
 
 /**
- * Placeholder picker (wireframe 04): the 5 registry names, "Ask the sender..." (label dialog) and, on a selected
- * variable chip, "Add default text...". Opened from the toolbar and when the user types `{{`.
+ * Placeholder picker (wireframe 04): the 5 registry names, "Ask the sender..." and "Ask the sender for a date..."
+ * (label dialog) and, on a selected variable chip, "Add default text...". Opened from the toolbar and when the user
+ * types `{{`.
  */
 const FORBIDDEN = /[{}|\\<>\r\n]/;
 
@@ -39,23 +42,38 @@ export function fallbackProblem(value: string): string {
     : "";
 }
 
-/** The "Ask the sender" dialog; null when cancelled. */
-async function askLabel(): Promise<string | null> {
-  const label = await promptText({
+/** Menu item and dialog texts of each field type (spec 5.9). */
+const ASK = {
+  text: {
+    item: "Ask the sender...",
     title: "Ask the sender",
-    label: "Field name the sender sees",
     hint: "1 to 40 characters, for example Meeting date.",
+  },
+  date: {
+    item: "Ask the sender for a date...",
+    title: "Ask the sender for a date",
+    hint: "1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY.",
+  },
+} as const;
+const TYPES: readonly PromptType[] = ["text", "date"];
+
+/** The "Ask the sender" dialog of one field type; null when cancelled. */
+async function askLabel(type: PromptType): Promise<string | null> {
+  const label = await promptText({
+    title: ASK[type].title,
+    label: "Field name the sender sees",
+    hint: ASK[type].hint,
     maxLength: LABEL_MAX,
     check: labelProblem,
   });
   return label === null ? null : collapse(label);
 }
 
-async function askPrompt(editor: Editor): Promise<void> {
+async function askPrompt(editor: Editor, type: PromptType): Promise<void> {
   const held = editor.hold();
-  const label = await askLabel();
+  const label = await askLabel(type);
   if (label !== null)
-    held.run(insertPlaceholder({ name: "", label, fallback: null }));
+    held.run(insertPlaceholder({ name: "", label, fallback: null, type }));
   else held.release();
 }
 
@@ -92,10 +110,14 @@ function insertAtCaret(input: HTMLInputElement, text: string): void {
 
 /** The picker for the plain-text subject input (wireframe 04): token text at the caret, no chips. */
 export function subjectPickerItems(input: HTMLInputElement): MenuItem[] {
-  const ask = async () => {
-    const label = await askLabel();
+  const ask = async (type: PromptType) => {
+    const label = await askLabel(type);
     if (label === null) input.focus();
-    else insertAtCaret(input, promptToken(label));
+    else
+      insertAtCaret(
+        input,
+        type === "date" ? dateToken(label) : promptToken(label),
+      );
   };
   return [
     ...REGISTRY.map((entry) => ({
@@ -104,7 +126,10 @@ export function subjectPickerItems(input: HTMLInputElement): MenuItem[] {
         insertAtCaret(input, variableToken(entry.name, null));
       },
     })),
-    { label: "Ask the sender...", run: () => void ask() },
+    ...TYPES.map((type) => ({
+      label: ASK[type].item,
+      run: () => void ask(type),
+    })),
   ];
 }
 
@@ -117,7 +142,11 @@ export function pickerItems(editor: Editor): MenuItem[] {
       );
     },
   }));
-  items.push({ label: "Ask the sender...", run: () => void askPrompt(editor) });
+  for (const type of TYPES)
+    items.push({
+      label: ASK[type].item,
+      run: () => void askPrompt(editor, type),
+    });
   const chip = selectedPlaceholder(editor.view.state);
   if (chip !== null && chip.attrs.name !== "")
     items.push({

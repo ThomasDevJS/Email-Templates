@@ -1,4 +1,5 @@
 import { escapeText } from "../../shared/html/escape";
+import { dateText } from "../../shared/placeholders/date";
 import type { RecipientActions } from "./recipients";
 import {
   SWITCH_ON,
@@ -150,6 +151,34 @@ function toInput(spec: Extract<Widget, { kind: "input" }>) {
 
 type CardWidget = GoogleAppsScript.Card_Service.Widget;
 
+/** Hint of the text box that stands in for a date picker. */
+export const DATE_HINT = "MM/DD/YYYY";
+
+/**
+ * A date field's picker; no start value when `valueMs` is null (Q85). shortcut: a build without `newDatePicker`, or
+ * one that throws, gets a text box with the hint MM/DD/YYYY and the date as text; a Gmail that refuses the picker
+ * while drawing the card cannot be caught here (Q86).
+ */
+function toDate(spec: Extract<Widget, { kind: "date" }>): CardWidget {
+  try {
+    const picker = CardService.newDatePicker()
+      .setFieldName(spec.name)
+      .setTitle(spec.title);
+    return spec.valueMs === null
+      ? picker
+      : picker.setValueInMsSinceEpoch(spec.valueMs);
+  } catch {
+    return toInput({
+      kind: "input",
+      name: spec.name,
+      title: spec.title,
+      value: spec.valueMs === null ? "" : dateText(spec.valueMs),
+      multiline: false,
+      hint: DATE_HINT,
+    });
+  }
+}
+
 /** The part of Card Service Columns this file uses. */
 interface ColumnsApi {
   newColumns(): {
@@ -212,6 +241,8 @@ function toWidget(spec: Single): CardWidget {
       );
     case "input":
       return toInput(spec);
+    case "date":
+      return toDate(spec);
   }
 }
 
