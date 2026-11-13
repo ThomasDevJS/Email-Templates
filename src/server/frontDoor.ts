@@ -23,18 +23,33 @@ export function mediaType(type: unknown): string {
   return (type.toLowerCase().split(";")[0] ?? "").trim();
 }
 
-/** `postData.length` when it is a number (NaN is none); else the length of `contents` (characters), else 0. */
-export function bodyLength(postData: PostData): number {
-  const { length } = postData;
-  if (typeof length === "number" && !Number.isNaN(length)) return length;
-  return typeof postData.contents === "string" ? postData.contents.length : 0;
+/** `postData.length` when it is a finite whole number >= 0, else 0. */
+function declaredLength(length: unknown): number {
+  return typeof length === "number" && Number.isInteger(length) && length >= 0
+    ? length
+    : 0;
 }
 
-/** The refusal message for a request, or null when it may go on to `JSON.parse` and dispatch. */
+/**
+ * Size for the cap: the larger of a valid `length` and `contents.length`, so a negative or small `length` cannot
+ * hide a long body. Infinity is no whole number; a long `contents` still refuses.
+ */
+export function bodyLength(length: unknown, contents: string): number {
+  return Math.max(declaredLength(length), contents.length);
+}
+
+/**
+ * The refusal message for a request, or null when it may go on to `JSON.parse` and dispatch. Reads `type`,
+ * `contents` and `length`; a getter on them can throw, so the caller treats a throw as UNSUPPORTED_TYPE.
+ */
 export function frontDoorRefusal(
   postData: PostData | null | undefined,
 ): string | null {
   if (postData === undefined || postData === null) return UNSUPPORTED_TYPE;
   if (mediaType(postData.type) !== "application/json") return UNSUPPORTED_TYPE;
-  return bodyLength(postData) > MAX_POST_BYTES ? TOO_LARGE : null;
+  const { contents } = postData;
+  if (typeof contents !== "string") return UNSUPPORTED_TYPE;
+  return bodyLength(postData.length, contents) > MAX_POST_BYTES
+    ? TOO_LARGE
+    : null;
 }

@@ -10,7 +10,7 @@ import type { RpcResponse } from "../shared/model/protocol";
 import { requestIdNow } from "../shared/requestId";
 import { loadIndex } from "./cache/indexCache";
 import { handleRpc } from "./dispatch/handle";
-import { frontDoorRefusal } from "./frontDoor";
+import { frontDoorRefusal, UNSUPPORTED_TYPE } from "./frontDoor";
 import {
   OWNER_EMAIL_KEY,
   refuse,
@@ -131,6 +131,17 @@ function refuseAtDoor(services: Services, message: string): RpcResponse {
   };
 }
 
+/** The front-door check on the event. A throwing getter on the event refuses as UNSUPPORTED_TYPE (default deny). */
+function doorRefusal(
+  event: GoogleAppsScript.Events.DoPost | undefined,
+): string | null {
+  try {
+    return frontDoorRefusal(event?.postData);
+  } catch {
+    return UNSUPPORTED_TYPE;
+  }
+}
+
 /**
  * Add-on to server call: JSON `{ op, args, requestId, clientVersion }` in, JSON envelope out. The front door
  * (content type, size) runs before `JSON.parse` and before dispatch.
@@ -139,7 +150,7 @@ export function doPost(
   event: GoogleAppsScript.Events.DoPost | undefined,
 ): GoogleAppsScript.Content.TextOutput {
   const services = createServices("addon");
-  const refusal = frontDoorRefusal(event?.postData);
+  const refusal = doorRefusal(event);
   const response =
     refusal === null
       ? handleRpc(currentCaller(), parseJsonBody(event), "addon", {

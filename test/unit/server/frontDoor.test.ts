@@ -57,11 +57,14 @@ describe("frontDoorRefusal (spec section 5.11, slice 29)", () => {
     );
   });
 
-  it("Infinity as length refuses as too large", () => {
-    expect(frontDoorRefusal(json("application/json", Infinity))).toBe(
-      TOO_LARGE,
-    );
-  });
+  it.each([undefined, null, 42, {}, ["{}"]])(
+    "contents %j that is no string refuses with the content type message",
+    (contents) => {
+      expect(
+        frontDoorRefusal({ type: "application/json", length: 2, contents }),
+      ).toBe(UNSUPPORTED_TYPE);
+    },
+  );
 });
 
 describe("mediaType", () => {
@@ -73,24 +76,36 @@ describe("mediaType", () => {
   });
 });
 
-describe("bodyLength (fallback when postData.length is absent or no number)", () => {
-  it("uses postData.length when it is a number", () => {
-    expect(bodyLength({ length: 7, contents: "a" })).toBe(7);
+describe("bodyLength (larger of a valid postData.length and contents.length)", () => {
+  const long = "x".repeat(300_000);
+
+  it("uses postData.length when it is the larger", () => {
+    expect(bodyLength(7, "a")).toBe(7);
   });
 
   it.each([
     ["absent", undefined],
     ["a string", "262145"],
     ["NaN", Number.NaN],
+    ["-1", -1],
+    ["-Infinity", -Infinity],
+    ["Infinity", Infinity],
+    ["1.5", 1.5],
+    ["10", 10],
   ])("uses contents.length when length is %s", (_name, length) => {
-    const contents = "x".repeat(MAX_POST_BYTES + 1);
-    expect(bodyLength({ length, contents })).toBe(MAX_POST_BYTES + 1);
+    expect(bodyLength(length, long)).toBe(300_000);
     expect(
-      frontDoorRefusal({ type: "application/json", length, contents }),
+      frontDoorRefusal({ type: "application/json", length, contents: long }),
     ).toBe(TOO_LARGE);
   });
 
-  it("is 0 with neither a number length nor string contents", () => {
-    expect(bodyLength({})).toBe(0);
+  it("length 262,144 with a short body passes", () => {
+    expect(
+      frontDoorRefusal({
+        type: "application/json",
+        length: 262_144,
+        contents: "{}",
+      }),
+    ).toBeNull();
   });
 });

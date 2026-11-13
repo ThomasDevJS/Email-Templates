@@ -648,6 +648,76 @@ describe("doPost front door (spec section 5.11, slice 29)", () => {
     });
   });
 
+  it.each([-1, 10])(
+    "length %j with a 300,000-character body answers Request too large",
+    (length) => {
+      const big = JSON.stringify({
+        ...JSON.parse(PING),
+        pad: "x".repeat(300_000),
+      });
+      expect(postRaw(postEvent(big, "application/json", length))).toMatchObject(
+        { ok: false, error: { message: "Request too large" } },
+      );
+    },
+  );
+
+  const SECRET = "thrown-error-text";
+  const throwing = () => {
+    throw new Error(SECRET);
+  };
+  const postData = { type: "application/json", length: 2, contents: "{}" };
+
+  it.each([
+    [
+      "event.postData",
+      () => Object.defineProperty({}, "postData", { get: throwing }),
+    ],
+    [
+      "postData.type",
+      () => ({
+        postData: Object.defineProperty({ ...postData }, "type", {
+          get: throwing,
+        }),
+      }),
+    ],
+    [
+      "postData.length",
+      () => ({
+        postData: Object.defineProperty({ ...postData }, "length", {
+          get: throwing,
+        }),
+      }),
+    ],
+    [
+      "postData.contents",
+      () => ({
+        postData: Object.defineProperty({ ...postData }, "contents", {
+          get: throwing,
+        }),
+      }),
+    ],
+  ])(
+    "a throwing getter on %s answers Unsupported content type with one warn line and no error text",
+    (_name, makeEvent) => {
+      let response: Record<string, unknown> = {};
+      const seen = observe(() => {
+        response = postRaw(
+          makeEvent() as unknown as GoogleAppsScript.Events.DoPost,
+        );
+      });
+      expect(response).toMatchObject(REFUSED_TYPE);
+      expect(JSON.stringify(response)).not.toContain(SECRET);
+      expect(seen.lines).toHaveLength(1);
+      expect(seen.lines[0]).not.toContain(SECRET);
+      expect(JSON.parse(seen.lines[0] ?? "{}")).toMatchObject({
+        level: "warn",
+        action: "",
+        errorCode: "BAD_REQUEST",
+      });
+      expect(seen).toMatchObject({ driveCalls: 0, fetches: 0, cacheCalls: 0 });
+    },
+  );
+
   it("security: a valid favorite.set body sent as text/plain leaves favorites.json unchanged and calls no handler", () => {
     asCaller(OWNER);
     const folder = webRpc("folder.create", { name: "Sales" }) as {
