@@ -1,6 +1,6 @@
 # ADR-0003: Execution identity and permission model
 
-Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: buffer slots, log `targetId`, export event; Proposed) (Amendment 2026-11-11, D32: in-app admin list; Accepted 2026-11-11, built in slice 16)
+Status: Accepted 2026-11-09 (orchestrator, by owner delegation; was Proposed) (revised 2026-11-09 after D15: one project, near-zero maintenance) (revised 2026-11-09 in slice 2: Part C enforcement mechanism, entry point allowlist) (Amendment 2026-11-10, errata run 3: denied rows, event buffer cap, trigger install order, admin op log lines; Proposed) (Amendment 2026-11-10, D29: personal templates switch, `config.set`; Accepted 2026-11-11 with ADR-0008) (Amendment 2026-11-11, errata run 4: buffer slots, log `targetId`, export event; Proposed) (Amendment 2026-11-11, D32: in-app admin list; Accepted 2026-11-11, built in slice 16) (Amendment 2026-11-13, D41: extension surface, front door, `entry` for policy, refused-apply row; Proposed)
 Date: 2026-11-09
 Deciders: owner (thomas@migway.com), architect
 
@@ -284,6 +284,16 @@ Default deny holds: an address is admin only when one of the 3 sources lists it 
 - Results of `admin.add` and `admin.remove` carry `email`, the stored primary address; the screen texts name it.
 - A DENIED on any admin-only action shows "You are no longer an admin, so nothing was changed. Ask an admin if you need access." (spec 7.3). A blank caller is never admin (the old code matched "" against a blank `ADMIN_EMAILS`).
 - A list that cannot be read for the write answers CONFLICT (`editedList`), no default.
+
+## Amendment 2026-11-13 (D41): extension surface
+
+Status: Proposed. Mechanism and options in ADR-0010; contract in spec 5.11. Part A, Part C and Part D stand except where this section says.
+
+- Part A, front door. `doPost` refuses, before `JSON.parse` and dispatch, a missing `postData`, a media type other than `application/json` (parameters such as `charset` ignored) and a body over 262,144 bytes: BAD_REQUEST envelope, one warn log line, no audit row (ADR-0010 Decision 1). Reason: a cross-site form can POST only `text/plain`, form-encoded or multipart bodies; the cookie-borne CSRF path of advisor X1 ends there. Slice 29.
+- Part C, enforcement. [The rule "`web` ops are refused on the add-on surface" is replaced.] Dispatch reads `entry` (`doPost` or `rpc`), set by `entry.ts` only. A `web` row runs only when `entry === "rpc"`. The log and audit label `surface` gains `extension`, taken from the envelope field `client` of a `doPost` call; it never reaches `authorize` (type split and table test, ADR-0010 Decision 2). Slice 30.
+- Part C, list ops. `sidebar.home`, `search` and `extension.sync` share one filter, `visibleLibrary` (slice 31). `PolicyRow.checkArgs` (optional) runs after the policy lookup and before `authorize`; `extension.sync` uses it to refuse an oversized `have` before the index load.
+- Part D, audit. [Denied rows of `template.apply`: the folder row is replaced when the call carries a well-formed `applyId`.] Such a refusal writes one row per `applyId`: `targetType: template`, `targetId: <item ID>`, `after: { folderId, applyId, claimed: { at, knownVersion } }`, for DENIED and for NOT_FOUND of an item in the index (trashed). An ID absent from the index writes no row, as before. `ts` is server time on every row; the client time sits in `after.claimed.at` only (ADR-0010 Decisions 5, 6). Slice 32.
+- Part D, surface values: `addon`, `extension`, `webapp`, `trigger`.
 
 ## Consequences
 

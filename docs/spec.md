@@ -1,9 +1,9 @@
 # Migway Gmail Templates: specification v1
 
-Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves. D38 run (2026-11-12): date fields (section 5.9, Q85 to Q90; ADR-0004 Amendment 2026-11-12 "date fields"); Proposed until the owner approves. D39 run (2026-11-12, proposal): choice fields (section 5.10, Q91 to Q97; ADR-0004 Amendment 2026-11-12 "choice fields"); Proposed. Errata run 7 (2026-11-12): slices 23 to 26 as built at 78e3317; sections 5.9 and 5.10 and the three ADR-0004 amendments of 2026-11-12 Accepted (owner decisions D38, D39, D40, Q78, Q91); sections 7, 8, 13, 15 updated.
-Date: 2026-11-09, amended 2026-11-10, 2026-11-11 and 2026-11-12
+Status: Accepted at G2 2026-11-09. Errata and D21 (template subject) amendment 2026-11-10: Proposed until the owner approves. Errata run 2 (2026-11-10): D24 subject rule, slices 5b, 5c, 6a, 6b, built ops, log `draft` object; Proposed until the owner approves. Errata run 3 (2026-11-10): slices 6a and 6b as built (sections 4.5, 5.1, 5.2, 5.5, 6, 11.1, 13, 16), owner handover (section 16, ADR-0002 Amendment 2026-11-10); Proposed until the owner approves. D26 run (2026-11-10): template recipients To, Cc, Bcc (sections 2, 4.1, 4.2, 4.5, 5.3, 5.5, 5.7, 6, 7.1, 9, 11, 13.6, 14.1, 15; ADR-0006); Proposed until the owner approves. D27 run (2026-11-10): side-panel insert (sections 2, 3, 4.1a, 7.2, 9, 11, 13.7, 14.2, 15; ADR-0007); Proposed until the owner approves. D29 run (2026-11-10): in-app admin settings, personal templates switch, outside recipients switch moved in-app (sections 2, 5.1, 5.5, 5.6 Script Properties, 5.7, 5.8, 6, 7, 7.1, 7.3, 11.1, 13.8, 15, 16; ADR-0008); Proposed until the owner approves. Errata run 4 (2026-11-11): slices 8a to 8d and 9 to 13 as built at 6374b7b (sections 4.1, 4.1a, 4.4, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 8, 11, 11.1, 13, 14, 15, 16); section 5.8 follows ADR-0008, Accepted 2026-11-11; the rest Proposed until the owner approves. D31 run (2026-11-11): one-click insert for every template and the details card (sections 4, 4.1, 4.1a, 5.6, 5.7, 7, 7.1, 7.2, 7.4, 13, 13.4, 13.9, 14.2, 15; ADR-0009, Amendments 2026-11-11 in ADR-0004 and ADR-0006, note in ADR-0007); Accepted 2026-11-11 (owner decision D31, built in slice 15). D32 run (2026-11-11): in-app admin list (sections 2, 5.8, 6, 7.3, 11.1, 13, 13.10, 15; ADR-0003 and ADR-0008 Amendments 2026-11-11); Accepted 2026-11-11 (owner decision D32, built in slice 16). Errata run 5 (2026-11-11): slices 14 to 19 and D33 as built at 16df87a (sections 2, 4, 4.1, 4.1a, 4.5, 5.6, 5.7, 5.8, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 13, 14, 15, 16); Proposed until the owner approves. Errata run 6 (2026-11-12): slices 20a, 20b, 21, 22 with follow-up 1 as built at 8e82a07, slice 23 in review, the owner's dev tests of 2026-11-11 (sections 4.1a, 4.3, 4.4, 4.5, 6, 7, 7.1, 7.2, 7.3, 7.4, 8, 9, 13, 14, 15); the card look of D34, D35 and D36 is Accepted (owner decisions, built); the rest Proposed until the owner approves. D38 run (2026-11-12): date fields (section 5.9, Q85 to Q90; ADR-0004 Amendment 2026-11-12 "date fields"); Proposed until the owner approves. D39 run (2026-11-12, proposal): choice fields (section 5.10, Q91 to Q97; ADR-0004 Amendment 2026-11-12 "choice fields"); Proposed. Errata run 7 (2026-11-12): slices 23 to 26 as built at 78e3317; sections 5.9 and 5.10 and the three ADR-0004 amendments of 2026-11-12 Accepted (owner decisions D38, D39, D40, Q78, Q91); sections 7, 8, 13, 15 updated. D41 run (2026-11-13): extension surface, requests SR1 to SR4 and SF2 (sections 5.7, 5.11, 6, 11, 13, 13.12, 15; ADR-0010; Amendments 2026-11-13 in ADR-0003 and ADR-0006); Proposed until the owner approves.
+Date: 2026-11-09, amended 2026-11-10, 2026-11-11, 2026-11-12 and 2026-11-13
 Author: architect. Owner: thomas@migway.com.
-Inputs: docs/BRIEF.md, PLAN.md (D1 to D40), docs/research/*.md, ADR-0001 to ADR-0009.
+Inputs: docs/BRIEF.md, PLAN.md (D1 to D41), docs/research/*.md, ADR-0001 to ADR-0010.
 
 Citations: [R4 S13] = docs/research/r4-platform-constraints.md source S13. ADR references point to docs/adr/.
 
@@ -297,7 +297,7 @@ Mechanism and options in ADR-0006. Proposed until the owner approves.
   A field with nothing new sends no action, so it is never rewritten. Recipient actions go in the same `UpdateDraftActionResponse` as body and subject. A recipient action replaces the field (spike S6 step 2), so each action carries the draft's list from the tap's event as received, then the new addresses. Never `setSendStatus`.
 - Disclosure. [D31, built in slice 15: one-click rows disclose by the row hint before and the draft's fields after; the row carries `rc` in place of a hash; the details card keeps the lines and `rh` below. ADR-0006 Amendment 2026-11-11.] Slices 9 to 14: every address was shown on a card before it reached the draft. Since slice 15 the details card section "Recipients" shows the lines (`recipientWidgets`): each added address on its own line with its field; outside addresses carry "outside <caller domain>"; Bcc lines carry "hidden from other recipients"; markers join with " · ". Not-added addresses carry their reason; unknown fields name the addresses to add by hand; the finish-typing line shows whenever Insert adds an address (texts in section 7.1). The card carries `rh`, the first 16 hex characters of a SHA-256 over the template lists and `blocked` it showed; at Insert, a different hash of the `template.apply` lists leaves the draft unchanged and re-renders the card with the change message. `rh` does not cover the draft's known or unknown state: the plan is rebuilt from the tap's event (Q54). Since slice 15 the details card Insert always carries `rh`. Gmail's own outside-recipient warning is not relied on.
 - Limit: an address still being typed in a draft field (not yet a chip) is not in the event, and a replace drops it. The cards and the quick start say so.
-- Sidebar lists carry counts only: item field `rc: [to, cc, bcc]`. Row label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only), first on the row's one label line, then the fields hint and the folder path, joined by " · " (slice 15).
+- Sidebar lists carry counts only: item field `rc: [to, cc, bcc]`. [D42, owner to confirm, 2026-11-13: `extension.sync` carries the addresses `to`, `cc`, `bcc`, `blocked` of every template the caller may use, and the extension keeps them in its local copy (section 5.11, ADR-0010 Decision 4, ADR-0006 Amendment 2026-11-13). `sidebar.home`, `search` and the add-on keep counts only and the add-on still never caches addresses.] Row label "Adds To 1, Cc 1, Bcc 1" (fields with addresses only), first on the row's one label line, then the fields hint and the folder path, joined by " · " (slice 15).
 - History: each version shows a recipients line. Restore copies and validates. Duplicate copies and validates. Export `meta` carries them. A version file whose list fails the shape rule (`isStoredList`) reads as `[]` with no write; `version.restore` then succeeds and returns `recipientsUnreadable: ["cc", ...]`, and the web app says "Restored as version N. The Cc addresses of version K could not be read and were left empty. Add them again in the editor."
 - Search: web app library only, weight 1, a term matches the local part prefix or the full address prefix; the domain alone matches nothing. Sidebar `search` unchanged (Q39).
 - Audit: `template.*` events carry the item in `before` and `after`, so recipient changes show as a diff. Logs never carry an address (section 11).
@@ -477,6 +477,107 @@ As built (slice 26, merged e93a085; docs/handoffs/2026-11-12-implementer-to-revi
 - Test round part O (7 steps) holds the Gmail checks.
 - Open minors: a typed fallback option with a double space is refused (minor 5); a side-panel refusal counts one use (minor 4).
 
+### 5.11 Extension surface (D41, added 2026-11-13)
+
+Mechanism and options in ADR-0010. Proposed until the owner approves. Requests SR1 to SR4 and SF2 from the extension session; verdicts in docs/handoffs/2026-11-13-architect-to-orchestrator-extension-requests.md. Numbers marked "to measure" are starting values that the dev measurement run (slice 34) confirms or changes.
+
+Front door of `doPost` (SR2, slice 29). In order, before `JSON.parse` and before dispatch:
+1. `event.postData` missing: refuse.
+2. Media type = `event.postData.type`, lower case, cut at the first `;`, trimmed. Other than `application/json`: refuse. `application/json; charset=utf-8` passes.
+3. `event.postData.length` over 262,144 bytes: refuse.
+
+A refusal answers the standard envelope `{ ok: false, error: { code: "BAD_REQUEST", message, retryable: false }, serverVersion, durationMs }` with message "Unsupported content type" (steps 1, 2) or "Request too large" (step 3), and writes one warn log line (`action: ""`, `targetId: ""`, `errorCode: BAD_REQUEST`, `actor` from the session). No audit row, no dispatch. `rpc` (web app) is unchanged. No nonce (ADR-0010 Decision 1, option 2 only if owner test 1 fails).
+
+Surface label (SR3, slice 30). The envelope gains an optional field `client`:
+
+```ts
+interface RpcRequest {
+  op: string; args: unknown; requestId: string; clientVersion: string;
+  timing?: ClientTiming; draft?: DraftInfo;
+  client?: "addon" | "extension";   // absent = "addon"; any other value: VALIDATION "Client must come from the fixed list"
+}
+type Entry = "doPost" | "rpc";                                // set by entry.ts only; the only value policy reads
+type Surface = "addon" | "extension" | "webapp" | "trigger";  // log line and audit `surface` only
+interface DispatchRequest { caller: Caller; op: string; args: unknown; entry: Entry; surface: Surface; requestId: string }
+```
+
+- `authorize` refuses a `web` row unless `entry === "rpc"`. Today's rule (`surface === "addon"` refuses) is replaced, so any future entry is refused for `web` ops by default.
+- `client` is a client claim, used for log and audit `surface` only. `doPost` with `client: "extension"` runs every check of an add-on call: same caller, same policy, `web` ops DENIED.
+- `rpc` always labels `webapp` and ignores `client`.
+
+`extension.sync` (SR4a, slices 31, 33a, 33b). Policy `both("template.read")`, list op, no targets, `checkArgs` before `authorize`. No audit row, no apply event; log `targetId: ""`.
+
+```ts
+interface SyncArgs {
+  etag: string;                                    // "" on the first sync; else the last etag received
+  have: Record<string, { v: number; skip?: true }>; // max 1,000 keys; key = item ID (26 chars); v whole number >= 0
+  page: number;                                    // whole number >= 1; 1 = Script Cache only, 0 Drive reads
+}
+interface SyncData {
+  caller: string;                 // Session.getActiveUser, lower case
+  etag: string;                   // first 32 hex of SHA-256 over caller, NUL, JSON.stringify(list part); every reply
+  list?: SyncList;                // only when etag differs from args.etag
+  bodies: { id: string; version: number; html: string }[]; // readableBody(...).html, as template.apply returns it
+  more: boolean;                  // a due body was left out by a budget; call again with page + 1 and a new have
+  sender: Sender;                 // as ApplyResult.sender
+  favorites: string[];            // the caller's list, visible IDs only, newest first
+  recent: string[];               // the caller's list, visible IDs only, max 20 (RECENT_MAX)
+}
+interface SyncList {
+  domain: string;                         // Script Property DOMAIN, lower case
+  personalTemplates: "on" | "off";
+  imgHosts: string[];                     // IMG_HOSTS; [] = any https host
+  rules: string;                          // 64 hex, build constant (below)
+  folders: { id: string; name: string; parentId: string }[]; // display order of sidebar.home; parentId = nearest visible parent or ""
+  templates: SyncTemplate[];              // title order of sidebar.home
+}
+interface SyncTemplate {
+  id: string; folderId: string; title: string; subject: string; tags: string[];
+  version: number;                        // item.currentVersion
+  level: "use" | "edit" | "manage";
+  to: string[]; cc: string[]; bcc: string[]; blocked: string[]; // splitBlocked under recipientsExternal now (D42, owner to confirm)
+  prompts: string[];
+}
+```
+
+- Visible set: `visibleLibrary(context)` in `src/server/handlers/visible.ts`, the one function `sidebar.home`, `search` and `extension.sync` call (moved from `handlers/sidebar.ts` in slice 31).
+- Every call runs dispatch and `visibleLibrary` again. Bodies come only from that call's visible set; a `have` key outside it is ignored. A body is due when `have[id]` is absent or `have[id].v` differs from the current version. `skip: true` is accepted and changes nothing on the server: an entry with the current version is not due either way, and a new version is due again.
+- Body order: Favorites, Recent, then title order. `bd:*` read in batches of 25 keys.
+- Budgets per reply: `SYNC_REPLY_BYTES` 4,000,000 bytes of reply JSON (to measure); `SYNC_DRIVE_READS` 25 Drive reads, `page >= 2` only (to measure); `SYNC_TIME_MS` 8,000 ms of handler time, no new Drive read after it (to measure). The list part is never cut. From page 2, at least 1 due body per reply. A Drive miss is kept in `bd:*` (to measure: index rebuilds during a cold sync).
+- `rules`: `scripts/build.mjs` hashes, in ascending path order, each path, NUL, the file text with CRLF turned to LF, NUL; injected as `BUILD_INFO.rules`. The path list (the extension's copied files) lives in one script module; a test fails on a missing path and on an unlisted file under `src/shared/placeholders/`, `src/shared/sanitize/`, `src/shared/html/`.
+- Arg errors (`checkArgs`): `have` not an object, over 1,000 keys, a key that is no ID, `v` no whole number, `skip` other than `true`, `etag` over 64 characters, `page` no whole number >= 1, an extra arg: VALIDATION "Sync arguments are malformed", no index read.
+
+`template.apply` additions (SR4b, slice 32):
+
+```ts
+interface ApplyArgsAdded {
+  applyId?: string;  // ^[0-9A-Z]{8}-[0-9A-Z]{6}$, else VALIDATION "Apply ID must have the format XXXXXXXX-XXXXXX"
+  at?: number;       // whole ms since epoch; clamped to [now - 13 h, now]; stored only as after.claimed.at of a refused row
+}
+interface ApplyResultAdded {
+  recorded?: boolean; // only when applyId was sent: true = event stored now or earlier for this applyId; false = buffer lock busy or buffer full, retry
+}
+```
+
+- Repeat check: Script Cache key `ap:<first 32 hex of SHA-256 of the lower-case caller>`, value = the caller's last 100 `applyId`s, space-separated, TTL 21,600 s. Read and written inside the 500 ms buffer lock with the event (`bufferEvent` option `once`). A repeat stores no event and answers normally with `recorded: true`. Eviction or a retry after 6 h can count twice (accepted).
+- Event `ts` and audit `ts` stay server time. `at` never changes usage, Recent or a month file.
+- Refused apply with a well-formed `applyId` (one row per `applyId`, same `once` list):
+
+  | Case | Row |
+  |---|---|
+  | DENIED in dispatch or in the lock | replaces today's folder row: `action: template.apply`, `result: denied`, `errorCode: DENIED`, `targetType: template`, `targetId: <item ID>`, `after: { folderId, applyId, claimed: { at, knownVersion } }`, `surface` as labeled |
+  | NOT_FOUND for an item in the index (trashed) | same row with `errorCode: NOT_FOUND` |
+  | NOT_FOUND for an ID absent from the index | no row (as today) |
+  | no `applyId` | today's rows: folder row for DENIED, none for NOT_FOUND |
+
+Error codes: no new code. `BAD_REQUEST` (front door), `VALIDATION` (`client`, sync args, `applyId`, `at`), `DENIED`, `NOT_FOUND`, and the existing `AUTH_*`, `BUSY`, `QUOTA`, `INTERNAL`, `NOT_CONFIGURED`.
+
+Dev test deployment (SR1, owner step, no slice): one hand-made versioned web app deployment on the dev project, steps in ADR-0010 Decision 7. `deploy/dev.json` unchanged. The URL and deployment ID never go into a file.
+
+Stored bodies (SF2, owner step, no slice): ADR-0010 Decision 8. Owner reads Script Property `IMG_HOSTS` on dev. Empty: closed, nothing to report. Set: Export library, then search the file for an image `src` with `@` before the first `/` after `https://`.
+
+To measure on dev (slice 34, owner with the implementer's script of steps): sum and largest `sizeBytes` over live items; handler and transfer time of page 1, of a full 200-template sync warm and cold, and of one 4 MB reply; whether ContentService returns a 4 MB reply; Drive read time per body; index rebuild lines during a cold sync; the `postData.type` value Apps Script reports for the add-on and the extension.
+
 ## 6. Server operations
 
 All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
@@ -500,8 +601,11 @@ All ops go through `dispatch`. Level is on the target folder (ADR-0003 Part C).
 | config.set | admin, in-lock admin re-check; `{ name, value, baseAt, baseBy }` against the fixed list of section 5.8 (D29, ADR-0008) | web |
 | admin.add, admin.remove | admin (any of the 3 sources), in-lock admin re-check on the in-lock index; `{ email }` (D32, section 5.8) | web |
 | me | none beyond a valid caller | both |
+| extension.sync (D41, section 5.11; slices 33a, 33b) | use (results filtered by `visibleLibrary`, as `sidebar.home`); `checkArgs` before `authorize` | both |
 
 `spike.s4` and its policy row were removed in slice 5.
+
+Extension additions (D41, 2026-11-13, section 5.11, ADR-0010; Proposed): `template.apply` takes optional `applyId` and `at` and returns `recorded` when `applyId` was sent; a refused apply with `applyId` writes a template row in place of the folder row. The `web` rule changes from "refused on `addon`" to "served on `rpc` only" (`entry`, slice 30).
 
 Arguments and results for recipients (D26, slice 9, section 5.7): `template.create` and `template.update` take `to`, `cc`, `bcc` (string arrays). `template.duplicate` and `version.restore` copy them and validate. `import` reads them from `meta`. `template.get` and `export.*` return them. `template.list` (web app) always carries `to`, `cc`, `bcc` of each visible template, `[]` for old items (slice 13). `template.apply` and `template.getBody` return `to`, `cc`, `bcc` (inside addresses only when `settings.recipientsExternal` is `deny`) and `blocked` on every call. `version.get` returns the version's lists; `version.restore` adds `recipientsUnreadable` when a list could not be read (section 5.7). `sidebar.home`, `search` and the sidebar lists return `rc: [to, cc, bcc]` counts and no address. `me` returns `recipientsExternal` (`allow` or `deny`) for the editor. No new op and no new policy row.
 
@@ -871,6 +975,8 @@ Example: `"draft":{"fields":["draftMetadata","toRecipients","subject"],"to":1,"c
 
 Recipients (D26, added 2026-11-10): no log line carries a template address, a draft address, a domain of either or the `blocked` list. The `draft` object keeps its 5 keys: draft counts before the insert. The apply line gains no field: the server writes it before the add-on computes the recipient actions. Import report lines name the template and the count of dropped addresses only. Audit events are not log lines: `template.*` events keep the whole item in `before` and `after`, recipients included (admin-only audit tab).
 
+Field `surface` (D41, slice 30): `addon`, `extension`, `webapp`, `trigger`. `extension` comes from the envelope field `client` of a `doPost` call, a client claim used for reporting only; policy reads `entry` (section 5.11). Audit events carry the same value. `extension.sync` lines carry `targetId: ""` and no ID list; `applyId` and `at` are not logged. Front-door refusals (section 5.11) log `action: ""`, `errorCode: BAD_REQUEST`.
+
 Rules: levels `debug`, `info`, `warn`, `error`; `debug` off in prod (`LOG_LEVEL`). `actor` and `targetId` are in every line. No line holds a recipient address, subject text, body text, prompt value or token: `draft` carries names, counts and one boolean only. Never log template bodies, subjects, prompt values, recipient addresses or tokens. `calls` and `timing` hold numbers only. Errors add `errorName` and the first 3 stack frames. Logs appear in the Apps Script executions view on the default GCP project and in Cloud Logging on the standard project (2.5b).
 
 ### 11.1 Audit and log rules of the admin ops (slices 6a, 6b, added 2026-11-10)
@@ -983,7 +1089,15 @@ After slice 4b (source: PLAN D23 and log 2026-11-10):
 | 5.9 Date fields `{{date:Label}}` (D38): grammar, save checks, editor menu item and chip, Gmail date picker, MM/DD/YYYY | 25, done (owner test passed on dev-e93a085) |
 | 5.10 Choice fields `{{choice:Label\|A\|B}}` (D39): grammar, save checks, editor dialog and chip, "Edit choices...", Gmail dropdown, Insert check | 26, done (merged e93a085; owner test passed) |
 | Brace rule at save (D40, Q78; ADR-0004 Amendment "braces that join around a field") | 26, done (`skeleton.ts`) |
-| Open minors before the org deploy | 27, in build |
+| Open minors before the org deploy | 27, done (dev-465a068) |
+| Image host check with userinfo (SF1, extension finding) | 28, in build (not in this plan) |
+| 5.11 Front door of `doPost`: content type and size (SR2) | 29 (section 13.12) |
+| 5.11 `client` label, `entry` for policy (SR3) | 30 |
+| 5.11 `visibleLibrary` shared by `sidebar.home`, `search`, `extension.sync` | 31 |
+| 5.11 `template.apply` `applyId`, `at`, `recorded`, refused-apply row (SR4b) | 32 |
+| 5.11 `extension.sync` list part, etag, `rules` (SR4a) | 33a |
+| 5.11 `extension.sync` bodies, paging, budgets (SR4a) | 33b |
+| 5.11 Measurement run on dev (budgets) | 34 (docs only, owner runs) |
 
 ### 13.1 Slice 5 contents (one implementer run, amended 2026-11-10)
 
@@ -1214,6 +1328,44 @@ Part H additions (by hand, owner; the implementer adds them as part J steps 13 a
 
 Decisions taken by part J: step 5 no (values lost) or step 6 no (switch ignored): Q68 fallback. Step 2 or 5 shows no window or an error: Q74 fallback. Step 7 or 9 shows an error naming a scope: owner informed; ADR-0007 A7 fallback. Step 10 two drafts: accepted (Q69).
 
+### 13.12 Slices 29 to 34: extension surface (D41, added 2026-11-13)
+
+Contract in section 5.11, mechanism in ADR-0010. Proposed. One concern per slice. No slice changes `appsscript.json` or `scripts/approved-scopes.json`: no new scope. SR2 and SR3 merge before any SR4 slice.
+
+Order and parallel runs: 29 and 31 in parallel. 30 after 29 (both edit `entry.ts`). 32 after 30. 33a after 30 and 31; 32 and 33a may run in parallel, and the second to merge rebases its lines in `dispatch/dispatch.ts` and `dispatch/policy.ts`. 33b after 33a. 34 after 32 and 33b are on dev. Owner steps SR1 and SF2 run now, beside every slice.
+
+Slice 29, front door (SR2).
+- Files: `src/server/entry.ts` (`doPost`), a pure check in a new `src/server/frontDoor.ts`, `test/unit/server/entry.test.ts`, one step in `docs/ops/smoke.md`.
+- Acceptance: `application/json`, `application/json; charset=utf-8` and `Application/JSON` pass. `text/plain`, `application/x-www-form-urlencoded`, `multipart/form-data`, `""` and a missing `postData` answer BAD_REQUEST "Unsupported content type". Length 262,144 passes; 262,145 answers "Request too large". One warn log line per refusal. Dev deploy, then the owner runs one Insert from the compose toolbar and one side-panel open: both work.
+- Security tests: a valid `favorite.set` body sent as `text/plain` leaves `favorites.json` unchanged and calls no handler; malformed JSON as `text/plain` gets the content type message (check before parse); a refusal buffers no event and reads no Drive file.
+
+Slice 30, surface label (SR3).
+- Files: `src/shared/model/protocol.ts` (`client`), `src/shared/log/logger.ts` (`Surface`), `src/shared/model/data.ts` (`AuditSurface`), `src/server/entry.ts`, `src/server/dispatch/{handle,dispatch,context}.ts`, tests in `test/unit/server/{handle,dispatch}.test.ts` and `test/unit/shared/`.
+- Acceptance: `client` absent labels `addon`; `"extension"` labels log lines and denied rows `extension`; any other value answers VALIDATION and is not logged; `rpc` labels `webapp` whatever `client` holds.
+- Security tests: every `web` row of `POLICY`, sent through `handleRpc` with entry `doPost` and `client` `"extension"`, then `"addon"`: DENIED and one denied row each (table test over the live table, so a new `web` row is covered). `authorize` refuses a `web` row for any entry but `rpc`. A `@ts-expect-error` test: a `Surface` value cannot be passed as `entry`.
+
+Slice 31, shared visible set (no behavior change).
+- Files: new `src/server/handlers/visible.ts` (`visibleLibrary`, from `handlers/sidebar.ts:55-140`), `src/server/handlers/sidebar.ts`, `test/unit/server/{sidebar,search}.test.ts`, new `visible.test.ts`.
+- Acceptance: every existing sidebar and search test passes unchanged. `visibleLibrary` returns folders in display order with nearest visible parent, templates in title order.
+- Security tests: an admin gets no other user's private folder; deleted folders and trashed templates are out; a folder without `use` is out while its visible child shows at the top.
+
+Slice 32, apply additions (SR4b).
+- Files: `src/server/handlers/sidebar.ts` (`templateApply`), `src/server/audit/buffer.ts` (`once`), `src/server/dispatch/{dispatch,policy}.ts` (`deniedRow`, NOT_FOUND row), `src/shared/model/sidebar.ts` (`recorded`), tests in `test/unit/server/{sidebar,cache,dispatch,races}.test.ts`.
+- Acceptance: shapes and rows of section 5.11. The add-on's calls (no `applyId`) answer as before, with no `recorded`.
+- Security tests: the same `applyId` twice stores 1 event, both answer `recorded: true`; the same `applyId` from a second caller stores its own event; busy lock answers `recorded: false` and writes no `ap:` entry, and the retry stores; full buffer answers `recorded: false`; `at` 1 day back and 1 h ahead are clamped in the row, and the usage day and `lastUsedAt` come from server time; DENIED with `applyId` writes exactly 1 row, `targetType: template`, and no folder row; an ID absent from the index writes 0 rows; a trashed item writes 1 NOT_FOUND row; 2 refusals with one `applyId` write 1 row; a malformed `applyId` answers VALIDATION with no event and no row; every `ap:` key matches `^ap:[0-9a-f]{32}$` (no address).
+
+Slice 33a, sync list part (SR4a).
+- Files: new `src/server/handlers/sync.ts`, new `src/shared/model/sync.ts` (types), `src/server/dispatch/{policy,dispatch,handlers}.ts` (row, `checkArgs`), `scripts/build.mjs`, new `scripts/lib/rules.mjs`, `src/shared/buildInfo.ts` (`rules`), tests in `test/unit/server/sync.test.ts` and `test/unit/scripts/`.
+- Acceptance: the list part of section 5.11; `bodies: []` and `more: false` until 33b (not announced to the extension before 33b merges). The etag is the same for two calls on one index; it changes on a grant, admin, setting, `IMG_HOSTS`, title or version change; it differs for two users with the same visible set. `list` is absent when the etag matches. The build hash is the same for an LF and a CRLF copy of one file; a missing listed path fails the build.
+- Security tests: bad args (1,001 keys, a non-ID key, `v: 1.5`, `skip: false`, an extra arg) answer VALIDATION with 0 index and 0 Drive reads; an admin's list holds no other user's private folder; under `deny` outside addresses are in `blocked` only; no buffered event, no audit row; the log line holds no ID list.
+
+Slice 33b, sync bodies (SR4a).
+- Files: `src/server/handlers/sync.ts`, `src/server/handlers/body.ts` (batch `bd:*` read), `test/unit/server/sync.test.ts`.
+- Acceptance: `page: 1` makes 0 Drive reads and answers `more: true` when a due body missed the cache; `page: 2` makes at most 25 Drive reads, stops new reads after 8,000 ms (fake clock), keeps the reply under 4,000,000 bytes, and carries at least 1 due body. Order Favorites, Recent, title. Each `html` equals what `template.apply` returns for that template.
+- Security tests: a `have` key of a template the caller cannot use, with `v: 0`, returns no body; a grant removed between page 1 and page 2 gives page 2 a new etag, a list without the template and no body for it; a stored body holding `<script>` returns without it (sanitize on read).
+
+Slice 34, measurement run (docs only). The owner runs the steps of section 5.11 "To measure" on dev; the implementer writes the steps and records the numbers in section 12.1; the architect adjusts the 4 budgets.
+
 ## 14. Spikes
 
 | ID | Slice | Question | Pass condition |
@@ -1289,7 +1441,7 @@ Result (owner, test round 1 part G, dev-56bf795, 2026-11-11): steps 2 to 8 pass;
 
 ## 15. Open questions for the owner
 
-Still open after errata run 7 (2026-11-12). Every other row below is closed or has its default built.
+Still open after errata run 7 (2026-11-12), plus Q98 to Q104 from the extension requests (2026-11-13, ADR-0010). Every other row below is closed or has its default built.
 
 | ID | Question | Default in force | Who answers |
 |---|---|---|---|
@@ -1308,6 +1460,13 @@ Still open after errata run 7 (2026-11-12). Every other row below is closed or h
 | Q83 | Error icon the only cue besides red | Keep the icon | owner (look in Gmail) |
 | Q85, Q93 | Empty date picker; "Choose..." shown first | Start empty; "Choose..." selected | owner (look in Gmail) |
 | Q87 | Date for UTC+12 and later | Accept for v1 | owner |
+| Q98 (D42, D41) | Template To, Cc, Bcc and `blocked` in `extension.sync` and in the extension's local copy (reverses "counts only" for the extension; the extension session reports the owner said yes on 2026-11-13) | Confirm as D42: the addresses are what a `use` holder already sees on the cards; the copy is wiped after 7 days; the add-on keeps counts only | owner |
+| Q99 (SR4b) | Client time `at` of an apply | Server time for usage, Recent and every audit `ts`; `at` kept only as `after.claimed.at` on a refused-apply row. A late event counts on its arrival day | owner (accept) |
+| Q100 (SF2) | Is Script Property `IMG_HOSTS` set on dev? | Owner reads it in the dev project's Script Properties. Empty: SF2 closed with no report (any https host was allowed, so nothing bypassed a list). Set: Export library and search the file (section 5.11) | owner |
+| Q101 (SR1) | Who refreshes the extension test deployment after a dev deploy | The owner, only when an extension handoff names a server slice it needs (Manage deployments, edit, New version); else it stays on its version | owner |
+| Q102 (SR4a) | `extension.sync` also callable from the web app (`both`) | Accept: same caller, same filter, nothing beyond `template.list` plus `template.getBody`; no third surface kind | owner (accept) |
+| Q103 (SR2) | Ship slices 29 and 30 before the org deploy (2.5b) even if the extension waits | Yes: the CSRF finding holds without the extension; the dev add-on smoke of slice 29 guards the rollout | owner |
+| Q104 (SR4b) | An apply counted twice after a Script Cache eviction of the caller's `ap:` key or a retry after 6 h | Accept: usage counts are informational; the key holds the caller's last 100 apply IDs | owner (accept) |
 | Q89, Q90, Q96 | Rollback and old open pages | Accept; runbook line | orchestrator |
 
 | ID | Question | Recommendation |

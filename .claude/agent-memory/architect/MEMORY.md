@@ -1,7 +1,6 @@
 # Architect memory (Migway Gmail templates)
 
-Last run: 2026-11-12, errata run 7 on branch architect/errata-7 (from 78e3317): ADR-0004 brace, date, choice amendments Accepted; spec 5.9/5.10 as built (slices 25, 26); spec 7 loader (24), 8 tree (23); Q table + open table at top of spec 15; 22-step org deploy checklist in handoff errata-7. Before: D39 choice spec, D38 date spec, errata 6.
-
+Last run: 2026-11-13, extension requests on branch claude/extension-requests (from c0564bc): ADR-0010 (Proposed), spec 5.11 + 13.12 (slices 29-34), Q98-Q104, ADR-0003/0006 Amendments 2026-11-13, handoff 2026-11-13-architect-to-orchestrator-extension-requests.md. Before: errata run 7 (2026-11-12).
 ## Files I own
 - docs/adr/0001 to 0005 (Accepted 2026-11-09; run 3 amendments Proposed; 0001 D27 and 0004 D26/D31 amendments Accepted 2026-11-11). 0009 Accepted 2026-11-11 (As built section). 0003/0008 D32 Accepted (0003 "As built (slice 16)"). 0006 D31 Accepted except Q77 point. 0007 Amendment 2026-11-11 (D33, failure sentences) Accepted. 0002 Amendment 2026-11-11, slice 19 Proposed. 0006 template recipients (Accepted 2026-11-11, As built section). 0007 side-panel insert (Accepted 2026-11-11, section "Acceptance 2026-11-11" A1-A10; [S7] markers on old lines). 0008 admin settings (Accepted 2026-11-11, As built section). 0002 and 0003 Amendment 2026-11-11 (errata run 4) Proposed. Edits to accepted ADRs go in a dated "Amendment YYYY-MM-DD" section plus a bracket marker on the stale line; never rewrite history.
 - docs/spec.md (sections 1-16; 4.5 export/import as built; 5.1 depth 5; 5.2 key max 254; 5.6 subject D24; 11 `draft`; 11.1 admin audit/log rules; 12.1 measured; 13.3 6a/6b done; 13.4 known limits; 13.5 slice 7 and v1.1 items; 5.7 recipients; 7.1 recipient texts; 13.6 slice 9; 14.1 spike S6; 4.1a panel flow; 7.2 panel texts; 13.7 Gmail panel pass; 14.2 spike S7; 5.8 settings + enforcement table; 7.3 settings texts; 13.8 slice 11; Q1-Q52; 16.1 restore, 16.2 damaged-file recovery, 16.3 owner handover)
@@ -36,21 +35,10 @@ Last run: 2026-11-12, errata run 7 on branch architect/errata-7 (from 78e3317): 
 - 0005: esbuild, vitest, one bundle. Amendment 2026-11-10: bundle ships as JSON string literal, `/` before `/` or `*` written as `\/`, `(0, eval)(literal)`; HtmlService cut `//` after template literals on 43f10de; sandbox frame sets no CSP.
 
 ## Errata run 4 facts (as built 6374b7b)
-- Recipients: actions REPLACE a field (S6); build sends draft list + new. `draftRecipients` null = unknown field: no action, unknown To = filled, card "Add by hand". `rh` = template lists + blocked only (Q54). Finish-typing line on both cards. Prompt switch label "Adds n recipients." `recheckRecipients` in lock (create, dup, update, version restore, import; import refuses whole file, Q53). `template.update` keeps omitted lists. `recipientsUnreadable` on version.restore.
-- Settings: `config.set {name, value, baseAt, baseBy}`; `from` -> "This page is out of date..."; name echo 40; `settingsOf` fills defaults (not readIndexDoc); restore event `liveSettingsKept: true`. While off: grant.* DENIED for admins, admin.folders drops private folders.
-- Export: start call commits one event via `commit`, token `exp:<token>` 600 s sliding, pages need it, misses not cached. Audit words "Library export started, n templates".
-- Buffer: evicted slot first, apply takes denied slot, `evt:lost`. Log targetId falls back to dispatch-resolved folder (grant.remove). `prof:<sha256>`.
-- Add-on slice 12: no headers on home/state cards, one-line labels " · ", hint "To insert a template, open a draft and use the Migway Templates button in the draft's toolbar.", Favorites hidden when empty.
+- Detail moved out of memory 2026-11-13; source of record: spec sections 4.5, 5.7, 5.8, 7, 11.1 and docs/design/wording.md.
 
 ## Errata run 5 facts (as built 16df87a)
-- Glossary of record: docs/design/wording.md. Tabs: Folders and access, Groups, Audit log, Usage, Export and import, Settings and backups. "Refresh groups". Jobs shown as "Save insert counts and refused actions", "Refresh groups", "Nightly backup and cleanup".
-- Web NOT_CONFIGURED = toast "Something went wrong. Try again." (server text never shown; fix round). Admins explanation still says "grants".
-- Slice 15: details Insert params id, version, values, rh, counted (no title); row-pushed card counted=1; `replacesSubject(draftHasSubject)`; first-name box on every details card when template has it without default text (`cardFields`); "(!) " prefix; one `rendered()` for all paths.
-- Slice 16: `ADMIN_DENIED_TEXT` "You are no longer an admin, so nothing was changed. Ask an admin if you need access." on 8 admin-only actions; Directory error INTERNAL reason `ADMIN_CHECK`; `lockedSubject` in `recheck` for every write; results carry `email`; `indexProblem` accepts any `admins` value.
-- Slice 18 fu1: `panelAnswer` throws one sentence (notification from compose action not shown, part J step 11); no request ID. fu2 (D33): message rows = DecoratedText + ButtonSet [Reply][Reply all]; 100-widget limit at 69 folders (slice 20b). Q68, Q74 yes.
-- Slice 19: Advanced `alt=media` throws on non-JSON text; `readRawText` (REST media) for month files, rolls, backup copies; doc reads retry raw once; `fileUrl` ID [A-Za-z0-9_-]; 429 QUOTA; `job:*:lastError` = "<time> <code> <error name>" (`errorSummary`, `JobError`).
-- Gmail facts: card closes after Insert; Open/Edit in library open a new Chrome window (code OVERLAY); narrow draft puts add-on in "⋮"; panel reply has signature below text, new email none.
-- 2.5b: admin-guide part 2 step 7 fails (deploy refuses version mode with empty deploymentId); Apps Script API user setting for DO unstated; logoUrl Drive-hosted.
+- Detail moved out of memory 2026-11-13; source of record: spec sections 4.5, 5.7, 5.8, 7, 11.1 and docs/design/wording.md.
 
 ## Errata run 6 facts (as built 8e82a07, owner tests on dev 2026-11-11)
 - D34 look kept; D35 spinner on every action but onBack/onOpenLink (`toAction`), primaryColor+secondaryColor #2a3c49 (bar measured #2A3B48); D36 hint lines = DecoratedText info icon grey #5f6368 (fields line, signature line, toolbar hint, cut line); error lines = error icon alt "Error", red #b32025, no "(!)" (22b); FINISH_TYPING plain. ADR-0009 Amendment 2026-11-12 Accepted.
@@ -83,6 +71,16 @@ Last run: 2026-11-12, errata run 7 on branch architect/errata-7 (from 78e3317): 
 - index.json `admins: [{email, addedAt, addedBy}]` (own field, not settings map), cap 20. Admin = ADMIN_EMAILS or ADMIN_GROUP or list. Ops admin.add/admin.remove {email}, admin web, deltas via commit, no base. Directory users.get domain_public existence check, store primaryEmail. No self-removal. No op writes Script Properties. restore keeps live admins. Audit targetType admin. Q62-Q66.
 - File split: 15 owns src/addon, shared/placeholders, appsscript.json, user-quick-start, editor-guide, editor.ts help string; 16 owns server, shared/permissions|model|errors, rest of web, admin guide, runbook.
 
+## D41 extension surface (ADR-0010, Proposed 2026-11-13)
+- Requests from the extension repo (/home/user/email-templates-extension, read-only): SR1 dev /exec, SR2 content type, SR3 label, SR4a extension.sync, SR4b apply additions, SF2 report. SF1 = slice 28 (not mine).
+- SR2: doPost refuses missing postData, media type != application/json (cut at ';'), length > 262,144; BAD_REQUEST envelope, warn log, no audit row (victim). No nonce unless owner test 1 fails. Slice 29.
+- SR3: envelope `client` ("addon"|"extension"); dispatch `entry` ("doPost"|"rpc") is the only policy input; `web` rows run on rpc only (was: refused when surface === "addon", dispatch.ts:157, allow-unless). Slice 30.
+- SR4a: `extension.sync {etag, have<=1000, page}`; `visibleLibrary` in handlers/visible.ts shared with sidebar.home/search (slice 31); `PolicyRow.checkArgs` before authorize; bodies only from the call's visible set; page 1 cache only; 25 Drive reads, 8,000 ms, 4 MB (to measure); `rules` hash in build.mjs, CRLF->LF; `skip` no server effect. Slices 33a, 33b.
+- D42 (owner to confirm, Q98): addresses to/cc/bcc/blocked in sync list; add-on keeps counts only.
+- SR4b: `ts` always server time; `at` only `after.claimed.at` on refused row. `ap:<sha256 caller 32 hex>` = last 100 applyIds, in buffer lock (`once`); `recorded` only with applyId. Refused row: template row replaces folder row (DENIED); NOT_FOUND row only for item in index (trashed). Slice 32.
+- SR1: hand-made versioned deployment, dev.json unchanged, URL never in a file. SF2: no code; owner checks IMG_HOSTS (Q100).
+- Facts: apply events -> usage.json only, denied -> audit (tick.ts:80-95). Export returns raw stored HTML (transfer.ts:254); all other body reads sanitize (readableBody). Add-on sends contentType application/json (serverClient.ts:77). Item IDs 80 random bits.
+
 ## Scopes (10, unchanged)
 gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.message.metadata, script.external_request, drive.file, script.projects.readonly, userinfo.email, groups, admin.directory.user.readonly, script.scriptapp. Subject needs none extra (S5 verified). Any new scope needs owner approval.
 
@@ -109,7 +107,7 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - Loader busy.ts: guard events, text fields keep typing, 300 ms bar, 20 s/call; save 1 call; held access rows. Tree: reveal only on user choice.
 
 ## Slice plan
-- Slices 1-26 done, on dev (dev-e93a085); 27 (6 minors before org deploy) in build. Next: 2.5b org deploy. origin/main at 5ee45c2 (584 behind): prod deploy needs main. v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27).
+- Slices 1-27 done (dev-465a068); 28 SF1 in build (other worktree). Planned 29-34 (spec 13.12). Next: 2.5b org deploy. main holds slices 1-27 (9f36ee8, PR #1). v1.1: restoreBackup editor fn (Q31), B2 pull + READ_ONLY (Q27).
 
 ## Open questions
 - Closed: Q20 (S5), Q21 (D24), Q24 (slice 5).
@@ -122,7 +120,7 @@ gmail.addons.execute, gmail.addons.current.action.compose, gmail.addons.current.
 - Q26 dedicated owner account; Q27 B2 timing (v1.1); Q28 run V1-V4 on dev with pilot account; Q29 all versions under 20,000; Q30 dev to prod via interim runbook; Q31 restoreBackup editor fn.
 
 ## Conventions
-- External sources [A1]..[A47]. Question IDs global Q1-Q97; next free Q98. Next free slice 28. ADR next free 0010. Spikes closed. Still open for owner: D1, D2, D7, Q18, Q22, Q83, Q85, Q87, Q93, logo owner.
+- External sources [A1]..[A47]. Question IDs global Q1-Q104; next free Q105. Next free slice 35. ADR next free 0011. Next D: D43 (D42 proposed). Spikes closed. Still open for owner: D1, D2, D7, Q18, Q22, Q83, Q85, Q87, Q93, Q98-Q104, logo owner.
 - Request ID format `XXXXXXXX-XXXXXX`, server enforced. Log fields `calls`, `timing` (spec 11).
 
 ## Pitfalls

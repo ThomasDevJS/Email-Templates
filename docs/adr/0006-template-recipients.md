@@ -1,6 +1,6 @@
 # ADR-0006: Template recipients (To, Cc, Bcc)
 
-Status: Accepted 2026-11-11 (spike S6 passed on Gmail web from the compose toolbar, dev-ec0ccb2; built in slice 9, review PASS on 08955ca; editor fields in slice 8b). Was Proposed 2026-11-10. Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting, built in slice 11. Amendment 2026-11-11 (D31, Accepted 2026-11-11, built in slice 15; the notice point of Q77 stays Proposed): one-click insert also for templates with recipients; the disclosure moves from a card before the insert to the row hint before it and the draft's own fields after it.
+Status: Accepted 2026-11-11 (spike S6 passed on Gmail web from the compose toolbar, dev-ec0ccb2; built in slice 9, review PASS on 08955ca; editor fields in slice 8b). Was Proposed 2026-11-10. Owner decision D26 and its update of 2026-11-10 set the feature; this ADR sets the mechanism. Amendment 2026-11-10 (D29): the switch moves to an in-app admin setting, built in slice 11. Amendment 2026-11-11 (D31, Accepted 2026-11-11, built in slice 15; the notice point of Q77 stays Proposed): one-click insert also for templates with recipients; the disclosure moves from a card before the insert to the row hint before it and the draft's own fields after it. Amendment 2026-11-13 (D42, Proposed): addresses in the extension's local copy.
 Date: 2026-11-10, accepted 2026-11-11
 Deciders: owner (thomas@migway.com), architect
 
@@ -196,6 +196,15 @@ Risks accepted with this amendment:
 - A Bcc to an outside address can reach a draft without an "outside" marker on screen. Gmail's own outside-recipient warning is not relied on (section 5). Mitigation: `deny`.
 
 Consequences: no server change; `template.apply` still returns the lists on every call. Logs unchanged (section 7). The quick start sentence "Users see every address before it is added" (editor help in spec 7.1) changes to "The row shows how many addresses Insert adds. The draft shows them after the insert."
+
+## Amendment 2026-11-13 (D42, owner to confirm): addresses in the extension's local copy
+
+Status: Proposed. Options and mechanism in ADR-0010 Decision 4; contract in spec 5.11.
+
+- `extension.sync` returns `to`, `cc`, `bcc` and `blocked` of every template the caller may use, split by `splitBlocked` under the current `recipientsExternal` value, like `template.apply`. [Spec 5.7 "Sidebar lists carry counts only" stays true for `sidebar.home` and `search`; the extension list is the exception.]
+- The extension stores them in its local copy (reverses "the add-on never caches them" for the extension only; the add-on keeps the rule). Bound: the extension's 20-minute staleness limit and 7-day wipe (extension spec 5.4, 5.6). A `deny` switch reaches the copy on its next sync: the list etag covers `blocked`.
+- Exposure: the addresses are what a `use` holder already sees on the cards and in the library (section 6). No log line carries an address (section 7 unchanged).
+- The owner's answer to the extension session's Q3 (2026-11-13) is reported by that session; spec 15 Q98 asks the owner to confirm it here as D42.
 
 ## Consequences
 
