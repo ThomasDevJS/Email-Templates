@@ -1,4 +1,4 @@
-import type { Folder, IndexDoc, Item } from "../../shared/model/data";
+import type { Item } from "../../shared/model/data";
 import { settingValue } from "../../shared/model/settings";
 import {
   recipientsOf,
@@ -13,12 +13,6 @@ import {
   type SidebarHome,
   type SidebarTemplate,
 } from "../../shared/model/sidebar";
-import {
-  ancestry,
-  folderMap,
-  type LevelOf,
-} from "../../shared/permissions/effective";
-import { atLeast } from "../../shared/permissions/levels";
 import { isEmptyQuery, parseQuery, rank } from "../../shared/search/match";
 import { domainOf } from "../../shared/permissions/principals";
 import { bufferEvent } from "../audit/buffer";
@@ -31,6 +25,12 @@ import { readStoredBody, readableBody, recipientPolicy } from "./body";
 import { callerLists, callerRecent } from "./favorites";
 import { liveItem } from "./indexOps";
 import { appliedRecipients } from "./templates";
+import {
+  visibleLibrary,
+  type VisibleFolder,
+  type VisibleLibrary,
+  type VisibleTemplate,
+} from "./visible";
 
 /** Wireframe 01: Favorites max 10, Recent max 5; spec 4.4: search top 20. */
 export const FAVORITES_SHOWN = 10;
@@ -38,37 +38,9 @@ export const RECENT_SHOWN = 5;
 export const SEARCH_RESULTS = 20;
 
 /**
- * Sidebar ops (spec section 4.1). `sidebar.home` is a list op: dispatch lets every caller in and this handler
- * keeps only folders where the caller holds `use`. `template.apply` has its `use` check in dispatch.
+ * Sidebar ops (spec section 4.1). `sidebar.home` and `search` are list ops: dispatch lets every caller in and
+ * `visibleLibrary` keeps only folders where the caller holds `use`. `template.apply` has its `use` check in dispatch.
  */
-
-/** Owner of the private tree the folder sits in, or "" for a shared folder. */
-function privateOwner(folder: Folder, byId: ReadonlyMap<string, Folder>) {
-  const top = ancestry(folder.id, byId).find((f) => f.kind === "private");
-  return top?.ownerEmail.toLowerCase() ?? "";
-}
-
-/**
- * Live folders the caller can use. Other users' private folders stay out even for admins: the sidebar applies
- * templates, and every private folder is named "My templates".
- */
-function visibleFolders(
-  index: IndexDoc,
-  levelOf: LevelOf,
-  email: string,
-): Map<string, { folder: Folder; own: boolean }> {
-  const byId = folderMap(index.folders);
-  const me = email.toLowerCase();
-  const visible = new Map<string, { folder: Folder; own: boolean }>();
-  for (const folder of index.folders) {
-    if (folder.deletedAt !== "" || !atLeast(levelOf(folder.id), "use"))
-      continue;
-    const owner = privateOwner(folder, byId);
-    if (owner !== "" && owner !== me) continue;
-    visible.set(folder.id, { folder, own: owner === me });
-  }
-  return visible;
-}
 
 /** Row hint counts (spec 5.7): only for templates Insert may add an address with. */
 function countsOf(item: Item, policy: RecipientPolicy) {
@@ -79,8 +51,7 @@ function countsOf(item: Item, policy: RecipientPolicy) {
 }
 
 function toTemplate(
-  item: Item,
-  levelOf: LevelOf,
+  { item, level }: VisibleTemplate,
   policy: RecipientPolicy,
 ): SidebarTemplate {
   return {
@@ -91,67 +62,37 @@ function toTemplate(
     snippet: item.snippet.slice(0, SIDEBAR_SNIPPET_CHARS),
     version: item.currentVersion,
     prompts: item.prompts,
-    level: levelOf(item.folderId),
+    level,
     ...countsOf(item, policy),
   };
 }
 
-/** Shared folders first by sort order and name, the caller's private folder last (wireframe 01). */
-function folderOrder(
-  a: Folder & { own: boolean },
-  b: Folder & { own: boolean },
-) {
-  if (a.own !== b.own) return a.own ? 1 : -1;
-  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name);
-}
-
 /** Counts each template in its folder and in every visible ancestor. */
-function subtreeCounts(
-  templates: readonly SidebarTemplate[],
-  parentOf: ReadonlyMap<string, string>,
-): Map<string, number> {
+function subtreeCounts(library: VisibleLibrary): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const template of templates) {
-    let folderId = template.folderId;
+  for (const { item } of library.templates) {
+    let folderId = item.folderId;
     while (folderId !== "") {
       counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
-      folderId = parentOf.get(folderId) ?? "";
+      folderId = library.folderById.get(folderId)?.parentId ?? "";
     }
   }
   return counts;
 }
 
-/** Live templates in the caller's visible folders, by title, and each visible folder's nearest visible parent. */
-function visibleTemplates(context: HandlerContext) {
-  const { index, levelOf } = context.access();
-  const visible = visibleFolders(index, levelOf, context.caller.email);
-  const parentOf = new Map(
-    [...visible.values()].map(({ folder }) => [
-      folder.id,
-      visible.has(folder.parentId) ? folder.parentId : "",
-    ]),
-  );
-  const templates = index.items
-    .filter((item) => item.deletedAt === "" && visible.has(item.folderId))
-    .sort((a, b) => a.title.localeCompare(b.title));
-  const policy = recipientPolicy(context);
-  const listed = (item: Item) => toTemplate(item, levelOf, policy);
-  return { visible, parentOf, templates, listed };
-}
-
 export function sidebarHome(context: HandlerContext): SidebarHome {
-  const { visible, parentOf, listed, ...found } = visibleTemplates(context);
-  const templates = found.templates.map(listed);
-  const counts = subtreeCounts(templates, parentOf);
-  const folders: SidebarFolder[] = [...visible.values()]
-    .map(({ folder, own }) => ({ ...folder, own }))
-    .sort(folderOrder)
-    .map((folder) => ({
-      id: folder.id,
-      name: folder.name,
-      parentId: parentOf.get(folder.id) ?? "",
-      count: counts.get(folder.id) ?? 0,
-    }));
+  const library = visibleLibrary(context);
+  const policy = recipientPolicy(context);
+  const templates = library.templates.map((template) =>
+    toTemplate(template, policy),
+  );
+  const counts = subtreeCounts(library);
+  const folders: SidebarFolder[] = library.folders.map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    parentId: folder.parentId,
+    count: counts.get(folder.id) ?? 0,
+  }));
   const lists = callerLists(
     context.services,
     context.caller.email,
@@ -172,14 +113,13 @@ export function sidebarHome(context: HandlerContext): SidebarHome {
 
 /** "Sales / Quotes" from visible folders only, so a hidden ancestor's name never matches. */
 function visiblePath(
-  folderId: string,
-  visible: ReadonlyMap<string, { folder: Folder }>,
-  parentOf: ReadonlyMap<string, string>,
+  folder: VisibleFolder,
+  folderById: ReadonlyMap<string, VisibleFolder>,
 ): string {
   const names: string[] = [];
-  for (let id = folderId; id !== "" && names.length < visible.size;) {
-    names.unshift(visible.get(id)?.folder.name ?? "");
-    id = parentOf.get(id) ?? "";
+  for (let id = folder.id; id !== "" && names.length < folderById.size;) {
+    names.unshift(folderById.get(id)?.name ?? "");
+    id = folderById.get(id)?.parentId ?? "";
   }
   return names.join(" / ");
 }
@@ -194,26 +134,33 @@ export function search(context: HandlerContext): {
 } {
   const query = parseQuery(optString(context.args, "query"));
   if (isEmptyQuery(query)) return { results: [] };
-  const { visible, parentOf, templates, listed } = visibleTemplates(context);
+  const library = visibleLibrary(context);
+  const policy = recipientPolicy(context);
   const recent = callerRecent(
     context.services,
     context.caller.email,
-    new Set(templates.map((item) => item.id)),
+    new Set(library.templates.map(({ item }) => item.id)),
   );
   const ranked = rank(
-    templates,
+    library.templates.map((template) => ({
+      ...template,
+      id: template.item.id,
+      title: template.item.title,
+    })),
     query,
-    (item) => ({
+    ({ item, folder }) => ({
       title: item.title,
       subject: item.subject,
       tags: item.tags,
-      folder: visiblePath(item.folderId, visible, parentOf),
+      folder: visiblePath(folder, library.folderById),
       body: item.snippet,
     }),
     recent,
   );
   return {
-    results: ranked.slice(0, SEARCH_RESULTS).map(listed),
+    results: ranked
+      .slice(0, SEARCH_RESULTS)
+      .map((template) => toTemplate(template, policy)),
   };
 }
 
