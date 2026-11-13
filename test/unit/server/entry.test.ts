@@ -12,6 +12,7 @@ import {
   tick,
 } from "../../../src/server/entry";
 import { CALLBACKS } from "../../../src/addon/cards/spec";
+import { callServer } from "../../../src/addon/client/serverClient";
 import { ENTRY_POINTS, TRIGGER_JOBS } from "../../../src/shared/entryPoints";
 import type { Folder, Item } from "../../../src/shared/model/data";
 import { DOMAIN_KEY, OWNER_EMAIL_KEY } from "../../../src/server/guards";
@@ -52,13 +53,28 @@ function asCaller(email: string): void {
   world.session.active = email;
 }
 
-function post(body: string): Record<string, unknown> {
-  const event = {
-    postData: { contents: body },
+/** `doPost` with the body, its UTF-8 byte length and a content type, as Apps Script fills `postData`. */
+function postEvent(
+  body: string,
+  type: string,
+  length = Buffer.byteLength(body, "utf8"),
+): GoogleAppsScript.Events.DoPost {
+  return {
+    postData: { contents: body, type, length },
   } as unknown as GoogleAppsScript.Events.DoPost;
+}
+
+function postRaw(event: GoogleAppsScript.Events.DoPost | undefined) {
   return JSON.parse(
     (doPost(event) as unknown as FakeTextOutput).content,
   ) as Record<string, unknown>;
+}
+
+function post(
+  body: string,
+  type = "application/json",
+): Record<string, unknown> {
+  return postRaw(postEvent(body, type));
 }
 
 const REQUEST_ID = "TESTREQ0-000001";
@@ -374,10 +390,7 @@ describe("web app and add-on entry points", () => {
       ok: false,
       error: { code: "AUTH_DOMAIN" },
     });
-    const output = doPost(
-      undefined as unknown as GoogleAppsScript.Events.DoPost,
-    ) as unknown as FakeTextOutput;
-    expect(JSON.parse(output.content)).toMatchObject({ ok: false });
+    expect(postRaw(undefined)).toMatchObject({ ok: false });
   });
 
   it("rpc answers BAD_REQUEST to a malformed op", () => {
@@ -503,6 +516,288 @@ describe("web app and add-on entry points", () => {
     expect(world.fetchApp.requests[0]?.url).toContain(
       "https://www.googleapis.com/drive/v3/files/",
     );
+  });
+});
+
+describe("doPost front door (spec section 5.11, slice 29)", () => {
+  beforeEach(() => {
+    setup();
+    asCaller(USER);
+  });
+
+  const REFUSED_TYPE = {
+    ok: false,
+    error: {
+      code: "BAD_REQUEST",
+      message: "Unsupported content type",
+      retryable: false,
+    },
+    serverVersion: "test-testsha",
+  };
+
+  /** Lines written, Drive calls (Advanced and REST), cache calls and cache keys during `run`. */
+  function observe(run: () => void) {
+    const cacheCalls = (["get", "getAll", "put", "putAll"] as const).map(
+      (method) => vi.spyOn(world.cache, method),
+    );
+    const before = {
+      lines: lines.length,
+      drive: world.drive.calls.length,
+      fetches: world.fetchApp.requests.length,
+      keys: world.cache.keys().sort(),
+    };
+    run();
+    return {
+      lines: lines.slice(before.lines),
+      driveCalls: world.drive.calls.length - before.drive,
+      fetches: world.fetchApp.requests.length - before.fetches,
+      cacheCalls: cacheCalls.reduce(
+        (sum, spy) => sum + spy.mock.calls.length,
+        0,
+      ),
+      keysChanged:
+        JSON.stringify(world.cache.keys().sort()) !==
+        JSON.stringify(before.keys),
+    };
+  }
+
+  it.each([
+    "application/json",
+    "application/json; charset=utf-8",
+    "Application/JSON",
+    "application/json;charset=UTF-8",
+    " application/json ",
+  ])("%j passes to dispatch", (type) => {
+    expect(post(PING, type)).toMatchObject({ ok: true, data: { pong: true } });
+    expect(lastLog()).toMatchObject({ action: "ping", result: "ok" });
+  });
+
+  it.each([
+    "text/plain",
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "",
+    "application/jsonx",
+    "text/plain;application/json",
+    "application/json, text/plain",
+  ])(
+    "%j answers BAD_REQUEST Unsupported content type with one warn line and no dispatch",
+    (type) => {
+      let response: Record<string, unknown> = {};
+      const seen = observe(() => {
+        response = post(PING, type);
+      });
+      expect(response).toMatchObject(REFUSED_TYPE);
+      expect(seen.lines).toHaveLength(1);
+      expect(JSON.parse(seen.lines[0] ?? "{}")).toMatchObject({
+        level: "warn",
+        surface: "addon",
+        action: "",
+        targetId: "",
+        result: "error",
+        errorCode: "BAD_REQUEST",
+        actor: USER,
+      });
+      expect(seen).toMatchObject({ driveCalls: 0, fetches: 0, cacheCalls: 0 });
+    },
+  );
+
+  it("a missing postData and a missing event answer Unsupported content type", () => {
+    const seen = observe(() => {
+      expect(
+        postRaw({} as unknown as GoogleAppsScript.Events.DoPost),
+      ).toMatchObject(REFUSED_TYPE);
+      expect(postRaw(undefined)).toMatchObject(REFUSED_TYPE);
+    });
+    expect(seen.lines).toHaveLength(2);
+  });
+
+  it("length 262,144 passes, 262,145 answers Request too large with one warn line", () => {
+    expect(post(PING, "application/json")).toMatchObject({ ok: true });
+    expect(postRaw(postEvent(PING, "application/json", 262_144))).toMatchObject(
+      { ok: true },
+    );
+    const seen = observe(() => {
+      expect(
+        postRaw(postEvent(PING, "application/json", 262_145)),
+      ).toMatchObject({
+        ok: false,
+        error: { code: "BAD_REQUEST", message: "Request too large" },
+      });
+    });
+    expect(seen.lines).toHaveLength(1);
+    expect(JSON.parse(seen.lines[0] ?? "{}")).toMatchObject({
+      level: "warn",
+      action: "",
+      errorCode: "BAD_REQUEST",
+    });
+    expect(seen).toMatchObject({ driveCalls: 0, fetches: 0, cacheCalls: 0 });
+  });
+
+  it("without a number length, decides from contents.length", () => {
+    const big = JSON.stringify({
+      ...JSON.parse(PING),
+      pad: "x".repeat(262_145),
+    });
+    const event = {
+      postData: { contents: big, type: "application/json" },
+    } as unknown as GoogleAppsScript.Events.DoPost;
+    expect(postRaw(event)).toMatchObject({
+      ok: false,
+      error: { message: "Request too large" },
+    });
+  });
+
+  it.each([-1, 10])(
+    "length %j with a 300,000-character body answers Request too large",
+    (length) => {
+      const big = JSON.stringify({
+        ...JSON.parse(PING),
+        pad: "x".repeat(300_000),
+      });
+      expect(postRaw(postEvent(big, "application/json", length))).toMatchObject(
+        { ok: false, error: { message: "Request too large" } },
+      );
+    },
+  );
+
+  const SECRET = "thrown-error-text";
+  const throwing = () => {
+    throw new Error(SECRET);
+  };
+  const postData = { type: "application/json", length: 2, contents: "{}" };
+
+  it.each([
+    [
+      "event.postData",
+      () => Object.defineProperty({}, "postData", { get: throwing }),
+    ],
+    [
+      "postData.type",
+      () => ({
+        postData: Object.defineProperty({ ...postData }, "type", {
+          get: throwing,
+        }),
+      }),
+    ],
+    [
+      "postData.length",
+      () => ({
+        postData: Object.defineProperty({ ...postData }, "length", {
+          get: throwing,
+        }),
+      }),
+    ],
+    [
+      "postData.contents",
+      () => ({
+        postData: Object.defineProperty({ ...postData }, "contents", {
+          get: throwing,
+        }),
+      }),
+    ],
+  ])(
+    "a throwing getter on %s answers Unsupported content type with one warn line and no error text",
+    (_name, makeEvent) => {
+      let response: Record<string, unknown> = {};
+      const seen = observe(() => {
+        response = postRaw(
+          makeEvent() as unknown as GoogleAppsScript.Events.DoPost,
+        );
+      });
+      expect(response).toMatchObject(REFUSED_TYPE);
+      expect(JSON.stringify(response)).not.toContain(SECRET);
+      expect(seen.lines).toHaveLength(1);
+      expect(seen.lines[0]).not.toContain(SECRET);
+      expect(JSON.parse(seen.lines[0] ?? "{}")).toMatchObject({
+        level: "warn",
+        action: "",
+        errorCode: "BAD_REQUEST",
+      });
+      expect(seen).toMatchObject({ driveCalls: 0, fetches: 0, cacheCalls: 0 });
+    },
+  );
+
+  it("security: a valid favorite.set body sent as text/plain leaves favorites.json unchanged and calls no handler", () => {
+    asCaller(OWNER);
+    const folder = webRpc("folder.create", { name: "Sales" }) as {
+      data: { id: string };
+    };
+    const item = webRpc("template.create", {
+      folderId: folder.data.id,
+      title: "T",
+      html: "<p>hi</p>",
+    }) as { data: { id: string } };
+    const favorites = () =>
+      world.drive.byName("favorites.json")[0]?.content ?? "";
+    const body = JSON.stringify({
+      op: "favorite.set",
+      args: { id: item.data.id },
+      requestId: REQUEST_ID,
+      clientVersion: "x",
+    });
+    const kept = favorites();
+    const seen = observe(() => {
+      expect(post(body, "text/plain")).toMatchObject(REFUSED_TYPE);
+    });
+    expect(favorites()).toBe(kept);
+    expect(seen).toMatchObject({
+      driveCalls: 0,
+      fetches: 0,
+      cacheCalls: 0,
+      keysChanged: false,
+    });
+    expect(JSON.parse(seen.lines[0] ?? "{}")).toMatchObject({ action: "" });
+    // Control: the same body as application/json runs the handler and writes the favorite.
+    expect(post(body)).toMatchObject({ ok: true });
+    expect(favorites()).not.toBe(kept);
+    expect(favorites()).toContain(item.data.id);
+  });
+
+  it("security: malformed JSON as text/plain gets the content type message (check before parse)", () => {
+    expect(post("{", "text/plain")).toMatchObject(REFUSED_TYPE);
+    expect(post("{", "application/json")).toMatchObject({
+      ok: false,
+      error: { code: "BAD_REQUEST", message: "Malformed request" },
+    });
+  });
+
+  it("security: a refusal buffers no event, writes no audit row and reads no Drive file", () => {
+    asCaller("x@other.com");
+    const seen = observe(() => {
+      expect(post(PING, "text/plain")).toMatchObject(REFUSED_TYPE);
+    });
+    expect(seen).toMatchObject({
+      driveCalls: 0,
+      fetches: 0,
+      cacheCalls: 0,
+      keysChanged: false,
+    });
+    expect(world.cache.keys().filter((key) => key.startsWith("evt:"))).toEqual(
+      [],
+    );
+    // Control: the same caller with application/json is denied and buffers one denied event.
+    expect(post(PING)).toMatchObject({ error: { code: "AUTH_DOMAIN" } });
+    expect(
+      world.cache.keys().filter((key) => key.startsWith("evt:")).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("the add-on's own client sends a content type and length that pass", () => {
+    world.fetchApp.respondWith((request) => {
+      const payload = request.params.payload as string;
+      const event = postEvent(payload, request.params.contentType ?? "");
+      return {
+        status: 200,
+        body: (doPost(event) as unknown as FakeTextOutput).content,
+      };
+    });
+    const call = callServer("ping", {});
+    expect(world.fetchApp.requests.at(-1)?.params).toMatchObject({
+      method: "post",
+      contentType: "application/json",
+    });
+    expect(call.response).toMatchObject({ ok: true, data: { pong: true } });
   });
 });
 

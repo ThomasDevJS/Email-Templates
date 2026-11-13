@@ -258,3 +258,17 @@ Audit month files of 2 or more lines load (dev build, `npm run deploy -- dev`). 
 3. Choose the previous month, if listed, and back: both load.
 4. Admin, "Settings and backups": after the next 5-minute job, "Save insert counts and refused actions" shows "OK".
 5. The next morning: "Nightly backup and cleanup" shows "OK", and the Audit log still shows yesterday's rows (now read from the month file).
+
+## Slice 29
+
+Front door of `doPost` (spec 5.11, ADR-0010 Decision 1). Dev build (`npm run deploy -- dev`, reload Gmail) before any prod deploy: what Apps Script puts in `postData.type` for the add-on's call is unverified.
+
+1. Gmail web, compose, toolbar, open Migway Templates: the home card shows. Row Insert on any template: the text arrives in the draft.
+2. Side panel, inbox, open Migway Templates: the home card shows.
+3. Apps Script editor, Executions: the `sidebar.home` and `template.apply` lines of steps 1 and 2 show `"result":"ok"`. No line shows `"errorCode":"BAD_REQUEST"` with `"action":""`. If one does, every add-on call fails the content type check: stop, do not deploy to prod, report the line.
+
+| Step | Record                           | Result |
+| ---- | -------------------------------- | ------ |
+| 1    | Insert works (y/n)               |        |
+| 2    | side panel opens (y/n)           |        |
+| 3    | front-door refusal lines (count) |        |
