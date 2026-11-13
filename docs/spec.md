@@ -482,9 +482,9 @@ As built (slice 26, merged e93a085; docs/handoffs/2026-11-12-implementer-to-revi
 Mechanism and options in ADR-0010. Proposed until the owner approves. Requests SR1 to SR4 and SF2 from the extension session; verdicts in docs/handoffs/2026-11-13-architect-to-orchestrator-extension-requests.md. Numbers marked "to measure" are starting values that the dev measurement run (slice 34) confirms or changes.
 
 Front door of `doPost` (SR2, slice 29). In order, before `JSON.parse` and before dispatch:
-1. `event.postData` missing: refuse.
+1. `event.postData` missing, its `contents` not a string, or a throw while reading it: refuse.
 2. Media type = `event.postData.type`, lower case, cut at the first `;`, trimmed. Other than `application/json`: refuse. `application/json; charset=utf-8` passes.
-3. `event.postData.length` over 262,144 bytes: refuse.
+3. Size = the larger of `event.postData.length` (when a whole number >= 0) and `contents.length`; over 262,144: refuse.
 
 A refusal answers the standard envelope `{ ok: false, error: { code: "BAD_REQUEST", message, retryable: false }, serverVersion, durationMs }` with message "Unsupported content type" (steps 1, 2) or "Request too large" (step 3), and writes one warn log line (`action: ""`, `targetId: ""`, `errorCode: BAD_REQUEST`, `actor` from the session). No audit row, no dispatch. `rpc` (web app) is unchanged. No nonce (ADR-0010 Decision 1, option 2 only if owner test 1 fails).
 
