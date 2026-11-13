@@ -4,7 +4,11 @@
  */
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
-export type Surface = "addon" | "webapp" | "trigger";
+/**
+ * Label of the line's caller (D41, spec 5.11): `addon` or `extension` from the `doPost` envelope's `client`,
+ * `webapp` for `rpc` and `doGet`, `trigger` for jobs. A label only: policy reads `Entry` (dispatch.ts).
+ */
+export type Surface = "addon" | "extension" | "webapp" | "trigger";
 export type LogResult = "ok" | "denied" | "conflict" | "error";
 export type CacheState = "hit" | "miss" | "rebuild" | "";
 /** Named counts or milliseconds. Numbers only, so no text from a request can land here. */

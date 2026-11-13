@@ -43,10 +43,17 @@ export const DEFAULT_TABLES: DispatchTables = {
   handlers: HANDLERS,
 };
 
+/**
+ * Server entry the request came through, set by `entry.ts` only (D41, spec 5.11). The only request value policy
+ * reads: `web` rows run for `rpc` alone. `Surface` is the log and audit label and never reaches `authorize`.
+ */
+export type Entry = "doPost" | "rpc";
+
 export interface DispatchRequest {
   readonly caller: Caller;
   readonly op: string;
   readonly args: unknown;
+  readonly entry: Entry;
   readonly surface: Surface;
   readonly requestId: string;
 }
@@ -154,7 +161,7 @@ function authorize(
   context: HandlerContext,
   request: DispatchRequest,
 ): string {
-  if (row.surface === "web" && request.surface === "addon")
+  if (row.surface === "web" && request.entry !== "rpc")
     deny(request, context.services, [], "");
   const need = needOf(actionOf(row, request.args));
   if (need.kind === "any") return "";

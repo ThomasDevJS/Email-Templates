@@ -10,6 +10,24 @@ export interface RpcRequest {
   readonly timing?: ClientTiming;
   /** Add-on only: which Gmail event fields the call's event carried (Q21); the server logs them. */
   readonly draft?: DraftInfo;
+  /** Add-on or extension, a client claim for the log and audit `surface` only (D41, spec 5.11). Absent = add-on. */
+  readonly client?: Client;
+}
+
+/** Labels a `doPost` caller may claim. Policy never reads them: it reads the server-set `entry`. */
+export const CLIENTS = ["addon", "extension"] as const;
+export type Client = (typeof CLIENTS)[number];
+
+/**
+ * The request's client label: `"addon"` when the request has none, `null` when the value is not in `CLIENTS`
+ * (case, type and empty string count). The server answers `null` with VALIDATION and logs nothing from it.
+ */
+export function requestClient(raw: unknown): Client | null {
+  const client = isRecord(raw) ? raw["client"] : undefined;
+  if (client === undefined) return "addon";
+  return (CLIENTS as readonly unknown[]).includes(client)
+    ? (client as Client)
+    : null;
 }
 
 /**

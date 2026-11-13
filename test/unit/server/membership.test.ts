@@ -236,7 +236,7 @@ describe("refresh job and admin determination", () => {
         requestId: "TESTREQ0-000001",
         clientVersion: "t",
       },
-      "webapp",
+      "rpc",
       { services: { ...services, store: failingStore } },
     );
     expect(response.ok).toBe(true);

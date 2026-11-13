@@ -8,6 +8,7 @@ import { isId } from "../../shared/ids";
 import type { LogResult, Surface } from "../../shared/log/logger";
 import {
   parseRpcRequest,
+  requestClient,
   requestDraft,
   requestTiming,
   type RpcResponse,
@@ -15,7 +16,12 @@ import {
 import { isRequestId, requestIdNow } from "../../shared/requestId";
 import type { Services } from "../services";
 import type { Caller } from "./context";
-import { DEFAULT_TABLES, dispatch, type DispatchTables } from "./dispatch";
+import {
+  DEFAULT_TABLES,
+  dispatch,
+  type DispatchTables,
+  type Entry,
+} from "./dispatch";
 
 export interface HandleDeps {
   readonly services: Services;
@@ -33,10 +39,18 @@ function resultOf(error: ErrorBody): LogResult {
   return error.code === ErrorCode.CONFLICT ? "conflict" : "error";
 }
 
+/**
+ * Log and audit label of a request (D41, spec 5.11): `rpc` is always `webapp` and ignores `client`; `doPost` uses
+ * the envelope's `client` when it is in the fixed list, else `addon`. Never an input of policy.
+ */
+export function surfaceOf(entry: Entry, raw: unknown): Surface {
+  return entry === "rpc" ? "webapp" : (requestClient(raw) ?? "addon");
+}
+
 function runDispatch(
   caller: Caller,
   raw: unknown,
-  surface: Surface,
+  entry: Entry,
   deps: HandleDeps,
   requestId: string,
 ): unknown {
@@ -54,6 +68,11 @@ function runDispatch(
       ErrorCode.VALIDATION,
       "Draft fields must come from the fixed list",
     );
+  if (entry === "doPost" && requestClient(raw) === null)
+    throw new AppError(
+      ErrorCode.VALIDATION,
+      "Client must come from the fixed list",
+    );
   const request = parseRpcRequest(raw);
   if (request === null)
     throw new AppError(ErrorCode.BAD_REQUEST, "Malformed request");
@@ -62,7 +81,8 @@ function runDispatch(
       caller,
       op: request.op,
       args: request.args,
-      surface,
+      entry,
+      surface: surfaceOf(entry, raw),
       requestId,
     },
     deps.services,
@@ -128,15 +148,17 @@ function measured(services: Services, started: number, raw: unknown) {
 /**
  * Runs one request through dispatch and wraps the result in the response envelope.
  * Never throws: every failure becomes `{ ok: false, error }` and one log line. The log line has the closed
- * field list of spec section 11, so args (bodies, prompt values, recipients) never reach it.
+ * field list of spec section 11, so args (bodies, prompt values, recipients) never reach it. `entry` comes from
+ * `entry.ts` and is the only request value policy reads; the line's `surface` is the label of `surfaceOf`.
  */
 export function handleRpc(
   caller: Caller,
   raw: unknown,
-  surface: Surface,
+  entry: Entry,
   deps: HandleDeps,
 ): RpcResponse {
   const { services } = deps;
+  const surface = surfaceOf(entry, raw);
   const started = services.nowMs();
   const requestId = requestIdOf(raw);
   const argsTarget = targetOf(raw);
@@ -150,7 +172,7 @@ export function handleRpc(
     ...draftOf(raw),
   });
   try {
-    const data = runDispatch(caller, raw, surface, deps, requestId);
+    const data = runDispatch(caller, raw, entry, deps, requestId);
     const metrics = measured(services, started, raw);
     services.logger.info({ ...base(), result: "ok", ...metrics });
     return {

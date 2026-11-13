@@ -6,7 +6,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Folder, IndexDoc, Item } from "../../../src/shared/model/data";
 import type { AdminEntry } from "../../../src/shared/model/admins";
-import type { Surface } from "../../../src/shared/log/logger";
 import { readBuffer } from "../../../src/server/audit/buffer";
 import type { ConfigView } from "../../../src/server/handlers/config";
 import {
@@ -17,7 +16,13 @@ import { runDaily } from "../../../src/server/jobs/daily";
 import { refreshSnapshot } from "../../../src/server/membership/snapshot";
 import { loadIndex } from "../../../src/server/cache/indexCache";
 import { mutateIndex } from "../../../src/server/storage/writer";
-import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
+import {
+  OWNER,
+  setSetting,
+  setupWorld,
+  type CallSurface,
+  type World,
+} from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -70,7 +75,7 @@ function errorOf(
   caller: string,
   op: string,
   args: unknown,
-  surface: Surface = "webapp",
+  surface: CallSurface = "webapp",
 ): { code: string; message: string; details?: unknown } {
   const response = world.call(caller, op, args, surface);
   return response.ok ? { code: "ok", message: "" } : response.error;

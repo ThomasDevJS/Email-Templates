@@ -17,7 +17,7 @@ import {
  * Policy table (ADR-0003 Part C, spec section 6): one row per op. `dispatch` resolves the targets, computes the
  * caller's level and denies before any handler runs. `action` names a role matrix row; ops open to any identified
  * caller use `any`. Level rows without `targets` are list ops: their handlers filter results by the same levels.
- * `web` ops are refused on the add-on surface.
+ * `web` ops run only for entry `rpc` (the web app); `doPost` and any future entry are refused (D41).
  */
 export type OpSurface = "both" | "web";
 

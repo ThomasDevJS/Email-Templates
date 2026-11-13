@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppError, ErrorCode } from "../../../src/shared/errors/codes";
 import { ANY_CALLER } from "../../../src/shared/permissions/matrix";
+import { readBuffer } from "../../../src/server/audit/buffer";
 import { handleRpc } from "../../../src/server/dispatch/handle";
+import { POLICY } from "../../../src/server/dispatch/policy";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
 const PING = {
@@ -23,7 +25,7 @@ function lastLog(): Record<string, unknown> {
 
 describe("handleRpc", () => {
   it("wraps a handler result in the success envelope and logs one ok line", () => {
-    const response = handleRpc({ email: "user@example.com" }, PING, "addon", {
+    const response = handleRpc({ email: "user@example.com" }, PING, "doPost", {
       services: world.as("addon"),
     });
     expect(response).toMatchObject({
@@ -44,7 +46,7 @@ describe("handleRpc", () => {
 
   it("returns AUTH_NO_USER for a blank caller and logs a denial", () => {
     expect(
-      handleRpc({ email: "" }, PING, "addon", { services: world.services }),
+      handleRpc({ email: "" }, PING, "doPost", { services: world.services }),
     ).toMatchObject({
       ok: false,
       error: { code: "AUTH_NO_USER", retryable: false },
@@ -57,7 +59,7 @@ describe("handleRpc", () => {
   });
 
   it("logs AUTH_DOMAIN as a denial", () => {
-    handleRpc({ email: "x@other.com" }, PING, "addon", {
+    handleRpc({ email: "x@other.com" }, PING, "doPost", {
       services: world.services,
     });
     expect(lastLog()).toMatchObject({
@@ -68,7 +70,7 @@ describe("handleRpc", () => {
 
   it("returns BAD_REQUEST for a malformed body", () => {
     expect(
-      handleRpc({ email: "user@example.com" }, "not json", "addon", {
+      handleRpc({ email: "user@example.com" }, "not json", "doPost", {
         services: world.services,
       }),
     ).toMatchObject({
@@ -83,7 +85,7 @@ describe("handleRpc", () => {
     const response = handleRpc(
       { email: OWNER },
       { ...PING, op: "boom" },
-      "webapp",
+      "rpc",
       {
         services: world.services,
         tables: {
@@ -106,7 +108,7 @@ describe("handleRpc", () => {
   });
 
   it("turns a handler crash into INTERNAL, logged at error level with the error name", () => {
-    const response = handleRpc({ email: "user@example.com" }, PING, "addon", {
+    const response = handleRpc({ email: "user@example.com" }, PING, "doPost", {
       services: world.services,
       tables: {
         policy: { ping: { action: ANY_CALLER, surface: "both" } },
@@ -131,7 +133,7 @@ describe("handleRpc", () => {
   it("logs the template or folder ID as targetId, and only well-formed IDs", () => {
     const id = "01JC8ABCDEFGHJKMNPQRSTVWXY";
     const target = (args: unknown) => {
-      handleRpc({ email: OWNER }, { ...PING, args }, "webapp", {
+      handleRpc({ email: OWNER }, { ...PING, args }, "rpc", {
         services: world.services,
       });
       return lastLog()["targetId"];
@@ -140,7 +142,7 @@ describe("handleRpc", () => {
     expect(target({ folderId: id })).toBe(id);
     expect(target({ id: "<p>body text</p>" })).toBe("");
     expect(target("text")).toBe("");
-    handleRpc({ email: OWNER }, null, "webapp", { services: world.services });
+    handleRpc({ email: OWNER }, null, "rpc", { services: world.services });
     expect(lastLog()["targetId"]).toBe("");
   });
 
@@ -163,7 +165,7 @@ describe("handleRpc", () => {
       bcc: 0,
       hasSubject: true,
     };
-    const response = handleRpc({ email: OWNER }, { ...PING, draft }, "addon", {
+    const response = handleRpc({ email: OWNER }, { ...PING, draft }, "doPost", {
       services: world.services,
     });
     expect(response.ok).toBe(true);
@@ -174,7 +176,7 @@ describe("handleRpc", () => {
       bcc: 0,
       hasSubject: true,
     });
-    handleRpc({ email: OWNER }, PING, "addon", { services: world.services });
+    handleRpc({ email: OWNER }, PING, "doPost", { services: world.services });
     expect(lastLog()).not.toHaveProperty("draft");
   });
 
@@ -186,7 +188,7 @@ describe("handleRpc", () => {
       bcc: 0,
       hasSubject: false,
     };
-    const response = handleRpc({ email: OWNER }, { ...PING, draft }, "addon", {
+    const response = handleRpc({ email: OWNER }, { ...PING, draft }, "doPost", {
       services: world.services,
     });
     expect(response).toMatchObject({
@@ -205,4 +207,115 @@ describe("handleRpc", () => {
     expect(world.lines[0]).not.toContain("Dear Bob");
     expect(world.lines[0]).not.toContain("threadId");
   });
+});
+
+describe("handleRpc: client label (D41, spec 5.11, slice 30)", () => {
+  const CLIENT_TEXT = "Client must come from the fixed list";
+
+  function deniedEvents() {
+    return readBuffer(world.cache).events.flatMap((entry) =>
+      entry.kind === "denied" ? [entry.event] : [],
+    );
+  }
+
+  function post(raw: Record<string, unknown>, entry: "doPost" | "rpc") {
+    return handleRpc({ email: OWNER }, raw, entry, {
+      services: world.services,
+    });
+  }
+
+  it("labels a doPost call without client as addon", () => {
+    expect(post(PING, "doPost").ok).toBe(true);
+    expect(lastLog()).toMatchObject({ surface: "addon", result: "ok" });
+  });
+
+  it("labels doPost log lines and denied rows extension when client is extension", () => {
+    expect(post({ ...PING, client: "extension" }, "doPost").ok).toBe(true);
+    expect(lastLog()).toMatchObject({ surface: "extension", result: "ok" });
+    const response = post(
+      {
+        ...PING,
+        op: "folder.create",
+        args: { name: "X" },
+        client: "extension",
+      },
+      "doPost",
+    );
+    expect(response).toMatchObject({ ok: false, error: { code: "DENIED" } });
+    expect(lastLog()).toMatchObject({ surface: "extension", result: "denied" });
+    expect(deniedEvents().at(-1)).toMatchObject({
+      action: "folder.create",
+      surface: "extension",
+    });
+  });
+
+  it.each<[string, unknown]>([
+    ["Extension", "Extension"],
+    ["empty", ""],
+    ["null", null],
+    ["number", 1],
+    ["list", ["extension"]],
+    ["webapp", "webapp"],
+    ["trigger", "trigger"],
+    ["object", { name: "extension" }],
+    ["long text", "Dear Bob, the price is 10"],
+  ])(
+    "answers VALIDATION to a %s client and logs none of it",
+    (_name, client) => {
+      const response = post({ ...PING, client }, "doPost");
+      expect(response).toMatchObject({
+        ok: false,
+        error: { code: "VALIDATION", message: CLIENT_TEXT },
+      });
+      expect(world.lines).toHaveLength(1);
+      expect(lastLog()).toMatchObject({
+        surface: "addon",
+        result: "error",
+        errorCode: "VALIDATION",
+      });
+      expect(lastLog()).not.toHaveProperty("client");
+      expect(world.lines[0]).not.toContain("Dear Bob");
+      expect(world.lines[0]).not.toContain("Extension");
+      expect(deniedEvents()).toHaveLength(0);
+    },
+  );
+
+  it.each<[string, unknown]>([
+    ["absent", undefined],
+    ["addon", "addon"],
+    ["extension", "extension"],
+    ["bad", "Extension"],
+  ])("labels rpc webapp and ignores a %s client", (_name, client) => {
+    const raw = client === undefined ? PING : { ...PING, client };
+    expect(post(raw, "rpc").ok).toBe(true);
+    expect(lastLog()).toMatchObject({ surface: "webapp", result: "ok" });
+  });
+
+  const WEB_OPS = Object.entries(POLICY)
+    .filter(([, row]) => row.surface === "web")
+    .map(([op]) => op);
+
+  it("finds web rows in the live policy table", () => {
+    expect(WEB_OPS.length).toBeGreaterThan(20);
+  });
+
+  it.each(WEB_OPS)(
+    "denies web op %s on doPost for client extension, then addon, as admin",
+    (op) => {
+      for (const client of ["extension", "addon"]) {
+        const before = deniedEvents().length;
+        const response = post({ ...PING, op, client }, "doPost");
+        expect(response).toMatchObject({
+          ok: false,
+          error: { code: "DENIED" },
+        });
+        expect(deniedEvents()).toHaveLength(before + 1);
+        expect(deniedEvents().at(-1)).toMatchObject({
+          action: op,
+          surface: client,
+          result: "denied",
+        });
+      }
+    },
+  );
 });

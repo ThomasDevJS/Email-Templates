@@ -839,3 +839,61 @@ describe("entry point allowlist (ADR-0003 Part C, revised in slice 2)", () => {
       expect(ENTRY_POINTS[job as keyof typeof ENTRY_POINTS]).toBe("trigger");
   });
 });
+
+describe("doPost and rpc surface label (spec section 5.11, slice 30)", () => {
+  beforeEach(() => {
+    setup();
+    asCaller(USER);
+  });
+
+  const withClient = (client: unknown, op = "ping", args: unknown = {}) =>
+    JSON.stringify({
+      op,
+      args,
+      requestId: REQUEST_ID,
+      clientVersion: "x",
+      client,
+    });
+
+  it("labels a doPost call with client extension and keeps the add-on checks", () => {
+    expect(post(withClient("extension"))).toMatchObject({ ok: true });
+    expect(lastLog()).toMatchObject({ surface: "extension", action: "ping" });
+    asCaller("x@other.com");
+    expect(post(withClient("extension"))).toMatchObject({
+      ok: false,
+      error: { code: "AUTH_DOMAIN" },
+    });
+    asCaller(OWNER);
+    expect(
+      post(withClient("extension", "folder.create", { name: "X" })),
+    ).toMatchObject({ ok: false, error: { code: "DENIED" } });
+    expect(lastLog()).toMatchObject({
+      surface: "extension",
+      action: "folder.create",
+      result: "denied",
+    });
+  });
+
+  it("answers VALIDATION to a client outside the list and logs the add-on label only", () => {
+    expect(post(withClient("Dear Bob"))).toMatchObject({
+      ok: false,
+      error: {
+        code: "VALIDATION",
+        message: "Client must come from the fixed list",
+      },
+    });
+    expect(lastLog()).toMatchObject({
+      surface: "addon",
+      errorCode: "VALIDATION",
+    });
+    expect(lines.join("\n")).not.toContain("Dear Bob");
+  });
+
+  it("serves web ops on rpc with the webapp label", () => {
+    asCaller(OWNER);
+    expect(webRpc("folder.create", { name: "Top" })).toMatchObject({
+      ok: true,
+    });
+    expect(lastLog()).toMatchObject({ surface: "webapp", result: "ok" });
+  });
+});

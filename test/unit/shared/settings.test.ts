@@ -55,6 +55,15 @@ describe("shape check", () => {
     settings,
   });
 
+  it("loads pending audit rows of every surface label, extension included (D41)", () => {
+    const event = (surface: string) => ({ id: surface, ts: "t", surface });
+    const doc = {
+      ...emptyIndex("2026-11-10T00:00:00.000Z"),
+      pendingAudit: ["addon", "extension", "webapp", "trigger"].map(event),
+    };
+    expect(indexProblem(doc)).toBe("");
+  });
+
   it("accepts absence and valid entries", () => {
     expect(indexProblem(emptyIndex("2026-11-10T00:00:00.000Z"))).toBe("");
     expect(indexProblem(index(undefined))).toBe("");

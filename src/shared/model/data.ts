@@ -63,7 +63,8 @@ export interface Item {
   readonly version: number;
 }
 
-export type AuditSurface = "addon" | "webapp" | "trigger";
+/** Same values as the log `Surface`; readers show the value as text, so rows of any build load (D41). */
+export type AuditSurface = "addon" | "extension" | "webapp" | "trigger";
 export type AuditResult = "ok" | "denied" | "conflict" | "error";
 export type AuditTargetType =
   "template" | "folder" | "grant" | "library" | "config" | "admin";

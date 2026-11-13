@@ -36,9 +36,14 @@ import {
   IMPORT_ITEMS_MAX,
   IMPORT_MAX_BYTES,
 } from "../../../src/shared/model/validate";
-import type { Surface } from "../../../src/shared/log/logger";
 import { requireStoreIds } from "../../../src/server/storage/setupStore";
-import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
+import {
+  OWNER,
+  setSetting,
+  setupWorld,
+  type CallSurface,
+  type World,
+} from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -61,7 +66,7 @@ function codeOf(
   caller: string,
   op: string,
   args: unknown = {},
-  surface: Surface = "webapp",
+  surface: CallSurface = "webapp",
 ): string {
   const response = world.call(caller, op, args, surface);
   return response.ok ? "ok" : response.error.code;
@@ -124,7 +129,9 @@ interface Fixture {
 }
 
 /** Sales > Quotes with one template; a role grant on Sales; a small export file for import. */
-function fixture(role: Role): { caller: string; surface: Surface } & Fixture {
+function fixture(
+  role: Role,
+): { caller: string; surface: CallSurface } & Fixture {
   const sales = folder("Sales");
   const quotes = folder("Quotes", sales.id);
   template(quotes.id);
@@ -280,6 +287,34 @@ describe("audit.query", () => {
     });
     expect(rows.map((row) => [row.action, row.actor])).toEqual([
       ["grant.list", ANA],
+    ]);
+  });
+
+  it("shows an extension denied row with its label, beside older labels (D41)", () => {
+    const hr = folder("HR");
+    world.call(ANA, "folder.rename", { id: hr.id, name: "X" }, "extension");
+    world.call(ANA, "grant.list", { folderId: hr.id }, "addon");
+    runTick(world.services);
+    const { rows } = world.ok<AuditQueryResult>(OWNER, "audit.query", {
+      result: "denied",
+    });
+    expect(rows.map((row) => [row.action, row.surface]).sort()).toEqual([
+      ["folder.rename", "extension"],
+      ["grant.list", "addon"],
+    ]);
+    const old = JSON.stringify({
+      id: "A",
+      ts: "2026-11-01T00:00:00Z",
+      surface: "webapp",
+    });
+    const next = JSON.stringify({
+      id: "B",
+      ts: "2026-11-02T00:00:00Z",
+      surface: "extension",
+    });
+    expect(parseLines(`${old}\n${next}`).map((e) => e.surface)).toEqual([
+      "webapp",
+      "extension",
     ]);
   });
 

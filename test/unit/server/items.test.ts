@@ -187,7 +187,7 @@ describe("template create, get, update (save sequence)", () => {
         requestId: "TESTREQ0-000001",
         clientVersion: "t",
       },
-      "webapp",
+      "rpc",
       { services: racing },
     );
     expect(response).toMatchObject({

@@ -2,8 +2,34 @@ import { describe, expect, it } from "vitest";
 import {
   parseRpcRequest,
   parseRpcResponse,
+  requestClient,
   requestDraft,
 } from "../../../src/shared/model/protocol";
+
+describe("requestClient (surface label, D41)", () => {
+  it("reads absent as addon and keeps the two listed labels", () => {
+    expect(requestClient({ op: "ping" })).toBe("addon");
+    expect(requestClient({ op: "ping", client: undefined })).toBe("addon");
+    expect(requestClient({ client: "addon" })).toBe("addon");
+    expect(requestClient({ client: "extension" })).toBe("extension");
+    expect(requestClient(null)).toBe("addon");
+  });
+
+  it.each<unknown>([
+    "Extension",
+    "",
+    null,
+    1,
+    ["extension"],
+    "webapp",
+    "trigger",
+    " extension",
+    {},
+    true,
+  ])("refuses client %j", (client) => {
+    expect(requestClient({ client })).toBeNull();
+  });
+});
 
 describe("parseRpcRequest", () => {
   it("accepts the documented shape", () => {

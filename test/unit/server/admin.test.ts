@@ -18,9 +18,14 @@ import { handleRpc } from "../../../src/server/dispatch/handle";
 import { PURGE_FILES_MAX, runDaily } from "../../../src/server/jobs/daily";
 import { WRITE_LOCK_MS } from "../../../src/server/lock";
 import { ADMIN_EMAILS_KEY } from "../../../src/server/membership/snapshot";
-import type { Surface } from "../../../src/shared/log/logger";
 import type { RpcResponse } from "../../../src/shared/model/protocol";
-import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
+import {
+  OWNER,
+  setSetting,
+  setupWorld,
+  type CallSurface,
+  type World,
+} from "../../fakes/world";
 
 const ANA = "ana@example.com";
 const BOB = "bob@example.com";
@@ -44,7 +49,7 @@ function codeOf(
   caller: string,
   op: string,
   args: unknown = {},
-  surface: Surface = "webapp",
+  surface: CallSurface = "webapp",
 ): string {
   const response = world.call(caller, op, args, surface);
   return response.ok ? "ok" : response.error.code;
@@ -95,7 +100,9 @@ interface Fixture {
 }
 
 /** Sales > Quotes and Sales > Other; one trashed template in Quotes; the role's grant on Sales. */
-function fixture(role: Role): { caller: string; surface: Surface } & Fixture {
+function fixture(
+  role: Role,
+): { caller: string; surface: CallSurface } & Fixture {
   const sales = folder("Sales");
   const quotes = folder("Quotes", sales.id);
   const other = folder("Other", sales.id);
@@ -807,7 +814,7 @@ function racing(
   return handleRpc(
     { email: caller },
     { op, args, requestId: "TESTREQ0-000001", clientVersion: "t" },
-    "webapp",
+    "rpc",
     { services: { ...services, lock } },
   );
 }

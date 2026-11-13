@@ -24,6 +24,7 @@ export interface Access {
 export interface HandlerContext {
   readonly caller: Caller;
   readonly args: unknown;
+  /** Log and audit label only (D41): handlers pass it to log lines and `eventSource`, never branch on it. */
   readonly surface: Surface;
   readonly requestId: string;
   readonly services: Services;

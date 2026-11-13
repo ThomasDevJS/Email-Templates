@@ -9,7 +9,7 @@ import { AppError, ErrorCode, toErrorBody } from "../shared/errors/codes";
 import type { RpcResponse } from "../shared/model/protocol";
 import { requestIdNow } from "../shared/requestId";
 import { loadIndex } from "./cache/indexCache";
-import { handleRpc } from "./dispatch/handle";
+import { handleRpc, surfaceOf } from "./dispatch/handle";
 import { frontDoorRefusal, UNSUPPORTED_TYPE } from "./frontDoor";
 import {
   OWNER_EMAIL_KEY,
@@ -109,7 +109,8 @@ function parseJsonBody(
 
 /**
  * A front-door refusal (spec section 5.11): BAD_REQUEST envelope and one warn line. No audit row, because in a
- * cross-site case the actor is the victim; no buffered event, no dispatch, no Drive or index read.
+ * cross-site case the actor is the victim; no buffered event, no dispatch, no Drive or index read. The body is
+ * unread, so the line carries the default label `addon`.
  */
 function refuseAtDoor(services: Services, message: string): RpcResponse {
   const started = services.nowMs();
@@ -143,20 +144,29 @@ function doorRefusal(
 }
 
 /**
- * Add-on to server call: JSON `{ op, args, requestId, clientVersion }` in, JSON envelope out. The front door
- * (content type, size) runs before `JSON.parse` and before dispatch.
+ * A body past the front door, as entry `doPost`. Services carry the request's label (`client`, else `addon`) so
+ * every log line of the request names the same surface; policy reads only the entry.
+ */
+function postRequest(
+  event: GoogleAppsScript.Events.DoPost | undefined,
+): RpcResponse {
+  const raw = parseJsonBody(event);
+  const services = createServices(surfaceOf("doPost", raw));
+  return handleRpc(currentCaller(), raw, "doPost", { services });
+}
+
+/**
+ * Add-on and extension to server call: JSON `{ op, args, requestId, clientVersion, client? }` in, JSON envelope
+ * out. The front door (content type, size) runs before `JSON.parse` and before dispatch.
  */
 export function doPost(
   event: GoogleAppsScript.Events.DoPost | undefined,
 ): GoogleAppsScript.Content.TextOutput {
-  const services = createServices("addon");
   const refusal = doorRefusal(event);
   const response =
     refusal === null
-      ? handleRpc(currentCaller(), parseJsonBody(event), "addon", {
-          services,
-        })
-      : refuseAtDoor(services, refusal);
+      ? postRequest(event)
+      : refuseAtDoor(createServices("addon"), refusal);
   return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(
     ContentService.MimeType.JSON,
   );
@@ -178,7 +188,7 @@ export function rpc(
     requestId,
     clientVersion: APP_VERSION,
   };
-  return handleRpc(currentCaller(), request, "webapp", { services });
+  return handleRpc(currentCaller(), request, "rpc", { services });
 }
 
 function logRefused(services: Services, name: string): never {

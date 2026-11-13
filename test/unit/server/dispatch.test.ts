@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppError, ErrorCode } from "../../../src/shared/errors/codes";
 import { ENTRY_POINTS } from "../../../src/shared/entryPoints";
+import type { Surface } from "../../../src/shared/log/logger";
 import {
   ANY_CALLER,
   ROLE_MATRIX,
@@ -9,10 +10,12 @@ import { readBuffer } from "../../../src/server/audit/buffer";
 import {
   DEFAULT_TABLES,
   dispatch,
+  type DispatchRequest,
   type DispatchTables,
+  type Entry,
 } from "../../../src/server/dispatch/dispatch";
 import { HANDLERS } from "../../../src/server/dispatch/handlers";
-import { POLICY } from "../../../src/server/dispatch/policy";
+import { POLICY, type PolicyRow } from "../../../src/server/dispatch/policy";
 import { DOMAIN_KEY } from "../../../src/server/guards";
 import { OWNER, setupWorld, type World } from "../../fakes/world";
 
@@ -32,10 +35,11 @@ function run(
   op: string,
   args: unknown = {},
   tables?: DispatchTables,
-  surface: "addon" | "webapp" = "webapp",
+  entry: Entry = "rpc",
+  surface: Surface = entry === "rpc" ? "webapp" : "addon",
 ) {
   return dispatch(
-    { caller: { email: caller }, op, args, surface, requestId: "r1" },
+    { caller: { email: caller }, op, args, entry, surface, requestId: "r1" },
     world.services,
     tables,
   );
@@ -157,10 +161,10 @@ describe("dispatch: authorization before the handler", () => {
     });
   });
 
-  it("refuses web-only ops on the add-on surface, even for admins", () => {
+  it("refuses web-only ops on entry doPost, even for admins", () => {
     expect(
       codeOf(() =>
-        run(OWNER, "folder.create", { name: "X" }, undefined, "addon"),
+        run(OWNER, "folder.create", { name: "X" }, undefined, "doPost"),
       ),
     ).toBe(ErrorCode.DENIED);
   });
@@ -354,5 +358,60 @@ describe("policy levels match spec section 6", () => {
     expect([...Object.keys(SPEC_LEVELS), "folder.create"].sort()).toEqual(
       Object.keys(POLICY).sort(),
     );
+  });
+});
+
+describe("dispatch: entry decides web rows, surface is a label (D41, slice 30)", () => {
+  const SURFACES: readonly Surface[] = [
+    "addon",
+    "extension",
+    "webapp",
+    "trigger",
+  ];
+  const WEB_ROW: DispatchTables = {
+    policy: { webOp: { action: ANY_CALLER, surface: "web" } },
+    handlers: { webOp: () => "ran" },
+  };
+
+  it.each(SURFACES)(
+    "refuses a web row on entry doPost and on an unknown entry, with label %s",
+    (surface) => {
+      for (const entry of ["doPost", "future", "", "RPC"]) {
+        const before = deniedEvents().length;
+        expect(
+          codeOf(() =>
+            run(OWNER, "webOp", {}, WEB_ROW, entry as Entry, surface),
+          ),
+        ).toBe(ErrorCode.DENIED);
+        expect(deniedEvents().length).toBe(before + 1);
+        expect(deniedEvents().at(-1)).toMatchObject({
+          action: "webOp",
+          surface,
+        });
+      }
+    },
+  );
+
+  it.each(SURFACES)(
+    "serves a web row on entry rpc whatever the label (%s)",
+    (surface) => {
+      expect(run(OWNER, "webOp", {}, WEB_ROW, "rpc", surface)).toBe("ran");
+    },
+  );
+
+  it("types keep a Surface out of entry and out of a policy row", () => {
+    const surface: Surface = "webapp";
+    const request: Omit<DispatchRequest, "entry"> = {
+      caller: { email: OWNER },
+      op: "ping",
+      args: {},
+      surface,
+      requestId: "r1",
+    };
+    // @ts-expect-error a Surface label is no Entry, so it cannot open a web row
+    const forged: DispatchRequest = { ...request, entry: surface };
+    // @ts-expect-error a policy row names "both" or "web", never a Surface
+    const row: PolicyRow = { action: ANY_CALLER, surface };
+    expect([forged.entry, row.surface]).toEqual(["webapp", "webapp"]);
   });
 });

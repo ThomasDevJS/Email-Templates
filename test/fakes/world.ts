@@ -45,6 +45,9 @@ export const OWNER = "owner@example.com";
 export const DOMAIN = "example.com";
 export const START_MS = Date.parse("2026-11-09T12:00:00.000Z");
 
+/** Label of a test call; the third `Surface`, `trigger`, never calls an op. */
+export type CallSurface = Exclude<Surface, "trigger">;
+
 export interface World {
   readonly services: Services;
   readonly clock: { now: number };
@@ -61,15 +64,16 @@ export interface World {
   readonly lines: string[];
   /** Fresh request stats, as runtime.ts creates per request. */
   as(surface: Surface): Services;
+  /** `webapp` calls as entry `rpc`; `addon` and `extension` as entry `doPost`, `extension` with `client` set. */
   call(
     caller: string,
     op: string,
     args?: unknown,
-    surface?: Surface,
+    surface?: CallSurface,
   ): RpcResponse;
   /** Data of a successful call, typed by the test; throws on an error response. */
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- the test names the expected data type
-  ok<T>(caller: string, op: string, args?: unknown, surface?: Surface): T;
+  ok<T>(caller: string, op: string, args?: unknown, surface?: CallSurface): T;
 }
 
 function memo<T>(make: () => T): () => T {
@@ -154,8 +158,14 @@ export function createWorld(): World {
     call: (caller, op, args = {}, surface = "webapp") =>
       handleRpc(
         { email: caller },
-        { op, args, requestId: "TESTREQ0-000001", clientVersion: "t" },
-        surface,
+        {
+          op,
+          args,
+          requestId: "TESTREQ0-000001",
+          clientVersion: "t",
+          ...(surface === "extension" ? { client: surface } : {}),
+        },
+        surface === "webapp" ? "rpc" : "doPost",
         {
           services: build(surface),
         },
@@ -165,7 +175,7 @@ export function createWorld(): World {
       caller: string,
       op: string,
       args?: unknown,
-      surface?: Surface,
+      surface?: CallSurface,
     ): T => {
       const response = world.call(caller, op, args, surface);
       if (!response.ok)
