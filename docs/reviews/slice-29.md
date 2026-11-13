@@ -1,6 +1,6 @@
 # Review: slice 29, front door of `doPost` (SR2)
 
-Verdict: FAIL
+Verdict: PASS (retry 1 at debefab; first review FAIL at 68a5323)
 
 Branch `slice/29-front-door`, reviewed at 68a5323, base ada97bc. 6 files, +470 -12: `src/server/frontDoor.ts` (new, 40), `src/server/entry.ts` (42 lines changed), `test/unit/server/frontDoor.test.ts` (new, 96), `test/unit/server/entry.test.ts` (+239), `docs/ops/smoke.md` (+14), the handoff (+51). Finding: extension handoff `2026-11-13-extension-to-server-sign-in.md`, SR2.
 
@@ -66,3 +66,59 @@ The refusal line carries no request data. Its size is fixed except `actor`, whic
 ## Not checkable here
 
 The `postData.type` value Apps Script reports for the add-on's real UrlFetch calls. Dev smoke `docs/ops/smoke.md` "Slice 29" steps 1 to 3 must pass on dev before any prod deploy. If it shows a refusal line with `action: ""`, every add-on call fails.
+
+## Retry 1
+
+Verdict: PASS
+
+Reviewed at debefab (retry commits 5320f91, debefab). `git diff f5d41bc HEAD`: 5 files, +149 -22, in `src/server/entry.ts`, `src/server/frontDoor.ts`, the two test files and the handoff.
+
+### Commands (worktree `/home/user/wt-slice-29`)
+
+| Command | Result |
+| --- | --- |
+| `npm run lint` | exit 0, 0 problems |
+| `npm run format:check` | exit 0, all files use Prettier style |
+| `npm run typecheck` | exit 0 |
+| `npm test` | exit 0; Test Files 77 passed (77), Tests 2222 passed (2222). Matches the handoff (+15 on 2207) |
+| `npm run build -- --env dev` | exit 0; Code.js 387.5 KB of 800 KB, index.html 390.3 KB of 400 KB |
+| `npm run scopes:check` | exit 0; 10 scopes, all approved |
+
+### FAIL closed
+
+`doorRefusal` in `entry.ts` wraps `frontDoorRefusal(event?.postData)` in a `try`; a throw answers "Unsupported content type" through `refuseAtDoor`. `parseJsonBody` runs only after a null refusal.
+
+Attack harness rerun: 118 shapes (the 91 of the first review plus 27 new), 0 bad, 0 exceptions out of `doPost`. Results in the scratchpad file `review-29/attack-results-retry1.txt`; the first run stays in `attack-results.txt`. New throw shapes, each refused with BAD_REQUEST "Unsupported content type", 1 warn line of 247 characters, 0 handler calls, state unchanged, thrown text absent from reply and line:
+- getter on `contents` (JSON type and `text/plain`), and one that throws a string;
+- `postData` Proxy that throws on every trap;
+- `event` Proxy that throws on every trap;
+- `event` own `postData` getter (defineProperty);
+- `type` getter that throws an object with `toString`.
+
+### Minor closed
+
+Size is `max(valid length, contents.length)`. A 300,000-character body is refused "Request too large" with `length` -1, 0, 10, 1.5, NaN, `Infinity`, `-Infinity`, 1e300, `null`, `"300000"`, absent, 262,144 and 300,000 (13 shapes). 262,145 characters with `length: 5` is refused. 262,144 characters with no `length` passes.
+
+### Behavior changes
+
+1. `length` of `Infinity` or 1.5 is ignored; `contents.length` decides. Spec 5.11 step 3 reads "`event.postData.length` over 262,144 bytes: refuse", so by its text `Infinity` would refuse. No body over the cap reaches `JSON.parse`: every shape with more than 262,144 characters is refused before parse (`JSON.parse` spy). Apps Script fills `length` as a whole number, so the case cannot come from HTTP. Accepted.
+2. 1e300 and 2^53 are whole numbers in JS (`Number.isInteger(1e300)` is true), so they count as a valid `length` and refuse "Request too large", even with a short body. The handoff says 1e300 is ignored; that line is wrong. The code is the safer side. No change required.
+3. JSON type with `contents` missing, number, object or `String` object answers "Unsupported content type" (was "Malformed request" after parse). This refuses before parse, so it fits the rule better than before. Spec 5.11 does not name the case.
+
+Line for the architect, spec 5.11 steps 1 and 3: "1. `event.postData` missing, its `contents` not a string, or a throw while reading it: refuse. 3. Size = the larger of `event.postData.length` (when a whole number >= 0) and `contents.length`; over 262,144: refuse."
+
+### CSRF guard
+
+16 cross-site shapes (`text/plain`, `text/plain;charset=UTF-8`, `application/x-www-form-urlencoded`, `multipart/form-data` x `favorite.set`, `favorite.unset`, `template.apply`, `folder.list`): 16 refused, 0 Drive calls, 0 cache key changes, 0 handler calls. Add-on round trip (`callServer("ping")` through fake UrlFetch into `doPost`, `entry.test.ts`) passes in `npm test`.
+
+### Scope of change
+
+`git diff ada97bc HEAD --stat`: 7 files, +665 -12: the 4 slice files, `docs/ops/smoke.md`, the handoff, this review. `appsscript.json`, `src/shared`, `src/server/dispatch`, `scripts`: 0 lines.
+
+Secret scan of `git diff f5d41bc HEAD`: 0 keys, tokens, secrets, URLs or email addresses.
+
+### Notes (no change required)
+
+- `parseJsonBody` reads `event.postData.contents` a second time. A getter that returns a short string first and 300,000 characters second reaches `JSON.parse` (harness shape "TOCTOU"). Apps Script builds `postData` from plain values, so HTTP callers cannot do this. Passing the checked `contents` into `parseJsonBody` would close it in about 3 lines.
+- Handoff line on 1e300 is wrong (see Behavior changes 2).
+- Dev smoke `docs/ops/smoke.md` "Slice 29" steps 1 to 3 still must pass on dev before any prod deploy.
