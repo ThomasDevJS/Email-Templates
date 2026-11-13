@@ -88,6 +88,80 @@ describe("sanitizer rules", () => {
     expect(sanitize('<img src="http://cdn.example.com/a.png">')).toBe("<img>");
   });
 
+  describe("image host allowlist reads the real host (SF1)", () => {
+    const LIST = { imgHosts: ["allowed.example"] };
+    const img = (url: string): string => `<img src="${url}">`;
+
+    it.each([
+      "https://allowed.example@evil.example/a.png",
+      "https://allowed.example:x@evil.example/a.png",
+      "https://allowed.example%40evil.example/a.png",
+      "https://evil.example\\@allowed.example/a.png",
+      "https://allowed.example\\@evil.example/a.png",
+      "https://allowed.example.evil.example/a.png",
+      "https://evil.example/allowed.example",
+      "https://evil.example?allowed.example",
+      "https://evil.example#@allowed.example",
+      "https:allowed.example/a.png",
+      "https:/allowed.example/a.png",
+      "https:\\\\allowed.example/a.png",
+      "https://allowed.example:99999999/a.png",
+      "https://allowed.example:80:80/a.png",
+      "https://allowed.example＠evil.example/a.png",
+      "https://ALLOWED.example./a.png",
+      // Further browser parser tricks (WHATWG, special scheme).
+      "https:///allowed.example/a.png",
+      "https://@allowed.example/a.png",
+      "https://allowed.example:/a.png",
+      "https://allowed。example/a.png",
+      "https://allowed.exam­ple/a.png",
+      "https://evil.example／@allowed.example/a.png",
+      "https://allowed.example&#64;evil.example/a.png",
+      "https://allowed.example&#x5c;@evil.example/a.png",
+      "HTTPS://allowed.example@evil.example/a.png",
+      " https://allowed.example@evil.example/a.png",
+      "https://allowed.example\u0001@evil.example/a.png",
+      "https://allowed.example /a.png",
+      "https://[::1]/a.png",
+      "https://allowed.example\t@evil.example/a.png",
+      "https://allowed.example\n@evil.example/a.png",
+    ])("drops %j", (url) => {
+      expect(sanitize(img(url), LIST)).toBe("<img>");
+    });
+
+    it.each([
+      "https://allowed.example/a.png",
+      "https://ALLOWED.EXAMPLE/a.png",
+      "https://allowed.example:8443/a.png",
+      "https://allowed.example",
+      "https://allowed.example?x=1",
+      "https://allowed.example#f",
+    ])("keeps %j", (url) => {
+      const out = sanitize(img(url), LIST);
+      expect(out).toBe(img(url));
+      expect(sanitize(out, LIST)).toBe(out);
+    });
+
+    it("removes a tab or newline inside the host first, as browsers do, then checks the joined host", () => {
+      expect(sanitize(img("https://allowed.ex\tam\nple/a.png"), LIST)).toBe(
+        img("https://allowed.example/a.png"),
+      );
+      expect(sanitize(img("https://evil.ex\tample/a.png"), LIST)).toBe("<img>");
+    });
+
+    it.each([
+      "https://allowed.example@evil.example/a.png",
+      "https://allowed.example:x@evil.example/a.png",
+      "https://allowed.example%40evil.example/a.png",
+      "https://evil.example\\@allowed.example/a.png",
+    ])(
+      "keeps %j unchanged with an empty list (every https host allowed, D20)",
+      (url) => {
+        expect(sanitize(img(url))).toBe(img(url));
+      },
+    );
+  });
+
   it("validates numeric and enumerated attributes", () => {
     expect(
       sanitize(

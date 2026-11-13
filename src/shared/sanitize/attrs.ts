@@ -58,15 +58,24 @@ const href: AttrRule = (value) => {
   return hasScheme(url, HREF_SCHEMES) ? url : null;
 };
 
-function hostOf(url: string): string {
-  return (/^https:\/\/([^/?#:@]+)/i.exec(url)?.[1] ?? "").toLowerCase();
+/**
+ * Strict image URL form for the host allowlist: `https://`, an ASCII host (letters, digits, `.`, `-`), an optional
+ * port of 1 to 5 digits, then the end or `/`, `?`, `#`. Any other authority character (`@`, `\`, `%`, a second
+ * `:`, non-ASCII) fails the match, so userinfo and other parser tricks cannot hide the real host.
+ */
+const STRICT_IMG_URL = /^https:\/\/([a-z0-9.-]+)(?::\d{1,5})?(?=$|[/?#])/i;
+
+/** Lower-case host of a URL in the strict form, or null when the URL is not in that form. */
+function strictHostOf(url: string): string | null {
+  return STRICT_IMG_URL.exec(url)?.[1]?.toLowerCase() ?? null;
 }
 
 const src: AttrRule = (value, options) => {
   const url = cleanUrl(value);
   if (!hasScheme(url, SRC_SCHEMES)) return null;
   if (options.imgHosts.length === 0) return url;
-  return options.imgHosts.includes(hostOf(url)) ? url : null;
+  const host = strictHostOf(url);
+  return host !== null && options.imgHosts.includes(host) ? url : null;
 };
 
 const style: AttrRule = (value) => {
