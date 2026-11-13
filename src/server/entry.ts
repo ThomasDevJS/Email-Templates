@@ -10,6 +10,7 @@ import type { RpcResponse } from "../shared/model/protocol";
 import { requestIdNow } from "../shared/requestId";
 import { loadIndex } from "./cache/indexCache";
 import { handleRpc } from "./dispatch/handle";
+import { frontDoorRefusal } from "./frontDoor";
 import {
   OWNER_EMAIL_KEY,
   refuse,
@@ -106,14 +107,45 @@ function parseJsonBody(
   }
 }
 
-/** Add-on to server call: JSON `{ op, args, requestId, clientVersion }` in, JSON envelope out. */
+/**
+ * A front-door refusal (spec section 5.11): BAD_REQUEST envelope and one warn line. No audit row, because in a
+ * cross-site case the actor is the victim; no buffered event, no dispatch, no Drive or index read.
+ */
+function refuseAtDoor(services: Services, message: string): RpcResponse {
+  const started = services.nowMs();
+  const error = toErrorBody(new AppError(ErrorCode.BAD_REQUEST, message));
+  services.logger.warn({
+    surface: "addon",
+    action: "",
+    requestId: requestIdNow(),
+    result: "error",
+    actor: currentCaller().email,
+    targetId: "",
+    errorCode: error.code,
+  });
+  return {
+    ok: false,
+    error,
+    serverVersion: services.appVersion,
+    durationMs: services.nowMs() - started,
+  };
+}
+
+/**
+ * Add-on to server call: JSON `{ op, args, requestId, clientVersion }` in, JSON envelope out. The front door
+ * (content type, size) runs before `JSON.parse` and before dispatch.
+ */
 export function doPost(
-  event: GoogleAppsScript.Events.DoPost,
+  event: GoogleAppsScript.Events.DoPost | undefined,
 ): GoogleAppsScript.Content.TextOutput {
   const services = createServices("addon");
-  const response = handleRpc(currentCaller(), parseJsonBody(event), "addon", {
-    services,
-  });
+  const refusal = frontDoorRefusal(event?.postData);
+  const response =
+    refusal === null
+      ? handleRpc(currentCaller(), parseJsonBody(event), "addon", {
+          services,
+        })
+      : refuseAtDoor(services, refusal);
   return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(
     ContentService.MimeType.JSON,
   );
