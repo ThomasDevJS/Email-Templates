@@ -49,3 +49,19 @@ npm test                # Test Files 77 passed (77), Tests 2207 passed (2207); b
 npm run build -- --env dev   # Built dev; Code.js 387.3 KB of 800 KB, index.html 390.3 KB of 400 KB
 npm run scopes:check    # Scope check passed: 10 scopes, all approved.
 ```
+
+## Retry 1 (review FAIL in `docs/reviews/slice-29.md`)
+
+Done:
+- `src/server/entry.ts`: new `doorRefusal(event)` wraps `frontDoorRefusal(event?.postData)` in a `try`. A throw refuses as "Unsupported content type": BAD_REQUEST envelope, one warn line, no thrown text.
+- `src/server/frontDoor.ts`: size is `max(valid length, contents.length)`. Valid length: finite whole number >= 0. A `contents` that is no string refuses as "Unsupported content type".
+
+Behavior changes to check:
+- `length` of -1, 10, 1.5, `Infinity`, 262,144.5 or 1e300 is ignored; `contents.length` decides.
+- JSON type with `contents` missing, number or object now answers "Unsupported content type" (was "Malformed request").
+
+Tests (+15): throwing getters on `event.postData`, `postData.type`, `postData.length`, `postData.contents` (reply and log free of the thrown text); `length` -1 and 10 with 300,000 characters refused; 262,144 with a short body passes; 5 non-string `contents` shapes.
+
+Commands: lint 0 problems; format:check clean; typecheck exit 0; tests 2,222 passed in 77 files (was 2,207); build dev Code.js 387.5 KB of 800 KB, index.html 390.3 KB of 400 KB; scopes:check 10 scopes approved.
+
+Left for later: none.
