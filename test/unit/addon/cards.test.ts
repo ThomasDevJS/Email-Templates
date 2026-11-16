@@ -967,3 +967,49 @@ describe("layout (slice 12)", () => {
     expect(card.footer?.secondary?.style).toBe("outlined");
   });
 });
+
+describe("row button Open (setting rowButton, spec 5.8; required fields, spec 5.11)", () => {
+  const button = (
+    prompts: string[],
+    entry: "compose" | "message",
+    open = false,
+  ) => templateItem(template("T1", { prompts }), entry, "", "star", open)[0];
+  const opens = {
+    button: {
+      text: "Open",
+      action: { fn: "onPreview", params: { id: "T1" } },
+    },
+  };
+
+  it("shows Open for a template with fields while the setting is open, in every entry", () => {
+    expect(button(["A"], "compose", true)).toMatchObject(opens);
+    expect(button(["A"], "message", true)).toMatchObject(opens);
+    expect(button([], "compose", true)).toMatchObject({
+      button: { text: "Insert" },
+    });
+    expect(button(["A"], "compose")).toMatchObject({
+      button: { text: "Insert" },
+    });
+  });
+
+  it("shows Open for a template with a required field whatever the setting", () => {
+    expect(button(["A", "Load*"], "compose")).toMatchObject(opens);
+  });
+
+  it("reads the setting from the view on the home and folder cards", () => {
+    const texts = (card: CardSpec | null) =>
+      (card?.sections ?? [])
+        .flatMap((s) => s.widgets)
+        .flatMap((w) => (w.kind === "item" && w.button ? [w.button.text] : []));
+    const open = view({ rowButton: "open", favorites: ["T1"] });
+    expect(texts(homeCard(open, "compose"))).toContain("Open");
+    expect(texts(folderCard(open, "F1", "1", "compose"))).toEqual([
+      "Open",
+      "Insert",
+    ]);
+    expect(texts(folderCard(view(), "F1", "1", "compose"))).toEqual([
+      "Insert",
+      "Insert",
+    ]);
+  });
+});

@@ -23,6 +23,7 @@ import {
   NO_MESSAGE,
   PANEL_DENIED,
   PANEL_NOT_FOUND,
+  REQUIRED_ROW,
   TEMPLATE_CHANGED,
   TOO_LONG,
   UNREADABLE,
@@ -897,5 +898,22 @@ describe("choice fields in the side panel (spec 5.10)", () => {
       "A choice is not in the template's list. Go back and open it again.",
     );
     expect(draftCall()).toBeUndefined();
+  });
+});
+
+describe("required fields (spec 5.11)", () => {
+  it("a row button makes no draft; the details button needs the required box filled", () => {
+    const item = create({ html: "<p>{{ask:Load*}}</p>" });
+    expect(composeFlow(ports(), inbox, { id: item.id, as: "new" })).toEqual(
+      notice(REQUIRED_ROW),
+    );
+    const params = detailsParams(item, "inbox", "new");
+    expect(promptComposeFlow(ports(), inbox, params)).toEqual(
+      notice("Fill in the required fields: Load*"),
+    );
+    expect(draftCall()).toBeUndefined();
+    expect(
+      promptComposeFlow(ports(), withForm(inbox, { "p-1": "L7" }), params),
+    ).toMatchObject({ kind: "compose" });
   });
 });

@@ -112,6 +112,11 @@ export function promptKey(label: string): string {
   return collapse(label).toLowerCase();
 }
 
+/** A prompt whose label ends with `*` is required: no insert while it is blank (spec 5.11). */
+export function requiredLabel(label: string): boolean {
+  return label.endsWith("*");
+}
+
 export function collapse(label: string): string {
   return label.trim().replace(/\s+/g, " ");
 }

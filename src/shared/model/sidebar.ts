@@ -45,6 +45,8 @@ export interface SidebarHome {
   readonly recent: readonly string[];
   /** Admin setting (D29): picks the empty-card text (spec 7.2). */
   readonly personalTemplates: "on" | "off";
+  /** Admin setting `rowButton` (spec 5.8); absent in views cached before it existed, read as `insert`. */
+  readonly rowButton?: "insert" | "open";
 }
 
 /** Caller's Directory values (ADR-0004 Sender values). Blank means unresolved. */

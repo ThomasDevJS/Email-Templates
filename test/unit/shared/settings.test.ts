@@ -23,6 +23,7 @@ describe("fixed list and defaults", () => {
     const defaults = {
       personalTemplates: { value: "off", updatedAt: "", updatedBy: "" },
       recipientsExternal: { value: "allow", updatedAt: "", updatedBy: "" },
+      rowButton: { value: "insert", updatedAt: "", updatedBy: "" },
     };
     expect(settingsOf(undefined)).toEqual(defaults);
     expect(settingsOf({})).toEqual(defaults);

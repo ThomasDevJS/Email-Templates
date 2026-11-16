@@ -154,8 +154,8 @@ export interface SettingTexts {
   readonly explanation: string;
   readonly options: readonly (readonly [SettingValue, string])[];
   readonly saved: (value: SettingValue) => string;
-  /** The value whose Save asks first (it takes something away from users), with the dialog texts. */
-  readonly confirm: {
+  /** The value whose Save asks first (it takes something away from users), with the dialog texts; absent: none. */
+  readonly confirm?: {
     readonly value: SettingValue;
     readonly title: string;
     readonly body: string;
@@ -181,6 +181,17 @@ export function settingTexts(name: SettingName, domain: string): SettingTexts {
         body: "Users can no longer create, change or delete templates in My templates. Nothing is deleted: their templates stay, can still be inserted, and can be changed again when you turn this on.",
         action: "Turn off",
       },
+    };
+  if (name === "rowButton")
+    return {
+      legend: "Template button in Gmail",
+      explanation:
+        'With "Open", a template that has fields to fill shows Open in place of Insert. Open shows the fields first; the sender fills them in and then inserts. A template without fields still inserts in one click.',
+      options: [
+        ["insert", "Insert"],
+        ["open", "Open"],
+      ],
+      saved: () => "Saved. Gmail shows the change within 10 minutes.",
     };
   return {
     legend: "Outside recipients",

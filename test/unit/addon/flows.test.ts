@@ -1191,3 +1191,26 @@ describe("choice fields (spec 5.10)", () => {
     ).toBe("<p>a &amp; &quot;b&quot;</p>");
   });
 });
+
+describe("required fields (spec 5.11): a label ending with *", () => {
+  it("row Insert opens the details card; a blank required box blocks the card's Insert, a filled one inserts", () => {
+    const item = create("Load", "<p>{{ask:Load*}} {{ask:Note}}</p>");
+    const opened = cardOf(insertFlow(ports(), undefined, { id: item.id }));
+    expect(texts(opened)).toContain(
+      "Fill in the fields marked *. Leave the others blank to type them in the draft.",
+    );
+    const params = opened.footer?.primary.action.params ?? {};
+    const blocked = promptInsertFlow(
+      ports(),
+      formEvent({ "p-1": " ", "p-2": "x" }),
+      params,
+    );
+    expect(texts(cardOf(blocked))).toContain(
+      "Fill in the required fields: Load*",
+    );
+    expect(
+      htmlOf(promptInsertFlow(ports(), formEvent({ "p-1": "L7" }), params)),
+    ).toBe("<p>L7</p>");
+    expect(applies()).toHaveLength(1);
+  });
+});

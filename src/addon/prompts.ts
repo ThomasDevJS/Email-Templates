@@ -1,4 +1,5 @@
 import { dateText, typedDateMs } from "../shared/placeholders/date";
+import { requiredLabel } from "../shared/placeholders/grammar";
 import type { PromptField } from "../shared/placeholders/render";
 
 /**
@@ -40,6 +41,32 @@ export function badDates(
   );
 }
 
+/**
+ * Indexes of required fields (label ending `*`, spec 5.11) left blank; every field when `entered` is empty.
+ * shortcut: only the first 20 fields have a box, so a required field past them is not enforced; upgrade if a
+ * template ever shows more than 20 fields.
+ */
+export function missingRequired(
+  fields: readonly PromptField[],
+  entered: readonly string[] = [],
+): number[] {
+  return fields.flatMap((field, index) =>
+    requiredLabel(field.label) &&
+    index < MAX_FIELDS &&
+    (entered[index] ?? "").trim() === ""
+      ? [index]
+      : [],
+  );
+}
+
+/** "Fill in the required fields: Driver name*, Pickup date*". */
+export function requiredText(
+  fields: readonly PromptField[],
+  indexes: readonly number[],
+): string {
+  return `Fill in the required fields: ${labelsOf(fields, indexes)}`;
+}
+
 const labelsOf = (
   fields: readonly PromptField[],
   indexes: readonly number[],
@@ -71,7 +98,7 @@ export function chooseAgainText(
 
 /**
  * What stops a details Insert, in this order: a refused choice (`fieldValue` null), a value over 500 characters, a
- * wrongly typed date. `flagged` are the field indexes shown first; null when nothing stops it.
+ * wrongly typed date, a blank required field. `flagged` are the field indexes shown first; null when nothing stops it.
  */
 export function enteredProblem(
   fields: readonly PromptField[],
@@ -87,8 +114,10 @@ export function enteredProblem(
   if (long.length > 0)
     return { flagged: long, text: shortenText(fields, long) };
   const bad = badDates(fields, entered);
-  return bad.length > 0
-    ? { flagged: bad, text: badDateText(fields, bad) }
+  if (bad.length > 0) return { flagged: bad, text: badDateText(fields, bad) };
+  const missing = missingRequired(fields, entered);
+  return missing.length > 0
+    ? { flagged: missing, text: requiredText(fields, missing) }
     : null;
 }
 

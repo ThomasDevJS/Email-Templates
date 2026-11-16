@@ -39,6 +39,8 @@ import {
   badDateText,
   badDates,
   inputName,
+  missingRequired,
+  requiredText,
   tooLong,
 } from "./prompts";
 import { clearView } from "./view";
@@ -64,6 +66,8 @@ export const COUNTS_CHANGED =
   "The recipients of this template changed. Tap its name to see them.";
 export const DRAFT_NOT_OPENED =
   "The email is in your Drafts, but Gmail could not open it. Open Drafts to find it.";
+export const REQUIRED_ROW =
+  "This template has required fields. Tap its name to fill them in.";
 export const PANEL_NOT_FOUND =
   "This template was deleted or moved. Open the panel again to update the list.";
 export const PANEL_DENIED =
@@ -241,6 +245,11 @@ export function composeFlow(
     return notify(COUNTS_CHANGED);
   }
   const values = variableValues(result.sender, result.recipientFirstName);
+  // A stale row can still carry the one-click buttons of a template that now has a required field (spec 5.11).
+  if (missingRequired(cardFields(body, values)).length > 0) {
+    clearView(ports.cache);
+    return notify(REQUIRED_ROW);
+  }
   return draftOf(
     ports.gmail,
     started,
@@ -280,6 +289,8 @@ export function promptComposeFlow(
   const entered = read.map((value) => value ?? "");
   const bad = badDates(fields, entered);
   if (bad.length > 0) return notify(badDateText(fields, bad));
+  const missing = missingRequired(fields, entered);
+  if (missing.length > 0) return notify(requiredText(fields, missing));
   const parts = rendered(body, {
     values: mergedValues(cardValues, result),
     answers: answersByKey(fields, entered),

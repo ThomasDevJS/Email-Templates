@@ -115,17 +115,18 @@ function settingBlock(
   save.addEventListener("click", () => {
     if (busy) return;
     const value = chosen();
-    if (value !== texts.confirm.value) {
+    const { confirm } = texts;
+    if (value !== confirm?.value) {
       run(value);
       return;
     }
     openDialog({
-      title: texts.confirm.title,
-      body: h("p", {}, texts.confirm.body),
+      title: confirm.title,
+      body: h("p", {}, confirm.body),
       actions: [
         { label: "Cancel", autofocus: true, run: () => undefined },
         {
-          label: texts.confirm.action,
+          label: confirm.action,
           primary: true,
           run: () => {
             run(value);

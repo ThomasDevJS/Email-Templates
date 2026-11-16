@@ -5,6 +5,8 @@
 export const SETTINGS = {
   personalTemplates: { values: ["on", "off"], default: "off" },
   recipientsExternal: { values: ["allow", "deny"], default: "allow" },
+  /** `open`: a row whose template has fields shows Open (the details card) in place of the one-click button. */
+  rowButton: { values: ["insert", "open"], default: "insert" },
 } as const;
 
 /** DENIED text for a target in a private tree while personal templates are off (spec 6, 7). */
@@ -55,6 +57,7 @@ export function settingsOf(stored: StoredSettings | undefined): Settings {
   return {
     personalTemplates: entryOf("personalTemplates", stored),
     recipientsExternal: entryOf("recipientsExternal", stored),
+    rowButton: entryOf("rowButton", stored),
   };
 }
 
