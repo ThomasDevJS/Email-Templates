@@ -313,6 +313,7 @@ Mechanism and options in ADR-0008, Accepted 2026-11-11. Built in slice 11, harde
   |---|---|---|---|
   | `personalTemplates` | `on`, `off` | `off` | `off`: no private folder is created; private trees resolve to `use` for owner and admins (section 5.1) |
   | `recipientsExternal` | `allow`, `deny` | `allow` | `deny`: section 5.7, ADR-0006 |
+  | `rowButton` | `insert`, `open` | `insert` | `open`: a sidebar row whose template has prompts shows "Open" (the details card) in place of its one-click buttons; a row without prompts keeps them. `sidebar.home` returns `rowButton`. Added 2026-11-16, owner request |
 
 - Delay: the server follows a change from the next request on; writes already running re-check in the lock on the fresh index. Web app controls follow on the next library load. The sidebar view cache can show old lists for up to 10 min; inserting stays allowed under `off`, so the cache exposes nothing the server refuses.
 - Two admins (slice 13): `config.set` carries `baseAt` and `baseBy`, the `updatedAt` and `updatedBy` of the entry the admin saw ("" for the default). In the lock, the same new value answers ok with `changed: false` and writes nothing; else a last change other than the base answers CONFLICT with the current entry in `details`, so an A, B, A sequence cannot hide B. The web app applies `details` and shows the section 7.3 conflict text.
@@ -476,6 +477,14 @@ As built (slice 26, merged e93a085; docs/handoffs/2026-11-12-implementer-to-revi
 - Tests: examples 1 to 10; the 7 `PH_CHOICE` triggers; 5 value shapes; forged values (reviewer: 13 kinds, 0 drafts); options changed between card and Insert give the version line; 2,118 tests at merge.
 - Test round part O (7 steps) holds the Gmail checks.
 - Open minors: a typed fallback option with a double space is refused (minor 5); a side-panel refusal counts one use (minor 4).
+
+### 5.11 Required fields (added 2026-11-16, owner request)
+
+- A prompt (`ask:`, `date:`, `choice:`) whose label ends with `*` is required (`requiredLabel`, src/shared/placeholders/grammar.ts). The grammar is unchanged: `*` is part of the label and of the prompt identity, so the label shows it everywhere. Variables cannot be required.
+- The editor dialogs say "End the name with * to make the field required."
+- A row whose template has a required prompt shows "Open" whatever `rowButton` is. A stale row's one-click press inserts nothing: compose pushes the details card, the side panel answers "This template has required fields. Tap its name to fill them in."
+- The details card shows "Fill in the fields marked *. Leave the others blank to type them in the draft." Insert, New email, Reply and Reply all with a blank required box change nothing and show "Fill in the required fields: <labels>". Blank: empty or spaces, no date picked, "Choose...".
+- Limit: only the first 20 fields have a box (section 7.4), so a required field past them is not enforced.
 
 ## 6. Server operations
 

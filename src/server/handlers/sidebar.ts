@@ -167,6 +167,7 @@ export function sidebarHome(context: HandlerContext): SidebarHome {
       context.access().index.settings,
       "personalTemplates",
     ),
+    rowButton: settingValue(context.access().index.settings, "rowButton"),
   };
 }
 

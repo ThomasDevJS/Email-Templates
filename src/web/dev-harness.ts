@@ -483,6 +483,7 @@ const settings: Record<SettingName, SettingEntry> = {
     PARAMS.get("external") === "deny"
       ? { value: "deny", updatedAt: "2026-11-09T13:05:00.000Z", updatedBy: ANA }
       : { value: "allow", updatedAt: "", updatedBy: "" },
+  rowButton: { value: "insert", updatedAt: "", updatedBy: "" },
 };
 
 /** In-app admins (D32); `?admins=none` starts empty. The caller's own row shows without Remove. */

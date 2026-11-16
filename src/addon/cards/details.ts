@@ -3,6 +3,7 @@ import type { SidebarTemplate } from "../../shared/model/sidebar";
 import { atLeast } from "../../shared/permissions/levels";
 import { NOT_CHOSEN } from "../../shared/placeholders/choice";
 import { typedDateMs } from "../../shared/placeholders/date";
+import { requiredLabel } from "../../shared/placeholders/grammar";
 import type { PromptField } from "../../shared/placeholders/render";
 import type { Entry } from "../event";
 import { MAX_FIELDS, inputName, moreFieldsText } from "../prompts";
@@ -26,6 +27,8 @@ import {
 /** Preview of a template without body text. */
 export const EMPTY_TEMPLATE = "This template has no text.";
 export const FIELDS_LINE = "Fill in now, or leave blank and type in the draft.";
+export const REQUIRED_LINE =
+  "Fill in the fields marked *. Leave the others blank to type them in the draft.";
 export const FIRST_NAME_HINT =
   "Leave blank to use the To recipient's first name, when known.";
 /** Side panel, message open: the first name comes from the person the reply goes to (spec 7.2). */
@@ -134,7 +137,11 @@ function fieldsSection(
     {
       header: "Fields",
       widgets: [
-        hint(FIELDS_LINE),
+        hint(
+          state.fields.some((field) => requiredLabel(field.label))
+            ? REQUIRED_LINE
+            : FIELDS_LINE,
+        ),
         ...state.order.flatMap((index) =>
           fieldInput(state, index, firstNameHint),
         ),

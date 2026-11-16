@@ -733,7 +733,7 @@ describe("config tab", () => {
   it("shows each setting with its explanation, current value and last change", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(4);
     });
     const [personal, outside] = [
       ...main().querySelectorAll<HTMLFieldSetElement>("fieldset.setting"),
@@ -763,7 +763,7 @@ describe("config tab", () => {
   it("asks before turning personal templates off, Cancel first; saves after the confirm", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(4);
     });
     const personal = main().querySelector("fieldset.setting") as HTMLElement;
     radio(personal, "Off").click();
@@ -795,7 +795,7 @@ describe("config tab", () => {
   it("saves a change that takes nothing away with no dialog", async () => {
     await boot("/?latency=0&personal=off#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(4);
     });
     const personal = main().querySelector("fieldset.setting") as HTMLElement;
     expect(checkedLabel(personal)).toBe("Off");
@@ -812,7 +812,7 @@ describe("config tab", () => {
   it("asks before allowing only the domain, and shows a conflict with the current value", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(4);
     });
     const outside = main().querySelectorAll(
       "fieldset.setting",
@@ -848,7 +848,7 @@ describe("config tab", () => {
   it("shows the current value from a CONFLICT after an A, B, A change and keeps focus off the body", async () => {
     await boot("/?latency=0#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(4);
     });
     const outside = main().querySelectorAll(
       "fieldset.setting",
@@ -886,7 +886,7 @@ describe("config tab", () => {
   it("moves focus to the status line after a Save without a dialog", async () => {
     await boot("/?latency=0&personal=off#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(4);
     });
     const personal = main().querySelector("fieldset.setting") as HTMLElement;
     radio(personal, "On").click();
@@ -1111,7 +1111,7 @@ describe("admin-only actions refused because the caller is no longer an admin (s
   it("Settings Save", async () => {
     await boot("/?latency=0&fail=DENIED&failOp=config.set#/admin/config");
     await until(() => {
-      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(3);
+      expect(main().querySelectorAll("fieldset.setting")).toHaveLength(4);
     });
     const outside = main().querySelectorAll(
       "fieldset.setting",

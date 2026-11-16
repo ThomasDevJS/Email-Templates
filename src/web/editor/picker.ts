@@ -48,22 +48,24 @@ export function fallbackProblem(value: string): string {
     : "";
 }
 
+const REQUIRED_HINT = " End the name with * to make the field required.";
+
 /** Menu item and dialog texts of each field type (spec 5.9, 5.10). */
 const ASK = {
   text: {
     item: "Ask the sender...",
     title: "Ask the sender",
-    hint: "1 to 40 characters, for example Meeting date.",
+    hint: `1 to 40 characters, for example Meeting date.${REQUIRED_HINT}`,
   },
   date: {
     item: "Ask the sender for a date...",
     title: "Ask the sender for a date",
-    hint: "1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY.",
+    hint: `1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY.${REQUIRED_HINT}`,
   },
   choice: {
     item: "Ask the sender to choose...",
     title: "Ask the sender to choose",
-    hint: "1 to 40 characters, for example Load status.",
+    hint: `1 to 40 characters, for example Load status.${REQUIRED_HINT}`,
   },
 } as const;
 const TYPES: readonly PromptType[] = ["text", "date", "choice"];

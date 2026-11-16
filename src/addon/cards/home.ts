@@ -93,7 +93,13 @@ function listed(
   icon: IconName,
 ): (template: SidebarTemplate) => Widget[] {
   return (template) =>
-    templateItem(template, entry, folderPath(view, template.folderId), icon);
+    templateItem(
+      template,
+      entry,
+      folderPath(view, template.folderId),
+      icon,
+      view.rowButton === "open",
+    );
 }
 
 function byIds(view: SidebarHome, ids: readonly string[]): SidebarTemplate[] {

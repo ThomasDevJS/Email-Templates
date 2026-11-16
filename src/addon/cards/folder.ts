@@ -3,6 +3,7 @@ import type {
   SidebarHome,
   SidebarTemplate,
 } from "../../shared/model/sidebar";
+import { requiredLabel } from "../../shared/placeholders/grammar";
 import type { Entry } from "../event";
 import { rowHint } from "./recipients";
 import { composeButton, sidePanelHint } from "./sidePanel";
@@ -70,7 +71,21 @@ function rowParams(template: SidebarTemplate): Record<string, string> {
 function rowButtons(
   template: SidebarTemplate,
   entry: Entry,
+  open: boolean,
 ): [ButtonSpec, ...ButtonSpec[]] {
+  // Open (the details card, where the fields are): a required field, or setting `rowButton` = `open` with a field.
+  if (
+    template.prompts.some(requiredLabel) ||
+    (open && template.prompts.length > 0)
+  )
+    return [
+      {
+        text: "Open",
+        alt: `Open ${template.title}`,
+        style: "filled",
+        action: action("onPreview", { id: template.id }),
+      },
+    ];
   if (entry === "compose") return [insertButton(template)];
   const params = rowParams(template);
   if (entry === "inbox")
@@ -116,6 +131,7 @@ export function templateItem(
   entry: Entry,
   path: string,
   icon: IconName,
+  open = false,
 ): Widget[] {
   const bottom = rowLabel(template, path);
   const item = {
@@ -125,7 +141,7 @@ export function templateItem(
     ...(bottom === "" ? {} : { bottomLabel: bottom }),
     onClick: action("onPreview", { id: template.id }),
   } as const;
-  const [first, ...more] = rowButtons(template, entry);
+  const [first, ...more] = rowButtons(template, entry, open);
   return more.length === 0
     ? [{ ...item, button: first }]
     : [item, { kind: "buttons", buttons: [first, ...more] }];
@@ -219,6 +235,7 @@ function templateSections(
   templates: SidebarTemplate[],
   page: number,
   entry: Entry,
+  open: boolean,
 ): SectionSpec[] {
   if (templates.length === 0)
     return [{ widgets: [{ kind: "text", text: `No templates in ${path}.` }] }];
@@ -227,7 +244,7 @@ function templateSections(
   const list: SectionSpec = {
     widgets: shown.flatMap((template) =>
       // The card header already shows the path: rows show their hints only.
-      templateItem(template, entry, "", "description"),
+      templateItem(template, entry, "", "description", open),
     ),
   };
   return pages > 1 ? [list, pager(folderId, page, pages)] : [list];
@@ -248,7 +265,14 @@ export function folderCard(
   const list =
     templates.length === 0 && children.length > 0
       ? []
-      : templateSections(path, folderId, templates, page, entry);
+      : templateSections(
+          path,
+          folderId,
+          templates,
+          page,
+          entry,
+          view.rowButton === "open",
+        );
   return {
     name: `folder-${folderId}`,
     title: path,

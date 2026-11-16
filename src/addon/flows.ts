@@ -65,6 +65,7 @@ import {
   displayOrder,
   enteredProblem,
   inputName,
+  missingRequired,
 } from "./prompts";
 import {
   clearView,
@@ -374,8 +375,8 @@ export function countsOf(lists: AppliedRecipients): string {
 /**
  * Row Insert (spec 7.4 Flow A): one `template.apply` (one apply event), then one insert reply. Fields without a
  * value are removed with the gap rules; the subject follows D24; recipients are added by spec 5.7. Other counts than
- * the row's `rc`, or a template address in a draft field the event does not give as a list, push the details card
- * and insert nothing.
+ * the row's `rc`, a required field, or a template address in a draft field the event does not give as a list, push
+ * the details card and insert nothing.
  */
 export function insertFlow(
   ports: Ports,
@@ -394,7 +395,13 @@ export function insertFlow(
   const lists = listsOf(result);
   const draft = draftRecipients(event);
   const countsDiffer = (rc ?? "0,0,0") !== countsOf(lists);
-  if (countsDiffer || recipientCount(recipientPlan(lists, draft).unknown) > 0) {
+  // A required field (spec 5.11) needs the card's boxes: a stale row can still carry the one-click button.
+  const required = missingRequired(cardFields(body, values)).length > 0;
+  if (
+    countsDiffer ||
+    required ||
+    recipientCount(recipientPlan(lists, draft).unknown) > 0
+  ) {
     const card = detailsOf(ports, event, {
       template: rowOf(ports, result, body),
       applied: applied.data,
