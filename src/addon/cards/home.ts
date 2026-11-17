@@ -32,9 +32,9 @@ const openLibraryButton = {
   buttons: [{ text: "Open library", action: action("onOpenLink") }],
 } as const satisfies Widget;
 
-/** Wireframe 07 A; A2 while personal templates are off (D29). */
+/** Wireframe 07 A; A2 while personal templates are off or hidden (D29). */
 function emptySection(view: SidebarHome): SectionSpec {
-  if (view.personalTemplates === "off")
+  if (view.personalTemplates !== "on")
     return {
       widgets: [
         {

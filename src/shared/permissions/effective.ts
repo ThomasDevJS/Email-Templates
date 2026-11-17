@@ -1,5 +1,5 @@
 import type { Folder, Grant } from "../model/data";
-import { personalTemplatesOn, type StoredSettings } from "../model/settings";
+import { settingValue, type StoredSettings } from "../model/settings";
 import { higher, type AccessLevel } from "./levels";
 import { ROLE_MATRIX } from "./matrix";
 import { principalKey } from "./principals";
@@ -103,10 +103,11 @@ function groupGrants(grants: readonly Grant[]): Map<string, Grant[]> {
  * Effective level = maximum over grants on the folder and every ancestor whose principal the subject holds.
  * Admin = `manage` on every existing folder, private ones included. Unknown folder = `none`. Memoized per folder.
  * While personal templates are off (D29), a private tree is `use` for its owner and admins and `none` for others;
- * that rule runs before the admin rule.
+ * while they are hidden it is `none` for everyone. That rule runs before the admin rule.
  */
 export function levelResolver(subject: Subject, data: PermissionData): LevelOf {
-  const privateOff = !personalTemplatesOn(data.settings);
+  const personal = settingValue(data.settings, "personalTemplates");
+  const privateOff = personal !== "on";
   const byId = folderMap(data.folders);
   const grantsByFolder = groupGrants(data.grants);
   const memo = new Map<string, AccessLevel>();
@@ -114,7 +115,7 @@ export function levelResolver(subject: Subject, data: PermissionData): LevelOf {
     const chain = ancestry(folderId, byId);
     if (chain.length === 0) return "none";
     if (privateOff && inPrivateTree(chain))
-      return privateOffLevel(chain, subject);
+      return personal === "hidden" ? "none" : privateOffLevel(chain, subject);
     if (subject.isAdmin) return "manage";
     if (inPrivateTree(chain)) return privateLevel(chain, subject);
     return grantLevel(chain, subject, grantsByFolder);

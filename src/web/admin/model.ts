@@ -154,13 +154,13 @@ export interface SettingTexts {
   readonly explanation: string;
   readonly options: readonly (readonly [SettingValue, string])[];
   readonly saved: (value: SettingValue) => string;
-  /** The value whose Save asks first (it takes something away from users), with the dialog texts; absent: none. */
-  readonly confirm?: {
+  /** The values whose Save asks first (they take something away from users), with the dialog texts. */
+  readonly confirms: readonly {
     readonly value: SettingValue;
     readonly title: string;
     readonly body: string;
     readonly action: string;
-  };
+  }[];
 }
 
 export function settingTexts(name: SettingName, domain: string): SettingTexts {
@@ -168,19 +168,28 @@ export function settingTexts(name: SettingName, domain: string): SettingTexts {
     return {
       legend: "Personal templates",
       explanation:
-        "Users can create their own templates in My templates. When off, users keep and can insert the personal templates they have, but cannot create, change or delete them.",
+        'Users can create their own templates in My templates. When off, users keep and can insert the personal templates they have, but cannot create, change or delete them. With "Hidden", nobody sees a My templates folder or its templates, in the library or in Gmail.',
       options: [
         ["on", "On"],
         ["off", "Off"],
+        ["hidden", "Hidden"],
       ],
       saved: (value) =>
         `Saved. Personal templates are ${value} for every user from their next action.`,
-      confirm: {
-        value: "off",
-        title: "Turn off personal templates?",
-        body: "Users can no longer create, change or delete templates in My templates. Nothing is deleted: their templates stay, can still be inserted, and can be changed again when you turn this on.",
-        action: "Turn off",
-      },
+      confirms: [
+        {
+          value: "off",
+          title: "Turn off personal templates?",
+          body: "Users can no longer create, change or delete templates in My templates. Nothing is deleted: their templates stay, can still be inserted, and can be changed again when you turn this on.",
+          action: "Turn off",
+        },
+        {
+          value: "hidden",
+          title: "Hide personal templates?",
+          body: "Every My templates folder disappears from the library and from Gmail, for its owner and for admins too. Nothing is deleted: the folders and templates come back when you choose On or Off.",
+          action: "Hide",
+        },
+      ],
     };
   if (name === "rowButton")
     return {
@@ -192,6 +201,7 @@ export function settingTexts(name: SettingName, domain: string): SettingTexts {
         ["open", "Open"],
       ],
       saved: () => "Saved. Gmail shows the change within 10 minutes.",
+      confirms: [],
     };
   return {
     legend: "Outside recipients",
@@ -204,12 +214,14 @@ export function settingTexts(name: SettingName, domain: string): SettingTexts {
       value === "deny"
         ? `Saved. Only ${domain} recipients are allowed.`
         : "Saved. Outside recipients are allowed.",
-    confirm: {
-      value: "deny",
-      title: `Allow only ${domain} recipients?`,
-      body: "Templates keep their outside addresses, but Insert no longer adds them. A template with an outside address cannot be saved until the address is removed.",
-      action: `Allow only ${domain}`,
-    },
+    confirms: [
+      {
+        value: "deny",
+        title: `Allow only ${domain} recipients?`,
+        body: "Templates keep their outside addresses, but Insert no longer adds them. A template with an outside address cannot be saved until the address is removed.",
+        action: `Allow only ${domain}`,
+      },
+    ],
   };
 }
 

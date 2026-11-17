@@ -3,7 +3,8 @@
  * `settings` object of `index.json`; an absent object or entry reads as the default, so nothing is written on read.
  */
 export const SETTINGS = {
-  personalTemplates: { values: ["on", "off"], default: "off" },
+  /** `hidden`: as `off`, and no one sees a private folder or its templates, its owner and admins included. */
+  personalTemplates: { values: ["on", "off", "hidden"], default: "off" },
   recipientsExternal: { values: ["allow", "deny"], default: "allow" },
   /** `open`: a row whose template has fields shows Open (the details card) in place of the one-click button. */
   rowButton: { values: ["insert", "open"], default: "insert" },

@@ -131,11 +131,17 @@ describe("admin model", () => {
     expect(personal.options).toEqual([
       ["on", "On"],
       ["off", "Off"],
+      ["hidden", "Hidden"],
     ]);
+    expect(personal.confirms[1]).toMatchObject({
+      value: "hidden",
+      title: "Hide personal templates?",
+      action: "Hide",
+    });
     expect(personal.saved("off")).toBe(
       "Saved. Personal templates are off for every user from their next action.",
     );
-    expect(personal.confirm).toMatchObject({
+    expect(personal.confirms[0]).toMatchObject({
       value: "off",
       title: "Turn off personal templates?",
       action: "Turn off",
@@ -154,7 +160,7 @@ describe("admin model", () => {
     expect(outside.saved("allow")).toBe(
       "Saved. Outside recipients are allowed.",
     );
-    expect(outside.confirm).toMatchObject({
+    expect(outside.confirms[0]).toMatchObject({
       value: "deny",
       title: "Allow only example.com recipients?",
       action: "Allow only example.com",

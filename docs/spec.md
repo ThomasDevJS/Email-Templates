@@ -311,7 +311,7 @@ Mechanism and options in ADR-0008, Accepted 2026-11-11. Built in slice 11, harde
 
   | Name | Values | Default | Effect |
   |---|---|---|---|
-  | `personalTemplates` | `on`, `off` | `off` | `off`: no private folder is created; private trees resolve to `use` for owner and admins (section 5.1) |
+  | `personalTemplates` | `on`, `off`, `hidden` | `off` | `off`: no private folder is created; private trees resolve to `use` for owner and admins (section 5.1). `hidden` (added 2026-11-17, owner request): as `off`, and every private tree resolves to `none` for everyone, owner and admins included, so no list, search, sidebar or op shows or serves it; nothing is deleted, and `on` or `off` brings the folders back. Save asks first ("Hide personal templates?") |
   | `recipientsExternal` | `allow`, `deny` | `allow` | `deny`: section 5.7, ADR-0006 |
   | `rowButton` | `insert`, `open` | `insert` | `open`: a sidebar row whose template has prompts shows "Open" (the details card) in place of its one-click buttons; a row without prompts keeps them. `sidebar.home` returns `rowButton`. Added 2026-11-16, owner request |
 
