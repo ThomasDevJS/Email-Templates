@@ -990,3 +990,40 @@ describe("images (slice 8b fix)", () => {
     expect(imageWidth(Number.NaN)).toBeNull();
   });
 });
+
+describe("required fields in the editor (spec 5.11)", () => {
+  it("draws a required prompt with the required class and says so in its name", () => {
+    const attrs = { name: "", label: "Load*", fallback: null };
+    expect(blankParts(attrs).className).toBe("ph ask required");
+    expect(blankParts({ ...attrs, type: "date" }).className).toBe(
+      "ph ask date required",
+    );
+    expect(chipLabel(attrs)).toBe(
+      "Field: Load*, the sender fills it in, required",
+    );
+    expect(blankParts({ ...attrs, label: "Load" }).className).toBe("ph ask");
+  });
+
+  it("a selected prompt chip adds Edit field and Make required; the toggle rewrites the token", () => {
+    const ed = open("<p>{{ask:Load}}</p>");
+    ed.view.dispatch(
+      ed.view.state.tr.setSelection(
+        NodeSelection.create(ed.view.state.doc, chipPos(ed)),
+      ),
+    );
+    const items = pickerItems(ed);
+    expect(items.slice(-2).map((item) => item.label)).toEqual([
+      "Edit field...",
+      "Make required",
+    ]);
+    items.at(-1)?.run();
+    expect(ed.html()).toBe("<p>{{ask:Load*}}</p>");
+  });
+
+  it("refuses a name that is only the mark", () => {
+    expect(labelProblem("*")).toBe(
+      "The field name must be 1 to 40 characters.",
+    );
+    expect(labelProblem("Load*")).toBe("");
+  });
+});

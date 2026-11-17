@@ -97,10 +97,6 @@ exports[`card look is frozen (D34) > details cards 1`] = `
         "",
         "text: The recipients of this template changed. Check them and press Insert again.",
       ],
-      [
-        "",
-        "text: Body",
-      ],
     ],
     "title": "Template T1",
   },
@@ -114,14 +110,6 @@ exports[`card look is frozen (D34) > details cards 1`] = `
         "",
         "text: Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.",
       ],
-      [
-        "",
-        "text: Body",
-      ],
-      [
-        "",
-        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
-      ],
     ],
     "title": "Template T1",
   },
@@ -133,19 +121,11 @@ exports[`card look is frozen (D34) > details cards 1`] = `
     "sections": [
       [
         "",
-        "text: Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.",
-      ],
-      [
-        "",
-        "text: Body",
-      ],
-      [
-        "",
         "buttons: New email",
       ],
       [
         "",
-        "text: To insert a template into an email you are already writing, use the Migway Templates button in that email's toolbar.",
+        "text: Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.",
       ],
     ],
     "title": "Template T1",

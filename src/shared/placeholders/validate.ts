@@ -4,6 +4,7 @@ import {
   FALLBACK_MAX,
   LABEL_MAX,
   collapse,
+  fieldLabel,
   parseText,
   promptKey,
   type PromptType,
@@ -269,6 +270,10 @@ function visitPrompt(
   else {
     const problem = sameIdentity(first, segment);
     if (problem !== null) into.problems.push(problem);
+    into.prompts.set(promptKey(label), {
+      ...first,
+      label: fieldLabel(first.label, label),
+    });
   }
 }
 

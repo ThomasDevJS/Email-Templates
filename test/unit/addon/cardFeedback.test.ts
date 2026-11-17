@@ -206,7 +206,6 @@ describe("hints look like hints (D36)", () => {
       TOOLBAR_HINT,
       FIELDS_LINE,
       SIGNATURE_LINE,
-      TOOLBAR_HINT,
     ]);
   });
 });

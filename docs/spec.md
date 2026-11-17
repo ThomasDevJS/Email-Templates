@@ -478,13 +478,20 @@ As built (slice 26, merged e93a085; docs/handoffs/2026-11-12-implementer-to-revi
 - Test round part O (7 steps) holds the Gmail checks.
 - Open minors: a typed fallback option with a double space is refused (minor 5); a side-panel refusal counts one use (minor 4).
 
-### 5.11 Required fields (added 2026-11-16, owner request)
+### 5.11 Required fields (added 2026-11-16, changed 2026-11-17, owner request)
 
-- A prompt (`ask:`, `date:`, `choice:`) whose label ends with `*` is required (`requiredLabel`, src/shared/placeholders/grammar.ts). The grammar is unchanged: `*` is part of the label and of the prompt identity, so the label shows it everywhere. Variables cannot be required.
-- The editor dialogs say "End the name with * to make the field required."
+- A prompt (`ask:`, `date:`, `choice:`) whose label ends with `*` is required (`requiredLabel`, src/shared/placeholders/grammar.ts). The grammar is unchanged: `*` is part of the label. Variables cannot be required.
+- Identity (2026-11-17): `promptKey` leaves the mark out, so "Load*" and "Load" are one field. The field is required once any of its tokens is; its label is the first spelling with `*` (`fieldLabel`), in the details card, in the saved `prompts` list and in "The sender fills in".
+- Editor (2026-11-17): the three "Ask the sender" dialogs and "Edit choices" have a checkbox "Required: the sender must fill it in before inserting"; a name typed with `*` at the end is required too. A double-click on a chip opens its dialog: "Edit field" with the name and the checkbox for a text or date prompt, "Edit choices" for a choice, "Default text" for a variable. A selected prompt chip adds the menu items "Edit field..." (text and date) and "Make required" or "Make optional". A required chip is red (`.ph.ask.required`) and its accessible name ends ", required".
 - A row whose template has a required prompt shows "Open" whatever `rowButton` is. A stale row's one-click press inserts nothing: compose pushes the details card, the side panel answers "This template has required fields. Tap its name to fill them in."
 - The details card shows "Fill in the fields marked *. Leave the others blank to type them in the draft." Insert, New email, Reply and Reply all with a blank required box change nothing and show "Fill in the required fields: <labels>". Blank: empty or spaces, no date picked, "Choose...".
 - Limit: only the first 20 fields have a box (section 7.4), so a required field past them is not enforced.
+
+Details card changes of 2026-11-17 (owner request; they replace the older text of sections 4.1a, 7.2, 7.4 and 13 where those differ):
+
+- No text preview on the compose and side-panel details cards. A compose card with no field, subject or recipient shows the one line "This template has no fields to fill in."
+- Side-panel details card: the signature line is the last section, after the button section; the toolbar hint is not on this card (the list cards keep it).
+- Web editor: a long option list in "The sender fills in" wraps inside the panel.
 
 ## 6. Server operations
 

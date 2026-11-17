@@ -7,16 +7,20 @@ import {
   FALLBACK_MAX,
   LABEL_MAX,
   collapse,
+  markRequired,
+  requiredLabel,
   variableToken,
   type PromptType,
 } from "../../shared/placeholders/grammar";
 import { REGISTRY } from "../../shared/placeholders/registry";
 import { promptChoice, promptText } from "../ui/dialog";
+import { h } from "../ui/dom";
 import type { MenuItem } from "../ui/menu";
 import {
   insertPlaceholder,
   selectedPlaceholder,
   setFallback,
+  setLabel,
   setOptions,
 } from "./commands";
 import { tokenOf, type PlaceholderAttrs } from "./schema";
@@ -32,7 +36,8 @@ const FORBIDDEN = /[{}|\\<>\r\n]/;
 
 export function labelProblem(value: string): string {
   const label = collapse(value);
-  if (label.length < 1 || label.length > LABEL_MAX)
+  // The required mark alone is no name.
+  if (markRequired(label, false).length < 1 || label.length > LABEL_MAX)
     return `The field name must be 1 to ${String(LABEL_MAX)} characters.`;
   return FORBIDDEN.test(label)
     ? "The field name cannot contain { } | \\ < >."
@@ -48,24 +53,43 @@ export function fallbackProblem(value: string): string {
     : "";
 }
 
-const REQUIRED_HINT = " End the name with * to make the field required.";
+/**
+ * The "Required" checkbox of the field dialogs (spec 5.11): `name` gives the typed name its mark. A name typed with
+ * `*` at the end is required too.
+ */
+function requiredBox(checked: boolean) {
+  const box = h("input", { type: "checkbox" });
+  box.checked = checked;
+  return {
+    element: h(
+      "label",
+      { class: "check-row" },
+      box,
+      " Required: the sender must fill it in before inserting",
+    ),
+    name: (typed: string): string => {
+      const label = collapse(typed);
+      return markRequired(label, box.checked || requiredLabel(label));
+    },
+  };
+}
 
 /** Menu item and dialog texts of each field type (spec 5.9, 5.10). */
 const ASK = {
   text: {
     item: "Ask the sender...",
     title: "Ask the sender",
-    hint: `1 to 40 characters, for example Meeting date.${REQUIRED_HINT}`,
+    hint: "1 to 40 characters, for example Meeting date.",
   },
   date: {
     item: "Ask the sender for a date...",
     title: "Ask the sender for a date",
-    hint: `1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY.${REQUIRED_HINT}`,
+    hint: "1 to 40 characters, for example Pickup date. The sender picks a date; it goes in as MM/DD/YYYY.",
   },
   choice: {
     item: "Ask the sender to choose...",
     title: "Ask the sender to choose",
-    hint: `1 to 40 characters, for example Load status.${REQUIRED_HINT}`,
+    hint: "1 to 40 characters, for example Load status.",
   },
 } as const;
 const TYPES: readonly PromptType[] = ["text", "date", "choice"];
@@ -101,6 +125,7 @@ export function listProblem(list: string): string {
 async function askChoice(
   current: PlaceholderAttrs | null,
 ): Promise<PlaceholderAttrs | null> {
+  const required = requiredBox(requiredLabel(current?.label ?? ""));
   const answer = await promptChoice({
     title: current === null ? ASK.choice.title : "Edit choices",
     ok: current === null ? "Insert" : "Save",
@@ -113,32 +138,43 @@ async function askChoice(
       ? {}
       : {
           value: {
-            label: current.label,
+            label: markRequired(current.label, false),
             list: (current.options ?? []).join("\n"),
           },
         }),
     maxLength: LABEL_MAX,
-    check: (label, list) => labelProblem(label) || listProblem(list),
+    extra: required.element,
+    check: (label, list) =>
+      labelProblem(required.name(label)) || listProblem(list),
   });
   if (answer === null) return null;
-  const label = collapse(answer.label);
+  const label = required.name(answer.label);
   const options = optionLines(answer.list);
   return { name: "", label, fallback: null, type: "choice", options };
 }
 
-/** The dialog of one field type: the new field's attributes, or null when cancelled. */
-async function askField(type: PromptType): Promise<PlaceholderAttrs | null> {
-  if (type === "choice") return askChoice(null);
+/**
+ * The dialog of one field type: the field's attributes, or null when cancelled. `current` is the chip being edited
+ * ("Edit field"), null for a new field.
+ */
+async function askField(
+  type: PromptType,
+  current: PlaceholderAttrs | null = null,
+): Promise<PlaceholderAttrs | null> {
+  if (type === "choice") return askChoice(current);
+  const required = requiredBox(requiredLabel(current?.label ?? ""));
   const label = await promptText({
-    title: ASK[type].title,
+    title: current === null ? ASK[type].title : "Edit field",
     label: NAME_LABEL,
     hint: ASK[type].hint,
+    ...(current === null ? {} : { value: markRequired(current.label, false) }),
     maxLength: LABEL_MAX,
-    check: labelProblem,
+    extra: required.element,
+    check: (value) => labelProblem(required.name(value)),
   });
   return label === null
     ? null
-    : { name: "", label: collapse(label), fallback: null, type };
+    : { name: "", label: required.name(label), fallback: null, type };
 }
 
 async function askPrompt(editor: Editor, type: PromptType): Promise<void> {
@@ -156,6 +192,22 @@ async function editChoices(
   const attrs = await askChoice(current);
   if (attrs !== null)
     editor.run(setOptions(pos, attrs.label, attrs.options ?? []));
+  else editor.focus();
+}
+
+/**
+ * Double-click on a chip, and "Edit field...": the dialog that fits the chip. A prompt gets its name and the
+ * Required checkbox (a choice also its options), a variable its default text.
+ */
+export async function editPlaceholder(
+  editor: Editor,
+  pos: number,
+  current: PlaceholderAttrs,
+): Promise<void> {
+  if (current.name !== "") return askFallback(editor, pos, current.fallback);
+  if (current.type === "choice") return editChoices(editor, pos, current);
+  const attrs = await askField(current.type ?? "text", current);
+  if (attrs !== null) editor.run(setLabel(pos, attrs.label));
   else editor.focus();
 }
 
@@ -226,6 +278,22 @@ export function pickerItems(editor: Editor): MenuItem[] {
       run: () => void askPrompt(editor, type),
     });
   const chip = selectedPlaceholder(editor.view.state);
+  if (chip !== null && chip.attrs.name === "") {
+    const required = requiredLabel(chip.attrs.label);
+    if (chip.attrs.type !== "choice")
+      items.push({
+        label: "Edit field...",
+        run: () => void editPlaceholder(editor, chip.pos, chip.attrs),
+      });
+    items.push({
+      label: required ? "Make optional" : "Make required",
+      run: () => {
+        editor.run(
+          setLabel(chip.pos, markRequired(chip.attrs.label, !required)),
+        );
+      },
+    });
+  }
   if (chip?.attrs.type === "choice")
     items.push({
       label: "Edit choices...",

@@ -1086,6 +1086,17 @@ table {
   color: var(--blank-ink);
 }
 
+.check-row {
+  display: block;
+  margin-top: 8px;
+}
+
+/* A required prompt (label ending *): red in place of gold. */
+.ph.ask.required {
+  border-color: var(--red);
+  color: var(--red);
+}
+
 .ProseMirror-selectednode.ph {
   outline: 2px solid var(--slate);
 }
@@ -1815,10 +1826,13 @@ table {
   padding: 4px 0;
 }
 
+/* A long choice list wraps inside the panel. */
 .ask-count {
+  min-width: 0;
   color: var(--ink-3);
   font-size: 13px;
-  white-space: nowrap;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .pill-tabs {

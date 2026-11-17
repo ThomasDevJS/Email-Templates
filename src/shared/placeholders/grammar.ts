@@ -107,14 +107,28 @@ export function choiceToken(label: string, options: readonly string[]): string {
   return `{{choice:${label}|${options.join("|")}}}`;
 }
 
-/** Prompt identity (ADR-0004 Apply semantics 1): trimmed, inner whitespace collapsed, case-insensitive. */
+/**
+ * Prompt identity (ADR-0004 Apply semantics 1): trimmed, inner whitespace collapsed, case-insensitive, without the
+ * required mark, so "Load*" and "Load" are one field (spec 5.11).
+ */
 export function promptKey(label: string): string {
-  return collapse(label).toLowerCase();
+  return collapse(label).replace(/ ?\*$/, "").toLowerCase();
 }
 
 /** A prompt whose label ends with `*` is required: no insert while it is blank (spec 5.11). */
 export function requiredLabel(label: string): boolean {
   return label.endsWith("*");
+}
+
+/** The label one field shows: its first spelling, with `*` once any token of the field is required. */
+export function fieldLabel(first: string, next: string): string {
+  return requiredLabel(next) && !requiredLabel(first) ? `${first}*` : first;
+}
+
+/** `label` with or without the required mark. */
+export function markRequired(label: string, required: boolean): string {
+  const bare = label.replace(/ ?\*$/, "");
+  return required ? `${bare}*` : bare;
 }
 
 export function collapse(label: string): string {

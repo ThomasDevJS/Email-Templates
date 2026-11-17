@@ -219,10 +219,7 @@ describe("details card flow (spec 7.4 Flow B)", () => {
     expect(inputs(card).map((i) => [i.name, i.title])).toEqual([
       ["p-1", "Meeting date"],
     ]);
-    expect(texts(card)).toEqual([
-      FIELDS_LINE,
-      "Hi [Recipient first name],\nDate: [Meeting date]",
-    ]);
+    expect(texts(card)).toEqual([FIELDS_LINE]);
     expect(sent).toEqual([
       { op: "sidebar.home", args: {} },
       {

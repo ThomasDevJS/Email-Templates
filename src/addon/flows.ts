@@ -11,7 +11,7 @@ import {
   type AppliedRecipients,
 } from "../shared/model/recipients";
 import { domainOf } from "../shared/permissions/principals";
-import { previewText, subjectPreview } from "../shared/placeholders/preview";
+import { subjectPreview } from "../shared/placeholders/preview";
 import {
   promptsFor,
   renderBody,
@@ -314,7 +314,6 @@ function detailsOf(
   const fields = cardFields(body, input.values);
   const state: DetailsState = {
     template: input.template,
-    text: previewText(body.html),
     subject: subjectPreview(body.subject),
     // A side-panel press makes a new draft: list the addresses as for an empty one.
     plan: recipientPlan(

@@ -11,6 +11,7 @@ import {
 } from "../../shared/model/recipients";
 import {
   collapse,
+  fieldLabel,
   parseText,
   promptKey,
   type PromptType,
@@ -123,7 +124,10 @@ export function promptUses(html: string, subject: string): PromptUse[] {
         type: segment.type,
         options: segment.options,
       });
-    else found.count += 1;
+    else {
+      found.count += 1;
+      found.label = fieldLabel(found.label, collapse(segment.label));
+    }
   }
   return [...uses.values()];
 }
