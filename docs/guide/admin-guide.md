@@ -269,16 +269,16 @@ Do them in this order. "Not yet tried" marks a step whose result nobody has seen
    Copy the `scriptId` from the generated `.clasp.json` into `deploy/prod.json`, then delete that `.clasp.json`.
 6. Create a standard Google Cloud project. The dedicated owner account creates it if Migway allows project creation; else the Workspace admin.
 7. Cloud console, OAuth consent screen: user type Internal. Internal apps owned by the organization need no Google verification.
-8. Cloud console, APIs: enable the Google Workspace Marketplace SDK. Probably also the Drive API and the Admin SDK API, because the manifest uses both as advanced services. Not yet tried: whether a standard project needs these two enabled by hand.
+8. Cloud console, APIs: enable the Google Workspace Marketplace SDK. Probably also the Drive API, the Admin SDK API and the Gmail API, because the manifest uses all three as advanced services. Not yet tried: whether a standard project needs these two enabled by hand.
 9. Open the editor: `npx clasp open-script <scriptId>`, with the `scriptId` from `deploy/prod.json` (or the address `https://script.google.com/d/<scriptId>/edit`). Project Settings, Google Cloud Platform project: change to the standard project's number. Do this before `setup()` in step 13: it is one way, and files created under another project stay invisible to the app.
 10. First push. `npm run deploy -- prod` refuses mode `version` while `deploymentId` and `execUrl` are empty. In `deploy/prod.json` set `"mode": "head"` for this one run, commit on `main`, then `npm run deploy -- prod`. The build warns that `execUrl` is missing; that is expected here.
 11. Create the web app deployment as in deploy.md step 6: Deploy, New deployment, type Web app, Execute as: Me, Who has access: Anyone within Migway. Put `deploymentId` and the `/exec` URL in the Workspace form (`https://script.google.com/a/macros/migway.com/s/<deploymentId>/exec`) into `deploy/prod.json`, and set `"mode": "version"` again.
 12. Commit `deploy/prod.json` on `main`, then `npm run deploy -- prod`. This run creates the next version (`clasp create-version`) and points the deployment at it, so the add-on carries the URL. The New deployment of step 11 made version 1, so this is version 2: the output prints "Deployment now serves version 2 (<sha>)." and ends with "Versions used 2 of 200; prune at 150." Not yet tried: whether the editor's New deployment always makes a version.
-13. The dedicated owner account runs `setup()` once in the editor and accepts the consent screen (10 scopes, below). The execution log shows one line with `"action":"setup","result":"ok"`.
+13. The dedicated owner account runs `setup()` once in the editor and accepts the consent screen (11 scopes, below). The execution log shows one line with `"action":"setup","result":"ok"`.
 14. Check the setup: editor, Project Settings, Script Properties. `OWNER_EMAIL`, `DOMAIN` and `ADMIN_EMAILS` hold the dedicated account and `migway.com`. No property named `job:...:lastError` exists. If one exists, the text after the time names the code; fix the cause, delete the property, and run `setup()` again.
 15. Script Properties: `ADMIN_GROUP` = the admins group. `ADMIN_EMAILS` keeps the dedicated account as the break-glass address.
 16. The dedicated owner account opens the web app `/exec` URL, Admin, "Settings and backups". Under "Admins" add the first admins by their migway.com address ("Add admin"). Under "Settings" decide the two settings: "Personal templates" (default Off) and "Outside recipients" (default Allowed).
-17. Marketplace SDK, App Configuration: visibility Private (permanent once saved); installation Admin Only install; integration Google Workspace add-on with the deployment ID; the 10 OAuth scopes below, identical to the manifest and the consent screen. Fill the store listing (logo, website); private apps need one too. Google does not review private apps. Not yet tried: which links and icon sizes a private listing requires.
+17. Marketplace SDK, App Configuration: visibility Private (permanent once saved); installation Admin Only install; integration Google Workspace add-on with the deployment ID; the 11 OAuth scopes below, identical to the manifest and the consent screen. Fill the store listing (logo, website); private apps need one too. Google does not review private apps. Not yet tried: which links and icon sizes a private listing requires.
 18. Admin console: Apps, Google Workspace Marketplace apps, Apps list, Install app, Admin install. Audience: "Certain groups or organizational units", the pilot group. Propagation takes up to 24 hours. Users then skip the consent screen: Admin install grants all 10 permissions for them, with no page and no box to tick.
 19. Pilot smoke test with [smoke.md](../ops/smoke.md) on prod. Exit G2.5b: the pilot group sees the add-on without a manual install.
 20. Widen the audience to "Everyone at your organization".
@@ -293,6 +293,7 @@ Prefix `https://www.googleapis.com/auth/` omitted. The build fails on any scope 
 | `gmail.addons.execute` | add-on | Gmail requires it to run the compose add-on |
 | `gmail.addons.current.action.compose` | add-on | Insert the template into the draft and set the draft subject; create the drafts of "New email", "Reply" and "Reply all" in the side panel |
 | `gmail.addons.current.message.metadata` | add-on | Read the To recipients for "Recipient first name"; read the open email's Reply-To, From, To and Cc for "Reply" and "Reply all" |
+| `gmail.settings.basic` | add-on | Read your default Gmail signature and put it under a template in "New email". The app changes no Gmail setting |
 | `script.external_request` | add-on | Call the app's own web app address |
 | `drive.file` | web app, triggers, add-on token | Read and write only the storage files the app created. The web app front door also needs a Drive scope in the add-on's token |
 | `script.projects.readonly` | add-on | The web app front door accepts the add-on's token only with this scope (spike S2) |
@@ -301,7 +302,7 @@ Prefix `https://www.googleapis.com/auth/` omitted. The build fails on any scope 
 | `admin.directory.user.readonly` | web app | Read public directory profiles for sender values and internal recipient first names |
 | `script.scriptapp` | web app, `setup()` | Install the 3 time-driven triggers |
 
-`https://mail.google.com/` is never requested. No restricted scope is in the list.
+`https://mail.google.com/` is never requested. One scope is restricted: `gmail.settings.basic`. An Internal app needs no Google verification for it (step 7).
 
 ## Unknown or undecided
 

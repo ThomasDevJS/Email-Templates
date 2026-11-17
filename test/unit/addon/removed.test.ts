@@ -66,7 +66,7 @@ describe("removed in slice 18", () => {
         };
       };
     };
-    expect(manifest.oauthScopes).toHaveLength(10);
+    expect(manifest.oauthScopes).toHaveLength(11);
     expect(manifest.oauthScopes).not.toContain("https://mail.google.com/");
     const { common, gmail } = manifest.addOns;
     expect([

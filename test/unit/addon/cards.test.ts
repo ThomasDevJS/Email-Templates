@@ -25,7 +25,6 @@ import {
   FIRST_NAME_HINT,
   REPLY_FIRST_NAME_HINT,
   REPLY_TO_LINE,
-  SIGNATURE_LINE,
   detailsCard,
   panelDetailsCard,
 } from "../../../src/addon/cards/details";
@@ -664,7 +663,7 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
       "a@migway.com",
       "c@migway.com",
       REPLY_TO_LINE,
-      SIGNATURE_LINE,
+      TOOLBAR_HINT,
     ]);
     expect(texts(card)).not.toContain(FINISH_TYPING);
     expect(texts(card)).not.toContain("Replace the subject");
@@ -676,7 +675,7 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
       press("New email", "new", "outlined", "STANDALONE_DRAFT"),
       edit,
     ]);
-    expect(card.sections.at(-1)?.widgets).toEqual([hint(SIGNATURE_LINE)]);
+    expect(card.sections.at(-1)?.widgets).toEqual([hint(TOOLBAR_HINT)]);
     expect(card.footer?.primary.action.params).not.toHaveProperty("counted");
   });
 
@@ -699,13 +698,12 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
       widgets(card).flatMap((w) => (w.kind === "input" ? [w.hint] : [])),
     ).toEqual([undefined, undefined]);
     expect(texts(card)).not.toContain(REPLY_TO_LINE);
-    expect(texts(card)).toContain(SIGNATURE_LINE);
     expect(card.footer).toEqual({
       primary: press("New email", "new", "filled", "STANDALONE_DRAFT"),
       secondary: edit,
     });
     expect(buttons(card)).toEqual([]);
-    expect(texts(card).at(-1)).toBe(SIGNATURE_LINE);
+    expect(texts(card).at(-1)).toBe(TOOLBAR_HINT);
   });
 
   it("use level, no recipients: no Edit in library, no Add recipients; inbox has no secondary", () => {

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FIELDS_LINE,
-  SIGNATURE_LINE,
   detailsCard,
   panelDetailsCard,
 } from "../../../src/addon/cards/details";
@@ -205,7 +204,7 @@ describe("hints look like hints (D36)", () => {
       "Showing 40 of 41 folders. Use Search or Open library for the rest.",
       TOOLBAR_HINT,
       FIELDS_LINE,
-      SIGNATURE_LINE,
+      TOOLBAR_HINT,
     ]);
   });
 });

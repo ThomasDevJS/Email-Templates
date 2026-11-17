@@ -207,18 +207,28 @@ function listOptions(added: Recipients) {
   };
 }
 
+/** The signature block as Gmail writes it, so Gmail's own "Insert signature" replaces it; "" for no signature. */
+export function signatureHtml(signature: string): string {
+  return signature.trim() === ""
+    ? ""
+    : `<br><div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature">${signature}</div>`;
+}
+
 /**
- * The one Gmail call (spec 4.1a step 6). Body "" because `htmlBody` replaces it. New email gets To and the subject;
- * a reply gets neither: Gmail sets To and keeps "Re:" (D24).
+ * The one Gmail draft call (spec 4.1a step 6). Body "" because `htmlBody` replaces it. New email gets To, the
+ * subject and the user's default signature under the text; a reply gets none of them: Gmail sets To, keeps "Re:"
+ * (D24) and adds the signature itself.
  */
 function draftOf(
-  gmail: GmailPort,
+  ports: Ports,
   started: Started,
   parts: { readonly html: string; readonly subject: string },
   added: Recipients,
 ): PanelReply {
-  const options = { htmlBody: parts.html, ...listOptions(added) };
+  const { gmail } = ports;
   const { message } = started;
+  const sign = message === null ? signatureHtml(ports.signature()) : "";
+  const options = { htmlBody: parts.html + sign, ...listOptions(added) };
   const draft =
     message === null
       ? gmail.createDraft(added.to.join(","), parts.subject, "", options)
@@ -251,7 +261,7 @@ export function composeFlow(
     return notify(REQUIRED_ROW);
   }
   return draftOf(
-    ports.gmail,
+    ports,
     started,
     rendered(body, { values, answers: {} }),
     recipientPlan(lists, started.draft).added,
@@ -297,7 +307,7 @@ export function promptComposeFlow(
   });
   const add = formValue(event, RECIPIENT_SWITCH) === SWITCH_ON;
   return draftOf(
-    ports.gmail,
+    ports,
     started,
     parts,
     add ? recipientPlan(lists, started.draft).added : EMPTY,

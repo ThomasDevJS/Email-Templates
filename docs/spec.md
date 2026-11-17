@@ -490,8 +490,8 @@ As built (slice 26, merged e93a085; docs/handoffs/2026-11-12-implementer-to-revi
 Details card changes of 2026-11-17 (owner request; they replace the older text of sections 4.1a, 7.2, 7.4 and 13 where those differ):
 
 - No text preview on the compose and side-panel details cards. A compose card with no field, subject or recipient shows the one line "This template has no fields to fill in."
-- Side-panel details card: the signature line is the last section, after the button section; the toolbar hint is not on this card (the list cards keep it).
 - Web editor: a long option list in "The sender fills in" wraps inside the panel.
+- Signature (owner decision 2026-11-17, replaces Q41 and ADR-0007 A5): a side-panel "New email" draft ends with the user's default Gmail signature, as `<br><div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature">...</div>`. A reply gets none from the add-on: Gmail adds its own. A user without a signature, or a failed read, gives a draft without one. The signature line is gone from the details card and the quick start; the side-panel details card ends with the toolbar hint again. Scope `gmail.settings.basic` and the advanced Gmail service (section 9): every user approves the add-on again, and the owner runs `setup()` once.
 
 ## 6. Server operations
 
@@ -803,13 +803,14 @@ Smoke "Slice 15" (Gmail web, compose toolbar, dev build; the implementer copies 
 
 One manifest, one list (D15, ADR-0001). Every self-installing user consents to all default scopes; the admin domain install skips the consent screen [R4 S60]. Prefix `https://www.googleapis.com/auth/` omitted. Consent text from [A10 in ADR-0002].
 
-Default list, 10 scopes (final after spike S2 (a), 2026-11-09):
+Default list, 11 scopes (10 final after spike S2 (a), 2026-11-09; `gmail.settings.basic` added 2026-11-17, owner decision):
 
 | Scope | Class | Consent text | Used by | Reason |
 |---|---|---|---|---|
 | gmail.addons.execute | Non-sensitive, add-on scope | "Run as a Gmail add-on" | add-on | Required at runtime by Gmail for the compose trigger. Verified 2026-11-09 on the dev deployment: without it Gmail raises "Required permissions: gmail.addons.execute". R4 S42 (release note of 2019) is wrong in practice |
 | gmail.addons.current.action.compose | Non-sensitive [R4 S8] | "Manage drafts and send emails when you interact with the add-on" | add-on | Insert the template into the draft; set the draft subject (D21, D24); add To, Cc and Bcc (D26). Google's pages name no scope for the recipient actions [A14, A15, A25 to A27]; spike S6 checks for a prompt. A new scope stops D26 until the owner approves. Google's compose guide names no extra scope for `UpdateDraftSubjectAction` [A14]. Spike S5 on dev-32a446c: body and subject actions in one response, no new scope (Q20 closed) |
 | gmail.addons.current.message.metadata | Sensitive [R4 S8] | "View your email message metadata when the add-on is running" | add-on | Read To recipients for `recipient.first_name` (D10); read To, Cc, Bcc and subject of the draft for D24 and D26 |
+| gmail.settings.basic | Restricted (Gmail API scopes page, read 2026-11-17) | "See, edit, create, or change your email settings and filters in Gmail" | add-on | Read the user's default signature (`Gmail.Users.Settings.SendAs.list("me")`, advanced Gmail service, the `isDefault` entry) and put it under the text of a side-panel "New email" draft. Read only: no code writes a setting. Owner decision 2026-11-17 |
 | script.external_request | Unclassified [R4 S7] | not published | add-on | Call the project's own `/exec` with UrlFetchApp |
 | drive.file | Non-sensitive [R4 S57] | "See, edit, create, and delete only the specific Google Drive files you use with this app" | web app, triggers; also in the add-on token | Storage files the app creates (ADR-0002); the `/exec` front door needs a Drive scope in the bearer token [A1] |
 | script.projects.readonly | Sensitive (Apps Script API) | "View Google Apps Script projects" | add-on | Spike S2 (a) result 2026-11-09: the web app front door resolves the script project through the caller token. `drive.file` alone and `drive.file` plus `drive.metadata.readonly` gave HTTP 404; with this scope Ping returned ok in 35 ms. Alternative accepted scopes per third-party notes: `drive`, `drive.readonly` (both restricted) |
@@ -834,7 +835,7 @@ Side panel (D27, ADR-0007, Accepted 2026-11-11 after spike S7): no new scope. Pe
 
 Per-scope checkboxes (owner fact, 2026-11-11): the self-install consent page has one checkbox per scope, and a user may untick any of them. An unticked scope breaks the add-on (the owner saw it fail). The admin domain install grants every scope with no page. Hence: install by the Workspace admin for every user (phase 2.5b), and the quick start tells a self-installer to keep every box ticked (Q82).
 
-No restricted scope is in the default list. `https://mail.google.com/` must never appear [R4 S7]; the build fails on any scope outside these two tables (ADR-0005). Slice 1 confirms that Cache, Properties and Lock need no extra scope and that the Advanced Drive service runs on `drive.file` alone (Q16).
+One restricted scope is in the default list: `gmail.settings.basic` (owner decision 2026-11-17, for the signature in "New email"). The app is Internal, so Google asks for no verification (admin guide step 7). `https://mail.google.com/` must never appear [R4 S7]; the build fails on any scope outside these two tables (ADR-0005). Slice 1 confirms that Cache, Properties and Lock need no extra scope and that the Advanced Drive service runs on `drive.file` alone (Q16).
 
 ## 10. Quota budget per user action
 

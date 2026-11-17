@@ -17,7 +17,7 @@ import {
   type Ports,
 } from "../../../src/addon/flows";
 import { FINISH_TYPING } from "../../../src/addon/cards/recipients";
-import { SIGNATURE_LINE } from "../../../src/addon/cards/details";
+import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import { FakeCache } from "../../fakes/cache";
 import { createRecordingGmail } from "../../fakes/gmail";
 import { OWNER, setSetting, setupWorld, type World } from "../../fakes/world";
@@ -61,6 +61,7 @@ function ports(entry: Entry = "compose"): Ports {
     userEmail: ANA,
     execUrl: "https://script.google.com/macros/s/TEST/exec",
     entry,
+    signature: () => "",
     hash: (text) =>
       createHash("sha256").update(text).digest("hex").slice(0, 16),
     gmail: createRecordingGmail().gmail,
@@ -417,7 +418,7 @@ describe("details card with recipients (spec 7.4 Flows B and C)", () => {
       expect(texts(card)).not.toContain(FINISH_TYPING);
       expect(widgets(card).filter((w) => w.kind === "input")).toHaveLength(1);
       expect(card.footer?.primary.action.fn).toBe("onPromptCompose");
-      expect(texts(card).at(-1)).toBe(SIGNATURE_LINE);
+      expect(texts(card).at(-1)).toBe(TOOLBAR_HINT);
     },
   );
 });

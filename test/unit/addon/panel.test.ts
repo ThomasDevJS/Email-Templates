@@ -74,6 +74,9 @@ const hash = (text: string) =>
   createHash("sha256").update(text).digest("hex").slice(0, 16);
 
 /** Ports on the real server; the Gmail fake answers with `headers` (null: no message) and throws at `fail`. */
+/** The default Gmail signature the fake account holds; "" for none. */
+let signature = "";
+
 function ports(
   entry: "inbox" | "message" | "compose" = "inbox",
   headers: FakeHeaders | null = {},
@@ -95,6 +98,7 @@ function ports(
     execUrl: "https://script.google.com/macros/s/TEST/exec",
     entry,
     hash,
+    signature: () => signature,
     gmail: fake.gmail,
   };
 }
@@ -915,5 +919,34 @@ describe("required fields (spec 5.11)", () => {
     expect(
       promptComposeFlow(ports(), withForm(inbox, { "p-1": "L7" }), params),
     ).toMatchObject({ kind: "compose" });
+  });
+});
+
+describe("default Gmail signature (owner, 2026-11-17)", () => {
+  const SIGN =
+    '<br><div dir="ltr" class="gmail_signature" data-smartmail="gmail_signature"><b>Ana</b></div>';
+
+  it("New email carries the signature under the text; a reply does not, Gmail adds its own", () => {
+    signature = "<b>Ana</b>";
+    try {
+      const item = create({ html: "<p>Hi</p>" });
+      composeFlow(ports(), inbox, { id: item.id, as: "new" });
+      expect(draftCall()?.args).toEqual([
+        "",
+        "",
+        "",
+        { htmlBody: `<p>Hi</p>${SIGN}` },
+      ]);
+      const params = detailsParams(item, "inbox", "new");
+      promptComposeFlow(ports(), inbox, params);
+      expect(draftCall()?.args[3]).toEqual({ htmlBody: `<p>Hi</p>${SIGN}` });
+      composeFlow(ports("message", { from: `Bob <${BOB}>` }), opened, {
+        id: item.id,
+        as: "reply",
+      });
+      expect(draftCall()?.args).toEqual(["", { htmlBody: "<p>Hi</p>" }]);
+    } finally {
+      signature = "";
+    }
   });
 });

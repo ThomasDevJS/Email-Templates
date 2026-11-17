@@ -13,7 +13,7 @@ import {
   recipientWidgets,
   type RecipientPlan,
 } from "./recipients";
-import { composeButton, type ComposeAs } from "./sidePanel";
+import { composeButton, sidePanelHint, type ComposeAs } from "./sidePanel";
 import {
   SUBJECT_SWITCH,
   action,
@@ -36,8 +36,6 @@ export const REPLY_FIRST_NAME_HINT =
   "Leave blank to use the first name of the person you reply to, when known.";
 export const REPLY_TO_LINE =
   "A reply goes to the sender, so the template's To is not added. New email adds it.";
-export const SIGNATURE_LINE =
-  'Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.';
 export const VERSION_CHANGED =
   "The template changed. Check the fields and press Insert again.";
 const FIRST_NAME_KEY = "{var}recipient.first_name";
@@ -275,7 +273,7 @@ export type PanelEntry = Exclude<Entry, "compose">;
 
 /**
  * Details card in the side panel (ADR-0007 A2, wireframe 02): Fields, Recipients without the finish-typing line, a
- * button section, the signature line last. No text preview and no toolbar hint, which the list cards already show
+ * button section, the hint last. No text preview and no signature line: New email carries the signature itself
  * (owner, 2026-11-17). The first two actions go in the fixed footer, the rest in the button section. Q74 fallback (a footer compose button fails in Gmail): put every action in the section.
  */
 export function panelDetailsCard(
@@ -297,7 +295,7 @@ export function panelDetailsCard(
       ...(rest.length === 0
         ? []
         : [{ widgets: [{ kind: "buttons", buttons: rest } as const] }]),
-      { widgets: [hint(SIGNATURE_LINE)] },
+      ...sidePanelHint(entry),
     ],
     footer: { primary, ...(secondary === undefined ? {} : { secondary }) },
   };
