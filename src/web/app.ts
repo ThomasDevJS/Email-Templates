@@ -250,10 +250,24 @@ export function startApp(host: Host): AppContext {
     view.scope(folderId, onlyFavorites);
   };
 
-  /** The sidebar shows Admin to callers who manage a folder (admins manage all); `admin.folders` decides on entry. */
+  /**
+   * The sidebar shows Admin to callers who manage a folder, and to admins; `admin.folders` decides on entry. A new
+   * install has no folder yet, so an admin manages none: the `me` call covers that case.
+   */
   const showAdminLink = () => {
-    const manages = folders.some((folder) => folder.level === "manage");
-    if (!manages || document.querySelector("[data-nav=admin]") !== null) return;
+    if (folders.some((folder) => folder.level === "manage")) addAdminLink();
+    else
+      void app.background
+        .me()
+        .then((me) => {
+          if (me.isAdmin) addAdminLink();
+        })
+        // Without the answer the link stays hidden; `?view=admin` still opens Admin.
+        .catch(() => undefined);
+  };
+
+  const addAdminLink = () => {
+    if (document.querySelector("[data-nav=admin]") !== null) return;
     const button = h(
       "button",
       { type: "button", class: "nav-item", "data-nav": "admin" },

@@ -1413,6 +1413,22 @@ describe("states (spec section 7, wireframe 07)", () => {
     expect(main().querySelector(".empty button")).toBeNull();
   });
 
+  it("no folder yet (a new install): an admin still gets the Admin link", async () => {
+    await boot("/?latency=0&access=none#/library");
+    await until(() => {
+      expect(document.querySelector("[data-nav=admin]")).not.toBeNull();
+    });
+  });
+
+  it("no folder yet: a user who is no admin gets no Admin link", async () => {
+    await boot("/?latency=0&access=none&admin=0#/library");
+    await until(() => {
+      expect(text()).toContain("No templates shared with you yet.");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(document.querySelector("[data-nav=admin]")).toBeNull();
+  });
+
   it("DENIED shows a banner with a link to the library", async () => {
     await boot("/?latency=0&fail=DENIED&failOp=template.get#/edit/T-QUOTE");
     await until(() => {

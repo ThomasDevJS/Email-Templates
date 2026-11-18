@@ -44,6 +44,12 @@ const LEVELS: readonly [Level, string][] = [
   ["edit", "Can edit"],
   ["manage", "Can manage"],
 ];
+/** What each access level allows (spec 5.1 role matrix), shown under the Give access form. */
+export const LEVEL_HELP: readonly string[] = [
+  "Can use: see the templates in this folder and insert them in Gmail.",
+  "Can edit: also create, change, move and delete templates, and see their history.",
+  "Can manage: also add subfolders, rename, move or delete the folder, and give access.",
+];
 const TYPE_ICONS: Readonly<Record<PrincipalType, IconName>> = {
   group: "group",
   user: "person",
@@ -383,6 +389,7 @@ export function foldersTab(
       "aria-describedby": `${keyId}-hint ${keyId}-error`,
     });
     const level = selectOf(levelId, LEVELS);
+    level.setAttribute("aria-describedby", `${levelId}-help`);
     const showHint = () => {
       hint.textContent = principalHint(type.value as PrincipalType);
     };
@@ -411,6 +418,11 @@ export function foldersTab(
           h("span", { class: "label-gap", "aria-hidden": "true" }),
           h("button", { type: "submit", class: "primary" }, "Give access"),
         ),
+      ),
+      h(
+        "ul",
+        { class: "hint", id: `${levelId}-help` },
+        ...LEVEL_HELP.map((line) => h("li", {}, line)),
       ),
     );
     form.addEventListener("submit", (event) => {
