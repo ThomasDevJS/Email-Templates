@@ -1212,3 +1212,15 @@ describe("required fields (spec 5.11): a label ending with *", () => {
     expect(applies()).toHaveLength(1);
   });
 });
+
+describe("blank rows (owner, 2026-11-18)", () => {
+  it("an empty paragraph of the template stays a row in the draft; a row emptied by a blank field closes", () => {
+    const item = create(
+      "Rows",
+      '<p>Hi</p><p></p><p style="text-align: center"></p><p>{{ask:Note}}</p><p>Bye</p>',
+    );
+    expect(htmlOf(insertFlow(ports(), undefined, { id: item.id }))).toBe(
+      '<p>Hi</p><p><br></p><p style="text-align: center"><br></p><p></p><p>Bye</p>',
+    );
+  });
+});

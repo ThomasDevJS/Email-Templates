@@ -164,6 +164,14 @@ function runParts(
 const HTML_FORMAT = { text: escapeText, value: formatValue };
 const PLAIN_FORMAT = { text: (t: string) => t, value: (v: string) => v };
 
+/**
+ * An empty paragraph or heading of the template is a blank row in the editor, but mail clients give an empty block
+ * no height. A `<br>` keeps the row. Only rows empty in the template: a row whose field rendered as "" still closes.
+ */
+export function keepBlankRows(html: string): string {
+  return html.replace(/<(p|h[1-6])( [^>]*)?><\/\1>/g, "<$1$2><br></$1>");
+}
+
 export function renderBody(html: string, input: RenderInput): Rendered {
   const out = mapTextRuns(html, (text) =>
     closeGaps(runParts(text, input, HTML_FORMAT)),
