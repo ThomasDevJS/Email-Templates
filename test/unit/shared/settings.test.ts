@@ -45,7 +45,7 @@ describe("fixed list and defaults", () => {
     expect(isSettingValue("personalTemplates", "on")).toBe(true);
     expect(isSettingValue("personalTemplates", "allow")).toBe(false);
     expect(isSettingValue("recipientsExternal", "deny")).toBe(true);
-    expect(allowedWords("personalTemplates")).toBe("on or off");
+    expect(allowedWords("personalTemplates")).toBe("on or off or hidden");
     expect(allowedWords("recipientsExternal")).toBe("allow or deny");
   });
 });

@@ -11,7 +11,7 @@ import {
   type AppliedRecipients,
 } from "../shared/model/recipients";
 import { domainOf } from "../shared/permissions/principals";
-import { previewText, subjectPreview } from "../shared/placeholders/preview";
+import { subjectPreview } from "../shared/placeholders/preview";
 import {
   promptsFor,
   renderBody,
@@ -91,6 +91,8 @@ export interface Ports {
   readonly entry: Entry;
   /** First 16 hex characters of the SHA-256 of `text` (`rh`, spec 5.7). */
   hash(text: string): string;
+  /** HTML of the user's default Gmail signature; "" when there is none or Gmail does not give it. */
+  signature(): string;
   /** The GmailApp calls of the side-panel actions (spec 4.1a); tests pass a recording fake. Never a send method. */
   readonly gmail: GmailPort;
 }
@@ -314,7 +316,6 @@ function detailsOf(
   const fields = cardFields(body, input.values);
   const state: DetailsState = {
     template: input.template,
-    text: previewText(body.html),
     subject: subjectPreview(body.subject),
     // A side-panel press makes a new draft: list the addresses as for an empty one.
     plan: recipientPlan(

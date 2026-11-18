@@ -1,6 +1,7 @@
 import { escapeText, escapeValue, mapTextRuns, textRuns } from "../html/escape";
 import {
   collapse,
+  fieldLabel,
   parseText,
   promptKey,
   type PromptType,
@@ -92,7 +93,12 @@ export function promptsFor(
   const fields = new Map<string, PromptField>();
   for (const segment of [...parseText(subject), ...segmentsOf(html)]) {
     const field = fieldOf(segment, values);
-    if (field !== null && !fields.has(field.key)) fields.set(field.key, field);
+    if (field === null) continue;
+    const first = fields.get(field.key) ?? field;
+    fields.set(field.key, {
+      ...first,
+      label: fieldLabel(first.label, field.label),
+    });
   }
   return [...fields.values()];
 }

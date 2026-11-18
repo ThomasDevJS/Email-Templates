@@ -20,12 +20,11 @@ import {
 } from "../../../src/addon/cards/home";
 import { TOOLBAR_HINT } from "../../../src/addon/cards/sidePanel";
 import {
-  EMPTY_TEMPLATE,
+  NOTHING_TO_FILL,
   FIELDS_LINE,
   FIRST_NAME_HINT,
   REPLY_FIRST_NAME_HINT,
   REPLY_TO_LINE,
-  SIGNATURE_LINE,
   detailsCard,
   panelDetailsCard,
 } from "../../../src/addon/cards/details";
@@ -430,7 +429,7 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
     expect(FIRST_NAME_HINT).toBe(
       "Leave blank to use the To recipient's first name, when known.",
     );
-    expect(texts(card).at(-1)).toBe("Body");
+    expect(texts(card)).not.toContain("Body");
     expect(card.footer).toEqual({
       primary: {
         text: "Insert",
@@ -452,14 +451,14 @@ describe("details card (spec 7.4 Flow B, wireframe 02)", () => {
         style: "outlined",
         action: { fn: "onOpenLink", params: { id: "T1" } },
       });
-    expect(texts(detailsCard(details({ text: "" })))).toEqual([EMPTY_TEMPLATE]);
+    expect(texts(detailsCard(details()))).toEqual([NOTHING_TO_FILL]);
     expectNoEmptySection(card);
   });
 
   it("has no Fields section, no subject switch and no Recipients section when there is nothing to show", () => {
     const card = detailsCard(details());
     expect(card.sections).toEqual([
-      { widgets: [{ kind: "text", text: "Body" }] },
+      { widgets: [{ kind: "text", text: NOTHING_TO_FILL }] },
     ]);
     expect(buttons(card)).toEqual([]);
   });
@@ -664,8 +663,6 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
       "a@migway.com",
       "c@migway.com",
       REPLY_TO_LINE,
-      SIGNATURE_LINE,
-      "Body",
       TOOLBAR_HINT,
     ]);
     expect(texts(card)).not.toContain(FINISH_TYPING);
@@ -701,7 +698,6 @@ describe("side panel details card (spec 7.2, ADR-0007 A2, slice 18 AC 8)", () =>
       widgets(card).flatMap((w) => (w.kind === "input" ? [w.hint] : [])),
     ).toEqual([undefined, undefined]);
     expect(texts(card)).not.toContain(REPLY_TO_LINE);
-    expect(texts(card)).toContain(SIGNATURE_LINE);
     expect(card.footer).toEqual({
       primary: press("New email", "new", "filled", "STANDALONE_DRAFT"),
       secondary: edit,

@@ -47,11 +47,25 @@ function ports(event: AddonEvent | undefined): Ports {
     execUrl: BUILD_INFO.execUrl,
     entry: entryOf(event),
     hash: shortSha256,
+    signature: defaultSignature,
     // A getter: only the side-panel actions touch GmailApp.
     get gmail() {
       return GmailApp;
     },
   };
+}
+
+/**
+ * The signature of the default send-as address (advanced Gmail service, scope `gmail.settings.basic`). A failed
+ * read gives "": the draft is made without a signature.
+ */
+function defaultSignature(): string {
+  try {
+    const list = Gmail?.Users.Settings.SendAs.list("me").sendAs ?? [];
+    return list.find((sendAs) => sendAs.isDefault === true)?.signature ?? "";
+  } catch {
+    return "";
+  }
 }
 
 /** `rh` (spec 5.7): first 16 hex characters of the SHA-256. Apps Script digests are signed bytes. */

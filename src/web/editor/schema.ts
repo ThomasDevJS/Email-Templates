@@ -17,6 +17,7 @@ import {
   dateToken,
   parseText,
   promptToken,
+  requiredLabel,
   variableToken,
   type PromptType,
 } from "../../shared/placeholders/grammar";
@@ -215,23 +216,25 @@ export function tokenOf(attrs: PlaceholderAttrs): string {
  * follows it: " or " and the fallback, " (date)" for a date field (spec 5.9), " (choice)" for a choice (spec 5.10).
  */
 export interface BlankParts {
-  readonly className: "ph" | "ph ask" | "ph ask date" | "ph ask choice";
+  /** "ph", "ph ask", "ph ask date", "ph ask choice"; a required prompt adds " required" (spec 5.11). */
+  readonly className: string;
   readonly label: string;
   readonly fallback: string | null;
   readonly muted: string | null;
 }
 
 export function blankParts(attrs: PlaceholderAttrs): BlankParts {
+  const required = requiredLabel(attrs.label) ? " required" : "";
   if (attrs.name === "" && (attrs.type === "date" || attrs.type === "choice"))
     return {
-      className: `ph ask ${attrs.type}`,
+      className: `ph ask ${attrs.type}${required}`,
       label: attrs.label,
       fallback: null,
       muted: ` (${attrs.type})`,
     };
   if (attrs.name === "")
     return {
-      className: "ph ask",
+      className: `ph ask${required}`,
       label: attrs.label,
       fallback: null,
       muted: null,
@@ -250,11 +253,13 @@ export function blankParts(attrs: PlaceholderAttrs): BlankParts {
  */
 export function chipLabel(attrs: PlaceholderAttrs): string {
   const { label, fallback } = blankParts(attrs);
+  const must = requiredLabel(attrs.label) ? ", required" : "";
   if (attrs.name === "" && attrs.type === "choice")
-    return `Field: ${label}, the sender chooses from ${String(attrs.options?.length ?? 0)} options`;
+    return `Field: ${label}, the sender chooses from ${String(attrs.options?.length ?? 0)} options${must}`;
   if (attrs.name === "" && attrs.type === "date")
-    return `Field: ${label}, a date the sender picks`;
-  if (attrs.name === "") return `Field: ${label}, the sender fills it in`;
+    return `Field: ${label}, a date the sender picks${must}`;
+  if (attrs.name === "")
+    return `Field: ${label}, the sender fills it in${must}`;
   return fallback === null
     ? `Field: ${label}`
     : `Field: ${label}, default text ${fallback}`;

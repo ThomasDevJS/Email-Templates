@@ -44,7 +44,7 @@ export interface SidebarHome {
   /** Template IDs. Empty until slice 5. */
   readonly recent: readonly string[];
   /** Admin setting (D29): picks the empty-card text (spec 7.2). */
-  readonly personalTemplates: "on" | "off";
+  readonly personalTemplates: "on" | "off" | "hidden";
   /** Admin setting `rowButton` (spec 5.8); absent in views cached before it existed, read as `insert`. */
   readonly rowButton?: "insert" | "open";
 }

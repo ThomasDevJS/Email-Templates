@@ -186,6 +186,11 @@ export function setFallback(pos: number, fallback: string | null): Command {
   return updatePlaceholder(pos, { fallback });
 }
 
+/** "Make required" and "Make optional" (spec 5.11): a prompt chip's field name. */
+export function setLabel(pos: number, label: string): Command {
+  return updatePlaceholder(pos, { label });
+}
+
 /** "Edit choices..." (spec 5.10, Q94): a choice chip's field name and options. */
 export function setOptions(
   pos: number,

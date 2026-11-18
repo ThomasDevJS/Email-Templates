@@ -12,14 +12,15 @@ describe("approved scope check (spec section 9)", () => {
 
   it("manifest oauthScopes equal the approved default list exactly", () => {
     expect(manifest.oauthScopes).toEqual(approved.default);
-    expect(approved.default).toHaveLength(10);
+    expect(approved.default).toHaveLength(11);
   });
 
-  it("approved list matches the spec tables: 10 default, 4 distinct conditional", () => {
+  it("approved list matches the spec tables: 11 default, 4 distinct conditional", () => {
     expect(approved.default.map((scope) => scope.replace(PREFIX, ""))).toEqual([
       "gmail.addons.execute",
       "gmail.addons.current.action.compose",
       "gmail.addons.current.message.metadata",
+      "gmail.settings.basic",
       "script.external_request",
       "drive.file",
       "script.projects.readonly",
@@ -102,7 +103,7 @@ describe("manifest settings (ADR-0001, ADR-0003, ADR-0005)", () => {
       primaryColor: "#2a3c49",
       secondaryColor: "#2a3c49",
     });
-    expect(manifest.oauthScopes).toHaveLength(10);
+    expect(manifest.oauthScopes).toHaveLength(11);
   });
 
   it("wires every manifest function to a bundle export", async () => {
@@ -122,10 +123,11 @@ describe("manifest settings (ADR-0001, ADR-0003, ADR-0005)", () => {
     for (const name of functions) expect(typeof entry[name]).toBe("function");
   });
 
-  it("uses compose metadata access and the 2 advanced services", () => {
+  it("uses compose metadata access and the 3 advanced services", () => {
     expect(manifest.addOns.gmail.composeTrigger.draftAccess).toBe("METADATA");
     expect(manifest.dependencies.enabledAdvancedServices).toEqual([
       { userSymbol: "Drive", serviceId: "drive", version: "v3" },
+      { userSymbol: "Gmail", serviceId: "gmail", version: "v1" },
       {
         userSymbol: "AdminDirectory",
         serviceId: "admin",

@@ -83,7 +83,8 @@ describe("checkBudget", () => {
 describe("deploy config", () => {
   it("parses the committed dev and prod files", () => {
     expect(parseDeployConfig(dev).mode).toBe("head");
-    expect(parseDeployConfig(prod).mode).toBe("version");
+    // Prod is "head" for its first push only (docs/ops/deploy.md), "version" after.
+    expect(["head", "version"]).toContain(parseDeployConfig(prod).mode);
   });
 
   it("accepts dev and prod only", () => {
@@ -104,8 +105,12 @@ describe("deploy config", () => {
   it("needs scriptId always, deploymentId and execUrl in version mode", () => {
     // Blank the committed IDs so the test does not depend on deploy/*.json contents.
     const blank = { scriptId: "", deploymentId: "", execUrl: "" };
-    const emptyProd = parseDeployConfig({ ...prod, ...blank });
-    const emptyDev = parseDeployConfig({ ...dev, ...blank });
+    const emptyProd = parseDeployConfig({
+      ...prod,
+      ...blank,
+      mode: "version",
+    });
+    const emptyDev = parseDeployConfig({ ...dev, ...blank, mode: "head" });
     expect(missingForDeploy(emptyProd)).toEqual([
       "scriptId",
       "deploymentId",

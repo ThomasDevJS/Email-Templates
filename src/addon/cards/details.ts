@@ -24,8 +24,8 @@ import {
   type Widget,
 } from "./spec";
 
-/** Preview of a template without body text. */
-export const EMPTY_TEMPLATE = "This template has no text.";
+/** The compose card's one line when it has no field, subject or recipient to show: a card needs a section. */
+export const NOTHING_TO_FILL = "This template has no fields to fill in.";
 export const FIELDS_LINE = "Fill in now, or leave blank and type in the draft.";
 export const REQUIRED_LINE =
   "Fill in the fields marked *. Leave the others blank to type them in the draft.";
@@ -36,19 +36,15 @@ export const REPLY_FIRST_NAME_HINT =
   "Leave blank to use the first name of the person you reply to, when known.";
 export const REPLY_TO_LINE =
   "A reply goes to the sender, so the template's To is not added. New email adds it.";
-export const SIGNATURE_LINE =
-  'Gmail adds your signature to replies only. In a new email, use "Insert signature" in its toolbar.';
 export const VERSION_CHANGED =
   "The template changed. Check the fields and press Insert again.";
 const FIRST_NAME_KEY = "{var}recipient.first_name";
 /** First item of every choice dropdown, value "0": not chosen (spec 5.10, Q93). */
 export const CHOOSE = "Choose...";
 
-/** What every details card shows: the template, its text, its subject and its recipients (spec 7.4 Flow B). */
+/** What every details card shows: the template, its subject and its recipients (spec 7.4 Flow B). */
 export interface DetailsView {
   readonly template: SidebarTemplate;
-  /** Plain-text preview, tokens as `[Label]`. */
-  readonly text: string;
   /** Subject preview, tokens as `[Label]`; "" when the template has none. */
   readonly subject: string;
   readonly plan: RecipientPlan;
@@ -198,10 +194,6 @@ function recipientSection(
   return widgets.length === 0 ? [] : [{ header: "Recipients", widgets }];
 }
 
-function previewSection(view: DetailsView): SectionSpec {
-  return { widgets: [line(view.text === "" ? EMPTY_TEMPLATE : view.text)] };
-}
-
 /** "Edit in library" only when the caller holds edit or manage on the folder. */
 function editButton(template: SidebarTemplate): ButtonSpec | null {
   return atLeast(template.level, "edit")
@@ -216,23 +208,22 @@ function editButton(template: SidebarTemplate): ButtonSpec | null {
 
 /**
  * Details card in the compose toolbar (spec 7.4 Flow B, wireframe 02): change line, Fields, subject switch,
- * Recipients, text preview; footer Insert (filled slate) and "Edit in library" at edit or manage.
+ * Recipients; footer Insert (filled slate) and "Edit in library" at edit or manage. No text preview (owner, 2026-11-17).
  */
 export function detailsCard(state: DetailsState): CardSpec {
   const { template } = state;
   const edit = editButton(template);
+  const sections: SectionSpec[] = [
+    ...(state.problem === "" ? [] : [{ widgets: [errorLine(state.problem)] }]),
+    ...fieldsSection(state, FIRST_NAME_HINT),
+    ...subjectSection(state),
+    ...recipientSection(state, state.addRecipients, true, []),
+  ];
   return {
     name: `details-${template.id}`,
     title: template.title,
-    sections: [
-      ...(state.problem === ""
-        ? []
-        : [{ widgets: [errorLine(state.problem)] }]),
-      ...fieldsSection(state, FIRST_NAME_HINT),
-      ...subjectSection(state),
-      ...recipientSection(state, state.addRecipients, true, []),
-      previewSection(state),
-    ],
+    sections:
+      sections.length > 0 ? sections : [{ widgets: [line(NOTHING_TO_FILL)] }],
     footer: {
       primary: {
         text: "Insert",
@@ -281,9 +272,9 @@ function panelActions(
 export type PanelEntry = Exclude<Entry, "compose">;
 
 /**
- * Details card in the side panel (ADR-0007 A2, wireframe 02): Fields, Recipients without the finish-typing line,
- * the signature line, the text, a button section, the hint last. The first two actions go in the fixed footer, the
- * rest in the button section. Q74 fallback (a footer compose button fails in Gmail): put every action in the section.
+ * Details card in the side panel (ADR-0007 A2, wireframe 02): Fields, Recipients without the finish-typing line, a
+ * button section, the hint last. No text preview and no signature line: New email carries the signature itself
+ * (owner, 2026-11-17). The first two actions go in the fixed footer, the rest in the button section. Q74 fallback (a footer compose button fails in Gmail): put every action in the section.
  */
 export function panelDetailsCard(
   state: DetailsState,
@@ -301,8 +292,6 @@ export function panelDetailsCard(
         entry === "message" ? REPLY_FIRST_NAME_HINT : null,
       ),
       ...recipientSection(state, state.addRecipients, false, toLine, reply),
-      { widgets: [hint(SIGNATURE_LINE)] },
-      previewSection(state),
       ...(rest.length === 0
         ? []
         : [{ widgets: [{ kind: "buttons", buttons: rest } as const] }]),

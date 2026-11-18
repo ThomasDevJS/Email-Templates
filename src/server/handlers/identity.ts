@@ -19,7 +19,7 @@ export function me(context: HandlerContext): {
   email: string;
   isAdmin: boolean;
   env: string;
-  personalTemplates: "on" | "off";
+  personalTemplates: "on" | "off" | "hidden";
   recipientsExternal: ExternalRule;
 } {
   const { subject, index } = context.access();

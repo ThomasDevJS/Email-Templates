@@ -7,6 +7,8 @@ import {
   TOKEN_PATTERN,
   parseText,
   promptKey,
+  fieldLabel,
+  markRequired,
   dateToken,
   choiceToken,
   promptToken,
@@ -661,5 +663,27 @@ describe("braces that join around a field (ADR-0004 Amendment 2026-11-12, Q78)",
 
   it("reports a {{ inside one literal once, by the leftover pass", () => {
     expect(codes("<p>{{ask:N}} {{x</p>")).toEqual(["PH_MALFORMED"]);
+  });
+});
+
+describe("required mark (spec 5.11)", () => {
+  it("leaves the mark out of the identity, so Load* and Load are one field", () => {
+    expect(promptKey("Load *")).toBe(promptKey("load"));
+    expect(fieldLabel("Load", "Load*")).toBe("Load*");
+    expect(fieldLabel("Load*", "Load")).toBe("Load*");
+    expect(markRequired("Load", true)).toBe("Load*");
+    expect(markRequired("Load *", false)).toBe("Load");
+  });
+
+  it("one field, required once any of its tokens is, in the card and in the saved prompt list", () => {
+    const html = "<p>{{ask:Load}} {{ask:Note}} {{ask:load*}}</p>";
+    expect(promptsFor(html, {}).map((field) => field.label)).toEqual([
+      "Load*",
+      "Note",
+    ]);
+    expect(scanBody(html).prompts).toEqual(["Load*", "Note"]);
+    expect(renderBody(html, { values: {}, answers: { load: "L7" } }).html).toBe(
+      "<p>L7 L7</p>",
+    );
   });
 });

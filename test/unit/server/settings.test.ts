@@ -190,22 +190,22 @@ describe("config.set", () => {
         set("on", "😀".repeat(50)),
         `Setting ${"😀".repeat(40)} does not exist.`,
       ],
-      [set("yes"), "Setting personalTemplates takes on or off."],
+      [set("yes"), "Setting personalTemplates takes on or off or hidden."],
       [
         { ...set("on"), baseAt: 1 },
-        "Setting personalTemplates takes on or off.",
+        "Setting personalTemplates takes on or off or hidden.",
       ],
       [
         set("on", "personalTemplates", "", "a".repeat(255)),
-        "Setting personalTemplates takes on or off.",
+        "Setting personalTemplates takes on or off or hidden.",
       ],
       [
         { name: "personalTemplates", value: "on" },
-        "Setting personalTemplates takes on or off.",
+        "Setting personalTemplates takes on or off or hidden.",
       ],
       [
         { ...set("on"), extra: 1 },
-        "Setting personalTemplates takes on or off.",
+        "Setting personalTemplates takes on or off or hidden.",
       ],
       [
         { ...set("on"), from: "off" },
@@ -531,5 +531,41 @@ describe("personal templates off: what each caller sees", () => {
     expect(fileIndex().folders.filter((x) => x.deletedAt === "")).toHaveLength(
       4,
     );
+  });
+});
+
+describe("personal templates hidden (owner, 2026-11-17)", () => {
+  const privateOf = (caller: string) =>
+    world
+      .ok<{ folders: Folder[] }>(caller, "folder.list")
+      .folders.filter((folder) => folder.kind === "private");
+
+  it("nobody sees a private folder or its templates, the owner and an admin included; On brings them back", () => {
+    setSetting(world, "personalTemplates", "on");
+    const [mine] = privateOf(ANA);
+    const item = world.ok<Item>(ANA, "template.create", {
+      folderId: mine?.id,
+      title: "Mine",
+      html: "<p>x</p>",
+    });
+    expect(privateOf(OWNER)).toHaveLength(2);
+
+    setSetting(world, "personalTemplates", "hidden");
+    expect(privateOf(ANA)).toEqual([]);
+    expect(privateOf(OWNER)).toEqual([]);
+    const home = world.ok<SidebarHome>(ANA, "sidebar.home");
+    expect(home.personalTemplates).toBe("hidden");
+    expect(home.templates).toEqual([]);
+    expect(errorOf(ANA, "template.apply", { id: item.id })).toMatchObject({
+      code: "DENIED",
+      message: OFF_TEXT,
+    });
+    expect(errorOf(OWNER, "template.get", { id: item.id }).code).toBe("DENIED");
+
+    setSetting(world, "personalTemplates", "on");
+    expect(privateOf(ANA).map((folder) => folder.id)).toEqual([mine?.id]);
+    expect(
+      world.ok<{ html: string }>(ANA, "template.get", { id: item.id }).html,
+    ).toBe("<p>x</p>");
   });
 });

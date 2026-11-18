@@ -46,7 +46,6 @@ export function view(fields: Partial<SidebarHome> = {}): SidebarHome {
 export function details(fields: Partial<DetailsState> = {}): DetailsState {
   return {
     template: template("T1"),
-    text: "Body",
     subject: "",
     plan: { added: NO_RECIPIENTS, notAdded: [], unknown: NO_RECIPIENTS },
     domain: "migway.com",

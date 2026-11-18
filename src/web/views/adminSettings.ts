@@ -115,8 +115,8 @@ function settingBlock(
   save.addEventListener("click", () => {
     if (busy) return;
     const value = chosen();
-    const { confirm } = texts;
-    if (value !== confirm?.value) {
+    const confirm = texts.confirms.find((entry) => entry.value === value);
+    if (confirm === undefined) {
       run(value);
       return;
     }

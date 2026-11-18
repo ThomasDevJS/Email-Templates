@@ -183,6 +183,8 @@ export function promptText(options: {
   hint?: string;
   value?: string;
   maxLength?: number;
+  /** Shown under the field, for example a checkbox the caller reads itself. */
+  extra?: Node;
   check: (value: string) => string;
 }): Promise<string | null> {
   return new Promise((resolve) => {
@@ -205,6 +207,7 @@ export function promptText(options: {
         "div",
         {},
         field(options.label, input, options.hint ?? ""),
+        options.extra ?? null,
         error,
       ),
       actions: [
@@ -244,6 +247,8 @@ export function promptChoice(options: {
   listHint: string;
   value?: { label: string; list: string };
   maxLength: number;
+  /** Shown under the fields, for example a checkbox the caller reads itself. */
+  extra?: Node;
   check: (label: string, list: string) => string;
 }): Promise<{ label: string; list: string } | null> {
   return new Promise((resolve) => {
@@ -269,6 +274,7 @@ export function promptChoice(options: {
         {},
         field(options.label, input, options.labelHint),
         field(options.listLabel, list, options.listHint),
+        options.extra ?? null,
         error,
       ),
       actions: [

@@ -16,7 +16,11 @@ import { SUBJECT_MAX } from "../../shared/placeholders/subject";
 import { scanBody } from "../../shared/placeholders/validate";
 import type { FolderRow, Me } from "../rpc/api";
 import { imageWidth, insertNode, newTable, setLink } from "../editor/commands";
-import { pickerItems, subjectPickerItems } from "../editor/picker";
+import {
+  editPlaceholder,
+  pickerItems,
+  subjectPickerItems,
+} from "../editor/picker";
 import { safeHref, schema } from "../editor/schema";
 import { backslashProblems } from "../editor/serialize";
 import { createEditor, type Editor } from "../editor/setup";
@@ -715,6 +719,9 @@ export function editorView(
         onChange: () => {
           if (editor !== null) toolbar.update(editor.view.state);
           updatePreview();
+        },
+        onEdit: (pos, attrs) => {
+          if (editor !== null) void editPlaceholder(editor, pos, attrs);
         },
         onBraces: () => {
           openPicker(toolbar.placeholder, () => {

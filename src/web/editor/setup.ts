@@ -15,7 +15,7 @@ import {
 } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { parseHtml } from "./load";
-import { schema } from "./schema";
+import { schema, type PlaceholderAttrs } from "./schema";
 import { serializeDoc } from "./serialize";
 
 /**
@@ -27,6 +27,8 @@ export interface EditorCallbacks {
   readonly onChange: () => void;
   readonly onBraces: () => void;
   readonly onLink: () => void;
+  /** A double-click on a placeholder chip: its position and attributes. */
+  readonly onEdit?: (pos: number, attrs: PlaceholderAttrs) => void;
 }
 
 /** The selection saved before a dialog opens. It follows later edits, so the insert lands where the user was. */
@@ -105,6 +107,12 @@ export function createEditor(
     attributes,
     // A caller with `use` only reads the body (spec 5.7 "who sets them").
     editable: () => !readOnly,
+    handleDoubleClickOn(_view, _pos, node, nodePos) {
+      if (readOnly || pageBusy(mount)) return false;
+      if (node.type !== schema.nodes["placeholder"]) return false;
+      callbacks.onEdit?.(nodePos, node.attrs as PlaceholderAttrs);
+      return true;
+    },
     dispatchTransaction(tr) {
       view.updateState(view.state.apply(tr));
       for (const mark of held) mark.bookmark = mark.bookmark.map(tr.mapping);

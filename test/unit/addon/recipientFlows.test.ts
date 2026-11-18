@@ -61,6 +61,7 @@ function ports(entry: Entry = "compose"): Ports {
     userEmail: ANA,
     execUrl: "https://script.google.com/macros/s/TEST/exec",
     entry,
+    signature: () => "",
     hash: (text) =>
       createHash("sha256").update(text).digest("hex").slice(0, 16),
     gmail: createRecordingGmail().gmail,
