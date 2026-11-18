@@ -13,6 +13,7 @@ import {
 import { domainOf } from "../shared/permissions/principals";
 import { subjectPreview } from "../shared/placeholders/preview";
 import {
+  keepBlankRows,
   promptsFor,
   renderBody,
   renderSubject,
@@ -430,7 +431,7 @@ export function rendered(
   input: RenderInput,
 ): { readonly html: string; readonly subject: string } {
   return {
-    html: renderBody(body.html, input).html,
+    html: renderBody(keepBlankRows(body.html), input).html,
     subject: renderSubject(body.subject, input).text,
   };
 }

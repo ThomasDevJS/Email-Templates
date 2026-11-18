@@ -17,6 +17,7 @@ import {
   type PromptType,
 } from "../../shared/placeholders/grammar";
 import {
+  keepBlankRows,
   promptsFor,
   renderBody,
   renderSubject,
@@ -66,7 +67,7 @@ function sampleAnswers(fields: readonly PromptField[]): Record<string, string> {
 export function previewAsMe(html: string, profile: Profile | null): string {
   const values = senderValues(profile);
   const answers = sampleAnswers(promptsFor(html, values));
-  return renderBody(html, { values, answers }).html;
+  return renderBody(keepBlankRows(html), { values, answers }).html;
 }
 
 /** Subject rendered the same way, as plain text (wireframe 04 "Preview as me subject"). */

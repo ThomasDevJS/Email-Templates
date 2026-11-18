@@ -2371,6 +2371,13 @@ table {
   display: none;
 }
 
+/* The three access level lines sit clear of the field hint above them. */
+.grant-form ul.hint {
+  margin-top: 16px;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+
 .transfer {
   max-width: 760px;
 }
